@@ -31,7 +31,7 @@ datasets = {
         "ggh_amcPS": "/eos/cms/store/mc/RunIISummer16NanoAODv6/GluGluHToMuMu_M125_TuneCP5_PSweights_13TeV_amcatnloFXFX_pythia8/NANOAODSIM/*/*/",
         "vbf_amcPS": "/eos/cms/store/mc/RunIISummer16NanoAODv6/VBFHToMuMu_M125_TuneCP5_PSweights_13TeV_amcatnlo_pythia8/NANOAODSIM/*/*/"
     
-    }
+    },
 
     "2017": {
         "data_B": "/eos/cms/store/data/Run2017B/SingleMuon/NANOAOD/Nano25Oct2019-v1/*/",    
@@ -40,7 +40,7 @@ datasets = {
         "data_E": "/eos/cms/store/data/Run2017E/SingleMuon/NANOAOD/Nano25Oct2019-v1/*/",
         "data_F": "/eos/cms/store/data/Run2017F/SingleMuon/NANOAOD/Nano25Oct2019-v1/*/",
     
-    }
+    },
 
     "2018": {
         "data_A": "/eos/cms/store/data/Run2018A/SingleMuon/NANOAOD/Nano25Oct2019-v1/*/",    
