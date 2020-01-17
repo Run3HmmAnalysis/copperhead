@@ -1,5 +1,5 @@
 cross_sections = {
-    "dy": 2075.14*3, # https://twiki.cern.ch/twiki/bin/viewauth/CMS/SummaryTable1G25ns; Pg 10: https://indico.cern.ch/event/746829/contributions/3138541/attachments/1717905/2772129/Drell-Yan_jets_crosssection.pdf 
+    "dy": 2026.96*3, #https://indico.cern.ch/event/841566/contributions/3565385/attachments/1914850/3165328/Drell-Yan_jets_crosssection_September2019.pdf 
     "dy_0j": 4620.52, #https://indico.cern.ch/event/673253/contributions/2756806/attachments/1541203/2416962/20171016_VJetsXsecsUpdate_PH-GEN.pdf
     "dy_1j": 859.59,
     "dy_2j": 338.26,
@@ -14,6 +14,7 @@ cross_sections = {
     "ggh_amcPS_TuneCP5up": 0.010571,
     "ggh_amc": 0.010571,
     "vbf": 0.000823,
+    "vbf_sync": 0.000823,
     "vbf_powheg_herwig": 0.000823,
     "vbf_powheg": 0.000823,
     "vbf_powhegPS": 0.000823,
