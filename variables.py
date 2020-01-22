@@ -46,6 +46,6 @@ variables.append(Variable("njets", "njets", 10, 0, 10))
 variables.append(Variable("npv", "npv", 50, 0, 50))
 variables.append(Variable("met", r"$E_{T}^{miss.}$ [GeV]", 100, 0, 200))
 
-variables.append(Variable("dnn_score", r"DNN score", 50, 0, 0.2))
+variables.append(Variable("dnn_score", r"DNN score", 50, 0, 1))
 
 variables.append(Variable("genweight", "genweight", 50, 0, 50))
