@@ -22,7 +22,6 @@ parameters["roccor_file"] = {
 }
 
 parameters.update({
-    "n_pv" : for_all_years(0),
     "event_flags" : for_all_years(['BadPFMuonFilter','EcalDeadCellTriggerPrimitiveFilter',\
                                    'HBHENoiseFilter','HBHENoiseIsoFilter','globalSuperTightHalo2016Filter',\
                                    'goodVertices','BadChargedCandidateFilter']),
@@ -43,7 +42,6 @@ parameters.update({
     "electron_pt_cut" : for_all_years(20.),
     "electron_eta_cut" : for_all_years(2.5),
     "electron_id" : for_all_years("mvaFall17V2Iso_WP90"),
-    "n_electrons" : for_all_years(0),
     
     "jet_pt_cut" : for_all_years(20.),
     "jet_eta_cut" : for_all_years(4.7),
