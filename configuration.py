@@ -25,6 +25,7 @@ parameters.update({
     "event_flags" : for_all_years(['BadPFMuonFilter','EcalDeadCellTriggerPrimitiveFilter',\
                                    'HBHENoiseFilter','HBHENoiseIsoFilter','globalSuperTightHalo2016Filter',\
                                    'goodVertices','BadChargedCandidateFilter']),
+    "do_l1prefiring_wgts" : {"2016": True, "2017": True, "2018": False}
 })
 
 parameters.update({
@@ -66,25 +67,13 @@ event_flags = ['Flag_BadPFMuonFilter','Flag_EcalDeadCellTriggerPrimitiveFilter',
                 'Flag_HBHENoiseFilter','Flag_HBHENoiseIsoFilter',
                 'Flag_globalSuperTightHalo2016Filter','Flag_goodVertices','Flag_BadChargedCandidateFilter']
 
-hlt_branches_2016 = ['HLT_IsoMu24', 'HLT_IsoTkMu24']
-hlt_branches_2017 = ['HLT_IsoMu27']
-hlt_branches_2018 = ['HLT_IsoMu24']
+branches_2016 = ['HLT_IsoMu24', 'HLT_IsoTkMu24', 'L1PreFiringWeight_Nom']
+branches_2017 = ['HLT_IsoMu27', 'L1PreFiringWeight_Nom']
+branches_2018 = ['HLT_IsoMu24', 'L1PreFiringWeight_Nom']
 
 proc_columns = event_branches + muon_branches + jet_branches + vtx_branches + other_branches + event_flags 
 parameters["proc_columns"] = {
-    "2016": proc_columns + hlt_branches_2016,
-    "2017": proc_columns + hlt_branches_2017,
-    "2018": proc_columns + hlt_branches_2018,
+    "2016": proc_columns + branches_2016,
+    "2017": proc_columns + branches_2017,
+    "2018": proc_columns + branches_2018,
 }
-    
-    
-    
-    
-    
-
-
-
-
-
-
-
