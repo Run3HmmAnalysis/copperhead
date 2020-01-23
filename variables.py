@@ -49,3 +49,5 @@ variables.append(Variable("met", r"$E_{T}^{miss.}$ [GeV]", 100, 0, 200))
 variables.append(Variable("dnn_score", r"DNN score", 50, 0, 1))
 
 variables.append(Variable("genweight", "genweight", 50, 0, 50))
+variables.append(Variable("event", "event", 1, 0, 1))
+variables.append(Variable("event_weight", "event_weight", 1, 0, 1))
