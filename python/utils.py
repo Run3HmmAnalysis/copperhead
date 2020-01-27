@@ -7,6 +7,8 @@ def read_via_xrootd(path, server):
     return result
 
 def apply_roccor(rochester, isData, muons):
+    import awkward
+    import numpy as np
     muons = muons.compact()
     corrections = muons.pt.ones_like()  
     if isData:
@@ -27,6 +29,7 @@ def apply_roccor(rochester, isData, muons):
     return corrections
 
 def p4_sum(obj1, obj2):
+    import numpy as np
     assert(obj1.shape==obj2.shape)
     px = np.zeros(obj1.shape[0])
     py = np.zeros(obj1.shape[0])
