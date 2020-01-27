@@ -1,5 +1,6 @@
 class Timer(object):
     def __init__(self, name="t"):
+        import time
         self.name = name
         self.time_dict = {}
         self.last_checkpoint = time.time()    
