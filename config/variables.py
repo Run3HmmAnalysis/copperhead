@@ -25,12 +25,12 @@ variables.append(Variable("mu2_eta", r"$\eta (\mu_{2})$", 100, -2.5, 2.5))
 variables.append(Variable("mu2_phi", r"$\phi (\mu_{2})$", 100, -3.2, 3.2))
 variables.append(Variable("mu2_iso", r"iso$(\mu2)$", 50, 0, 0.3))
 
-variables.append(Variable("jet1_pt", r"$p_{T}(jet1)$ [GeV]", 100, 20, 200))
+variables.append(Variable("jet1_pt", r"$p_{T}(jet1)$ [GeV]", 100, 0, 200))
 variables.append(Variable("jet1_eta", r"$\eta (jet1)$", 100, -4.7, 4.7))
 variables.append(Variable("jet1_phi", r"$\phi (jet1)$", 100, -3.2, 3.2))
 variables.append(Variable("jet1_qgl", r"$QGL (jet1)$", 10, 0, 1))
 
-variables.append(Variable("jet2_pt", r"$p_{T}(jet2)$ [GeV]", 100, 20, 150))
+variables.append(Variable("jet2_pt", r"$p_{T}(jet2)$ [GeV]", 100, 0, 150))
 variables.append(Variable("jet2_eta", r"$\eta (jet2)$", 100, -4.7, 4.7))
 variables.append(Variable("jet2_phi", r"$\phi (jet2)$", 100, -3.2, 3.2))
 variables.append(Variable("jet2_qgl", r"$QGL (jet2)$", 10, 0, 1))
@@ -51,3 +51,7 @@ variables.append(Variable("dnn_score", r"DNN score", 50, 0, 1))
 variables.append(Variable("genweight", "genweight", 50, 0, 50))
 variables.append(Variable("event", "event", 1, 0, 1))
 variables.append(Variable("event_weight", "event_weight", 1, 0, 1))
+
+
+vars_unbin = ['event', 'event_weight', 'dimuon_mass', 'dimuon_pt', 'dimuon_eta',\
+                   'dimuon_dEta', 'mu1_pt', 'mu2_pt']
