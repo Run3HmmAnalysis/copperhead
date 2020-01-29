@@ -13,12 +13,12 @@ import pandas as pd
 
 from python.utils import apply_roccor, p4_sum, get_regions
 from python.timer import Timer
-
+from python.samples_info import SamplesInfo
 
 # Look at ProcessorABC documentation to see the expected methods and what they are supposed to do
 # https://coffeateam.github.io/coffea/api/coffea.processor.ProcessorABC.html
 class DimuonProcessor(processor.ProcessorABC):
-    def __init__(self, mass_window=[70,150], samp_info=None, do_roccor=True, evaluate_dnn=True,\
+    def __init__(self, mass_window=[70,150], samp_info=SamplesInfo(), do_roccor=True, evaluate_dnn=True,\
                  do_timer=False): 
         from config.parameters import parameters
         from config.variables import variables, vars_unbin
