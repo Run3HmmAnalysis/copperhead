@@ -83,6 +83,7 @@ datasets = {
         "vbf_amc": "/store/mc/RunIIFall17NanoAODv6/VBFHToMuMu_M125_13TeV_amcatnlo_pythia8/",
         "vbf_amc_herwig": "/store/mc/RunIIFall17NanoAODv6/VBFHToMuMu_M-125_TuneEEC5_13TeV-amcatnlo-herwigpp/",
         "vbf_powheg_herwig": "/store/mc/RunIIFall17NanoAODv6/VBFHToMuMu_M-125_TuneEEC5_13TeV-powheg-herwigpp/",
+        
         "dy": "/store/mc/RunIIFall17NanoAODv6/DYJetsToLL_M-50_TuneCP5_13TeV-amcatnloFXFX-pythia8/",
         "dy_0j": "/store/mc/RunIIFall17NanoAODv6/DYJetsToLL_0J_TuneCP5_13TeV-amcatnloFXFX-pythia8/",
         "dy_1j": "/store/mc/RunIIFall17NanoAODv6/DYJetsToLL_1J_TuneCP5_13TeV-amcatnloFXFX-pythia8/",
@@ -166,6 +167,29 @@ datasets = {
     }
 }
 
+all_dy = {
+    "2016": ["dy", "dy_0j", "dy_1j", "dy_2j", "dy_m105_160_amc", "dy_m105_160_vbf_amc","dy_m105_160_mg", "dy_m105_160_vbf_mg"],
+    "2017": ["dy", "dy_0j", "dy_1j", "dy_2j", "dy_m105_160_amc", "dy_m105_160_vbf_amc","dy_m105_160_mg", "dy_m105_160_vbf_mg"],
+    "2018": ["dy", "dy_0j", "dy_1j", "dy_2j", "dy_m105_160_amc", "dy_m105_160_vbf_amc","dy_m105_160_mg", "dy_m105_160_vbf_mg"]
+}
+
+all_ewk = {
+    "2016": ["ewk_lljj_mll50_mjj120", "ewk_lljj_mll105_160"],
+    "2017": ["ewk_lljj_mll50_mjj120", "ewk_lljj_mll105_160", "ewk_lljj_mll105_160_ptj0"],
+    "2018": ["ewk_lljj_mll50_mjj120", "ewk_lljj_mll105_160"]
+}
+
+all_ggh = {
+    "2016": ["ggh_amcPS", "ggh_amcPS_TuneCP5down", "ggh_amcPS_TuneCP5up", "ggh_powheg", "ggh_powhegPS"],
+    "2017": ["ggh_amc", "ggh_amcPS", "ggh_amcPS_TuneCP5down", "ggh_amcPS_TuneCP5up", "ggh_powheg", "ggh_powhegPS"],
+    "2018": ["ggh_amcPS", "ggh_amcPS_TuneCP5down", "ggh_amcPS_TuneCP5up", "ggh_powhegPS"]
+}
+
+all_vbf = {
+    "2016": ["vbf_amcPS", "vbf_amcPS_TuneCP5down", "vbf_amcPS_TuneCP5up", "vbf_powheg", "vbf_powhegPS", "vbf_amc_herwig", "vbf_powheg_herwig"],
+    "2017": ["vbf_amc", "vbf_amcPS", "vbf_amcPS_TuneCP5down", "vbf_amcPS_TuneCP5up", "vbf_amc_herwig", "vbf_powheg_herwig"],
+    "2018": ["vbf_amcPS", "vbf_amcPS_TuneCP5down", "vbf_amcPS_TuneCP5up", "vbf_powhegPS"]
+}
 
 lumi_data = {
     "2016": {'lumi': 35860., 'events': 670277010}, # to be verified
