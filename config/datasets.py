@@ -28,7 +28,7 @@ datasets = {
         
         "ewk_lljj_mll50_mjj120": "/store/mc/RunIISummer16NanoAODv6/EWK_LLJJ_MLL-50_MJJ-120_13TeV-madgraph-herwigpp/",
         "ewk_lljj_mll105_160": "/store/mc/RunIISummer16NanoAODv6/EWK_LLJJ_MLL_105-160_SM_5f_LO_TuneEEC5_13TeV-madgraph-herwigpp/",
-
+        
         "st_tw_top": "/store/mc/RunIISummer16NanoAODv6/ST_tW_top_5f_NoFullyHadronicDecays_13TeV-powheg_TuneCUETP8M1/",
         "st_tw_antitop": "/store/mc/RunIISummer16NanoAODv6/ST_tW_antitop_5f_NoFullyHadronicDecays_13TeV-powheg_TuneCUETP8M1/",
 
@@ -97,6 +97,7 @@ datasets = {
         "ttz": "/store/mc/RunIIFall17NanoAODv6/TTZToLLNuNu_M-10_TuneCP5_PSweights_13TeV-amcatnlo-pythia8/",
         "ewk_lljj_mll50_mjj120": "/store/mc/RunIIFall17NanoAODv6/EWK_LLJJ_MLL-50_MJJ-120_TuneCH3_PSweights_13TeV-madgraph-herwig7/",
         "ewk_lljj_mll105_160": "/store/mc/RunIIFall17NanoAODv6/EWK_LLJJ_MLL_105-160_SM_5f_LO_TuneCH3_13TeV-madgraph-herwig7/",
+        "ewk_lljj_mll105_160_ptj0" : "/store/mc/RunIIFall17NanoAODv6/EWK_LLJJ_MLL_105-160_pTJ-0_SM_5f_LO_TuneCH3_13TeV-madgraph-herwig7/",
         "ww_2l2nu": "/store/mc/RunIIFall17NanoAODv6/WWTo2L2Nu_NNPDF31_TuneCP5_13TeV-powheg-pythia8/",
         "wz_3lnu": "/store/mc/RunIIFall17NanoAODv6/WZTo3LNu_13TeV-powheg-pythia8/",
         "wz_2l2q": "/store/mc/RunIIFall17NanoAODv6/WZTo2L2Q_13TeV_amcatnloFXFX_madspin_pythia8/",
