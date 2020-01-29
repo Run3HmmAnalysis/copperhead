@@ -21,6 +21,20 @@ parameters["roccor_file"] = {
     "2018": "data/roch_corr/RoccoR2018.txt",
 }
 
+# TODO: put correct links for 2017/18
+parameters["muSFFileList"] = for_all_years(
+         [{'id'   : ("data/muon_sf/EfficienciesStudies_2016_legacy_rereco_rootfiles_RunBCDEF_SF_ID.root", "NUM_TightID_DEN_genTracks_eta_pt"),
+          'iso'   : ("data/muon_sf/EfficienciesStudies_2016_legacy_rereco_rootfiles_RunBCDEF_SF_ISO.root", "NUM_TightRelIso_DEN_TightIDandIPCut_eta_pt"),
+          'trig'  : ("data/muon_sf/EfficienciesStudies_2016_trigger_EfficienciesAndSF_RunBtoF.root", "IsoMu24_OR_IsoTkMu24_PtEtaBins/abseta_pt_ratio"),
+          'scale' : 19.656062760/35.882515396},
+        {'id'     : ("data/muon_sf/EfficienciesStudies_2016_legacy_rereco_rootfiles_RunGH_SF_ID.root", "NUM_TightID_DEN_genTracks_eta_pt"),
+         'iso'   : ("data/muon_sf/EfficienciesStudies_2016_legacy_rereco_rootfiles_RunGH_SF_ISO.root", "NUM_TightRelIso_DEN_TightIDandIPCut_eta_pt"),
+         'trig'  : ("data/muon_sf/EfficienciesStudies_2016_trigger_EfficienciesAndSF_RunGtoH.root", "IsoMu24_OR_IsoTkMu24_PtEtaBins/abseta_pt_ratio"),
+         'scale' : 16.226452636/35.882515396}]
+)
+
+parameters['zpt_weights_file'] = for_all_years("data/zpt/zpt_weights.histo.json")
+
 parameters.update({
     "event_flags" : for_all_years(['BadPFMuonFilter','EcalDeadCellTriggerPrimitiveFilter',\
                                    'HBHENoiseFilter','HBHENoiseIsoFilter','globalSuperTightHalo2016Filter',\
