@@ -4,16 +4,25 @@ import mplhep as hep
 
 class Plotter(object):
     def __init__(self, **kwargs):
+        self.map={}
+        self.merge_files=True
         self.__dict__.update(kwargs)
-        self.accumulators = self.processor.accumulator.identity()
+        if self.merge_files:
+            self.files = self.samples
+            self.accumulators = self.processor.accumulator.identity()
+        else:
+            self.accumulators = {}
         self.load_data()
         
     def load_data(self):
         from coffea import util
-        for s in self.samples:
-            out_path = f"{self.path}/test_dask_{s}.coffea"
+        for s in self.files:
+            out_path = f"{self.path}/{self.prefix}{s}.coffea"
             try:
-                self.accumulators = self.accumulators+util.load(out_path)
+                if self.merge_files:
+                    self.accumulators = self.accumulators+util.load(out_path)
+                else:
+                    self.accumulators[s] = util.load(out_path)
                 print(f"Loading output from {out_path}")
             except:
                 print(f"Outputs for {s} not found in {self.path}!")
@@ -23,7 +32,6 @@ class Plotter(object):
         
     def make_shape_comparison(self, do_inclusive, do_exclusive):
         self.make_plots(do_inclusive, do_exclusive, do_shapes=True)
-        
 
     def make_plots(self, do_inclusive, do_exclusive, do_data_mc=False, do_shapes=False):
         import matplotlib.pyplot as plt
@@ -35,7 +43,7 @@ class Plotter(object):
         grid = gridspec.GridSpec(nplots_y, nplots_x, hspace = .3) 
 
         fig = plt.figure()
-        plotsize=10 
+        plotsize=12
         if do_data_mc:
             ratio_plot_size=0.25
         else:
@@ -171,22 +179,36 @@ class Plotter(object):
 
         plots = {}
 
-        if inclusive:
-            accumulators_copy = self.accumulators[var].sum('region')[:,channel].copy()
-            for s in samples:
-                plots[s] = accumulators_copy[s].sum('channel')
+        if self.merge_files:        
+            if inclusive:
+                accumulators_copy = self.accumulators[var].sum('region')[:,channel].copy()
+                for s in samples:
+                    plots[s] = accumulators_copy[s].sum('channel')
+
+            else:
+                accumulators_copy = self.accumulators[var][:,region, channel].copy()
+                for s in samples:
+                    plots[s] = accumulators_copy[s].sum('region').sum('channel')
 
         else:
-            accumulators_copy = self.accumulators[var][:,region, channel].copy()
-            for s in samples:
-                plots[s] = accumulators_copy[s].sum('region').sum('channel')
+            accumulators_copy = []
+            for src, acc in self.accumulators.items():
+                if inclusive:                
+                    acc_copy = acc[var].sum('region')[:,channel].copy()
+                    for s in samples:
+                        plots[f"{src}_{s}"] = acc_copy[s].sum('channel').group('dataset', hist.Cat("dataset", "Dataset"), {src:s})
 
+                else:
+                    acc_copy = acc[var][:,region, channel].copy()
+                    for s in samples:
+                        plots[f"{src}_{s}"] = acc_copy[s].sum('region').sum('channel').group('dataset', hist.Cat("dataset", "Dataset"), {src:s})
 
         valid = {}            
-        for s in samples:
+        for s in plots.keys():
             valid[s] = plots[s].sum(var).sum('dataset').values()
             if valid[s]:
                 integral = plots[s].sum(var).sum('dataset').values()[()]
+                print(f"{s}: {integral}")
                 if integral:
                     plots[s].scale(1/integral)
             else:
@@ -199,11 +221,12 @@ class Plotter(object):
         plt1 = fig.add_subplot(gs)
         axes = {}
         colors = ['r', 'g', 'b']
-        for i, s in enumerate(samples):
+        for i, s in enumerate(plots.keys()):
             if valid[s]:
-                axes[s] = hist.plot1d(plots[s], overlay='dataset', overflow='all', line_opts={'linewidth':2, 'color':colors[i]}, error_opts=None) 
+                axes[s] = hist.plot1d(plots[s], overlay='dataset', overflow='all',\
+                                      line_opts={'linewidth':2, 'color':colors[i]}, error_opts=None) 
         plt1.set_yscale('log')
-        plt1.set_ylim(0.001, 1)
+        plt1.set_ylim(0.0001, 1)
         lbl = hep.cms.cmslabel(plt1, data=False, paper=False, year=year)
         plt1.set_xlabel(var)
         plt1.legend(prop={'size': 'small'})
