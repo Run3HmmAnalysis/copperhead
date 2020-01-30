@@ -258,18 +258,25 @@ class DimuonProcessor(processor.ProcessorABC):
         if self.do_fsr:
             mu = df.Muon[df.Muon.pt > self.parameters["muon_pt_cut"]]
             fsr = df.FsrPhoton
- 
-            correct_muon_with_fsr(mu.counts2offsets(mu.counts),\
-                                  fsr.counts2offsets(fsr.counts),\
-                                  mu.pt.flatten(),\
-                                  mu.eta.flatten(),\
-                                  mu.phi.flatten(),\
-                                  mu.mass.flatten(),\
-                                  mu.pfRelIso04_all.flatten(),\
-                                  mu.fsrPhotonIdx.flatten(),\
-                                  fsr.pt.flatten(),\
-                                  fsr.eta.flatten(),\
-                                  fsr.phi.flatten()) 
+            muons_pt = mu.pt.flatten()
+            muons_eta = mu.eta.flatten()
+            muons_phi = mu.phi.flatten()
+            muons_mass = mu.mass.flatten()
+            muons_iso = mu.pfRelIso04_all.flatten()
+            muons_fsrIndex = mu.fsrPhotonIdx.flatten()
+            muons_offsets = mu.counts2offsets(mu.counts)
+
+            fsr_pt = fsr.pt.flatten()
+            fsr_eta = fsr.eta.flatten()
+            fsr_phi = fsr.phi.flatten()
+            fsr_offsets =fsr.counts2offsets(fsr.counts)
+
+            correct_muon_with_fsr(muons_offsets, fsr_offsets,\
+                                  muons_pt, muons_eta, muons_phi,\
+                                  muons_mass, muons_iso,\
+                                  muons_fsrIndex, fsr_pt, fsr_eta,\
+                                  fsr_phi) 
+
 
             muons = JaggedCandidateArray.candidatesfromcounts(
                 mu.counts,
