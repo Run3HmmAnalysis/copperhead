@@ -334,19 +334,19 @@ class DimuonProcessor(processor.ProcessorABC):
         if self.do_roccor:
             mu1 = JaggedCandidateArray.candidatesfromcounts(
                 np.ones(mu1.pt.shape),
-                pt=mu1.pt.content*apply_roccor(self.rochester, isData, mu1).flatten(),
-                eta=mu1.eta.content,
-                phi=mu1.phi.content,
-                mass=mu1.mass.content,
-                pfRelIso04_all=mu1.pfRelIso04_all.content
+                pt=mu1.pt.flatten()*apply_roccor(self.rochester, isData, mu1).flatten(),
+                eta=mu1.eta.flatten(),
+                phi=mu1.phi.flatten(),
+                mass=mu1.mass.flatten(),
+                pfRelIso04_all=mu1.pfRelIso04_all.flatten()
             )
             mu2 = JaggedCandidateArray.candidatesfromcounts(
                 np.ones(mu2.pt.shape),
-                pt=mu2.pt.content*apply_roccor(self.rochester, isData, mu2).flatten(),
-                eta=mu2.eta.content,
-                phi=mu2.phi.content,
-                mass=mu2.mass.content,
-                pfRelIso04_all=mu2.pfRelIso04_all.content
+                pt=mu2.pt.flatten()*apply_roccor(self.rochester, isData, mu2).flatten(),
+                eta=mu2.eta.flatten(),
+                phi=mu2.phi.flatten(),
+                mass=mu2.mass.flatten(),
+                pfRelIso04_all=mu2.pfRelIso04_all.flatten()
             )
             if self.timer:
                 self.timer.add_checkpoint("Applied Rochester")
@@ -372,15 +372,14 @@ class DimuonProcessor(processor.ProcessorABC):
                                    muons[self.parameters["muon_trigmatch_id"]]]
         
         
-        if self.do_fsr: # JCA are not well compatible with nanoAOD columns...
-            # this needs some work - temporarily disabling trigger matching
+        if self.do_fsr:
             trig_muons = JaggedCandidateArray.candidatesfromcounts(
                     df.TrigObj.counts,
-                    pt=df.TrigObj.pt.content,
-                    eta=df.TrigObj.eta.content,
-                    phi=df.TrigObj.phi.content,
-                    mass=df.TrigObj.mass.content,
-                    id=df.TrigObj.id.content
+                    pt=df.TrigObj.pt.flatten(),
+                    eta=df.TrigObj.eta.flatten(),
+                    phi=df.TrigObj.phi.flatten(),
+                    mass=df.TrigObj.mass.flatten(),
+                    id=df.TrigObj.id.flatten()
                 )
             trig_muons = trig_muons[trig_muons.id == 13]
             muTrig = mu_pass_leading_pt.cross(trig_muons, nested = True)
@@ -396,7 +395,7 @@ class DimuonProcessor(processor.ProcessorABC):
 
         
         dimuon_filter = ((mu1.pt>self.parameters["muon_leading_pt"]) &\
-                         #trig_matched &\
+                         trig_matched &\
                          (dimuon_mass > self.mass_window[0]) & (dimuon_mass < self.mass_window[1])).flatten()
         if not isData:
             muID = self.mu_id_sf(muons.eta.compact(), muons.pt.compact())
@@ -428,16 +427,15 @@ class DimuonProcessor(processor.ProcessorABC):
 
                  
         if self.do_fsr:
-            # Doesn't work correctly!
             jet = JaggedCandidateArray.candidatesfromcounts(
                     df.Jet.counts,
-                    pt=df.Jet.pt.content,
-                    eta=df.Jet.eta.content,
-                    phi=df.Jet.phi.content,
-                    mass=df.Jet.mass.content,
-                    qgl=df.Jet.qgl.content,
-                    jetId=df.Jet.jetId.content,
-                    puId=df.Jet.puId.content,
+                    pt=df.Jet.pt.flatten(),
+                    eta=df.Jet.eta.flatten(),
+                    phi=df.Jet.phi.flatten(),
+                    mass=df.Jet.mass.flatten(),
+                    qgl=df.Jet.qgl.flatten(),
+                    jetId=df.Jet.jetId.flatten(),
+                    puId=df.Jet.puId.flatten(),
                 )
             mujet = jet.cross(muons, nested=True)
             deltar_mujet = delta_r(mujet.i0, mujet.i1)
@@ -476,11 +474,7 @@ class DimuonProcessor(processor.ProcessorABC):
         # Jet selection
         jet_selection = ((df.Jet.pt > self.parameters["jet_pt_cut"]) &\
                          (abs(df.Jet.eta) < self.parameters["jet_eta_cut"]) &\
-                         jet_id & jet_puid & (df.Jet.qgl > -2))
-        
-        # To fix: a problem caused by FSR recovery (mismatching formats of muons and jets)
-                        # & deltar_mujet_ok 
-                        #)
+                         jet_id & jet_puid & (df.Jet.qgl > -2) & deltar_mujet_ok)
 
         jet_puid = jet_puid[jet_selection]
         jets = df.Jet[jet_selection]
@@ -565,10 +559,10 @@ class DimuonProcessor(processor.ProcessorABC):
         dijet_mask[two_jets] = 2
         dijet_jca = JaggedCandidateArray.candidatesfromcounts(
             dijet_mask,
-            pt=dijet_pairs.pt.content,
-            eta=dijet_pairs.eta.content,
-            phi=dijet_pairs.phi.content,
-            mass=dijet_pairs.mass.content,
+            pt=dijet_pairs.pt.flatten(),
+            eta=dijet_pairs.eta.flatten(),
+            phi=dijet_pairs.phi.flatten(),
+            mass=dijet_pairs.mass.flatten(),
         )
         
         dijet = dijet_jca.distincts()
