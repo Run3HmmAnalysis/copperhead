@@ -309,29 +309,42 @@ class DimuonProcessor(processor.ProcessorABC):
         deltar_mujet = mujet.i0.delta_r(mujet.i1)
         deltar_mujet_ok =  (deltar_mujet > self.parameters["min_dr_mu_jet"]).all()
         
-        # 2016: loose jetId, loose piId 
+        # Jet ID
         if "loose" in self.parameters["jet_id"]:
             jet_id = (df.Jet.jetId >= 1)
         elif "tight" in self.parameters["jet_id"]:
-            jet_id = (df.Jet.jetId >= 1)
+            if '2016' in self.year:
+                jet_id = (df.Jet.jetId >= 3)
+            else:
+                jet_id = (df.Jet.jetId >= 2)
         else:
             jet_id = df.Jet.ones_like()
-            
-        if "loose" in self.parameters["jet_puid"]:
-            jet_puid = (((df.Jet.puId >= 4) & (df.Jet.pt < 50)) | (df.Jet.pt > 50))
+
+        # Jet PU ID
+        jet_puid_wps = {
+            "loose": (((df.Jet.puId >= 4) & (df.Jet.pt < 50)) | (df.Jet.pt > 50)),
+            "medium": (((df.Jet.puId >= 4) & (df.Jet.pt < 50)) | (df.Jet.pt > 50)),
+            "tight": (((df.Jet.puId >= 4) & (df.Jet.pt < 50)) | (df.Jet.pt > 50)),
+        }
+        if self.parameters["jet_puid"] in ["loose", "medium", "tight"]:
+            jet_puid = jet_puid_wps[self.parameters["jet_puid"]]
+        elif "2017corrected" in self.parameters["jet_puid"]:
+            eta_window = (abs(df.Jet.eta)>2.6)&(abs(df.Jet.eta)<3.0)
+            jet_puid = (eta_window & jet_puid_wps['tight']) | (~eta_window & jet_puid_wps['loose'])
         else:
             jet_puid = df.Jet.ones_like()
-            
+          
+        # Jet selection
         jet_selection = ((df.Jet.pt > self.parameters["jet_pt_cut"]) &\
                          (abs(df.Jet.eta) < self.parameters["jet_eta_cut"]) &\
                          jet_id & jet_puid & (df.Jet.qgl > -2) & deltar_mujet_ok )
-        
-        # TODO: check jet selections
-        
+                
         jets = df.Jet[jet_selection]
-        # check if there should be this eta<2.5 cut 
+
         nBtagLoose = jets[(jets.btagDeepB>self.parameters["btag_loose_wp"]) & (abs(jets.eta)<2.5)].counts
         nBtagMedium = jets[(jets.btagDeepB>self.parameters["btag_medium_wp"])  & (abs(jets.eta)<2.5)].counts
+        
+        # Separate from ttH and VH phase space
         jet_filter = ((nBtagLoose<2)&(nBtagMedium<1))
 
         # Filter 3: Jet filter

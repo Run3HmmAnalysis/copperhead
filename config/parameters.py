@@ -61,7 +61,7 @@ parameters.update({
     "jet_pt_cut" : for_all_years(20.),
     "jet_eta_cut" : for_all_years(4.7),
     "jet_id" : {"2016": "loose", "2017": "tight", "2018": "tight"},
-    "jet_puid" : for_all_years("loose"),
+    "jet_puid" : {"2016": "loose", "2017": "2017corrected", "2018": "loose"},
     
     "min_dr_mu_jet": for_all_years(0.4),
     
