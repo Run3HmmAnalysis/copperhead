@@ -34,6 +34,7 @@ parameters["muSFFileList"] = for_all_years(
 )
 
 parameters['zpt_weights_file'] = for_all_years("data/zpt/zpt_weights.histo.json")
+parameters['puid_sf_file'] = for_all_years("data/puid_sf/PUIDMaps.root")
 
 parameters.update({
     "event_flags" : for_all_years(['BadPFMuonFilter','EcalDeadCellTriggerPrimitiveFilter',\

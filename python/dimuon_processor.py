@@ -1,6 +1,5 @@
-
 from coffea import hist, util
-from coffea.analysis_objects import JaggedCandidateArray
+from coffea.analysis_objects import JaggedCandidateArray, JaggedCandidateMethods
 import coffea.processor as processor
 from coffea.lookup_tools import extractor, dense_lookup, txt_converters, rochester_lookup
 from coffea.lumi_tools import LumiMask
@@ -15,10 +14,70 @@ from python.utils import apply_roccor, p4_sum, get_regions
 from python.timer import Timer
 from python.samples_info import SamplesInfo
 
+def delta_r(obj1, obj2):
+    deta = obj1.eta - obj2.eta
+    dphi = np.mod(obj1.phi - obj2.phi + np.pi, 2*np.pi) - np.pi
+    dr = np.sqrt(deta**2 + dphi**2)
+    return dr
+    
+# https://github.com/jpata/hepaccelerate-cms/blob/f5965648f8a7861cb9856d0b5dd34a53ed42c027/tests/hmm/hmumu_utils.py#L1396
+@numba.njit(parallel=True)
+def correct_muon_with_fsr(muons_offsets, fsr_offsets, muons_pt, muons_eta, muons_phi,\
+                          muons_mass, muons_iso, muons_fsrIndex,
+                            fsr_pt, fsr_eta, fsr_phi):    
+    for iev in numba.prange(len(muons_offsets) - 1):
+        #loop over muons in event
+        mu_first = muons_offsets[iev]
+        mu_last = muons_offsets[iev + 1]
+        for imu in range(mu_first, mu_last):
+            #relative FSR index in the event
+            fsr_idx_relative = muons_fsrIndex[imu]
+
+            if (fsr_idx_relative >= 0) and (muons_pt[imu]>20):
+                #absolute index in the full FSR vector for all events
+                ifsr = fsr_offsets[iev] + fsr_idx_relative
+                mu_kin = {"pt": muons_pt[imu], "eta": muons_eta[imu], "phi": muons_phi[imu], "mass": muons_mass[imu]}
+                fsr_kin = {"pt": fsr_pt[ifsr], "eta": fsr_eta[ifsr], "phi": fsr_phi[ifsr],"mass": 0}
+
+                # dR between muon and photon
+                deta = muons_eta[imu] - fsr_eta[ifsr]
+                dphi = np.mod(muons_phi[imu] - fsr_phi[ifsr] + np.pi, 2*np.pi) - np.pi
+                dr = np.sqrt(deta**2 + dphi**2)
+
+                update_iso = dr<0.4
+
+                #reference: https://gitlab.cern.ch/uhh-cmssw/fsr-photon-recovery/tree/master
+                if update_iso:
+                    muons_iso[imu] = (muons_iso[imu]*muons_pt[imu] - fsr_pt[ifsr])/muons_pt[imu]
+                    
+                #compute and set corrected momentum
+                px_total = 0
+                py_total = 0
+                pz_total = 0
+                e_total = 0
+                for obj in [mu_kin, fsr_kin]:
+                    px = obj["pt"] * np.cos(obj["phi"])
+                    py = obj["pt"] * np.sin(obj["phi"])
+                    pz = obj["pt"] * np.sinh(obj["eta"])
+                    e = np.sqrt(px**2 + py**2 + pz**2 + obj["mass"]**2)
+                    px_total += px
+                    py_total += py
+                    pz_total += pz
+                    e_total += e
+                out_pt = np.sqrt(px_total**2 + py_total**2)
+                out_eta = np.arcsinh(pz_total / out_pt)
+                out_phi = np.arctan2(py_total, px_total)
+
+                muons_pt[imu] = out_pt
+                muons_eta[imu] = out_eta
+                muons_phi[imu] = out_phi
+
+#    return  muons_pt, muons_eta, muons_phi, muons_mass, muons_iso
+    
 # Look at ProcessorABC documentation to see the expected methods and what they are supposed to do
 # https://coffeateam.github.io/coffea/api/coffea.processor.ProcessorABC.html
 class DimuonProcessor(processor.ProcessorABC):
-    def __init__(self, mass_window=[70,150], samp_info=SamplesInfo(), do_roccor=True, evaluate_dnn=True,\
+    def __init__(self, mass_window=[70,150], samp_info=SamplesInfo(), do_roccor=True, do_fsr=False, evaluate_dnn=True,\
                  do_timer=False): 
         from config.parameters import parameters
         from config.variables import variables, vars_unbin
@@ -29,6 +88,7 @@ class DimuonProcessor(processor.ProcessorABC):
 
         self.mass_window = mass_window
         self.do_roccor = do_roccor
+        self.do_fsr = do_fsr
         self.evaluate_dnn = evaluate_dnn
 
         self.parameters = {k:v[self.year] for k,v in parameters.items()}
@@ -109,11 +169,17 @@ class DimuonProcessor(processor.ProcessorABC):
         self.mu_trig_sf = dense_lookup.dense_lookup(mu_trig_vals, mu_trig_edges)
         self.mu_trig_err = dense_lookup.dense_lookup(mu_trig_err, mu_trig_edges)    
 
-        self.extractor = extractor()
+        
         zpt_filename = self.parameters['zpt_weights_file']
+        puid_filename = self.parameters['puid_sf_file']
+        
+        self.extractor = extractor()
         self.extractor.add_weight_sets([f"* * {zpt_filename}"])
+        self.extractor.add_weight_sets([f"* * {puid_filename}"])
+
         self.extractor.finalize()
         self.evaluator = self.extractor.make_evaluator()
+        
         if '2016' in self.year:
             self.zpt_path = 'zpt_weights/2016_value'
         else:
@@ -139,12 +205,10 @@ class DimuonProcessor(processor.ProcessorABC):
     
     def process(self, df):
         # TODO: Properly calculate integrated luminosity
-        # TODO: Add FSR recovery
         # TODO: verify PU weigths (ask at https://github.com/dnoonan08/TTGamma_LongExercise)
         # TODO: generate lepton SF for 2017/2018
         # TODO: NNLOPS reweighting (ggH)
         # TODO: btag sf
-        # TODO: jet PU ID sf (copy-paste my code from hepaccelerate)
         # TODO: compute dimuon_costhetaCS, dimuon_phiCS
         # TODO: compute nsoftjets
         # TODO: JEC, JER
@@ -179,7 +243,7 @@ class DimuonProcessor(processor.ProcessorABC):
         hlt = np.zeros(nEvts, dtype=bool)
         for hlt_path in self.parameters['hlt']:
             hlt = hlt | df.HLT[hlt_path]
-
+            
         mask = hlt & lumimask
     
         # Filter 0: HLT & lumimask
@@ -189,20 +253,54 @@ class DimuonProcessor(processor.ProcessorABC):
         if self.timer:
             self.timer.add_checkpoint("Applied HLT and lumimask")
         #--------------------------------# 
-            
+        
+        # FSR recovery
+        if self.do_fsr:
+            mu = df.Muon[df.Muon.pt > self.parameters["muon_pt_cut"]]
+            fsr = df.FsrPhoton
+ 
+            correct_muon_with_fsr(mu.counts2offsets(mu.counts),\
+                                  fsr.counts2offsets(fsr.counts),\
+                                  mu.pt.flatten(),\
+                                  mu.eta.flatten(),\
+                                  mu.phi.flatten(),\
+                                  mu.mass.flatten(),\
+                                  mu.pfRelIso04_all.flatten(),\
+                                  mu.fsrPhotonIdx.flatten(),\
+                                  fsr.pt.flatten(),\
+                                  fsr.eta.flatten(),\
+                                  fsr.phi.flatten()) 
+
+            muons = JaggedCandidateArray.candidatesfromcounts(
+                mu.counts,
+                pt=muons_pt,
+                eta=muons_eta,
+                phi=muons_phi,
+                mass=muons_mass,
+                pfRelIso04_all=muons_iso,    
+                charge=mu.charge.flatten(),
+                mediumId=mu.mediumId.flatten(),
+                tightId=mu.tightId.flatten(),
+                isGlobal=mu.isGlobal.flatten(),
+                isTracker=mu.isTracker.flatten(),
+                matched_gen=mu.matched_gen.flatten(),
+                nTrackerLayers=mu.nTrackerLayers.flatten(),
+            )
+        else:
+            muons = df.Muon[df.Muon.pt > self.parameters["muon_pt_cut"]]
+        
         pass_event_flags = np.ones(df.shape[0], dtype=bool)
         for flag in self.parameters["event_flags"]:
             pass_event_flags = pass_event_flags & df.Flag[flag]
         
         pass_muon_flags = np.ones(df.shape[0], dtype=bool)
         for flag in self.parameters["muon_flags"]:
-            pass_muon_flags = pass_muon_flags & df.Muon[flag]
-        
-        muons = df.Muon[(df.Muon.pt > self.parameters["muon_pt_cut"]) &\
-                        (abs(df.Muon.eta) < self.parameters["muon_eta_cut"]) &\
-                        (df.Muon.pfRelIso04_all < self.parameters["muon_iso_cut"]) &\
-                        df.Muon[self.parameters["muon_id"]] & pass_muon_flags]            
-                    
+            pass_muon_flags = pass_muon_flags & muons[flag]
+
+        muons = muons[(abs(muons.eta) < self.parameters["muon_eta_cut"]) &\
+                        (muons.pfRelIso04_all < self.parameters["muon_iso_cut"]) &\
+                        muons[self.parameters["muon_id"]] & pass_muon_flags]            
+
         two_os_muons = ((muons.counts == 2) & (muons['charge'].prod() == -1))
         
         electrons = df.Electron[(df.Electron.pt > self.parameters["electron_pt_cut"]) &\
@@ -265,17 +363,34 @@ class DimuonProcessor(processor.ProcessorABC):
         mu_pass_leading_pt = muons[(muons.pt > self.parameters["muon_leading_pt"]) &\
                                    (muons.pfRelIso04_all < self.parameters["muon_trigmatch_iso"]) &\
                                    muons[self.parameters["muon_trigmatch_id"]]]
-        trig_muons = df.TrigObj[df.TrigObj.id == 13]
-        muTrig = mu_pass_leading_pt.cross(trig_muons, nested = True)
-        matched = (muTrig.i0.delta_r(muTrig.i1) < self.parameters["muon_trigmatch_dr"])
+        
+        
+        if self.do_fsr: # JCA are not well compatible with nanoAOD columns...
+            # this needs some work - temporarily disabling trigger matching
+            trig_muons = JaggedCandidateArray.candidatesfromcounts(
+                    df.TrigObj.counts,
+                    pt=df.TrigObj.pt.content,
+                    eta=df.TrigObj.eta.content,
+                    phi=df.TrigObj.phi.content,
+                    mass=df.TrigObj.mass.content,
+                    id=df.TrigObj.id.content
+                )
+            trig_muons = trig_muons[trig_muons.id == 13]
+            muTrig = mu_pass_leading_pt.cross(trig_muons, nested = True)
+            dr = delta_r(muTrig.i0, muTrig.i1)
+            matched = (dr < self.parameters["muon_trigmatch_dr"])
+        else:
+            trig_muons = df.TrigObj[df.TrigObj.id == 13]        
+            muTrig = mu_pass_leading_pt.cross(trig_muons, nested = True)
+            matched = (muTrig.i0.delta_r(muTrig.i1) < self.parameters["muon_trigmatch_dr"])
 
         # at least one muon matched with L3 object, and that muon passes pt, iso and id cuts
         trig_matched = (mu_pass_leading_pt[matched.any()].counts>0)
 
         
-        dimuon_filter = ((mu1.pt>self.parameters["muon_leading_pt"]) & trig_matched &\
+        dimuon_filter = ((mu1.pt>self.parameters["muon_leading_pt"]) &\
+                         #trig_matched &\
                          (dimuon_mass > self.mass_window[0]) & (dimuon_mass < self.mass_window[1])).flatten()
-
         if not isData:
             muID = self.mu_id_sf(muons.eta.compact(), muons.pt.compact())
             muIso = self.mu_iso_sf(muons.eta.compact(), muons.pt.compact())
@@ -304,9 +419,24 @@ class DimuonProcessor(processor.ProcessorABC):
             self.timer.add_checkpoint("Applied dimuon cuts")
         #--------------------------------#   
 
-                            
-        mujet = df.Jet.cross(muons, nested=True)
-        deltar_mujet = mujet.i0.delta_r(mujet.i1)
+                 
+        if self.do_fsr:
+            # Doesn't work correctly!
+            jet = JaggedCandidateArray.candidatesfromcounts(
+                    df.Jet.counts,
+                    pt=df.Jet.pt.content,
+                    eta=df.Jet.eta.content,
+                    phi=df.Jet.phi.content,
+                    mass=df.Jet.mass.content,
+                    qgl=df.Jet.qgl.content,
+                    jetId=df.Jet.jetId.content,
+                    puId=df.Jet.puId.content,
+                )
+            mujet = jet.cross(muons, nested=True)
+            deltar_mujet = delta_r(mujet.i0, mujet.i1)
+        else:
+            mujet = df.Jet.cross(muons, nested=True)
+            deltar_mujet = mujet.i0.delta_r(mujet.i1)
         deltar_mujet_ok =  (deltar_mujet > self.parameters["min_dr_mu_jet"]).all()
         
         # Jet ID
@@ -321,30 +451,56 @@ class DimuonProcessor(processor.ProcessorABC):
             jet_id = df.Jet.ones_like()
 
         # Jet PU ID
+        jet_puid_opt = self.parameters["jet_puid"]
         jet_puid_wps = {
             "loose": (((df.Jet.puId >= 4) & (df.Jet.pt < 50)) | (df.Jet.pt > 50)),
             "medium": (((df.Jet.puId >= 4) & (df.Jet.pt < 50)) | (df.Jet.pt > 50)),
             "tight": (((df.Jet.puId >= 4) & (df.Jet.pt < 50)) | (df.Jet.pt > 50)),
         }
-        if self.parameters["jet_puid"] in ["loose", "medium", "tight"]:
-            jet_puid = jet_puid_wps[self.parameters["jet_puid"]]
-        elif "2017corrected" in self.parameters["jet_puid"]:
+        if jet_puid_opt in ["loose", "medium", "tight"]:
+            jet_puid = jet_puid_wps[jet_puid_opt]
+        elif "2017corrected" in jet_puid_opt:
             eta_window = (abs(df.Jet.eta)>2.6)&(abs(df.Jet.eta)<3.0)
             jet_puid = (eta_window & jet_puid_wps['tight']) | (~eta_window & jet_puid_wps['loose'])
+            jet_puid_opt = "loose" # for sf evaluation
         else:
             jet_puid = df.Jet.ones_like()
           
         # Jet selection
         jet_selection = ((df.Jet.pt > self.parameters["jet_pt_cut"]) &\
                          (abs(df.Jet.eta) < self.parameters["jet_eta_cut"]) &\
-                         jet_id & jet_puid & (df.Jet.qgl > -2) & deltar_mujet_ok )
-                
+                         jet_id & jet_puid & (df.Jet.qgl > -2))
+        
+        # To fix: a problem caused by FSR recovery (mismatching formats of muons and jets)
+                        # & deltar_mujet_ok 
+                        #)
+
+        jet_puid = jet_puid[jet_selection]
         jets = df.Jet[jet_selection]
 
+        # Jet PUID scale factors
+        wp_dict = {"loose": "L", "medium": "M", "tight": "T"}
+        wp = wp_dict[jet_puid_opt]
+        h_eff_name = f"h2_eff_mc{self.year}_{wp}"
+        h_sf_name = f"h2_eff_sf{self.year}_{wp}"
+        puid_eff = self.evaluator[h_eff_name](jets.pt, jets.eta)
+        puid_sf = self.evaluator[h_sf_name](jets.pt, jets.eta)
+        jets_passed = (jets.pt>25) & (jets.pt<50) & jet_puid
+        jets_failed = (jets.pt>25) & (jets.pt<50) & (~jet_puid)
+        
+        pMC   = puid_eff[jets_passed].prod() * (1.-puid_eff[jets_failed]).prod() 
+        pData = puid_eff[jets_passed].prod()*puid_sf[jets_passed].prod() *\
+                (1.-puid_eff[jets_failed].prod()*puid_sf[jets_failed]).prod()
+            
+        puid_weight = np.ones(len(event_weight))
+        puid_weight[jet_selection.any()] = np.divide(pData[jet_selection.any()], pMC[jet_selection.any()])
+        if not isData:
+            event_weight = event_weight * puid_weight
+        
+        # Separate from ttH and VH phase space        
         nBtagLoose = jets[(jets.btagDeepB>self.parameters["btag_loose_wp"]) & (abs(jets.eta)<2.5)].counts
         nBtagMedium = jets[(jets.btagDeepB>self.parameters["btag_medium_wp"])  & (abs(jets.eta)<2.5)].counts
-        
-        # Separate from ttH and VH phase space
+
         jet_filter = ((nBtagLoose<2)&(nBtagMedium<1))
 
         # Filter 3: Jet filter
