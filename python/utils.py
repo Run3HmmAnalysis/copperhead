@@ -1,11 +1,3 @@
-def read_via_xrootd(path, server):
-    import subprocess
-    command = f"xrdfs {server} ls -R {path} | grep '.root'"
-    proc = subprocess.Popen(command, stdout=subprocess.PIPE, shell=True)
-    result = proc.stdout.readlines()
-    result = [server + r.rstrip().decode("utf-8") for r in result]
-    return result
-
 def apply_roccor(rochester, isData, muons):
     import awkward
     import numpy as np

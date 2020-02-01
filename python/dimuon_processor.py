@@ -14,11 +14,11 @@ from python.utils import apply_roccor, p4_sum, get_regions
 from python.timer import Timer
 from python.samples_info import SamplesInfo
 
-def delta_r(obj1, obj2):
-    deta = obj1.eta - obj2.eta
-    dphi = np.mod(obj1.phi - obj2.phi + np.pi, 2*np.pi) - np.pi
+def delta_r(eta1, eta2, phi1, phi2):
+    deta = abs(eta1 - eta2)
+    dphi = np.mod(phi1 - phi2 + np.pi, 2*np.pi) - np.pi
     dr = np.sqrt(deta**2 + dphi**2)
-    return dr
+    return deta, dphi, dr
     
 # https://github.com/jpata/hepaccelerate-cms/blob/f5965648f8a7861cb9856d0b5dd34a53ed42c027/tests/hmm/hmumu_utils.py#L1396
 @numba.njit(parallel=True)
@@ -72,7 +72,7 @@ def correct_muon_with_fsr(muons_offsets, fsr_offsets, muons_pt, muons_eta, muons
                 muons_eta[imu] = out_eta
                 muons_phi[imu] = out_phi
 
-#    return  muons_pt, muons_eta, muons_phi, muons_mass, muons_iso
+    return  muons_pt, muons_eta, muons_phi, muons_mass, muons_iso
     
 # Look at ProcessorABC documentation to see the expected methods and what they are supposed to do
 # https://coffeateam.github.io/coffea/api/coffea.processor.ProcessorABC.html
@@ -204,18 +204,24 @@ class DimuonProcessor(processor.ProcessorABC):
         return self._columns
     
     def process(self, df):
-        # TODO: Properly calculate integrated luminosity
-        # TODO: verify PU weigths (ask at https://github.com/dnoonan08/TTGamma_LongExercise)
         # TODO: generate lepton SF for 2017/2018
+        # TODO: PU reweighting for 2017/2018
         # TODO: NNLOPS reweighting (ggH)
         # TODO: btag sf
-        # TODO: compute dimuon_costhetaCS, dimuon_phiCS
-        # TODO: compute nsoftjets
         # TODO: JEC, JER
-        # TODO: event-by-event mass resolution and calibration
-        # TODO: kinematic variables of multimuon-multijet system
-        # TODO: filter by event number to make sure DNN is evaluated only on test events
+        # TODO: filter by event number to make sure BDT/DNN is evaluated only on test events
         # TODO: Add systematic uncertainties
+        # TODO: check updated jet PUID for 2018 (caltech slides)
+        # TODO: fix FSR photon index
+        
+        # Variables to add (all need to be saved for unbinned analysis):
+        # dimuon_costhetaCS, dimuon_phiCS
+        # zeppenfeld
+        # min dEta and dPhi between dimuon system and two jets (meaning, argmin is jet number 0 or 1)
+        # Rpt, pt-centrality
+        # Nsoftjets (2GeV and 5GeV), HTsoft
+        # mass, eta, phi of mumujj system
+        # dimuon mass resolution (calibrated)
         
         if self.timer:
             self.timer.update()
@@ -271,28 +277,18 @@ class DimuonProcessor(processor.ProcessorABC):
             fsr_phi = fsr.phi.flatten()
             fsr_offsets =fsr.counts2offsets(fsr.counts)
 
-            correct_muon_with_fsr(muons_offsets, fsr_offsets,\
+            muons_pt, muons_eta, muons_phi, muons_mass, muons_iso = correct_muon_with_fsr(muons_offsets, fsr_offsets,\
                                   muons_pt, muons_eta, muons_phi,\
                                   muons_mass, muons_iso,\
                                   muons_fsrIndex, fsr_pt, fsr_eta,\
                                   fsr_phi) 
 
+            fsr_updated_attrs = {'pt': muons_pt, 'eta':muons_eta, 'phi':muons_phi, 'mass':muons_mass, 'pfRelIso04_all':muons_iso}
 
-            muons = JaggedCandidateArray.candidatesfromcounts(
-                mu.counts,
-                pt=muons_pt,
-                eta=muons_eta,
-                phi=muons_phi,
-                mass=muons_mass,
-                pfRelIso04_all=muons_iso,    
-                charge=mu.charge.flatten(),
-                mediumId=mu.mediumId.flatten(),
-                tightId=mu.tightId.flatten(),
-                isGlobal=mu.isGlobal.flatten(),
-                isTracker=mu.isTracker.flatten(),
-                matched_gen=mu.matched_gen.flatten(),
-                nTrackerLayers=mu.nTrackerLayers.flatten(),
-            )
+            muonarrays = {key:mu[key].flatten() for key in mu.columns}
+            muonarrays.update(fsr_updated_attrs)
+            muons = JaggedCandidateArray.candidatesfromcounts(mu.counts, **muonarrays)
+            
         else:
             muons = df.Muon[df.Muon.pt > self.parameters["muon_pt_cut"]]
         
@@ -328,9 +324,20 @@ class DimuonProcessor(processor.ProcessorABC):
         if self.timer:
             self.timer.add_checkpoint("Applied preselection")
         #--------------------------------# 
-
+        
+        muons_jca = JaggedCandidateArray.candidatesfromcounts(
+                            muons.counts,
+                            pt=muons.pt.flatten(),
+                            eta=muons.eta.flatten(),
+                            phi=muons.phi.flatten(),
+                            mass=muons.mass.flatten(),
+                            charge=muons.charge.flatten(),
+                            )
+        dimuons = muons_jca.distincts()
+        
         mu1 = muons[muons.pt.argmax()]
         mu2 = muons[muons.pt.argmin()]
+        
         if self.do_roccor:
             mu1 = JaggedCandidateArray.candidatesfromcounts(
                 np.ones(mu1.pt.shape),
@@ -351,20 +358,9 @@ class DimuonProcessor(processor.ProcessorABC):
             if self.timer:
                 self.timer.add_checkpoint("Applied Rochester")
 
-        # correct dimuon kinematics..
-        dimuon_pt, dimuon_eta, dimuon_phi, dimuon_mass = p4_sum(mu1, mu2)
-        
-        # gives wrong dimuon mass!
-#         dimuons = JaggedCandidateArray.candidatesfromcounts(
-#             np.ones(dimuon_pt.shape),
-#             pt=dimuon_pt.content,
-#             eta=dimuon_eta.content,
-#             phi=dimuon_phi.content,
-#             mass=dimuon_mass.content,
-#         )
 
         if 'dy' in dataset:
-            zpt_weights = self.evaluator[self.zpt_path](dimuon_pt).flatten()
+            zpt_weights = self.evaluator[self.zpt_path](dimuons.pt).flatten()
             event_weight = event_weight*zpt_weights
 
         mu_pass_leading_pt = muons[(muons.pt > self.parameters["muon_leading_pt"]) &\
@@ -373,17 +369,13 @@ class DimuonProcessor(processor.ProcessorABC):
         
         
         if self.do_fsr:
-            trig_muons = JaggedCandidateArray.candidatesfromcounts(
-                    df.TrigObj.counts,
-                    pt=df.TrigObj.pt.flatten(),
-                    eta=df.TrigObj.eta.flatten(),
-                    phi=df.TrigObj.phi.flatten(),
-                    mass=df.TrigObj.mass.flatten(),
-                    id=df.TrigObj.id.flatten()
-                )
+            trigmuarrays = {key:df.TrigObj[key].flatten() for key in df.TrigObj.columns}
+            trigmuarrays.update({'mass':0})
+            trig_muons = JaggedCandidateArray.candidatesfromcounts(df.TrigObj.counts, **trigmuarrays)
+
             trig_muons = trig_muons[trig_muons.id == 13]
             muTrig = mu_pass_leading_pt.cross(trig_muons, nested = True)
-            dr = delta_r(muTrig.i0, muTrig.i1)
+            _,_,dr = delta_r(muTrig.i0.eta, muTrig.i1.eta, muTrig.i0.phi, muTrig.i1.phi)
             matched = (dr < self.parameters["muon_trigmatch_dr"])
         else:
             trig_muons = df.TrigObj[df.TrigObj.id == 13]        
@@ -396,7 +388,7 @@ class DimuonProcessor(processor.ProcessorABC):
         
         dimuon_filter = ((mu1.pt>self.parameters["muon_leading_pt"]) &\
                          trig_matched &\
-                         (dimuon_mass > self.mass_window[0]) & (dimuon_mass < self.mass_window[1])).flatten()
+                         (dimuons.mass > self.mass_window[0]) & (dimuons.mass < self.mass_window[1])).flatten()
         if not isData:
             muID = self.mu_id_sf(muons.eta.compact(), muons.pt.compact())
             muIso = self.mu_iso_sf(muons.eta.compact(), muons.pt.compact())
@@ -416,10 +408,7 @@ class DimuonProcessor(processor.ProcessorABC):
         mu1 = mu1[dimuon_filter] 
         mu2 = mu2[dimuon_filter] 
         muons = muons[dimuon_filter]
-        dimuon_pt = dimuon_pt[dimuon_filter]
-        dimuon_eta = dimuon_eta[dimuon_filter]
-        dimuon_phi = dimuon_phi[dimuon_filter]
-        dimuon_mass = dimuon_mass[dimuon_filter]
+        dimuons = dimuons[dimuon_filter]
         event_weight = event_weight[dimuon_filter]
         if self.timer:
             self.timer.add_checkpoint("Applied dimuon cuts")
@@ -427,18 +416,12 @@ class DimuonProcessor(processor.ProcessorABC):
 
                  
         if self.do_fsr:
-            jet = JaggedCandidateArray.candidatesfromcounts(
-                    df.Jet.counts,
-                    pt=df.Jet.pt.flatten(),
-                    eta=df.Jet.eta.flatten(),
-                    phi=df.Jet.phi.flatten(),
-                    mass=df.Jet.mass.flatten(),
-                    qgl=df.Jet.qgl.flatten(),
-                    jetId=df.Jet.jetId.flatten(),
-                    puId=df.Jet.puId.flatten(),
-                )
+            
+            jetarrays = {key:df.Jet[key].flatten() for key in df.Jet.columns}        
+            jet = JaggedCandidateArray.candidatesfromcounts(df.Jet.counts, **jetarrays)
+
             mujet = jet.cross(muons, nested=True)
-            deltar_mujet = delta_r(mujet.i0, mujet.i1)
+            _,_,deltar_mujet = delta_r(mujet.i0.eta, mujet.i1.eta, mujet.i0.phi, mujet.i1.phi)
         else:
             mujet = df.Jet.cross(muons, nested=True)
             deltar_mujet = mujet.i0.delta_r(mujet.i1)
@@ -509,10 +492,7 @@ class DimuonProcessor(processor.ProcessorABC):
         df = df[jet_filter]   
         mu1 = mu1[jet_filter] 
         mu2 = mu2[jet_filter] 
-        dimuon_pt = dimuon_pt[jet_filter]
-        dimuon_eta = dimuon_eta[jet_filter]
-        dimuon_phi = dimuon_phi[jet_filter]
-        dimuon_mass = dimuon_mass[jet_filter]
+        dimuons = dimuons[jet_filter]
         jets = jets[jet_filter]
         jet_selection = jet_selection[jet_filter]
         event_weight = event_weight[jet_filter]
@@ -586,33 +566,62 @@ class DimuonProcessor(processor.ProcessorABC):
         
 #----------------------------------------------------------------------------#
         # flatten variables where exactly one value per event expected
+#        deta_mumu = abs(mu1.eta - mu2.eta).flatten()
+#        dphi_mumu = abs(mu1.p4.delta_phi(mu2.p4)).flatten()
+#        dr_mumu = np.sqrt(deta_mumu*deta_mumu + dphi_mumu*dphi_mumu)
+        deta_mumu, dphi_mumu, dr_mumu = delta_r(mu1.eta.flatten(), mu2.eta.flatten(), mu1.phi.flatten(), mu2.phi.flatten())
+        deta_mumuj1 = np.zeros(one_jet.shape[0])
+        dphi_mumuj1 = np.zeros(one_jet.shape[0])
+        dr_mumuj1 = np.zeros(one_jet.shape[0])
+        
+        deta_mumuj1[one_jet], dphi_mumuj1[one_jet], dr_mumuj1[one_jet] = delta_r(dimuons[one_jet].eta.flatten(),\
+                                                                              jet1.eta.flatten(),\
+                                                                              dimuons[one_jet].phi.flatten(),\
+                                                                              jet1.phi.flatten())
+        deta_mumuj2 = np.zeros(two_jets.shape[0])
+        dphi_mumuj2 = np.zeros(two_jets.shape[0])
+        dr_mumuj2 = np.zeros(two_jets.shape[0])
+        
+        deta_mumuj2[two_jets], dphi_mumuj2[two_jets], dr_mumuj2[two_jets] = delta_r(dimuons[two_jets].eta.flatten(),\
+                                                                              jet2.eta.flatten(),\
+                                                                              dimuons[two_jets].phi.flatten(),\
+                                                                              jet2.phi.flatten())
+
+        
         variable_map = {
-            'dimuon_mass': dimuon_mass.flatten(),
-            'dimuon_pt': dimuon_pt.flatten(),
-            'dimuon_eta': dimuon_eta.flatten(),
-            'dimuon_phi': dimuon_phi.flatten(),
-            'dimuon_dEta': abs(mu1.eta - mu2.eta).flatten(),
-            'dimuon_dPhi': abs(mu1.p4.delta_phi(mu2.p4)).flatten(),
+            'dimuon_mass': dimuons.mass.flatten(),
+            'dimuon_pt': dimuons.pt.flatten(),
+            'dimuon_eta': dimuons.eta.flatten(),
+            'dimuon_phi': dimuons.phi.flatten(),
+            'dimuon_dEta': deta_mumu,
+            'dimuon_dPhi': dphi_mumu,
+            'dimuon_dR': dr_mumu,
             
             'mu1_pt': mu1.pt.flatten(),
+            'mu1_pt_over_mass': np.divide(mu1.pt.flatten(), dimuons.mass.flatten()),
             'mu1_eta': mu1.eta.flatten(),
             'mu1_phi': mu1.phi.flatten(),
             'mu1_iso': mu1.pfRelIso04_all.flatten(),
 
             'mu2_pt': mu2.pt.flatten().flatten(),
-            'mu2_eta': mu2.eta.flatten().flatten(),
-            'mu2_phi': mu2.phi.flatten().flatten(),
+            'mu2_pt_over_mass': np.divide(mu2.pt.flatten(), dimuons.mass.flatten()),
+            'mu2_eta': mu2.eta.flatten(),
+            'mu2_phi': mu2.phi.flatten(),
             'mu2_iso': mu2.pfRelIso04_all.flatten(),
             
             'jet1_pt': jet1.pt,
             'jet1_eta': jet1.eta,
             'jet1_phi': jet1.phi,
             'jet1_qgl': jet1.qgl,
-
+            'deta_mumuj1': deta_mumuj1,
+            'dphi_mumuj1': dphi_mumuj1,
+            
             'jet2_pt': jet2.pt,
             'jet2_eta': jet2.eta,
             'jet2_phi': jet2.phi,
             'jet2_qgl': jet2.qgl,
+            'deta_mumuj2': deta_mumuj2,
+            'dphi_mumuj2': dphi_mumuj2,
      
             'jj_mass': dijet.mass,
             'jj_pt': dijet.pt,
@@ -633,7 +642,7 @@ class DimuonProcessor(processor.ProcessorABC):
 
         if self.evaluate_dnn:                
             training_features = ['dimuon_mass', 'dimuon_pt', 'dimuon_eta', 'dimuon_dEta', 'mu1_pt', 'mu2_pt']
-            n_rows = len(dimuon_mass.flatten())
+            n_rows = len(dimuons.mass.flatten())
             df_for_dnn = pd.DataFrame(columns=training_features)
                 
             for tf in training_features:
@@ -676,7 +685,6 @@ class DimuonProcessor(processor.ProcessorABC):
                         weight = event_weight[rcut & ccut][value.any()]
                     else:
                         weight = event_weight[rcut & ccut]
-#                     print(vname, value.flatten())
                     output[vname].fill(**{'dataset': dataset, 'region': rname, 'channel': cname,\
                                          vname: value.flatten(), 'weight': weight})
 
@@ -694,7 +702,7 @@ class DimuonProcessor(processor.ProcessorABC):
                     for rname, rcut in regions.items():
                         if (dataset in self.overlapping_samples) and (dataset not in self.specific_samples[rname][cname]): continue
                         if 'z-peak' in rname: continue # don't need unbinned data under Z-peak
-                        output[f'{v}_unbin_{dataset}_c_{cname}_r_{rname}'] += processor.column_accumulator(variable_map[v][rcut & ccut])
+                        output[f'{v}_unbin_{dataset}_c_{cname}_r_{rname}'] += processor.column_accumulator(variable_map[v][rcut & ccut].flatten())
     
         if self.timer:
             self.timer.add_checkpoint("Filled outputs")
