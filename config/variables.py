@@ -14,13 +14,16 @@ variables.append(Variable("dimuon_eta", r"$\eta (\mu\mu)$", 100, -5, 5))
 variables.append(Variable("dimuon_phi", r"$\phi (\mu\mu)$", 100, -3.2, 3.2))
 variables.append(Variable("dimuon_dEta", r"$\Delta\eta (\mu\mu)$", 100, 0, 3.5))
 variables.append(Variable("dimuon_dPhi", r"$\Delta\phi (\mu\mu)$", 100, 0, 4))
+variables.append(Variable("dimuon_dR", r"$\Delta R (\mu\mu)$", 100, 0, 4))
 
 variables.append(Variable("mu1_pt", r"$p_{T}(\mu_{1})$ [GeV]", 40, 20, 200))
+variables.append(Variable("mu1_pt_over_mass", r"$p_{T}(\mu_{1})/M_{\mu\mu}$ [GeV]", 100, 0, 2))
 variables.append(Variable("mu1_eta", r"$\eta (\mu_{1})$", 100, -2.5, 2.5))
 variables.append(Variable("mu1_phi", r"$\phi (\mu_{1})$", 100, -3.2, 3.2))
 variables.append(Variable("mu1_iso", r"iso$(\mu1)$", 50, 0, 0.3))
 
 variables.append(Variable("mu2_pt", r"$p_{T}(\mu_{2})$ [GeV]", 40, 20, 120))
+variables.append(Variable("mu2_pt_over_mass", r"$p_{T}(\mu_{2})/M_{\mu\mu}$ [GeV]", 100, 0, 2))
 variables.append(Variable("mu2_eta", r"$\eta (\mu_{2})$", 100, -2.5, 2.5))
 variables.append(Variable("mu2_phi", r"$\phi (\mu_{2})$", 100, -3.2, 3.2))
 variables.append(Variable("mu2_iso", r"iso$(\mu2)$", 50, 0, 0.3))
@@ -29,11 +32,15 @@ variables.append(Variable("jet1_pt", r"$p_{T}(jet1)$ [GeV]", 100, 0, 200))
 variables.append(Variable("jet1_eta", r"$\eta (jet1)$", 100, -4.7, 4.7))
 variables.append(Variable("jet1_phi", r"$\phi (jet1)$", 100, -3.2, 3.2))
 variables.append(Variable("jet1_qgl", r"$QGL (jet1)$", 10, 0, 1))
+variables.append(Variable("deta_mumuj1", r"$\Delta\eta (\mu\mu, jet1)$", 100, 0, 3.5))
+variables.append(Variable("dphi_mumuj1", r"$\Delta\phi (\mu\mu, jet1)$", 100, 0, 4))
 
 variables.append(Variable("jet2_pt", r"$p_{T}(jet2)$ [GeV]", 100, 0, 150))
 variables.append(Variable("jet2_eta", r"$\eta (jet2)$", 100, -4.7, 4.7))
 variables.append(Variable("jet2_phi", r"$\phi (jet2)$", 100, -3.2, 3.2))
 variables.append(Variable("jet2_qgl", r"$QGL (jet2)$", 10, 0, 1))
+variables.append(Variable("deta_mumuj2", r"$\Delta\eta (\mu\mu, jet2)$", 100, 0, 3.5))
+variables.append(Variable("dphi_mumuj2", r"$\Delta\phi (\mu\mu, jet2)$", 100, 0, 4))
 
 variables.append(Variable("jj_mass", r"$M(jj)$ [GeV]", 100, 0, 600))
 variables.append(Variable("jj_pt", r"$p_{T}(jj)$ [GeV]", 100, 0, 150))
@@ -53,5 +60,8 @@ variables.append(Variable("event", "event", 1, 0, 1))
 variables.append(Variable("event_weight", "event_weight", 1, 0, 1))
 
 
-vars_unbin = ['event', 'event_weight', 'dimuon_mass', 'dimuon_pt', 'dimuon_eta',\
-                   'dimuon_dEta', 'mu1_pt', 'mu2_pt']
+#vars_unbin = ['event', 'event_weight',\
+#              'dimuon_mass', 'dimuon_pt', 'dimuon_eta', 'dimuon_phi', 'dimuon_dEta', 'dimuon_dPhi', 'dimuon_dR',\
+#              'mu1_pt', 'mu2_pt']
+
+vars_unbin = [v.name for v in variables]

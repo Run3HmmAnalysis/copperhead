@@ -1,18 +1,32 @@
+def read_via_xrootd(path, server):
+    import subprocess
+    command = f"xrdfs {server} ls -R {path} | grep '.root'"
+    proc = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
+    result = proc.stdout.readlines()
+    if proc.stderr.readlines():
+        print(proc.stderr.readlines())
+    result = [server + r.rstrip().decode("utf-8") for r in result]
+    return result
+
 class SamplesInfo(object):
-    def __init__(self, year='2016', out_path='/output/', at_purdue=True, debug=False):
-        
+    def __init__(self, year='2016', out_path='/output/', at_purdue=True, server='root://xrootd.rcac.purdue.edu/', debug=False):
+
         self.year = year
         self.out_path = out_path
         self.at_purdue = at_purdue
         self.debug = debug
-        
-        from config.datasets import datasets, lumi_data, all_dy, all_ewk
-        self.server = 'root://xrootd.rcac.purdue.edu/'
-            
+
+        if 'purdue' in server:
+            from config.datasets import datasets, lumi_data, all_dy, all_ewk
+        elif 'lnl.infn' in server:
+            from config.datasets_pisa import datasets, lumi_data, all_dy, all_ewk
+
+        self.server = server
+
         self.paths = datasets[self.year]
         self.datasets = datasets
         self.lumi_data = lumi_data
-                
+
         self.lumi = 40000 # default value
         self.data_entries = 0
 
@@ -22,19 +36,17 @@ class SamplesInfo(object):
         self.filesets = {}
         self.full_fileset = {}
         self.metadata = {}
-        
+
         #--- Define regions and channels used in the analysis ---#
         self.regions = ['z-peak', 'h-sidebands', 'h-peak']
         self.channels = ['ggh_01j', 'ggh_2j', 'vbf']
 
         #--- Select samples for which unbinned data will be saved ---#
-        self.data_samples = [s for s in self.samples if 'data' in s]
-        self.mc_samples = [s for s in self.samples if 'data' not in s]
         self.signal_samples = ['ggh_amcPS', 'vbf_amcPS']
         self.main_bkg_samples = ['dy_m105_160_amc', 'dy_m105_160_vbf_amc',\
                                  'ttjets_dl', 'ewk_lljj_mll105_160', "ewk_lljj_mll105_160_ptj0"]
-        self.datasets_to_save_unbin = self.data_samples + self.signal_samples + self.main_bkg_samples
-        
+        self.datasets_to_save_unbin = self.signal_samples + self.main_bkg_samples
+
         #--- Take overlapping samples and assign them to different regions ---#
 
         self.overlapping_samples = all_dy[self.year] + all_ewk[self.year]
@@ -58,7 +70,7 @@ class SamplesInfo(object):
 
         self.lumi_weights = {}
 
-        
+
     def load(self, samples):
         import multiprocessing as mp
         import time
@@ -72,7 +84,7 @@ class SamplesInfo(object):
             results.append(process.get())
         pool.close()
 
-        for res in results: 
+        for res in results:
             sample = res['sample']
             if res['is_missing']:
                 self.missing_samples.append(sample)
@@ -81,46 +93,53 @@ class SamplesInfo(object):
                 self.filesets[sample] = {}
                 self.filesets[sample][sample] = res['files']
                 self.full_fileset[sample] = res['files']
-    
+
                 self.metadata[sample] = {}
                 self.metadata[sample] = res['metadata']
-
                 self.data_entries = self.data_entries + res['data_entries']
-                
+
 
         if self.data_entries:
-            print()   
+            print()
+            data_entries_total = self.lumi_data[self.year]['events']
+            print(f"Total events in {self.year}: {data_entries_total}")
+
             print(f"Loaded {self.data_entries} of {self.year} data events")
-            self.lumi = lumi_data[self.year]['lumi']*self.data_entries/self.lumi_data[self.year]['events']
-            prc = round(self.data_entries/self.lumi_data[self.year]['events']*100, 2)
+            prc = round(self.data_entries/data_entries_total*100, 2)
             print(f"This is ~ {prc}% of {self.year} data.")
-            print(f"Integrated luminosity {lumi}/pb")
+
+            self.lumi = self.lumi_data[self.year]['lumi']*self.data_entries/data_entries_total
+            print(f"Integrated luminosity {self.lumi}/pb")
             print()
         if self.missing_samples:
             print(f"Missing samples: {self.missing_samples}")
 
-        t1 = time.time()        
+        t1 = time.time()
         dt=round(t1-t0, 2)
         print(f"Loading took {dt} s")
+
+        self.data_samples = [s for s in self.samples if 'data' in s]
+        self.mc_samples = [s for s in self.samples if not ('data' in s)]
+        self.datasets_to_save_unbin += self.data_samples
+
 
     def load_sample(self, sample):
         import glob, tqdm
         import uproot
-        from python.utils import read_via_xrootd
         print("Loading", sample)
 
         if sample not in self.paths:
             print(f"Couldn't load {sample}! Skipping.")
             return {'sample': sample, 'metadata': {}, 'files': {}, 'data_entries': 0, 'is_missing': True}
-        
+
         all_files = []
         metadata = {}
         data_entries = 0
-        
+
         if self.at_purdue:
             all_files = read_via_xrootd(self.paths[sample], self.server)
         else:
-            all_files = [self.server+ f for f in glob.glob(self.paths[sample]+'*root')]      
+            all_files = [self.server+ f for f in glob.glob(self.paths[sample]+'*root')]
 
         if self.debug:
             all_files = [all_files[0]]
@@ -159,7 +178,9 @@ class SamplesInfo(object):
                 xsec = cross_sections[sample]['2016']
             else:
                 if 'ewk_lljj_mll105_160_ptj0' in sample:
-                    xsec = cross_sections['ewk_lljj_mll105_160']            
+                    xsec = cross_sections['ewk_lljj_mll105_160']
                 else:
                     xsec = cross_sections[sample]
             self.lumi_weights[sample] = xsec*self.lumi / N
+            lumi_wgt = self.lumi_weights[sample]
+          #  print(f"{sample}: xsec={xsec}, N={N}, lumi_wgt={lumi_wgt}")

@@ -27,13 +27,13 @@ class Plotter(object):
             except:
                 print(f"Outputs for {s} not found in {self.path}!")
         
-    def make_datamc_comparison(self, do_inclusive, do_exclusive):
-        self.make_plots(do_inclusive, do_exclusive, do_data_mc=True)
+    def make_datamc_comparison(self, do_inclusive, do_exclusive, normalize=True):
+        self.make_plots(do_inclusive, do_exclusive, do_data_mc=True, normalize=normalize)
         
     def make_shape_comparison(self, do_inclusive, do_exclusive):
         self.make_plots(do_inclusive, do_exclusive, do_shapes=True)
 
-    def make_plots(self, do_inclusive, do_exclusive, do_data_mc=False, do_shapes=False):
+    def make_plots(self, do_inclusive, do_exclusive, do_data_mc=False, do_shapes=False, normalize=True):
         import matplotlib.pyplot as plt
         import mplhep as hep
         plt.style.use(hep.cms.style.ROOT)
@@ -56,7 +56,7 @@ class Plotter(object):
                 if do_inclusive:
                     if do_data_mc:
                         gs = gridspec.GridSpecFromSubplotSpec(2, 1, subplot_spec = grid[idx], height_ratios=[(1-ratio_plot_size),ratio_plot_size], hspace = .05)
-                        self.plot_data_mc(True, c, "", fig, var, gs, self.year)
+                        self.plot_data_mc(True, c, "", fig, var, gs, self.year, normalize)
                     else:
                         gs = grid[idx]
                         self.plot_shapes(self.samples, True, c, "", fig, var, gs, self.year)
@@ -65,7 +65,7 @@ class Plotter(object):
                     for r in self.regions:
                         if do_data_mc:
                             gs = gridspec.GridSpecFromSubplotSpec(2, 1, subplot_spec = grid[idx], height_ratios=[(1-ratio_plot_size),ratio_plot_size], hspace = .05)
-                            self.plot_data_mc(False, c, r, fig, var, gs, self.year)
+                            self.plot_data_mc(False, c, r, fig, var, gs, self.year, normalize)
                         else:
                             gs = grid[idx]
                             self.plot_shapes(self.samples, False, c, r, fig, var, gs, self.year)
@@ -88,7 +88,7 @@ class Plotter(object):
 
 
 
-    def plot_data_mc(self, inclusive, channel, region, fig, var, gs, year='2016'):
+    def plot_data_mc(self, inclusive, channel, region, fig, var, gs, year='2016', normalize=True):
 
         data_sources = {
             'data': ['data_B','data_C','data_D','data_E','data_F','data_G','data_H']  
@@ -107,7 +107,7 @@ class Plotter(object):
             ggh = accumulators_copy['ggh_amcPS'].sum('channel')
             vbf = accumulators_copy['vbf_amcPS'].sum('channel')
         else:
-            accumulators_copy = output[var][:,region, channel].copy()
+            accumulators_copy = self.accumulators[var][:,region, channel].copy()
             data = accumulators_copy.sum('region').sum('channel').group('dataset', hist.Cat("dataset", "Dataset"), data_sources)
             bkg = accumulators_copy.sum('region').sum('channel').group('dataset', hist.Cat("dataset", "Dataset"), bkg_sources)
             ggh = accumulators_copy['ggh_amcPS'].sum('region').sum('channel')
@@ -120,8 +120,7 @@ class Plotter(object):
 
         bkg.axis('dataset').sorting = 'integral' # sort backgrounds by event yields
 
-        scale_mc_to_data = True
-        if scale_mc_to_data and data_is_valid and bkg_is_valid:
+        if normalize and data_is_valid and bkg_is_valid:
             data_int = data.sum(var).sum('dataset').values()[()]
             bkg_int = bkg.sum(var).sum('dataset').values()[()]    
             bkg_sf = data_int/bkg_int
