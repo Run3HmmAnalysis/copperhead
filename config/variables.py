@@ -9,6 +9,8 @@ class Variable(object):
 variables = []
 
 variables.append(Variable("dimuon_mass", r"$m_{\mu\mu}$ [GeV]", 100, 110, 150))
+variables.append(Variable("dimuon_mass_res", r"\Delta M_{\mu\mu}$ [GeV]", 100, 0, 4))
+variables.append(Variable("dimuon_mass_res_rel", r"\Delta M_{\mu\mu} / M_{\mu\mu}$ [GeV]", 100, 0, 0.04))
 variables.append(Variable("dimuon_pt", r"$p_{T}(\mu\mu)$ [GeV]", 100, 0, 200))
 variables.append(Variable("dimuon_eta", r"$\eta (\mu\mu)$", 100, -5, 5))
 variables.append(Variable("dimuon_phi", r"$\phi (\mu\mu)$", 100, -3.2, 3.2))
@@ -42,6 +44,9 @@ variables.append(Variable("jet2_qgl", r"$QGL (jet2)$", 10, 0, 1))
 variables.append(Variable("deta_mumuj2", r"$\Delta\eta (\mu\mu, jet2)$", 100, 0, 3.5))
 variables.append(Variable("dphi_mumuj2", r"$\Delta\phi (\mu\mu, jet2)$", 100, 0, 4))
 
+variables.append(Variable("min_deta_mumuj", r"$min. \Delta\eta (\mu\mu, j)$", 100, 0, 8))
+variables.append(Variable("min_dphi_mumuj", r"$min. \Delta\phi (\mu\mu, j)$", 100, 0, 3.3))
+
 variables.append(Variable("jj_mass", r"$M(jj)$ [GeV]", 100, 0, 600))
 variables.append(Variable("jj_pt", r"$p_{T}(jj)$ [GeV]", 100, 0, 150))
 variables.append(Variable("jj_eta", r"$\eta (jj)$", 100, -4.7, 4.7))
@@ -49,13 +54,26 @@ variables.append(Variable("jj_phi", r"$\phi (jj)$", 100, -3.2, 3.2))
 variables.append(Variable("jj_dEta", r"$\Delta\eta (jj)$", 100, 0, 3.5))
 variables.append(Variable("jj_dPhi", r"$\Delta\phi (jj)$", 100, 0, 3.5))
 
+variables.append(Variable("mmjj_mass", r"$M(\mu\mu jj)$ [GeV]", 100, 0, 1200))
+variables.append(Variable("mmjj_pt", r"$p_{T}(\mu\mu jj)$ [GeV]", 100, 0, 150))
+variables.append(Variable("mmjj_eta", r"$\eta (\mu\mu jj)$", 100, -7, 7))
+variables.append(Variable("mmjj_phi", r"$\phi (\mu\mu jj)$", 100, -3.2, 3.2))
+
+variables.append(Variable("zeppenfeld", r"zeppenfeld", 100, -5, 5))
+variables.append(Variable("rpt", r"R_{p_T}", 100, 0, 1))
+
 variables.append(Variable("njets", "njets", 10, 0, 10))
+variables.append(Variable("nsoftjets2", "nsoftjets2", 20, 0, 20))
+variables.append(Variable("nsoftjets5", "nsoftjets5", 20, 0, 20))
+
+variables.append(Variable("htsoft2", "htsoft2", 30, 0, 60))
+variables.append(Variable("htsoft5", "htsoft5", 30, 0, 60))
+
 variables.append(Variable("npv", "npv", 50, 0, 50))
 variables.append(Variable("met", r"$E_{T}^{miss.}$ [GeV]", 100, 0, 200))
 
 variables.append(Variable("dnn_score", r"DNN score", 50, 0, 1))
 
-variables.append(Variable("genweight", "genweight", 50, 0, 50))
 variables.append(Variable("event", "event", 1, 0, 1))
 variables.append(Variable("event_weight", "event_weight", 1, 0, 1))
 

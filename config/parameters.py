@@ -35,6 +35,7 @@ parameters["muSFFileList"] = for_all_years(
 
 parameters['zpt_weights_file'] = for_all_years("data/zpt/zpt_weights.histo.json")
 parameters['puid_sf_file'] = for_all_years("data/puid_sf/PUIDMaps.root")
+parameters['res_calib_path'] = for_all_years("data/res_calib/")
 
 parameters.update({
     "event_flags" : for_all_years(['BadPFMuonFilter','EcalDeadCellTriggerPrimitiveFilter',\
@@ -59,7 +60,7 @@ parameters.update({
     "electron_eta_cut" : for_all_years(2.5),
     "electron_id" : for_all_years("mvaFall17V2Iso_WP90"),
     
-    "jet_pt_cut" : for_all_years(20.),
+    "jet_pt_cut" : for_all_years(25.),
     "jet_eta_cut" : for_all_years(4.7),
     "jet_id" : {"2016": "loose", "2017": "tight", "2018": "tight"},
     "jet_puid" : {"2016": "loose", "2017": "2017corrected", "2018": "loose"},
@@ -68,6 +69,8 @@ parameters.update({
     
     "btag_loose_wp": {"2016": 0.2217, "2017": 0.1522, "2018": 0.1241},    
     "btag_medium_wp": {"2016": 0.6321, "2017": 0.4941, "2018": 0.4184},    
+    
+    "softjet_dr2" : for_all_years(0.16),
 })
 
 
