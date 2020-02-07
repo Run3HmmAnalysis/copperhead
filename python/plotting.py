@@ -24,16 +24,17 @@ class Plotter(object):
                 else:
                     self.accumulators[s] = util.load(out_path)
                 print(f"Loading output from {out_path}")
-            except:
+            except Exception as e:
+                print(e)
                 print(f"Outputs for {s} not found in {self.path}!")
         
-    def make_datamc_comparison(self, do_inclusive, do_exclusive, normalize=True):
-        self.make_plots(do_inclusive, do_exclusive, do_data_mc=True, normalize=normalize)
+    def make_datamc_comparison(self, do_inclusive, do_exclusive, normalize=True, logy=True):
+        self.make_plots(do_inclusive, do_exclusive, do_data_mc=True, normalize=normalize, logy=logy)
         
     def make_shape_comparison(self, do_inclusive, do_exclusive):
         self.make_plots(do_inclusive, do_exclusive, do_shapes=True)
 
-    def make_plots(self, do_inclusive, do_exclusive, do_data_mc=False, do_shapes=False, normalize=True):
+    def make_plots(self, do_inclusive, do_exclusive, do_data_mc=False, do_shapes=False, normalize=True, logy=True):
         import matplotlib.pyplot as plt
         import mplhep as hep
         plt.style.use(hep.cms.style.ROOT)
@@ -56,7 +57,7 @@ class Plotter(object):
                 if do_inclusive:
                     if do_data_mc:
                         gs = gridspec.GridSpecFromSubplotSpec(2, 1, subplot_spec = grid[idx], height_ratios=[(1-ratio_plot_size),ratio_plot_size], hspace = .05)
-                        self.plot_data_mc(True, c, "", fig, var, gs, self.year, normalize)
+                        self.plot_data_mc(True, c, "", fig, var, gs, self.year, normalize, logy)
                     else:
                         gs = grid[idx]
                         self.plot_shapes(self.samples, True, c, "", fig, var, gs, self.year)
@@ -65,7 +66,7 @@ class Plotter(object):
                     for r in self.regions:
                         if do_data_mc:
                             gs = gridspec.GridSpecFromSubplotSpec(2, 1, subplot_spec = grid[idx], height_ratios=[(1-ratio_plot_size),ratio_plot_size], hspace = .05)
-                            self.plot_data_mc(False, c, r, fig, var, gs, self.year, normalize)
+                            self.plot_data_mc(False, c, r, fig, var, gs, self.year, normalize, logy)
                         else:
                             gs = grid[idx]
                             self.plot_shapes(self.samples, False, c, r, fig, var, gs, self.year)
@@ -88,14 +89,13 @@ class Plotter(object):
 
 
 
-    def plot_data_mc(self, inclusive, channel, region, fig, var, gs, year='2016', normalize=True):
-
+    def plot_data_mc(self, inclusive, channel, region, fig, var, gs, year='2016', normalize=True, logy=True):
         data_sources = {
             'data': ['data_B','data_C','data_D','data_E','data_F','data_G','data_H']  
         }
         bkg_sources = {
             'DY': ['dy', 'dy_0j', 'dy_1j', 'dy_2j', 'dy_m105_160_amc', 'dy_m105_160_vbf_amc', 'dy_m105_160_mg', 'dy_m105_160_vbf_mg'],
-            'EWK': ['ewk_lljj_mll50_mjj120','ewk_lljj_mll105_160'],
+            'EWK': ['ewk_lljj_mll50_mjj120','ewk_lljj_mll105_160', 'ewk_lljj_mll105_160_ptj0'],
             'TTbar + Single Top':['ttjets_dl', 'ttjets_sl', 'ttw', 'ttz', 'st_tw_top', 'st_tw_antitop'],
             'VV + VVV': ['ww_2l2nu', 'wz_2l2q', 'wz_1l1nu2q', 'wz_3lnu', 'www','wwz','wzz','zzz'],
         }
@@ -119,12 +119,13 @@ class Plotter(object):
         vbf_is_valid = vbf.sum(var).sum('dataset').values()
 
         bkg.axis('dataset').sorting = 'integral' # sort backgrounds by event yields
-
+        
         if normalize and data_is_valid and bkg_is_valid:
             data_int = data.sum(var).sum('dataset').values()[()]
             bkg_int = bkg.sum(var).sum('dataset').values()[()]    
             bkg_sf = data_int/bkg_int
             bkg.scale(bkg_sf)
+            print(bkg_sf)
 
         data_opts = {'color': 'k', 'marker': '.', 'markersize':15}
         stack_fill_opts = {'alpha': 0.8, 'edgecolor':(0,0,0)}
@@ -144,9 +145,12 @@ class Plotter(object):
             lbl = hep.cms.cmslabel(plt1, data=True, paper=False, year=year)
         else:
             lbl = hep.cms.cmslabel(plt1, data=False, paper=False, year=year)
-
-        plt1.set_yscale('log')
-        plt1.set_ylim(0.001, 1e9)
+        
+        if logy:
+            plt1.set_yscale('log')
+            plt1.set_ylim(0.001, 1e9)
+#        else:
+#            plt1.set_ylim(0., 1e5)
         plt1.set_xlabel('')
         plt1.tick_params(axis='x', labelbottom=False)
         plt1.legend(prop={'size': 'xx-small'})
