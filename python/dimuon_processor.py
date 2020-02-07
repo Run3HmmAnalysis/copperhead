@@ -16,7 +16,7 @@ from python.samples_info import SamplesInfo
 
 def delta_r(eta1, eta2, phi1, phi2):
     deta = abs(eta1 - eta2)
-    dphi = np.mod(phi1 - phi2 + np.pi, 2*np.pi) - np.pi
+    dphi = abs(np.mod(phi1 - phi2 + np.pi, 2*np.pi) - np.pi)
     dr = np.sqrt(deta**2 + dphi**2)
     return deta, dphi, dr
     
@@ -88,6 +88,7 @@ class DimuonProcessor(processor.ProcessorABC):
 
         self.mass_window = mass_window
         self.do_roccor = do_roccor
+
         self.do_fsr = do_fsr
         self.evaluate_dnn = evaluate_dnn
 
@@ -113,7 +114,7 @@ class DimuonProcessor(processor.ProcessorABC):
         ### Prepare accumulators for binned output ###
         
         for v in variables:
-            if 'dimuon_mass' in v.name:
+            if v.name=='dimuon_mass':
                 axis = hist.Bin(v.name, v.caption, v.nbins, self.mass_window[0], self.mass_window[1])
             else:
                 axis = hist.Bin(v.name, v.caption, v.nbins, v.xmin, v.xmax)
@@ -172,11 +173,19 @@ class DimuonProcessor(processor.ProcessorABC):
         
         zpt_filename = self.parameters['zpt_weights_file']
         puid_filename = self.parameters['puid_sf_file']
+        rescalib_files = []
+
         
         self.extractor = extractor()
         self.extractor.add_weight_sets([f"* * {zpt_filename}"])
         self.extractor.add_weight_sets([f"* * {puid_filename}"])
-
+        
+        for mode in ["Data", "MC"]:
+            label = f"res_calib_{mode}_{self.year}"
+            path = self.parameters['res_calib_path']       
+            file_path = f"{path}/{label}.root"
+            self.extractor.add_weight_sets([f"{label} {label} {file_path}"])
+            
         self.extractor.finalize()
         self.evaluator = self.extractor.make_evaluator()
         
@@ -209,19 +218,19 @@ class DimuonProcessor(processor.ProcessorABC):
         # TODO: NNLOPS reweighting (ggH)
         # TODO: btag sf
         # TODO: JEC, JER
-        # TODO: filter by event number to make sure BDT/DNN is evaluated only on test events
         # TODO: Add systematic uncertainties
         # TODO: check updated jet PUID for 2018 (caltech slides)
         # TODO: fix FSR photon index
+        # TODO: check Nsoftjets distributions - there should be less events in 0
         
         # Variables to add (all need to be saved for unbinned analysis):
         # dimuon_costhetaCS, dimuon_phiCS
-        # zeppenfeld
-        # min dEta and dPhi between dimuon system and two jets (meaning, argmin is jet number 0 or 1)
-        # Rpt, pt-centrality
-        # Nsoftjets (2GeV and 5GeV), HTsoft
-        # mass, eta, phi of mumujj system
-        # dimuon mass resolution (calibrated)
+        
+        # Remaining issues:
+        # ttjets_sl processing freezes
+        # dimuon pt disagreement
+        # jet pt in VBF channel - possibly
+        
         
         if self.timer:
             self.timer.update()
@@ -250,7 +259,12 @@ class DimuonProcessor(processor.ProcessorABC):
         for hlt_path in self.parameters['hlt']:
             hlt = hlt | df.HLT[hlt_path]
             
-        mask = hlt & lumimask
+        if self.evaluate_dnn:
+            ev_num_filter = ((df.event%2)==0)
+        else:
+            ev_num_filter = ((df.event%2)==1)
+            
+        mask = hlt & lumimask & ev_num_filter
     
         # Filter 0: HLT & lumimask
         #--------------------------------#    
@@ -260,38 +274,36 @@ class DimuonProcessor(processor.ProcessorABC):
             self.timer.add_checkpoint("Applied HLT and lumimask")
         #--------------------------------# 
         
-        # FSR recovery
+        mu = df.Muon[df.Muon.pt > self.parameters["muon_pt_cut"]]
+        muons_pt = mu.pt.flatten()
+        muons_eta = mu.eta.flatten()
+        muons_phi = mu.phi.flatten()
+        muons_mass = mu.mass.flatten()
+        muons_iso = mu.pfRelIso04_all.flatten()
+
         if self.do_fsr:
-            mu = df.Muon[df.Muon.pt > self.parameters["muon_pt_cut"]]
             fsr = df.FsrPhoton
-            muons_pt = mu.pt.flatten()
-            muons_eta = mu.eta.flatten()
-            muons_phi = mu.phi.flatten()
-            muons_mass = mu.mass.flatten()
-            muons_iso = mu.pfRelIso04_all.flatten()
             muons_fsrIndex = mu.fsrPhotonIdx.flatten()
             muons_offsets = mu.counts2offsets(mu.counts)
-
             fsr_pt = fsr.pt.flatten()
             fsr_eta = fsr.eta.flatten()
             fsr_phi = fsr.phi.flatten()
             fsr_offsets =fsr.counts2offsets(fsr.counts)
-
             muons_pt, muons_eta, muons_phi, muons_mass, muons_iso = correct_muon_with_fsr(muons_offsets, fsr_offsets,\
                                   muons_pt, muons_eta, muons_phi,\
                                   muons_mass, muons_iso,\
                                   muons_fsrIndex, fsr_pt, fsr_eta,\
                                   fsr_phi) 
 
-            fsr_updated_attrs = {'pt': muons_pt, 'eta':muons_eta, 'phi':muons_phi, 'mass':muons_mass, 'pfRelIso04_all':muons_iso}
+        if self.do_roccor:
+            muons_pt = muons_pt*apply_roccor(self.rochester, isData, mu).flatten()
+                
+        updated_attrs = {'pt': muons_pt, 'eta':muons_eta, 'phi':muons_phi, 'mass':muons_mass, 'pfRelIso04_all':muons_iso}
 
-            muonarrays = {key:mu[key].flatten() for key in mu.columns}
-            muonarrays.update(fsr_updated_attrs)
-            muons = JaggedCandidateArray.candidatesfromcounts(mu.counts, **muonarrays)
+        muonarrays = {key:mu[key].flatten() for key in mu.columns}
+        muonarrays.update(updated_attrs)
+        muons = JaggedCandidateArray.candidatesfromcounts(mu.counts, **muonarrays)
             
-        else:
-            muons = df.Muon[df.Muon.pt > self.parameters["muon_pt_cut"]]
-        
         pass_event_flags = np.ones(df.shape[0], dtype=bool)
         for flag in self.parameters["event_flags"]:
             pass_event_flags = pass_event_flags & df.Flag[flag]
@@ -323,41 +335,20 @@ class DimuonProcessor(processor.ProcessorABC):
         event_weight = event_weight[event_filter]
         if self.timer:
             self.timer.add_checkpoint("Applied preselection")
-        #--------------------------------# 
-        
+        #--------------------------------#      
+
         muons_jca = JaggedCandidateArray.candidatesfromcounts(
-                            muons.counts,
-                            pt=muons.pt.flatten(),
-                            eta=muons.eta.flatten(),
-                            phi=muons.phi.flatten(),
-                            mass=muons.mass.flatten(),
-                            charge=muons.charge.flatten(),
-                            )
+            muons.counts,
+            pt=muons.pt.flatten(),
+            eta=muons.eta.flatten(),
+            phi=muons.phi.flatten(),
+            mass=muons.mass.flatten(),
+            charge=muons.charge.flatten(),
+        )
         dimuons = muons_jca.distincts()
         
         mu1 = muons[muons.pt.argmax()]
         mu2 = muons[muons.pt.argmin()]
-        
-        if self.do_roccor:
-            mu1 = JaggedCandidateArray.candidatesfromcounts(
-                np.ones(mu1.pt.shape),
-                pt=mu1.pt.flatten()*apply_roccor(self.rochester, isData, mu1).flatten(),
-                eta=mu1.eta.flatten(),
-                phi=mu1.phi.flatten(),
-                mass=mu1.mass.flatten(),
-                pfRelIso04_all=mu1.pfRelIso04_all.flatten()
-            )
-            mu2 = JaggedCandidateArray.candidatesfromcounts(
-                np.ones(mu2.pt.shape),
-                pt=mu2.pt.flatten()*apply_roccor(self.rochester, isData, mu2).flatten(),
-                eta=mu2.eta.flatten(),
-                phi=mu2.phi.flatten(),
-                mass=mu2.mass.flatten(),
-                pfRelIso04_all=mu2.pfRelIso04_all.flatten()
-            )
-            if self.timer:
-                self.timer.add_checkpoint("Applied Rochester")
-
 
         if 'dy' in dataset:
             zpt_weights = self.evaluator[self.zpt_path](dimuons.pt).flatten()
@@ -368,19 +359,16 @@ class DimuonProcessor(processor.ProcessorABC):
                                    muons[self.parameters["muon_trigmatch_id"]]]
         
         
-        if self.do_fsr:
-            trigmuarrays = {key:df.TrigObj[key].flatten() for key in df.TrigObj.columns}
-            trigmuarrays.update({'mass':0})
-            trig_muons = JaggedCandidateArray.candidatesfromcounts(df.TrigObj.counts, **trigmuarrays)
 
-            trig_muons = trig_muons[trig_muons.id == 13]
-            muTrig = mu_pass_leading_pt.cross(trig_muons, nested = True)
-            _,_,dr = delta_r(muTrig.i0.eta, muTrig.i1.eta, muTrig.i0.phi, muTrig.i1.phi)
-            matched = (dr < self.parameters["muon_trigmatch_dr"])
-        else:
-            trig_muons = df.TrigObj[df.TrigObj.id == 13]        
-            muTrig = mu_pass_leading_pt.cross(trig_muons, nested = True)
-            matched = (muTrig.i0.delta_r(muTrig.i1) < self.parameters["muon_trigmatch_dr"])
+        trigmuarrays = {key:df.TrigObj[key].flatten() for key in df.TrigObj.columns}
+        trigmuarrays.update({'mass':0})
+        trig_muons = JaggedCandidateArray.candidatesfromcounts(df.TrigObj.counts, **trigmuarrays)
+
+        trig_muons = trig_muons[trig_muons.id == 13]
+        muTrig = mu_pass_leading_pt.cross(trig_muons, nested = True)
+        _,_,dr = delta_r(muTrig.i0.eta, muTrig.i1.eta, muTrig.i0.phi, muTrig.i1.phi)
+        matched = (dr < self.parameters["muon_trigmatch_dr"])
+
 
         # at least one muon matched with L3 object, and that muon passes pt, iso and id cuts
         trig_matched = (mu_pass_leading_pt[matched.any()].counts>0)
@@ -413,18 +401,13 @@ class DimuonProcessor(processor.ProcessorABC):
         if self.timer:
             self.timer.add_checkpoint("Applied dimuon cuts")
         #--------------------------------#   
+        
+        jetarrays = {key:df.Jet[key].flatten() for key in df.Jet.columns}        
+        jet = JaggedCandidateArray.candidatesfromcounts(df.Jet.counts, **jetarrays)
 
-                 
-        if self.do_fsr:
-            
-            jetarrays = {key:df.Jet[key].flatten() for key in df.Jet.columns}        
-            jet = JaggedCandidateArray.candidatesfromcounts(df.Jet.counts, **jetarrays)
+        mujet = jet.cross(muons, nested=True)
+        _,_,deltar_mujet = delta_r(mujet.i0.eta, mujet.i1.eta, mujet.i0.phi, mujet.i1.phi)
 
-            mujet = jet.cross(muons, nested=True)
-            _,_,deltar_mujet = delta_r(mujet.i0.eta, mujet.i1.eta, mujet.i0.phi, mujet.i1.phi)
-        else:
-            mujet = df.Jet.cross(muons, nested=True)
-            deltar_mujet = mujet.i0.delta_r(mujet.i1)
         deltar_mujet_ok =  (deltar_mujet > self.parameters["min_dr_mu_jet"]).all()
         
         # Jet ID
@@ -492,6 +475,7 @@ class DimuonProcessor(processor.ProcessorABC):
         df = df[jet_filter]   
         mu1 = mu1[jet_filter] 
         mu2 = mu2[jet_filter] 
+        muons = muons[jet_filter]
         dimuons = dimuons[jet_filter]
         jets = jets[jet_filter]
         jet_selection = jet_selection[jet_filter]
@@ -502,9 +486,20 @@ class DimuonProcessor(processor.ProcessorABC):
         #--------------------------------#
 
         
+        dpt1 = (mu1.ptErr*dimuons.mass) / (2*mu1.pt)
+        dpt2 = (mu2.ptErr*dimuons.mass) / (2*mu2.pt)
+        if isData:
+            label = f"res_calib_Data_{self.year}"
+        else:
+            label = f"res_calib_MC_{self.year}"
+        calibration = np.array(self.evaluator[label](mu1.pt.flatten(), abs(mu1.eta.flatten()), abs(mu2.eta.flatten())))
+        dimuon_mass_res = np.sqrt(dpt1 * dpt1 + dpt2 * dpt2) * calibration
+        dimuon_mass_res_rel = dimuon_mass_res / dimuons.mass
+
+        
         # In the computations below I'm trying to keep the size of objects in first dimension the same
         # as it is in the previous step, in order to be able to apply event_weight similarly for all variables
-        
+
         one_jet = (jet_selection.any() & (jets.counts>0))
         two_jets = (jet_selection.any() & (jets.counts>1))
         
@@ -513,25 +508,58 @@ class DimuonProcessor(processor.ProcessorABC):
         
         jet1_mask = np.zeros(len(event_weight))
         jet1_mask[one_jet] = 1
-        jet1 = JaggedCandidateArray.candidatesfromcounts(
-            jet1_mask,
-            pt=jets[one_jet,0].pt.flatten(),
-            eta=jets[one_jet,0].eta.flatten(),
-            phi=jets[one_jet,0].phi.flatten(),
-            mass=jets[one_jet,0].mass.flatten(),
-            qgl=jets[one_jet,0].qgl.flatten()
-        )
-        
         jet2_mask = np.zeros(len(event_weight))
         jet2_mask[two_jets] = 1
-        jet2 = JaggedCandidateArray.candidatesfromcounts(
-            jet2_mask,
-            pt=jets[two_jets,1].pt.flatten(),
-            eta=jets[two_jets,1].eta.flatten(),
-            phi=jets[two_jets,1].phi.flatten(),
-            mass=jets[two_jets,1].mass.flatten(),
-            qgl=jets[two_jets,1].qgl.flatten()
-        )
+        
+        if isData:
+            jet1 = JaggedCandidateArray.candidatesfromcounts(
+                jet1_mask,
+                pt=jets[one_jet,0].pt.flatten(),
+                eta=jets[one_jet,0].eta.flatten(),
+                phi=jets[one_jet,0].phi.flatten(),
+                mass=jets[one_jet,0].mass.flatten(),
+                qgl=jets[one_jet,0].qgl.flatten(),
+            )
+
+            jet2 = JaggedCandidateArray.candidatesfromcounts(
+                jet2_mask,
+                pt=jets[two_jets,1].pt.flatten(),
+                eta=jets[two_jets,1].eta.flatten(),
+                phi=jets[two_jets,1].phi.flatten(),
+                mass=jets[two_jets,1].mass.flatten(),
+                qgl=jets[two_jets,1].qgl.flatten(),
+            )
+        
+        else:
+            
+            jet1 = JaggedCandidateArray.candidatesfromcounts(
+                jet1_mask,
+                pt=jets[one_jet,0].pt.flatten(),
+                eta=jets[one_jet,0].eta.flatten(),
+                phi=jets[one_jet,0].phi.flatten(),
+                mass=jets[one_jet,0].mass.flatten(),
+                qgl=jets[one_jet,0].qgl.flatten(),
+                genJetIdx=jets[one_jet,0].genJetIdx.flatten()
+            )
+
+            jet2 = JaggedCandidateArray.candidatesfromcounts(
+                jet2_mask,
+                pt=jets[two_jets,1].pt.flatten(),
+                eta=jets[two_jets,1].eta.flatten(),
+                phi=jets[two_jets,1].phi.flatten(),
+                mass=jets[two_jets,1].mass.flatten(),
+                qgl=jets[two_jets,1].qgl.flatten(),
+                genJetIdx=jets[two_jets,1].genJetIdx.flatten()
+            )
+            
+            genJetMass = np.zeros(len(event_weight))
+            idx1 = jet1.genJetIdx[two_jets].flatten()
+            idx2 = jet2.genJetIdx[two_jets].flatten()
+            gjets = df.GenJet[two_jets]
+            has_gen_pair = (idx1 >= 0) & (idx2 >= 0) & (idx1 < gjets.counts) & (idx2 < gjets.counts)
+
+            _,_,_, genJetMass[two_jets][has_gen_pair] = p4_sum(gjets[has_gen_pair,idx1[has_gen_pair]],\
+                                                               gjets[has_gen_pair,idx2[has_gen_pair]])
         
         dijet_pairs = jets[two_jets, 0:2]
         
@@ -554,6 +582,105 @@ class DimuonProcessor(processor.ProcessorABC):
         dijet_dphi = np.full(len(event_weight), -999.)
         dijet_dphi[two_jets] = abs(jet1[two_jets].p4.delta_phi(jet2[two_jets].p4))
 
+        zeppenfeld = np.full(len(event_weight), -999.)
+        zeppenfeld[two_jets] = (dimuons.eta[two_jets] - 0.5*(jet1.eta[two_jets] + jet2.eta[two_jets]))
+        
+        rpt = np.full(len(event_weight), -999.)
+        mmjj_pt = np.full(len(event_weight), 0.)
+        mmjj_eta = np.full(len(event_weight), -999.)
+        mmjj_phi = np.full(len(event_weight), -999.)
+        mmjj_mass = np.full(len(event_weight), 0.)
+        mmjj_pt[two_jets], mmjj_eta[two_jets], mmjj_phi[two_jets], mmjj_mass[two_jets] = p4_sum(dimuons[two_jets], dijet[two_jets])
+        rpt[two_jets] =  mmjj_pt[two_jets]/(dimuons.pt[two_jets] + jet1.pt[two_jets] + jet2.pt[two_jets])
+        
+
+        # This might be not needed
+        
+        sjarrays = {key:df.SoftActivityJet[key].flatten() for key in df.SoftActivityJet.columns}   
+        sjarrays.update({'mass':0})
+        softjets = JaggedCandidateArray.candidatesfromcounts(df.SoftActivityJet.counts, **sjarrays)
+
+        nsoftjets2 = df.SoftActivityJetNjets2
+        nsoftjets5 = df.SoftActivityJetNjets5
+        htsoft2 = df.SoftActivityJetHT2
+        htsoft5 = df.SoftActivityJetHT5
+        
+        # Events with 0 selected jets: clear soft jets from muons
+        no_jets = ~one_jet
+        
+        sj_mm0 = softjets[no_jets].cross(muons[no_jets], nested=True)
+        _,_,dr_mm0 = delta_r(sj_mm0.i0.eta, sj_mm0.i1.eta, sj_mm0.i0.phi, sj_mm0.i1.phi)
+        bad_sj_mm0 = (dr_mm0*dr_mm0 < self.parameters["softjet_dr2"])
+        bad_sj0 = (bad_sj_mm0.any()).all()
+ 
+        sj2_sel0 = np.zeros(len(event_weight), dtype=bool)
+        sj2_sel0[no_jets] = ((softjets.pt[no_jets]>2.) & bad_sj0).any()
+        nsoftjets2[sj2_sel0] = nsoftjets2[sj2_sel0] - softjets[sj2_sel0].counts
+        htsoft2[sj2_sel0] = htsoft2[sj2_sel0] - softjets.pt[sj2_sel0].sum()
+ 
+        sj5_sel0 = np.zeros(len(event_weight), dtype=bool)
+        sj5_sel0[no_jets] = ((softjets.pt[no_jets]>5.) & bad_sj0).any()
+        nsoftjets5[sj5_sel0] = nsoftjets5[sj5_sel0] - softjets[sj5_sel0].counts
+        htsoft5[sj5_sel0] = htsoft5[sj5_sel0] - softjets.pt[sj5_sel0].sum()
+        
+        # Events with exactly 1 selected jet: clear soft jets from muons and the jet
+        only_one_jet = one_jet & (~two_jets)
+        
+        sj_mm1 = softjets[only_one_jet].cross(muons[only_one_jet], nested=True)
+        _,_,dr_mm1 = delta_r(sj_mm1.i0.eta, sj_mm1.i1.eta, sj_mm1.i0.phi, sj_mm1.i1.phi)
+        bad_sj_mm1 = (dr_mm1*dr_mm1 < self.parameters["softjet_dr2"])
+        
+        sj_j1_1 = softjets[only_one_jet].cross(jet1[only_one_jet], nested=True)
+        _,_,dr_j1_1 = delta_r(sj_j1_1.i0.eta, sj_j1_1.i1.eta, sj_j1_1.i0.phi, sj_j1_1.i1.phi)
+        bad_sj_j1_1 = (dr_j1_1*dr_j1_1 < self.parameters["softjet_dr2"])
+        
+        bad_sj1 = (bad_sj_mm1.any() | bad_sj_j1_1).all()
+
+        sj2_sel1 = np.zeros(len(event_weight), dtype=bool)
+        sj2_sel1[only_one_jet] = ((softjets.pt[only_one_jet]>2.) & bad_sj1).any()
+        nsoftjets2[sj2_sel1] = nsoftjets2[sj2_sel1] - softjets[sj2_sel1].counts
+        htsoft2[sj2_sel1] = htsoft2[sj2_sel1] - softjets.pt[sj2_sel1].sum()
+        
+        sj5_sel1 = np.zeros(len(event_weight), dtype=bool)
+        sj5_sel1[only_one_jet] = ((softjets.pt[only_one_jet]>5.) & bad_sj1).any()
+        nsoftjets5[sj5_sel1] = nsoftjets5[sj5_sel1] - softjets[sj5_sel1].counts
+        htsoft5[sj5_sel1] = htsoft5[sj5_sel1] - softjets.pt[sj5_sel1].sum()
+        
+        # Events with two selected jets: clear soft jets from muons and selected jets
+        
+        sj_mm2 = softjets[two_jets].cross(muons[two_jets], nested=True)
+        _,_,dr_mm2 = delta_r(sj_mm2.i0.eta, sj_mm2.i1.eta, sj_mm2.i0.phi, sj_mm2.i1.phi)
+        bad_sj_mm2 = (dr_mm2*dr_mm2 < self.parameters["softjet_dr2"])
+        
+        sj_j1_2 = softjets[two_jets].cross(jet1[two_jets], nested=True)
+        _,_,dr_j1_2 = delta_r(sj_j1_2.i0.eta, sj_j1_2.i1.eta, sj_j1_2.i0.phi, sj_j1_2.i1.phi)
+        bad_sj_j1_2 = (dr_j1_2*dr_j1_2 < self.parameters["softjet_dr2"])
+        
+        sj_j2 = softjets[two_jets].cross(jet2[two_jets], nested=True)
+        _,_,dr_j2 = delta_r(sj_j2.i0.eta, sj_j2.i1.eta, sj_j2.i0.phi, sj_j2.i1.phi)
+        bad_sj_j2 = (dr_j2*dr_j2 < self.parameters["softjet_dr2"])
+
+        bad_sj2 = (bad_sj_mm2.any() | bad_sj_j1_2 | bad_sj_j2).all()
+
+        eta_sj_j1 = (sj_j1_2.i0.eta > sj_j1_2.i1.eta).all()
+        eta_sj_j2 = (sj_j2.i0.eta > sj_j2.i1.eta).all()
+        eta_j1j2 = (sj_j1_2.i1.eta > sj_j2.i1.eta).all()
+
+        eta_sel = ( (eta_sj_j1 | ~eta_sj_j2) & eta_j1j2 ) | ( (~eta_sj_j1 | eta_sj_j2) & ~eta_j1j2 )
+
+        sj2_sel2 = np.zeros(len(event_weight), dtype=bool)
+        sj2_sel2[two_jets] = (((softjets.pt[two_jets]>2.) | eta_sel) & bad_sj2).any()
+        nsoftjets2[sj2_sel2] = nsoftjets2[sj2_sel2] - softjets[sj2_sel2].counts
+        htsoft2[sj2_sel2] = htsoft2[sj2_sel2] - softjets.pt[sj2_sel2].sum()
+        
+        sj5_sel2 = np.zeros(len(event_weight), dtype=bool)
+        sj5_sel2[two_jets] = ((softjets.pt[two_jets]>5.) & bad_sj2).any()
+        nsoftjets5[sj5_sel2] = nsoftjets5[sj5_sel2] - softjets[sj5_sel2].counts
+        htsoft5[sj5_sel2] = htsoft5[sj5_sel2] - softjets.pt[sj5_sel2].sum()
+
+        
+        ###
+        
         vbf_cut = (dijet.mass>400)&(dijet_deta>2.5)
         category[two_jets&(~vbf_cut)] = 'ggh_2j'
         category[two_jets&vbf_cut] = 'vbf'
@@ -570,26 +697,35 @@ class DimuonProcessor(processor.ProcessorABC):
 #        dphi_mumu = abs(mu1.p4.delta_phi(mu2.p4)).flatten()
 #        dr_mumu = np.sqrt(deta_mumu*deta_mumu + dphi_mumu*dphi_mumu)
         deta_mumu, dphi_mumu, dr_mumu = delta_r(mu1.eta.flatten(), mu2.eta.flatten(), mu1.phi.flatten(), mu2.phi.flatten())
-        deta_mumuj1 = np.zeros(one_jet.shape[0])
-        dphi_mumuj1 = np.zeros(one_jet.shape[0])
-        dr_mumuj1 = np.zeros(one_jet.shape[0])
+        deta_mumuj1 = np.zeros(len(event_weight))
+        dphi_mumuj1 = np.zeros(len(event_weight))
+        dr_mumuj1 = np.zeros(len(event_weight))
         
         deta_mumuj1[one_jet], dphi_mumuj1[one_jet], dr_mumuj1[one_jet] = delta_r(dimuons[one_jet].eta.flatten(),\
                                                                               jet1.eta.flatten(),\
                                                                               dimuons[one_jet].phi.flatten(),\
                                                                               jet1.phi.flatten())
-        deta_mumuj2 = np.zeros(two_jets.shape[0])
-        dphi_mumuj2 = np.zeros(two_jets.shape[0])
-        dr_mumuj2 = np.zeros(two_jets.shape[0])
+        deta_mumuj2 = np.zeros(len(event_weight))
+        dphi_mumuj2 = np.zeros(len(event_weight))
+        dr_mumuj2 = np.zeros(len(event_weight))
         
         deta_mumuj2[two_jets], dphi_mumuj2[two_jets], dr_mumuj2[two_jets] = delta_r(dimuons[two_jets].eta.flatten(),\
                                                                               jet2.eta.flatten(),\
                                                                               dimuons[two_jets].phi.flatten(),\
                                                                               jet2.phi.flatten())
 
+        min_deta_mumuj = np.zeros(len(event_weight))
+        min_deta_mumuj[two_jets] = np.where(deta_mumuj1[two_jets], deta_mumuj2[two_jets],\
+                                            (deta_mumuj1[two_jets] < deta_mumuj1[two_jets]))
+        
+        min_dphi_mumuj = np.zeros(len(event_weight))
+        min_dphi_mumuj[two_jets] = np.where(dphi_mumuj1[two_jets], dphi_mumuj2[two_jets],\
+                                            (dphi_mumuj1[two_jets] < dphi_mumuj1[two_jets]))
         
         variable_map = {
             'dimuon_mass': dimuons.mass.flatten(),
+            'dimuon_mass_res': dimuon_mass_res.flatten(),
+            'dimuon_mass_res_rel': dimuon_mass_res_rel.flatten(),
             'dimuon_pt': dimuons.pt.flatten(),
             'dimuon_eta': dimuons.eta.flatten(),
             'dimuon_phi': dimuons.phi.flatten(),
@@ -622,6 +758,9 @@ class DimuonProcessor(processor.ProcessorABC):
             'jet2_qgl': jet2.qgl,
             'deta_mumuj2': deta_mumuj2,
             'dphi_mumuj2': dphi_mumuj2,
+            
+            'min_deta_mumuj': min_deta_mumuj,
+            'min_dphi_mumuj': min_dphi_mumuj,
      
             'jj_mass': dijet.mass,
             'jj_pt': dijet.pt,
@@ -630,7 +769,18 @@ class DimuonProcessor(processor.ProcessorABC):
             'jj_dEta': dijet_deta,
             'jj_dPhi': dijet_dphi,      
  
+            'mmjj_mass': mmjj_mass,
+            'mmjj_pt': mmjj_pt,
+            'mmjj_eta': mmjj_eta,
+            'mmjj_phi': mmjj_phi,            
+            'zeppenfeld': zeppenfeld,
+            'rpt': rpt,
+            
             'njets': jets.counts.flatten(),
+            'nsoftjets2': nsoftjets2.flatten(),
+            'nsoftjets5': nsoftjets5.flatten(),
+            'htsoft2': htsoft2.flatten(),
+            'htsoft5': htsoft5.flatten(),
         
             'npv': df.PV.npvsGood.flatten(),
             'met': df.MET.pt.flatten(),
@@ -640,16 +790,24 @@ class DimuonProcessor(processor.ProcessorABC):
 
         # Evaluate DNN 
 
-        if self.evaluate_dnn:                
-            training_features = ['dimuon_mass', 'dimuon_pt', 'dimuon_eta', 'dimuon_dEta', 'mu1_pt', 'mu2_pt']
-            n_rows = len(dimuons.mass.flatten())
+        if self.evaluate_dnn:  
+            dnn_score = np.full(len(event_weight), -1.)
+            training_features = ['dimuon_mass', 'dimuon_pt', 'dimuon_eta', 'dimuon_dEta', 'dimuon_dPhi', 'dimuon_dR',\
+                     'jj_mass', 'jj_eta', 'jj_phi', 'jj_pt', 'jj_dEta',\
+                     'mmjj_mass', 'mmjj_eta', 'mmjj_phi','zeppenfeld',\
+                     'jet1_pt', 'jet1_eta', 'jet1_qgl', 'jet2_pt', 'jet2_eta', 'jet2_qgl',\
+#                     'cosThetaCS',\ #missing
+                     'dimuon_mass_res_rel', 'deta_mumuj1', 'dphi_mumuj1', 'deta_mumuj2', 'dphi_mumuj2',\
+                     'htsoft5',
+                    ]
+            n_rows = len(dimuons.mass[two_jets].flatten())
             df_for_dnn = pd.DataFrame(columns=training_features)
-                
+            
             for tf in training_features:
-                feature_column = variable_map[tf]
+                feature_column = variable_map[tf][two_jets]
                 assert(n_rows==len(feature_column))
                 df_for_dnn[tf] = feature_column
-                
+
             from keras.models import load_model
             import keras.backend as K
             import tensorflow as tf
@@ -661,8 +819,12 @@ class DimuonProcessor(processor.ProcessorABC):
             # BOTTLENECK: can't load model outside of a worker
             # https://github.com/keras-team/keras/issues/9964
             dnn_model = load_model('output/trained_models/test.h5')
+            scaler = np.load("output/trained_models/scalers.npy")
+            df_for_dnn[training_features] = (df_for_dnn[training_features]-scaler[0])/scaler[1]
             
-            dnn_score = dnn_model.predict(df_for_dnn[training_features]).flatten()
+            dnn_score[two_jets] = dnn_model.predict(df_for_dnn[training_features]).flatten()
+#            print(df_for_dnn[training_features])
+#            print(dnn_score)
             variable_map['dnn_score'] = dnn_score
             
             if self.timer:
@@ -676,8 +838,13 @@ class DimuonProcessor(processor.ProcessorABC):
             for cname in channels:
                 ccut = (category==cname)
                 for rname, rcut in regions.items():
-                    if (dataset in self.overlapping_samples) and (dataset not in self.specific_samples[rname][cname]): continue
+                    if (dataset in self.overlapping_samples) and (dataset not in self.specific_samples[rname][cname]): 
+                        continue
                     if isData and ('h-peak' in rname) and ('dimuon_mass' in vname): continue # blinding
+                    if ('dy_m105_160_vbf_amc' in dataset) and ('vbf' in cname):
+                        ccut = ccut & (genJetMass > 350.)
+                    if ('dy_m105_160_amc' in dataset) and ('vbf' in cname):
+                        ccut = ccut & (genJetMass < 350.)
                     value = expression[rcut & ccut]
                     if not value.size: continue # skip empty arrays
                     if isinstance(value, awkward.JaggedArray):
