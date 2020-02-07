@@ -39,6 +39,7 @@ cross_sections = {
     "st_tw_top": 35.85,
     "st_tw_antitop": 35.85,
     "ewk_lljj_mll105_160": 0.0508896,
+    "ewk_lljj_mll105_160_ptj0": {"2016": 0.07486, "2017": 0.0789, "2018": 0.0789},
 
     # Note via Nan L.: the 2016 sample has a different tune, for which Stephane C.
     # computed a new cross-section from MINIAOD using
