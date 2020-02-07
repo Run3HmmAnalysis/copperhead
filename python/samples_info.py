@@ -1,4 +1,4 @@
-def read_via_xrootd(path, server):
+def read_via_xrootd(server, path):
     import subprocess
     command = f"xrdfs {server} ls -R {path} | grep '.root'"
     proc = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
@@ -9,16 +9,16 @@ def read_via_xrootd(path, server):
     return result
 
 class SamplesInfo(object):
-    def __init__(self, year='2016', out_path='/output/', at_purdue=True, server='root://xrootd.rcac.purdue.edu/', debug=False):
+    def __init__(self, year='2016', out_path='/output/', at_purdue=True, server='root://xrootd.rcac.purdue.edu/', datasets_from='purdue', debug=False):
 
         self.year = year
         self.out_path = out_path
         self.at_purdue = at_purdue
         self.debug = debug
 
-        if 'purdue' in server:
+        if 'purdue' in datasets_from:
             from config.datasets import datasets, lumi_data, all_dy, all_ewk
-        elif 'lnl.infn' in server:
+        elif 'pisa' in datasets_from:
             from config.datasets_pisa import datasets, lumi_data, all_dy, all_ewk
 
         self.server = server
@@ -27,7 +27,7 @@ class SamplesInfo(object):
         self.datasets = datasets
         self.lumi_data = lumi_data
 
-        self.lumi = 40000 # default value
+        self.lumi = 35860.0 # default value
         self.data_entries = 0
 
         self.samples = []
@@ -43,9 +43,10 @@ class SamplesInfo(object):
 
         #--- Select samples for which unbinned data will be saved ---#
         self.signal_samples = ['ggh_amcPS', 'vbf_amcPS']
+        self.additional_signal = ['ggh_powheg', 'ggh_powhegPS', 'vbf_powheg', 'vbf_powhegPS', 'vbf_powheg_herwig']
         self.main_bkg_samples = ['dy_m105_160_amc', 'dy_m105_160_vbf_amc',\
                                  'ttjets_dl', 'ewk_lljj_mll105_160', "ewk_lljj_mll105_160_ptj0"]
-        self.datasets_to_save_unbin = self.signal_samples + self.main_bkg_samples
+        self.datasets_to_save_unbin = self.signal_samples + self.additional_signal + self.main_bkg_samples
 
         #--- Take overlapping samples and assign them to different regions ---#
 
@@ -57,14 +58,14 @@ class SamplesInfo(object):
                     'vbf' : ["dy_0j", "dy_1j", "dy_2j", 'ewk_lljj_mll50_mjj120']
                 },
                 'h-sidebands': {
-                    'ggh_01j' : ['dy_m105_160_amc', 'ewk_lljj_mll105_160'],
-                    'ggh_2j' : ['dy_m105_160_amc', 'ewk_lljj_mll105_160'],
-                    'vbf' : ['dy_m105_160_vbf_amc', 'ewk_lljj_mll105_160'],
+                    'ggh_01j' : ['dy_m105_160_amc', 'ewk_lljj_mll105_160','ewk_lljj_mll105_160_ptj0'],
+                    'ggh_2j' : ['dy_m105_160_amc', 'ewk_lljj_mll105_160','ewk_lljj_mll105_160_ptj0'],
+                    'vbf' : ['dy_m105_160_amc', 'dy_m105_160_vbf_amc', 'ewk_lljj_mll105_160','ewk_lljj_mll105_160_ptj0'],
                 },
                 'h-peak': {
-                    'ggh_01j' : ['dy_m105_160_amc', 'ewk_lljj_mll105_160'],
-                    'ggh_2j' : ['dy_m105_160_amc', 'ewk_lljj_mll105_160'],
-                    'vbf' : ['dy_m105_160_vbf_amc', 'ewk_lljj_mll105_160'],
+                    'ggh_01j' : ['dy_m105_160_amc', 'ewk_lljj_mll105_160','ewk_lljj_mll105_160_ptj0'],
+                    'ggh_2j' : ['dy_m105_160_amc', 'ewk_lljj_mll105_160','ewk_lljj_mll105_160_ptj0'],
+                    'vbf' : ['dy_m105_160_amc','dy_m105_160_vbf_amc', 'ewk_lljj_mll105_160','ewk_lljj_mll105_160_ptj0'],
                 }
             }
 
@@ -137,10 +138,13 @@ class SamplesInfo(object):
         data_entries = 0
 
         if self.at_purdue:
-            all_files = read_via_xrootd(self.paths[sample], self.server)
+            all_files = read_via_xrootd(self.server, self.paths[sample])
         else:
-            all_files = [self.server+ f for f in glob.glob(self.paths[sample]+'*root')]
+            all_files = [server+f for f in glob.glob(self.paths[sample]+'/**/**/*.root')]
 
+        if 'ttjets_sl' in sample:
+            all_files = all_files[0:10]
+            
         if self.debug:
             all_files = [all_files[0]]
 
@@ -174,13 +178,10 @@ class SamplesInfo(object):
         self.lumi_weights = {'data':1}
         for sample in self.mc_samples:
             N = self.metadata[sample]['sumGenWgts']
-            if 'ewk_lljj_mll50_mjj120' in sample:
-                xsec = cross_sections[sample]['2016']
+            if 'ewk_lljj_mll50_mjj120' or 'ewk_lljj_mll105_160_ptj0' in sample:
+                xsec = cross_sections[sample][self.year]
             else:
-                if 'ewk_lljj_mll105_160_ptj0' in sample:
-                    xsec = cross_sections['ewk_lljj_mll105_160']
-                else:
-                    xsec = cross_sections[sample]
+                xsec = cross_sections[sample]
             self.lumi_weights[sample] = xsec*self.lumi / N
             lumi_wgt = self.lumi_weights[sample]
           #  print(f"{sample}: xsec={xsec}, N={N}, lumi_wgt={lumi_wgt}")
