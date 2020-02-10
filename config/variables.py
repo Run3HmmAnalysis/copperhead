@@ -17,6 +17,7 @@ variables.append(Variable("dimuon_phi", r"$\phi (\mu\mu)$", 100, -3.2, 3.2))
 variables.append(Variable("dimuon_dEta", r"$\Delta\eta (\mu\mu)$", 100, 0, 3.5))
 variables.append(Variable("dimuon_dPhi", r"$\Delta\phi (\mu\mu)$", 100, 0, 4))
 variables.append(Variable("dimuon_dR", r"$\Delta R (\mu\mu)$", 100, 0, 4))
+variables.append(Variable("dimuon_cosThetaCS", r"$\cos\theta_{CS}$", 100, 0, 1))
 
 variables.append(Variable("mu1_pt", r"$p_{T}(\mu_{1})$ [GeV]", 40, 20, 200))
 variables.append(Variable("mu1_pt_over_mass", r"$p_{T}(\mu_{1})/M_{\mu\mu}$ [GeV]", 100, 0, 2))

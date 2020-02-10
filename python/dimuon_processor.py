@@ -219,15 +219,13 @@ class DimuonProcessor(processor.ProcessorABC):
         # TODO: btag sf
         # TODO: JEC, JER
         # TODO: Add systematic uncertainties
-        # TODO: check updated jet PUID for 2018 (caltech slides)
         # TODO: fix FSR photon index
         # TODO: check Nsoftjets distributions - there should be less events in 0
         
         # Variables to add (all need to be saved for unbinned analysis):
-        # dimuon_costhetaCS, dimuon_phiCS
+        # dimuon_phiCS
         
         # Remaining issues:
-        # ttjets_sl processing freezes
         # dimuon pt disagreement
         # jet pt in VBF channel - possibly
         
@@ -259,12 +257,14 @@ class DimuonProcessor(processor.ProcessorABC):
         for hlt_path in self.parameters['hlt']:
             hlt = hlt | df.HLT[hlt_path]
             
-        if self.evaluate_dnn:
-            ev_num_filter = ((df.event%2)==0)
-        else:
-            ev_num_filter = ((df.event%2)==1)
+#        if self.evaluate_dnn:
+#            ev_num_filter = ((df.event%2)==0)
+#        else:
+#            ev_num_filter = ((df.event%2)==1)
             
-        mask = hlt & lumimask & ev_num_filter
+#        mask = hlt & lumimask & ev_num_filter
+
+        mask = hlt & lumimask       
     
         # Filter 0: HLT & lumimask
         #--------------------------------#    
@@ -722,6 +722,17 @@ class DimuonProcessor(processor.ProcessorABC):
         min_dphi_mumuj[two_jets] = np.where(dphi_mumuj1[two_jets], dphi_mumuj2[two_jets],\
                                             (dphi_mumuj1[two_jets] < dphi_mumuj1[two_jets]))
         
+        mu1_px = mu1.pt*np.cos(mu1.phi)
+        mu1_py = mu1.pt*np.sin(mu1.phi)
+        mu1_pz = mu1.pt*np.sinh(mu1.eta)
+        mu1_e  = np.sqrt(mu1_px**2 + mu1_py**2 + mu1_pz**2 + mu1.mass**2)
+        mu2_px = mu2.pt*np.cos(mu2.phi)
+        mu2_py = mu2.pt*np.sin(mu2.phi)
+        mu2_pz = mu2.pt*np.sinh(mu2.eta)
+        mu2_e  = np.sqrt(mu2_px**2 + mu2_py**2 + mu2_pz**2 + mu2.mass**2)
+        
+        cthetaCS = 2*(mu1_pz * mu2_e - mu1_e * mu2_pz) / (dimuons.mass * np.sqrt(dimuons.mass*dimuons.mass + dimuons.pt*dimuons.pt))
+        
         variable_map = {
             'dimuon_mass': dimuons.mass.flatten(),
             'dimuon_mass_res': dimuon_mass_res.flatten(),
@@ -732,6 +743,7 @@ class DimuonProcessor(processor.ProcessorABC):
             'dimuon_dEta': deta_mumu,
             'dimuon_dPhi': dphi_mumu,
             'dimuon_dR': dr_mumu,
+            'dimuon_cosThetaCS': cthetaCS.flatten(),
             
             'mu1_pt': mu1.pt.flatten(),
             'mu1_pt_over_mass': np.divide(mu1.pt.flatten(), dimuons.mass.flatten()),
@@ -861,7 +873,8 @@ class DimuonProcessor(processor.ProcessorABC):
         
         #----------------- Unbinned outputs -----------------#
         
-        if dataset in self.datasets_to_save_unbin: # don't need unbinned data for all samples
+#        if dataset in self.datasets_to_save_unbin: # don't need unbinned data for all samples
+        if True:
             for v in self.vars_unbin:
                 if v not in variable_map: continue
                 for cname in channels:
