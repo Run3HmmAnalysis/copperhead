@@ -72,10 +72,13 @@ class SamplesInfo(object):
         self.lumi_weights = {}
 
 
-    def load(self, samples):
+    def load(self, samples, nchunks=1):
         import multiprocessing as mp
         import time
+        import numpy as np
         t0 = time.time()
+        
+        self.nchunks = nchunks
 
         pool = mp.Pool(mp.cpu_count())
         a = [pool.apply_async(self.load_sample, args=(s,)) for s in samples]
@@ -85,6 +88,7 @@ class SamplesInfo(object):
             results.append(process.get())
         pool.close()
 
+        self.filesets_chunked = {}
         for res in results:
             sample = res['sample']
             if res['is_missing']:
@@ -92,13 +96,20 @@ class SamplesInfo(object):
             else:
                 self.samples.append(sample)
                 self.filesets[sample] = {}
+                self.filesets_chunked[sample] = []
                 self.filesets[sample][sample] = res['files']
                 self.full_fileset[sample] = res['files']
 
                 self.metadata[sample] = {}
                 self.metadata[sample] = res['metadata']
                 self.data_entries = self.data_entries + res['data_entries']
-
+        
+                all_filenames = np.array(self.filesets[sample][sample]['files'])
+                all_filenames_chunked = np.array_split(all_filenames, nchunks)
+                for i in range(nchunks):
+                    if len(all_filenames_chunked[i])>0:
+                        files_i = {'files': all_filenames_chunked[i], 'treename': 'Events'}
+                        self.filesets_chunked[sample].append({sample: files_i})
 
         if self.data_entries:
             print()
@@ -178,7 +189,7 @@ class SamplesInfo(object):
         self.lumi_weights = {'data':1}
         for sample in self.mc_samples:
             N = self.metadata[sample]['sumGenWgts']
-            if 'ewk_lljj_mll50_mjj120' or 'ewk_lljj_mll105_160_ptj0' in sample:
+            if ('ewk_lljj_mll50_mjj120' in sample) or ('ewk_lljj_mll105_160_ptj0' in sample):
                 xsec = cross_sections[sample][self.year]
             else:
                 xsec = cross_sections[sample]
