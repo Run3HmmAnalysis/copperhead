@@ -2,6 +2,7 @@ from coffea import hist, util
 from coffea.analysis_objects import JaggedCandidateArray, JaggedCandidateMethods
 import coffea.processor as processor
 from coffea.lookup_tools import extractor, dense_lookup, txt_converters, rochester_lookup
+from coffea.jetmet_tools import FactorizedJetCorrector, JetCorrectionUncertainty, JetTransformer, JetResolution, JetResolutionScaleFactor
 from coffea.lumi_tools import LumiMask
 
 import awkward
@@ -84,7 +85,8 @@ class DimuonProcessor(processor.ProcessorABC):
         if not samp_info:
             print("Samples info missing!")
             return
-        self.year = samp_info.year
+        self.samp_info = samp_info
+        self.year = self.samp_info.year
 
         self.mass_window = mass_window
         self.do_roccor = do_roccor
@@ -103,13 +105,13 @@ class DimuonProcessor(processor.ProcessorABC):
         accumulators = {}
                         
         self.vars_unbin = vars_unbin
-        self.regions = samp_info.regions
-        self.channels = samp_info.channels
+        self.regions = self.samp_info.regions
+        self.channels = self.samp_info.channels
 
-        self.overlapping_samples = samp_info.overlapping_samples
-        self.specific_samples = samp_info.specific_samples
-        self.datasets_to_save_unbin = samp_info.datasets_to_save_unbin
-        self.lumi_weights = samp_info.lumi_weights
+        self.overlapping_samples = self.samp_info.overlapping_samples
+        self.specific_samples = self.samp_info.specific_samples
+        self.datasets_to_save_unbin = self.samp_info.datasets_to_save_unbin
+        self.lumi_weights = self.samp_info.lumi_weights
             
         ### Prepare accumulators for binned output ###
         
@@ -127,11 +129,12 @@ class DimuonProcessor(processor.ProcessorABC):
         
         ### --------------------------------------- ###
         
-        for p in self.datasets_to_save_unbin:
+        #for p in self.datasets_to_save_unbin:
+        for p in self.samp_info.samples:
             for v in self.vars_unbin:
                 for c in self.channels:
                     for r in self.regions:
-                        if 'z-peak' in r: continue # don't need unbinned data for Z-peak
+#                        if 'z-peak' in r: continue # don't need unbinned data for Z-peak
                         accumulators[f'{v}_unbin_{p}_c_{c}_r_{r}'] = processor.column_accumulator(np.ndarray([]))
                         # have to encode everything into the name because having multiple axes isn't possible
         
@@ -203,6 +206,33 @@ class DimuonProcessor(processor.ProcessorABC):
         self.rochester = rochester_lookup.rochester_lookup(rochester_data)
         
         self.puLookup = util.load('data/pileup/puLookup.coffea')
+        
+        jetext = extractor()
+        jetext.add_weight_sets([
+                f"* * data/jec/Summer16_07Aug2017_V11_MC_L1FastJet_AK4PFchs.jec.txt",
+                f"* * data/jec/Summer16_07Aug2017_V11_MC_L2Relative_AK4PFchs.jec.txt",
+                f"* * data/jec/Summer16_07Aug2017_V11_MC_Uncertainty_AK4PFchs.junc.txt",
+                f"* * data/jec/Summer16_25nsV1_MC_PtResolution_AK4PFchs.jr.txt",
+                f"* * data/jec/Summer16_25nsV1_MC_SF_AK4PFchs.jersf.txt",
+                ])
+        jetext.finalize()
+        Jetevaluator = jetext.make_evaluator()
+
+        jec_names = ['Summer16_07Aug2017_V11_MC_L1FastJet_AK4PFchs','Summer16_07Aug2017_V11_MC_L2Relative_AK4PFchs']
+        junc_names = ['Summer16_07Aug2017_V11_MC_Uncertainty_AK4PFchs']
+
+        jer_names = ['Summer16_25nsV1_MC_PtResolution_AK4PFchs']
+        jersf_names = ['Summer16_25nsV1_MC_SF_AK4PFchs']
+
+
+        JECcorrector = FactorizedJetCorrector(**{name: Jetevaluator[name] for name in jec_names})
+
+        JECuncertainties = JetCorrectionUncertainty(**{name:Jetevaluator[name] for name in junc_names})
+
+        JER = JetResolution(**{name:Jetevaluator[name] for name in jer_names})
+        JERsf = JetResolutionScaleFactor(**{name:Jetevaluator[name] for name in jersf_names})
+
+        self.Jet_transformer = JetTransformer(jec=JECcorrector,junc=JECuncertainties, jer = JER, jersf = JERsf)
     
     @property
     def accumulator(self):
@@ -213,13 +243,10 @@ class DimuonProcessor(processor.ProcessorABC):
         return self._columns
     
     def process(self, df):
-        # TODO: generate lepton SF for 2017/2018
         # TODO: PU reweighting for 2017/2018
         # TODO: NNLOPS reweighting (ggH)
         # TODO: btag sf
-        # TODO: JEC, JER
         # TODO: Add systematic uncertainties
-        # TODO: fix FSR photon index
         # TODO: check Nsoftjets distributions - there should be less events in 0
         
         # Variables to add (all need to be saved for unbinned analysis):
@@ -378,9 +405,21 @@ class DimuonProcessor(processor.ProcessorABC):
                          trig_matched &\
                          (dimuons.mass > self.mass_window[0]) & (dimuons.mass < self.mass_window[1])).flatten()
         if not isData:
-            muID = self.mu_id_sf(muons.eta.compact(), muons.pt.compact())
-            muIso = self.mu_iso_sf(muons.eta.compact(), muons.pt.compact())
-            muTrig = self.mu_iso_sf(abs(muons.eta.compact()), muons.pt.compact())
+            muID = np.ones(len(muons.flatten()), dtype=float)
+            muIso = np.ones(len(muons.flatten()), dtype=float)
+            muTrig = np.ones(len(muons.flatten()), dtype=float)
+            if self.year is '2016':
+                muID = self.mu_id_sf(muons.eta.compact(), muons.pt.compact())
+                muIso = self.mu_iso_sf(muons.eta.compact(), muons.pt.compact())
+                muTrig = self.mu_iso_sf(abs(muons.eta.compact()), muons.pt.compact())
+            elif self.year is '2017':
+                muID = self.mu_id_sf(muons.pt.compact(), abs(muons.eta.compact()))
+                muIso = self.mu_iso_sf(muons.pt.compact(), abs(muons.eta.compact()))
+                muTrig = self.mu_iso_sf(abs(muons.eta.compact()), muons.pt.compact())
+            elif self.year is '2018':
+                muID = self.mu_id_sf(muons.pt.compact(), abs(muons.eta.compact()))
+                muIso = self.mu_iso_sf(muons.pt.compact(), abs(muons.eta.compact()))
+                muTrig = self.mu_iso_sf(abs(muons.eta.compact()), muons.pt.compact())
             muSF = (muID*muIso*muTrig).prod()
             event_weight = event_weight*muSF
 #             muIDerr = self.mu_id_err(muons.eta, muons.pt)
@@ -402,9 +441,22 @@ class DimuonProcessor(processor.ProcessorABC):
             self.timer.add_checkpoint("Applied dimuon cuts")
         #--------------------------------#   
         
-        jetarrays = {key:df.Jet[key].flatten() for key in df.Jet.columns}        
+        jetarrays = {key:df.Jet[key].flatten() for key in df.Jet.columns}   
+        if not isData:
+            raw_arrays = {'ptRaw':(df.Jet.pt * (1-df.Jet.rawFactor)).flatten(),\
+                          'massRaw':(df.Jet.mass * (1-df.Jet.rawFactor)).flatten(),\
+                          'ptGenJet':np.zeros(df.Jet.counts.sum(), dtype=float)}
+#                         'rho': np.ones(df.Jet.counts.sum(), dtype=float)*df.fixedGridRhoFastjetAll.flatten()}
+            jetarrays.update(raw_arrays)
+            
         jet = JaggedCandidateArray.candidatesfromcounts(df.Jet.counts, **jetarrays)
 
+        if not isData:
+            jet.genJetIdx[jet.genJetIdx>=df.GenJet.counts] = -1
+            jet.ptGenJet[jet.genJetIdx>-1] = df.GenJet[jet.genJetIdx[jet.genJetIdx>-1]].pt
+            jet['rho'] = jet.pt.ones_like()*df.fixedGridRhoFastjetAll
+            self.Jet_transformer.transform(jet, forceStochastic=False)
+        
         mujet = jet.cross(muons, nested=True)
         _,_,deltar_mujet = delta_r(mujet.i0.eta, mujet.i1.eta, mujet.i0.phi, mujet.i1.phi)
 
@@ -444,7 +496,7 @@ class DimuonProcessor(processor.ProcessorABC):
 
         jet_puid = jet_puid[jet_selection]
         jets = df.Jet[jet_selection]
-
+        
         # Jet PUID scale factors
         wp_dict = {"loose": "L", "medium": "M", "tight": "T"}
         wp = wp_dict[jet_puid_opt]
@@ -552,15 +604,15 @@ class DimuonProcessor(processor.ProcessorABC):
                 genJetIdx=jets[two_jets,1].genJetIdx.flatten()
             )
             
-            genJetMass = np.zeros(len(event_weight))
+            genJetMass = np.zeros(len(event_weight), dtype=float)
+            genJetMass_filtered = genJetMass[two_jets]
             idx1 = jet1.genJetIdx[two_jets].flatten()
             idx2 = jet2.genJetIdx[two_jets].flatten()
             gjets = df.GenJet[two_jets]
             has_gen_pair = (idx1 >= 0) & (idx2 >= 0) & (idx1 < gjets.counts) & (idx2 < gjets.counts)
-
-            _,_,_, genJetMass[two_jets][has_gen_pair] = p4_sum(gjets[has_gen_pair,idx1[has_gen_pair]],\
+            _,_,_, genJetMass_filtered[has_gen_pair] = p4_sum(gjets[has_gen_pair,idx1[has_gen_pair]],\
                                                                gjets[has_gen_pair,idx2[has_gen_pair]])
-        
+            genJetMass[two_jets] = genJetMass_filtered
         dijet_pairs = jets[two_jets, 0:2]
         
         dijet_mask = np.zeros(len(event_weight))
@@ -808,7 +860,7 @@ class DimuonProcessor(processor.ProcessorABC):
                      'jj_mass', 'jj_eta', 'jj_phi', 'jj_pt', 'jj_dEta',\
                      'mmjj_mass', 'mmjj_eta', 'mmjj_phi','zeppenfeld',\
                      'jet1_pt', 'jet1_eta', 'jet1_qgl', 'jet2_pt', 'jet2_eta', 'jet2_qgl',\
-#                     'cosThetaCS',\ #missing
+                     'dimuon_cosThetaCS',\
                      'dimuon_mass_res_rel', 'deta_mumuj1', 'dphi_mumuj1', 'deta_mumuj2', 'dphi_mumuj2',\
                      'htsoft5',
                     ]
@@ -880,8 +932,12 @@ class DimuonProcessor(processor.ProcessorABC):
                 for cname in channels:
                     ccut = (category==cname)
                     for rname, rcut in regions.items():
-                        if (dataset in self.overlapping_samples) and (dataset not in self.specific_samples[rname][cname]): continue
-                        if 'z-peak' in rname: continue # don't need unbinned data under Z-peak
+                        if ('dy_m105_160_vbf_amc' in dataset) and ('vbf' in cname):
+                            ccut = ccut & (genJetMass > 350.)
+#                            print(genJetMass)
+                        if ('dy_m105_160_amc' in dataset) and ('vbf' in cname):
+                            ccut = ccut & (genJetMass < 350.)
+#                        if (dataset in self.overlapping_samples) and (dataset not in self.specific_samples[rname][cname]): continue
                         output[f'{v}_unbin_{dataset}_c_{cname}_r_{rname}'] += processor.column_accumulator(variable_map[v][rcut & ccut].flatten())
     
         if self.timer:
