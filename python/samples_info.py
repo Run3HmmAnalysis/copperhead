@@ -5,6 +5,7 @@ def read_via_xrootd(server, path):
     result = proc.stdout.readlines()
     if proc.stderr.readlines():
         print(proc.stderr.readlines())
+#        print(result)
     result = [server + r.rstrip().decode("utf-8") for r in result]
     return result
 
@@ -72,7 +73,7 @@ class SamplesInfo(object):
         self.lumi_weights = {}
 
 
-    def load(self, samples, nchunks=1):
+    def load(self, samples, nchunks=1, parallelize=True):
         import multiprocessing as mp
         import time
         import numpy as np
@@ -80,14 +81,19 @@ class SamplesInfo(object):
         
         self.nchunks = nchunks
 
-        pool = mp.Pool(mp.cpu_count())
-        a = [pool.apply_async(self.load_sample, args=(s,)) for s in samples]
-        results = []
-        for process in a:
-            process.wait()
-            results.append(process.get())
-        pool.close()
-
+        if parallelize:
+            pool = mp.Pool(mp.cpu_count()-2)
+            a = [pool.apply_async(self.load_sample, args=(s,)) for s in samples]
+            results = []
+            for process in a:
+                process.wait()
+                results.append(process.get())
+                pool.close()
+        else:
+            results=[]
+            for s in samples:
+                results.append(self.load_sample(s))
+                
         self.filesets_chunked = {}
         for res in results:
             sample = res['sample']
