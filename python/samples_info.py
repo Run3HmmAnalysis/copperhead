@@ -10,14 +10,17 @@ def read_via_xrootd(server, path):
     return result
 
 class SamplesInfo(object):
-    def __init__(self, year='2016', out_path='/output/', at_purdue=True, server='root://xrootd.rcac.purdue.edu/', datasets_from='purdue', debug=False):
+    def __init__(self, year='2016', out_path='/output/', at_purdue=True, server='root://xrootd.rcac.purdue.edu/', datasets_from='purdue', debug=False, example=False, example_datasets=[]):
 
         self.year = year
         self.out_path = out_path
         self.at_purdue = at_purdue
         self.debug = debug
-
-        if 'purdue' in datasets_from:
+        
+        if example:
+            datasets = example_datasets
+            from config.datasets import lumi_data, all_dy, all_ewk
+        elif 'purdue' in datasets_from:
             from config.datasets import datasets, lumi_data, all_dy, all_ewk
         elif 'pisa' in datasets_from:
             from config.datasets_pisa import datasets, lumi_data, all_dy, all_ewk
