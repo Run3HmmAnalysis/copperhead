@@ -22,16 +22,40 @@ parameters["roccor_file"] = {
 }
 
 # TODO: put correct links for 2017/18
-parameters["muSFFileList"] = for_all_years(
-         [{'id'   : ("data/muon_sf/EfficienciesStudies_2016_legacy_rereco_rootfiles_RunBCDEF_SF_ID.root", "NUM_TightID_DEN_genTracks_eta_pt"),
-          'iso'   : ("data/muon_sf/EfficienciesStudies_2016_legacy_rereco_rootfiles_RunBCDEF_SF_ISO.root", "NUM_TightRelIso_DEN_TightIDandIPCut_eta_pt"),
-          'trig'  : ("data/muon_sf/EfficienciesStudies_2016_trigger_EfficienciesAndSF_RunBtoF.root", "IsoMu24_OR_IsoTkMu24_PtEtaBins/abseta_pt_ratio"),
-          'scale' : 19.656062760/35.882515396},
-        {'id'     : ("data/muon_sf/EfficienciesStudies_2016_legacy_rereco_rootfiles_RunGH_SF_ID.root", "NUM_TightID_DEN_genTracks_eta_pt"),
-         'iso'   : ("data/muon_sf/EfficienciesStudies_2016_legacy_rereco_rootfiles_RunGH_SF_ISO.root", "NUM_TightRelIso_DEN_TightIDandIPCut_eta_pt"),
-         'trig'  : ("data/muon_sf/EfficienciesStudies_2016_trigger_EfficienciesAndSF_RunGtoH.root", "IsoMu24_OR_IsoTkMu24_PtEtaBins/abseta_pt_ratio"),
-         'scale' : 16.226452636/35.882515396}]
-)
+parameters["muSFFileList"] = {'2016': [{'id'   :                                        ("data/muon_sf/mu2016/EfficienciesStudies_2016_legacy_rereco_rootfiles_RunBCDEF_SF_ID.root",\
+                                                                                       "NUM_TightID_DEN_genTracks_eta_pt"),
+                     'iso'   : ("data/muon_sf/mu2016/EfficienciesStudies_2016_legacy_rereco_rootfiles_RunBCDEF_SF_ISO.root",\
+                                "NUM_TightRelIso_DEN_TightIDandIPCut_eta_pt"),
+                     'trig'  : ("data/muon_sf/mu2016/EfficienciesStudies_2016_trigger_EfficienciesAndSF_RunBtoF.root",\
+                                "IsoMu24_OR_IsoTkMu24_PtEtaBins/abseta_pt_ratio"),
+                     'scale' : 19.656062760/35.882515396},
+                    {'id'     : ("data/muon_sf/mu2016/EfficienciesStudies_2016_legacy_rereco_rootfiles_RunGH_SF_ID.root",\
+                                 "NUM_TightID_DEN_genTracks_eta_pt"),
+                     'iso'   : ("data/muon_sf/mu2016/EfficienciesStudies_2016_legacy_rereco_rootfiles_RunGH_SF_ISO.root",\
+                                "NUM_TightRelIso_DEN_TightIDandIPCut_eta_pt"),
+                     'trig'  : ("data/muon_sf/mu2016/EfficienciesStudies_2016_trigger_EfficienciesAndSF_RunGtoH.root",\
+                                "IsoMu24_OR_IsoTkMu24_PtEtaBins/abseta_pt_ratio"),
+                     'scale' : 16.226452636/35.882515396}],
+             '2017': [{'id'     : ("data/muon_sf/mu2017/RunBCDEF_SF_ID.root", "NUM_TightID_DEN_genTracks_pt_abseta"),
+                     'iso'   : ("data/muon_sf/mu2017/RunBCDEF_SF_ISO.root", "NUM_TightRelIso_DEN_TightIDandIPCut_pt_abseta"),
+                     'trig'  : ("data/muon_sf/mu2017/EfficienciesAndSF_RunBtoF_Nov17Nov2017.root",\
+                                "IsoMu27_PtEtaBins/abseta_pt_ratio"),
+                     'scale' : 1.}],
+             '2018': [{'id'     : ("data/muon_sf/mu2018/EfficienciesStudies_2018_rootfiles_RunABCD_SF_ID.root",\
+                                 "NUM_TightID_DEN_TrackerMuons_pt_abseta"),
+                     'iso'   : ("data/muon_sf/mu2018/EfficienciesStudies_2018_rootfiles_RunABCD_SF_ISO.root",\
+                                "NUM_TightRelIso_DEN_TightIDandIPCut_pt_abseta"),
+                     'trig'  : ("data/muon_sf/mu2018/EfficienciesStudies_2018_trigger_EfficienciesAndSF_2018Data_BeforeMuonHLTUpdate.root",\
+                                "IsoMu24_PtEtaBins/abseta_pt_ratio"),
+                     'scale' : 8.950818835/59.688059536},
+                    {'id'     : ("data/muon_sf/mu2018/EfficienciesStudies_2018_rootfiles_RunABCD_SF_ID.root",\
+                                 "NUM_TightID_DEN_TrackerMuons_pt_abseta"),
+                     'iso'   : ("data/muon_sf/mu2018/EfficienciesStudies_2018_rootfiles_RunABCD_SF_ISO.root",\
+                                "NUM_TightRelIso_DEN_TightIDandIPCut_pt_abseta"),
+                     'trig'  : ("data/muon_sf/mu2018/EfficienciesStudies_2018_trigger_EfficienciesAndSF_2018Data_AfterMuonHLTUpdate.root",\
+                                "IsoMu24_PtEtaBins/abseta_pt_ratio"),
+                     'scale' : 50.737240701/59.688059536}],
+            }
 
 parameters['zpt_weights_file'] = for_all_years("data/zpt/zpt_weights.histo.json")
 parameters['puid_sf_file'] = for_all_years("data/puid_sf/PUIDMaps.root")
