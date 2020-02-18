@@ -15,6 +15,17 @@ from python.utils import apply_roccor, p4_sum, get_regions
 from python.timer import Timer
 from python.samples_info import SamplesInfo
 
+def add_systematic(weights_df, sys_name, w_nom, w_up, w_down):
+    sys_name_up = f'{sys_name}_up'
+    sys_name_down = f'{sys_name}_down'
+    if (sys_name not in weights_df):
+        print(f'{sys_name} systematic is missing!')
+        raise
+    weights_df[sys_name_up] = weights_df['nominal']*w_up
+    weights_df[sys_name_down] = weights_df['nominal']*w_down    
+    weights_df.loc[:,(weights_df.columns!=sys_name_up)&(weights_df.columns!=sys_name_down)] =\
+        weights_df.loc[:,(weights_df.columns!=sys_name_up)&(weights_df.columns!=sys_name_down)].multiply(w_nom, axis=0)
+
 def delta_r(eta1, eta2, phi1, phi2):
     deta = abs(eta1 - eta2)
     dphi = abs(np.mod(phi1 - phi2 + np.pi, 2*np.pi) - np.pi)
@@ -78,8 +89,8 @@ def correct_muon_with_fsr(muons_offsets, fsr_offsets, muons_pt, muons_eta, muons
 # Look at ProcessorABC documentation to see the expected methods and what they are supposed to do
 # https://coffeateam.github.io/coffea/api/coffea.processor.ProcessorABC.html
 class DimuonProcessor(processor.ProcessorABC):
-    def __init__(self, mass_window=[70,150], samp_info=SamplesInfo(), do_roccor=True, do_fsr=False, evaluate_dnn=True,\
-                 do_timer=False): 
+    def __init__(self, mass_window=[70,150], samp_info=SamplesInfo(), do_roccor=True, do_fsr=True, evaluate_dnn=False,\
+                 do_timer=False, save_unbin=True): 
         from config.parameters import parameters
         from config.variables import variables, vars_unbin
         if not samp_info:
@@ -90,7 +101,8 @@ class DimuonProcessor(processor.ProcessorABC):
 
         self.mass_window = mass_window
         self.do_roccor = do_roccor
-
+        self.save_unbin = save_unbin
+        
         self.do_fsr = do_fsr
         self.evaluate_dnn = evaluate_dnn
 
@@ -98,10 +110,12 @@ class DimuonProcessor(processor.ProcessorABC):
         self.timer = Timer('global') if do_timer else None
         
         self._columns = self.parameters["proc_columns"]
-
+        self.variations = ['nominal', 'pu_weight','muSF']
+        
         dataset_axis = hist.Cat("dataset", "")
-        region_axis = hist.Cat("region", " ") # Z-peak, Higgs SB, Higgs peak
-        channel_axis = hist.Cat("channel", " ") # ggh or VBF       
+        region_axis = hist.Cat("region", "") # Z-peak, Higgs SB, Higgs peak
+        channel_axis = hist.Cat("channel", "") # ggh or VBF  
+        syst_axis = hist.Cat("syst", "")
         accumulators = {}
                         
         self.vars_unbin = vars_unbin
@@ -120,7 +134,7 @@ class DimuonProcessor(processor.ProcessorABC):
                 axis = hist.Bin(v.name, v.caption, v.nbins, self.mass_window[0], self.mass_window[1])
             else:
                 axis = hist.Bin(v.name, v.caption, v.nbins, v.xmin, v.xmax)
-            accumulators[v.name] = hist.Hist("Counts", dataset_axis, region_axis, channel_axis, axis)
+            accumulators[v.name] = hist.Hist("Counts", dataset_axis, region_axis, channel_axis, syst_axis, axis)
             
         accumulators['cutflow'] = processor.defaultdict_accumulator(int)
 
@@ -130,13 +144,14 @@ class DimuonProcessor(processor.ProcessorABC):
         ### --------------------------------------- ###
         
         #for p in self.datasets_to_save_unbin:
-        for p in self.samp_info.samples:
-            for v in self.vars_unbin:
-                for c in self.channels:
-                    for r in self.regions:
-#                        if 'z-peak' in r: continue # don't need unbinned data for Z-peak
-                        accumulators[f'{v}_unbin_{p}_c_{c}_r_{r}'] = processor.column_accumulator(np.ndarray([]))
-                        # have to encode everything into the name because having multiple axes isn't possible
+        if self.save_unbin:
+            for p in self.samp_info.samples:
+                for v in self.vars_unbin:
+                    for c in self.channels:
+                        for r in self.regions:
+    #                        if 'z-peak' in r: continue # don't need unbinned data for Z-peak
+                            accumulators[f'{v}_unbin_{p}_c_{c}_r_{r}'] = processor.column_accumulator(np.ndarray([]))
+                            # have to encode everything into the name because having multiple axes isn't possible
         
         self._accumulator = processor.dict_accumulator(accumulators)
     
@@ -205,32 +220,21 @@ class DimuonProcessor(processor.ProcessorABC):
         rochester_data = txt_converters.convert_rochester_file(self.parameters["roccor_file"], loaduncs=True)
         self.rochester = rochester_lookup.rochester_lookup(rochester_data)
         
-        self.puLookup = util.load('data/pileup/puLookup.coffea')
+        self.puLookup = util.load(self.parameters['puLookup'])
+        self.puLookup_Up = util.load(self.parameters['puLookup_Up'])
+        self.puLookup_Down = util.load(self.parameters['puLookup_Down'])
         
         jetext = extractor()
-        jetext.add_weight_sets([
-                f"* * data/jec/Summer16_07Aug2017_V11_MC_L1FastJet_AK4PFchs.jec.txt",
-                f"* * data/jec/Summer16_07Aug2017_V11_MC_L2Relative_AK4PFchs.jec.txt",
-                f"* * data/jec/Summer16_07Aug2017_V11_MC_Uncertainty_AK4PFchs.junc.txt",
-                f"* * data/jec/Summer16_25nsV1_MC_PtResolution_AK4PFchs.jr.txt",
-                f"* * data/jec/Summer16_25nsV1_MC_SF_AK4PFchs.jersf.txt",
-                ])
+        jetext.add_weight_sets(self.parameters['jec_weight_sets'])
         jetext.finalize()
         Jetevaluator = jetext.make_evaluator()
 
-        jec_names = ['Summer16_07Aug2017_V11_MC_L1FastJet_AK4PFchs','Summer16_07Aug2017_V11_MC_L2Relative_AK4PFchs']
-        junc_names = ['Summer16_07Aug2017_V11_MC_Uncertainty_AK4PFchs']
+        JECcorrector = FactorizedJetCorrector(**{name: Jetevaluator[name] for name in self.parameters['jec_names']})
 
-        jer_names = ['Summer16_25nsV1_MC_PtResolution_AK4PFchs']
-        jersf_names = ['Summer16_25nsV1_MC_SF_AK4PFchs']
+        JECuncertainties = JetCorrectionUncertainty(**{name:Jetevaluator[name] for name in self.parameters['junc_names']})
 
-
-        JECcorrector = FactorizedJetCorrector(**{name: Jetevaluator[name] for name in jec_names})
-
-        JECuncertainties = JetCorrectionUncertainty(**{name:Jetevaluator[name] for name in junc_names})
-
-        JER = JetResolution(**{name:Jetevaluator[name] for name in jer_names})
-        JERsf = JetResolutionScaleFactor(**{name:Jetevaluator[name] for name in jersf_names})
+        JER = JetResolution(**{name:Jetevaluator[name] for name in self.parameters['jer_names']})
+        JERsf = JetResolutionScaleFactor(**{name:Jetevaluator[name] for name in self.parameters['jersf_names']})
 
         self.Jet_transformer = JetTransformer(jec=JECcorrector,junc=JECuncertainties, jer = JER, jersf = JERsf)
     
@@ -243,7 +247,6 @@ class DimuonProcessor(processor.ProcessorABC):
         return self._columns
     
     def process(self, df):
-        # TODO: PU reweighting for 2017/2018
         # TODO: NNLOPS reweighting (ggH)
         # TODO: btag sf
         # TODO: Add systematic uncertainties
@@ -266,6 +269,9 @@ class DimuonProcessor(processor.ProcessorABC):
             
         nEvts = df.shape[0]
 
+        weights = pd.DataFrame(1, index=np.arange(nEvts), columns=self.variations)
+        
+        
         if isData:
             lumi_info = LumiMask(self.parameters['lumimask'])
             lumimask = lumi_info(df.run.flatten(), df.luminosityBlock.flatten())
@@ -273,13 +279,26 @@ class DimuonProcessor(processor.ProcessorABC):
         else:    
             lumimask = np.ones(nEvts, dtype=bool)
             genweight = df.genWeight.flatten()
-            pu_weight = self.puLookup(dataset, df.Pileup.nTrueInt)
+            if '2016' in self.year:
+                pu_weight = self.puLookup(dataset, df.Pileup.nTrueInt)
+                pu_weight_up = self.puLookup_Up(dataset, df.Pileup.nTrueInt)
+                pu_weight_down = self.puLookup_Down(dataset, df.Pileup.nTrueInt)
+            else:
+                pu_weight = self.puLookup(df.Pileup.nTrueInt)
+                pu_weight_up = self.puLookup_Up(df.Pileup.nTrueInt)
+                pu_weight_down = self.puLookup_Down(df.Pileup.nTrueInt)
+                
             event_weight = genweight*pu_weight
+            weights = weights.multiply(genweight, axis=0)
+            add_systematic(weights, 'pu_weight', pu_weight, pu_weight_up, pu_weight_down)
+            
             if dataset in self.lumi_weights:
                 event_weight = event_weight*self.lumi_weights[dataset]
+                weights = weights.multiply(self.lumi_weights[dataset], axis=0)
             if self.parameters["do_l1prefiring_wgts"]:
                 event_weight = event_weight*df.L1PreFiringWeight.Nom.flatten()
-    
+                weights = weights.multiply(df.L1PreFiringWeight.Nom.flatten(), axis=0)
+                
         hlt = np.zeros(nEvts, dtype=bool)
         for hlt_path in self.parameters['hlt']:
             hlt = hlt | df.HLT[hlt_path]
@@ -297,6 +316,7 @@ class DimuonProcessor(processor.ProcessorABC):
         #--------------------------------#    
         df = df[mask]
         event_weight = event_weight[mask]
+        weights = weights[mask]
         if self.timer:
             self.timer.add_checkpoint("Applied HLT and lumimask")
         #--------------------------------# 
@@ -360,6 +380,7 @@ class DimuonProcessor(processor.ProcessorABC):
         df = df[event_filter]
         muons = muons[event_filter]
         event_weight = event_weight[event_filter]
+        weights = weights[event_filter]
         if self.timer:
             self.timer.add_checkpoint("Applied preselection")
         #--------------------------------#      
@@ -380,6 +401,7 @@ class DimuonProcessor(processor.ProcessorABC):
         if 'dy' in dataset:
             zpt_weights = self.evaluator[self.zpt_path](dimuons.pt).flatten()
             event_weight = event_weight*zpt_weights
+            weights = weights.multiply(zpt_weights, axis=0)
 
         mu_pass_leading_pt = muons[(muons.pt > self.parameters["muon_leading_pt"]) &\
                                    (muons.pfRelIso04_all < self.parameters["muon_trigmatch_iso"]) &\
@@ -408,25 +430,38 @@ class DimuonProcessor(processor.ProcessorABC):
             muID = np.ones(len(muons.flatten()), dtype=float)
             muIso = np.ones(len(muons.flatten()), dtype=float)
             muTrig = np.ones(len(muons.flatten()), dtype=float)
-            if self.year is '2016':
+            muIDerr = np.zeros(len(muons.flatten()), dtype=float)
+            muIsoerr = np.zeros(len(muons.flatten()), dtype=float)
+            muTrigerr = np.zeros(len(muons.flatten()), dtype=float)
+            if '2016' in self.year:
                 muID = self.mu_id_sf(muons.eta.compact(), muons.pt.compact())
                 muIso = self.mu_iso_sf(muons.eta.compact(), muons.pt.compact())
                 muTrig = self.mu_iso_sf(abs(muons.eta.compact()), muons.pt.compact())
-            elif self.year is '2017':
+                muIDerr = self.mu_id_err(muons.eta.compact(), muons.pt.compact())
+                muIsoerr = self.mu_iso_err(muons.eta.compact(), muons.pt.compact())
+                muTrigerr = self.mu_iso_err(abs(muons.eta.compact()), muons.pt.compact())
+            elif '2017' in self.year:
                 muID = self.mu_id_sf(muons.pt.compact(), abs(muons.eta.compact()))
                 muIso = self.mu_iso_sf(muons.pt.compact(), abs(muons.eta.compact()))
                 muTrig = self.mu_iso_sf(abs(muons.eta.compact()), muons.pt.compact())
-            elif self.year is '2018':
+                muIDerr = self.mu_id_err(muons.pt.compact(), abs(muons.eta.compact()))
+                muIsoerr = self.mu_iso_err(muons.pt.compact(), abs(muons.eta.compact()))
+                muTrigerr = self.mu_iso_err(abs(muons.eta.compact()), muons.pt.compact())
+            elif '2017' in self.year:
                 muID = self.mu_id_sf(muons.pt.compact(), abs(muons.eta.compact()))
                 muIso = self.mu_iso_sf(muons.pt.compact(), abs(muons.eta.compact()))
                 muTrig = self.mu_iso_sf(abs(muons.eta.compact()), muons.pt.compact())
+                muIDerr = self.mu_id_err(muons.pt.compact(), abs(muons.eta.compact()))
+                muIsoerr = self.mu_iso_err(muons.pt.compact(), abs(muons.eta.compact()))
+                muTrigerr = self.mu_iso_err(abs(muons.eta.compact()), muons.pt.compact())
             muSF = (muID*muIso*muTrig).prod()
+            muSF_up = ((muID + muIDerr) * (muIso + muIsoerr) * (muTrig + muTrigerr)).prod()
+            muSF_down = ((muID - muIDerr) * (muIso - muIsoerr) * (muTrig - muTrigerr)).prod()
             event_weight = event_weight*muSF
-#             muIDerr = self.mu_id_err(muons.eta, muons.pt)
-#             muIsoerr = self.mu_iso_err(muons.eta, muons.pt)
-#             muTrigerr = self.mu_iso_err(abs(muons.eta), muons.pt)
-#             muSF_up = ((muID + muIDerr) * (muIso + muIsoerr) * (muTrig + muTrigerr)).prod()
-#             muSF_down = ((muID - muIDerr) * (muIso - muIsoerr) * (muTrig - muTrigerr)).prod() 
+            add_systematic(weights, 'muSF', muSF, muSF_up, muSF_down)
+
+            muSF_up = ((muID + muIDerr) * (muIso + muIsoerr) * (muTrig + muTrigerr)).prod()
+            muSF_down = ((muID - muIDerr) * (muIso - muIsoerr) * (muTrig - muTrigerr)).prod() 
 
     
         # Filter 2: Dimuon pair selection
@@ -437,6 +472,7 @@ class DimuonProcessor(processor.ProcessorABC):
         muons = muons[dimuon_filter]
         dimuons = dimuons[dimuon_filter]
         event_weight = event_weight[dimuon_filter]
+        weights = weights[dimuon_filter]
         if self.timer:
             self.timer.add_checkpoint("Applied dimuon cuts")
         #--------------------------------#   
@@ -446,7 +482,6 @@ class DimuonProcessor(processor.ProcessorABC):
             raw_arrays = {'ptRaw':(df.Jet.pt * (1-df.Jet.rawFactor)).flatten(),\
                           'massRaw':(df.Jet.mass * (1-df.Jet.rawFactor)).flatten(),\
                           'ptGenJet':np.zeros(df.Jet.counts.sum(), dtype=float)}
-#                         'rho': np.ones(df.Jet.counts.sum(), dtype=float)*df.fixedGridRhoFastjetAll.flatten()}
             jetarrays.update(raw_arrays)
             
         jet = JaggedCandidateArray.candidatesfromcounts(df.Jet.counts, **jetarrays)
@@ -515,6 +550,7 @@ class DimuonProcessor(processor.ProcessorABC):
         puid_weight[jet_selection.any()] = np.divide(pData[jet_selection.any()], pMC[jet_selection.any()])
         if not isData:
             event_weight = event_weight * puid_weight
+            weights = weights.multiply(puid_weight, axis=0)
         
         # Separate from ttH and VH phase space        
         nBtagLoose = jets[(jets.btagDeepB>self.parameters["btag_loose_wp"]) & (abs(jets.eta)<2.5)].counts
@@ -532,6 +568,7 @@ class DimuonProcessor(processor.ProcessorABC):
         jets = jets[jet_filter]
         jet_selection = jet_selection[jet_filter]
         event_weight = event_weight[jet_filter]
+        weights = weights[jet_filter]
         if self.timer:
             self.timer.add_checkpoint("Applied jet cuts")
 
@@ -745,9 +782,7 @@ class DimuonProcessor(processor.ProcessorABC):
         
 #----------------------------------------------------------------------------#
         # flatten variables where exactly one value per event expected
-#        deta_mumu = abs(mu1.eta - mu2.eta).flatten()
-#        dphi_mumu = abs(mu1.p4.delta_phi(mu2.p4)).flatten()
-#        dr_mumu = np.sqrt(deta_mumu*deta_mumu + dphi_mumu*dphi_mumu)
+
         deta_mumu, dphi_mumu, dr_mumu = delta_r(mu1.eta.flatten(), mu2.eta.flatten(), mu1.phi.flatten(), mu2.phi.flatten())
         deta_mumuj1 = np.zeros(len(event_weight))
         dphi_mumuj1 = np.zeros(len(event_weight))
@@ -852,48 +887,8 @@ class DimuonProcessor(processor.ProcessorABC):
             'event_weight': event_weight,
         }
 
-        # Evaluate DNN 
-
-        if self.evaluate_dnn:  
-            dnn_score = np.full(len(event_weight), -1.)
-            training_features = ['dimuon_mass', 'dimuon_pt', 'dimuon_eta', 'dimuon_dEta', 'dimuon_dPhi', 'dimuon_dR',\
-                     'jj_mass', 'jj_eta', 'jj_phi', 'jj_pt', 'jj_dEta',\
-                     'mmjj_mass', 'mmjj_eta', 'mmjj_phi','zeppenfeld',\
-                     'jet1_pt', 'jet1_eta', 'jet1_qgl', 'jet2_pt', 'jet2_eta', 'jet2_qgl',\
-                     'dimuon_cosThetaCS',\
-                     'dimuon_mass_res_rel', 'deta_mumuj1', 'dphi_mumuj1', 'deta_mumuj2', 'dphi_mumuj2',\
-                     'htsoft5',
-                    ]
-            n_rows = len(dimuons.mass[two_jets].flatten())
-            df_for_dnn = pd.DataFrame(columns=training_features)
-            
-            for tf in training_features:
-                feature_column = variable_map[tf][two_jets]
-                assert(n_rows==len(feature_column))
-                df_for_dnn[tf] = feature_column
-
-            from keras.models import load_model
-            import keras.backend as K
-            import tensorflow as tf
-            config = tf.ConfigProto()
-            config.intra_op_parallelism_threads=1
-            config.inter_op_parallelism_threads=1
-            K.set_session(tf.Session(config=config))
-
-            # BOTTLENECK: can't load model outside of a worker
-            # https://github.com/keras-team/keras/issues/9964
-            dnn_model = load_model('output/trained_models/test.h5')
-            scaler = np.load("output/trained_models/scalers.npy")
-            df_for_dnn[training_features] = (df_for_dnn[training_features]-scaler[0])/scaler[1]
-            
-            dnn_score[two_jets] = dnn_model.predict(df_for_dnn[training_features]).flatten()
-#            print(df_for_dnn[training_features])
-#            print(dnn_score)
-            variable_map['dnn_score'] = dnn_score
-            
-            if self.timer:
-                self.timer.add_checkpoint("Evaluated DNN")
-
+#        for syst in weights.columns:
+#            variable_map[f'weight_{syst}'] = weights[syst]
 
         #################### Fill outputs ####################
         #------------------ Binned outputs ------------------#  
@@ -911,13 +906,16 @@ class DimuonProcessor(processor.ProcessorABC):
                         ccut = ccut & (genJetMass < 350.)
                     value = expression[rcut & ccut]
                     if not value.size: continue # skip empty arrays
-                    if isinstance(value, awkward.JaggedArray):
-                        # correctly fill arrays with empty elements (for example events with 0 jets)
-                        weight = event_weight[rcut & ccut][value.any()]
-                    else:
-                        weight = event_weight[rcut & ccut]
-                    output[vname].fill(**{'dataset': dataset, 'region': rname, 'channel': cname,\
-                                         vname: value.flatten(), 'weight': weight})
+                    for syst in weights.columns:
+                        if isinstance(value, awkward.JaggedArray):
+                            #weight = event_weight[rcut & ccut][value.any()]
+                            weight = weights[syst][rcut & ccut][value.any()]
+                        else:
+                            #weight = event_weight[rcut & ccut]
+                            weight = weights[syst][rcut & ccut]
+                            
+                        output[vname].fill(**{'dataset': dataset, 'region': rname, 'channel': cname, 'syst': syst,\
+                                             vname: value.flatten(), 'weight': weight})
 
         output['cutflow']['all events'] += nEvts
     
@@ -926,7 +924,7 @@ class DimuonProcessor(processor.ProcessorABC):
         #----------------- Unbinned outputs -----------------#
         
 #        if dataset in self.datasets_to_save_unbin: # don't need unbinned data for all samples
-        if True:
+        if self.save_unbin:
             for v in self.vars_unbin:
                 if v not in variable_map: continue
                 for cname in channels:
@@ -934,10 +932,8 @@ class DimuonProcessor(processor.ProcessorABC):
                     for rname, rcut in regions.items():
                         if ('dy_m105_160_vbf_amc' in dataset) and ('vbf' in cname):
                             ccut = ccut & (genJetMass > 350.)
-#                            print(genJetMass)
                         if ('dy_m105_160_amc' in dataset) and ('vbf' in cname):
                             ccut = ccut & (genJetMass < 350.)
-#                        if (dataset in self.overlapping_samples) and (dataset not in self.specific_samples[rname][cname]): continue
                         output[f'{v}_unbin_{dataset}_c_{cname}_r_{rname}'] += processor.column_accumulator(variable_map[v][rcut & ccut].flatten())
     
         if self.timer:
