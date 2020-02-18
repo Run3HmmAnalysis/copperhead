@@ -41,7 +41,7 @@ def p4_sum(obj1, obj2):
     pt = np.sqrt(px**2 + py**2)
     eta = np.arcsinh(pz / pt)
     phi = np.arctan2(py, px)
-    mass = np.sqrt(e**2 - px**2 - py**2 - pz**2)    
+    mass = np.sqrt(e**2 - px**2 - py**2 - pz**2)
     return pt, eta, phi, mass
 
 

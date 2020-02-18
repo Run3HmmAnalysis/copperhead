@@ -9,8 +9,8 @@ class Variable(object):
 variables = []
 
 variables.append(Variable("dimuon_mass", r"$m_{\mu\mu}$ [GeV]", 100, 110, 150))
-variables.append(Variable("dimuon_mass_res", r"\Delta M_{\mu\mu}$ [GeV]", 100, 0, 4))
-variables.append(Variable("dimuon_mass_res_rel", r"\Delta M_{\mu\mu} / M_{\mu\mu}$ [GeV]", 100, 0, 0.04))
+variables.append(Variable("dimuon_mass_res", r"$\Delta M_{\mu\mu}$ [GeV]", 100, 0, 4))
+variables.append(Variable("dimuon_mass_res_rel", r"$\Delta M_{\mu\mu} / M_{\mu\mu}$ [GeV]", 100, 0, 0.04))
 variables.append(Variable("dimuon_pt", r"$p_{T}(\mu\mu)$ [GeV]", 100, 0, 200))
 variables.append(Variable("dimuon_eta", r"$\eta (\mu\mu)$", 100, -5, 5))
 variables.append(Variable("dimuon_phi", r"$\phi (\mu\mu)$", 100, -3.2, 3.2))
@@ -61,7 +61,7 @@ variables.append(Variable("mmjj_eta", r"$\eta (\mu\mu jj)$", 100, -7, 7))
 variables.append(Variable("mmjj_phi", r"$\phi (\mu\mu jj)$", 100, -3.2, 3.2))
 
 variables.append(Variable("zeppenfeld", r"zeppenfeld", 100, -5, 5))
-variables.append(Variable("rpt", r"R_{p_T}", 100, 0, 1))
+variables.append(Variable("rpt", r"$R_{p_T}$", 100, 0, 1))
 
 variables.append(Variable("njets", "njets", 10, 0, 10))
 variables.append(Variable("nsoftjets2", "nsoftjets2", 20, 0, 20))
