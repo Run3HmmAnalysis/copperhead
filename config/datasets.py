@@ -45,16 +45,26 @@ datasets = {
         "zzz": "/store/mc/RunIISummer16NanoAODv6/ZZZ_TuneCUETP8M1_13TeV-amcatnlo-pythia8/",
 
         "ggh_amcPS": "/store/mc/RunIISummer16NanoAODv6/GluGluHToMuMu_M125_TuneCP5_PSweights_13TeV_amcatnloFXFX_pythia8/",
+        "ggh_amcPS_m120": "/store/mc/RunIISummer16NanoAODv6/GluGluHToMuMu_M120_TuneCP5_PSweights_13TeV_amcatnloFXFX_pythia8/",
+        "ggh_amcPS_m130": "/store/mc/RunIISummer16NanoAODv6/GluGluHToMuMu_M130_TuneCP5_PSweights_13TeV_amcatnloFXFX_pythia8/",
+        
         "ggh_amcPS_TuneCP5down" : "/store/mc/RunIISummer16NanoAODv6/GluGluHToMuMu_M125_TuneCP5down_PSweights_13TeV_amcatnloFXFX_pythia8/",
         "ggh_amcPS_TuneCP5up" : "/store/mc/RunIISummer16NanoAODv6/GluGluHToMuMu_M125_TuneCP5up_PSweights_13TeV_amcatnloFXFX_pythia8/",
         "ggh_powheg" : "/store/mc/RunIISummer16NanoAODv6/GluGlu_HToMuMu_M125_13TeV_powheg_pythia8/",
-        "ggh_powhegPS" : "/store/mc/RunIISummer16NanoAODv6/GluGluHToMuMu_M-125_TuneCP5_PSweights_13TeV_powheg_pythia8/",        
+        "ggh_powhegPS" : "/store/mc/RunIISummer16NanoAODv6/GluGluHToMuMu_M-125_TuneCP5_PSweights_13TeV_powheg_pythia8/",       
+        "ggh_powhegPS_m120" : "/store/mc/RunIISummer16NanoAODv6/GluGluHToMuMu_M-120_TuneCP5_PSweights_13TeV_powheg_pythia8/", 
+        "ggh_powhegPS_m130" : "/store/mc/RunIISummer16NanoAODv6/GluGluHToMuMu_M-130_TuneCP5_PSweights_13TeV_powheg_pythia8/", 
         
         "vbf_amcPS": "/store/mc/RunIISummer16NanoAODv6/VBFHToMuMu_M125_TuneCP5_PSweights_13TeV_amcatnlo_pythia8/",
+        "vbf_amcPS_m120": "/store/mc/RunIISummer16NanoAODv6/VBFHToMuMu_M120_TuneCP5_PSweights_13TeV_amcatnlo_pythia8/",
+        "vbf_amcPS_m130": "/store/mc/RunIISummer16NanoAODv6/VBFHToMuMu_M130_TuneCP5_PSweights_13TeV_amcatnlo_pythia8/",
+        
         "vbf_amcPS_TuneCP5down" : "/store/mc/RunIISummer16NanoAODv6/VBFHToMuMu_M125_TuneCP5down_PSweights_13TeV_amcatnlo_pythia8/",
         "vbf_amcPS_TuneCP5up" : "/store/mc/RunIISummer16NanoAODv6/VBFHToMuMu_M125_TuneCP5up_PSweights_13TeV_amcatnlo_pythia8/",
         "vbf_powheg" : "/store/mc/RunIISummer16NanoAODv6/VBF_HToMuMu_M125_13TeV_powheg_pythia8/",
-        "vbf_powhegPS" : "/store/mc/RunIISummer16NanoAODv6/VBFHToMuMu_M-125_TuneCP5_PSweights_13TeV_powheg_pythia8/",        
+        "vbf_powhegPS" : "/store/mc/RunIISummer16NanoAODv6/VBFHToMuMu_M-125_TuneCP5_PSweights_13TeV_powheg_pythia8/",  
+        "vbf_powhegPS_m120" : "/store/mc/RunIISummer16NanoAODv6/VBFHToMuMu_M-120_TuneCP5_PSweights_13TeV_powheg_pythia8/", 
+        "vbf_powhegPS_m130" : "/store/mc/RunIISummer16NanoAODv6/VBFHToMuMu_M-130_TuneCP5_PSweights_13TeV_powheg_pythia8/",         
         "vbf_amc_herwig" :  "/store/mc/RunIISummer16NanoAODv6/VBFHToMuMu_M-125_TuneEEC5_13TeV-amcatnlo-herwigpp/",
         "vbf_powheg_herwig" : "/store/mc/RunIISummer16NanoAODv6/VBFHToMuMu_M-125_TuneEEC5_13TeV-powheg-herwigpp/",      
     
