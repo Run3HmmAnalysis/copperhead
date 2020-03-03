@@ -5,10 +5,11 @@ def for_all_years(value):
 parameters = {}
 
 parameters["lumimask"] = {
-    "2016": "data/lumimasks/Cert_271036-284044_13TeV_23Sep2016ReReco_Collisions16_JSON.txt",
+    "2016": "data/lumimasks/Cert_271036-284044_13TeV_ReReco_07Aug2017_Collisions16_JSON.txt",
     "2017": "data/lumimasks/Cert_294927-306462_13TeV_EOY2017ReReco_Collisions17_JSON_v1.txt",
     "2018": "data/lumimasks/Cert_314472-325175_13TeV_17SeptEarlyReReco2018ABC_PromptEraD_Collisions18_JSON.txt"
 }
+
 parameters["hlt"] = {
     "2016": ['IsoMu24', 'IsoTkMu24'],
     "2017": ['IsoMu27'],
@@ -74,40 +75,174 @@ parameters["muSFFileList"] = {'2016': [{'id'   :                                
                      'scale' : 50.737240701/59.688059536}],
             }
 
+
+jec_levels = ['L1FastJet', 'L2Relative', 'L2L3Residual', 'L3Absolute']
+jec_tag = {
+    '2016': 'Summer16_07Aug2017_V11_MC',
+    '2017': 'Fall17_17Nov2017_V32_MC',
+    '2018': 'Autumn18_V19_MC'
+}
+
 parameters['jec_weight_sets'] = {
     '2016': [
                 f"* * data/jec/Summer16_07Aug2017_V11_MC_L1FastJet_AK4PFchs.jec.txt",
                 f"* * data/jec/Summer16_07Aug2017_V11_MC_L2Relative_AK4PFchs.jec.txt",
+                f"* * data/jec/Summer16_07Aug2017_V11_MC_L2L3Residual_AK4PFchs.jec.txt",
+                f"* * data/jec/Summer16_07Aug2017_V11_MC_L3Absolute_AK4PFchs.jec.txt",
                 f"* * data/jec/Summer16_07Aug2017_V11_MC_Uncertainty_AK4PFchs.junc.txt",
                 f"* * data/jec/Summer16_25nsV1_MC_PtResolution_AK4PFchs.jr.txt",
                 f"* * data/jec/Summer16_25nsV1_MC_SF_AK4PFchs.jersf.txt",
-                ],
+                f"* * data/jec/Summer16_07Aug2017_V11_MC_UncertaintySources_AK4PFchs.junc.txt",
+                f"* * data/jec/Summer16_07Aug2017BCD_V11_DATA_L1FastJet_AK4PFchs.jec.txt",
+                f"* * data/jec/Summer16_07Aug2017BCD_V11_DATA_L2Relative_AK4PFchs.jec.txt",
+                f"* * data/jec/Summer16_07Aug2017BCD_V11_DATA_L2L3Residual_AK4PFchs.jec.txt",
+                f"* * data/jec/Summer16_07Aug2017BCD_V11_DATA_L3Absolute_AK4PFchs.jec.txt",
+                f"* * data/jec/Summer16_07Aug2017BCD_V11_DATA_UncertaintySources_AK4PFchs.junc.txt",
+                f"* * data/jec/Summer16_07Aug2017BCD_V11_DATA_Uncertainty_AK4PFchs.junc.txt",
+                f"* * data/jec/Summer16_07Aug2017EF_V11_DATA_L1FastJet_AK4PFchs.jec.txt",
+                f"* * data/jec/Summer16_07Aug2017EF_V11_DATA_L2Relative_AK4PFchs.jec.txt",
+                f"* * data/jec/Summer16_07Aug2017EF_V11_DATA_L2L3Residual_AK4PFchs.jec.txt",
+                f"* * data/jec/Summer16_07Aug2017EF_V11_DATA_L3Absolute_AK4PFchs.jec.txt",
+                f"* * data/jec/Summer16_07Aug2017EF_V11_DATA_UncertaintySources_AK4PFchs.junc.txt",
+                f"* * data/jec/Summer16_07Aug2017EF_V11_DATA_Uncertainty_AK4PFchs.junc.txt",
+                f"* * data/jec/Summer16_07Aug2017GH_V11_DATA_L1FastJet_AK4PFchs.jec.txt",
+                f"* * data/jec/Summer16_07Aug2017GH_V11_DATA_L2Relative_AK4PFchs.jec.txt",
+                f"* * data/jec/Summer16_07Aug2017GH_V11_DATA_L2L3Residual_AK4PFchs.jec.txt",
+                f"* * data/jec/Summer16_07Aug2017GH_V11_DATA_L3Absolute_AK4PFchs.jec.txt",        
+                f"* * data/jec/Summer16_07Aug2017GH_V11_DATA_UncertaintySources_AK4PFchs.junc.txt",
+                f"* * data/jec/Summer16_07Aug2017GH_V11_DATA_Uncertainty_AK4PFchs.junc.txt",
+            ],
     '2017': [
                 f"* * data/jec/Fall17_17Nov2017_V32_MC_L1FastJet_AK4PFchs.jec.txt",
                 f"* * data/jec/Fall17_17Nov2017_V32_MC_L2Relative_AK4PFchs.jec.txt",
                 f"* * data/jec/Fall17_17Nov2017_V32_MC_Uncertainty_AK4PFchs.junc.txt",
+                f"* * data/jec/Fall17_17Nov2017_V32_MC_L2L3Residual_AK4PFchs.jec.txt",
+                f"* * data/jec/Fall17_17Nov2017_V32_MC_L3Absolute_AK4PFchs.jec.txt",
                 f"* * data/jec/Fall17_V3_MC_PtResolution_AK4PFchs.jr.txt",
                 f"* * data/jec/Fall17_V3_MC_SF_AK4PFchs.jersf.txt",
+                f"* * data/jec/Fall17_17Nov2017_V32_MC_UncertaintySources_AK4PFchs.junc.txt",
+                f"* * data/jec/Fall17_17Nov2017B_V32_DATA_L1FastJet_AK4PFchs.jec.txt",
+                f"* * data/jec/Fall17_17Nov2017B_V32_DATA_L2Relative_AK4PFchs.jec.txt",
+                f"* * data/jec/Fall17_17Nov2017B_V32_DATA_L2L3Residual_AK4PFchs.jec.txt",
+                f"* * data/jec/Fall17_17Nov2017B_V32_DATA_L3Absolute_AK4PFchs.jec.txt",
+                f"* * data/jec/Fall17_17Nov2017B_V32_DATA_UncertaintySources_AK4PFchs.junc.txt",
+                f"* * data/jec/Fall17_17Nov2017B_V32_DATA_Uncertainty_AK4PFchs.junc.txt",
+                f"* * data/jec/Fall17_17Nov2017C_V32_DATA_L1FastJet_AK4PFchs.jec.txt",
+                f"* * data/jec/Fall17_17Nov2017C_V32_DATA_L2Relative_AK4PFchs.jec.txt",
+                f"* * data/jec/Fall17_17Nov2017C_V32_DATA_L2L3Residual_AK4PFchs.jec.txt",
+                f"* * data/jec/Fall17_17Nov2017C_V32_DATA_L3Absolute_AK4PFchs.jec.txt",
+                f"* * data/jec/Fall17_17Nov2017C_V32_DATA_UncertaintySources_AK4PFchs.junc.txt",
+                f"* * data/jec/Fall17_17Nov2017C_V32_DATA_Uncertainty_AK4PFchs.junc.txt",
+                f"* * data/jec/Fall17_17Nov2017DE_V32_DATA_L1FastJet_AK4PFchs.jec.txt",
+                f"* * data/jec/Fall17_17Nov2017DE_V32_DATA_L2Relative_AK4PFchs.jec.txt",
+                f"* * data/jec/Fall17_17Nov2017DE_V32_DATA_L2L3Residual_AK4PFchs.jec.txt",
+                f"* * data/jec/Fall17_17Nov2017DE_V32_DATA_L3Absolute_AK4PFchs.jec.txt",
+                f"* * data/jec/Fall17_17Nov2017DE_V32_DATA_UncertaintySources_AK4PFchs.junc.txt",
+                f"* * data/jec/Fall17_17Nov2017DE_V32_DATA_Uncertainty_AK4PFchs.junc.txt",
+                f"* * data/jec/Fall17_17Nov2017F_V32_DATA_L1FastJet_AK4PFchs.jec.txt",
+                f"* * data/jec/Fall17_17Nov2017F_V32_DATA_L2Relative_AK4PFchs.jec.txt",
+                f"* * data/jec/Fall17_17Nov2017F_V32_DATA_L2L3Residual_AK4PFchs.jec.txt",
+                f"* * data/jec/Fall17_17Nov2017F_V32_DATA_L3Absolute_AK4PFchs.jec.txt",
+                f"* * data/jec/Fall17_17Nov2017F_V32_DATA_UncertaintySources_AK4PFchs.junc.txt",
+                f"* * data/jec/Fall17_17Nov2017F_V32_DATA_Uncertainty_AK4PFchs.junc.txt",
                 ],
     '2018': [
                 f"* * data/jec/Autumn18_V19_MC_L1FastJet_AK4PFchs.jec.txt",
                 f"* * data/jec/Autumn18_V19_MC_L2Relative_AK4PFchs.jec.txt",
+                f"* * data/jec/Autumn18_V19_MC_L2L3Residual_AK4PFchs.jec.txt",
+                f"* * data/jec/Autumn18_V19_MC_L3Absolute_AK4PFchs.jec.txt",
                 f"* * data/jec/Autumn18_V19_MC_Uncertainty_AK4PFchs.junc.txt",
                 f"* * data/jec/Autumn18_V7_MC_PtResolution_AK4PFchs.jr.txt",
                 f"* * data/jec/Autumn18_V7_MC_SF_AK4PFchs.jersf.txt",
+                f"* * data/jec/Autumn18_V19_MC_UncertaintySources_AK4PFchs.junc.txt",
+                f"* * data/jec/Autumn18_RunA_V19_DATA_L1FastJet_AK4PFchs.jec.txt",
+                f"* * data/jec/Autumn18_RunA_V19_DATA_L2Relative_AK4PFchs.jec.txt",
+                f"* * data/jec/Autumn18_RunA_V19_DATA_L2L3Residual_AK4PFchs.jec.txt",
+                f"* * data/jec/Autumn18_RunA_V19_DATA_L3Absolute_AK4PFchs.jec.txt",        
+                f"* * data/jec/Autumn18_RunA_V19_DATA_UncertaintySources_AK4PFchs.junc.txt",
+                f"* * data/jec/Autumn18_RunA_V19_DATA_Uncertainty_AK4PFchs.junc.txt",
+                f"* * data/jec/Autumn18_RunB_V19_DATA_L1FastJet_AK4PFchs.jec.txt",
+                f"* * data/jec/Autumn18_RunB_V19_DATA_L2Relative_AK4PFchs.jec.txt",
+                f"* * data/jec/Autumn18_RunB_V19_DATA_L2L3Residual_AK4PFchs.jec.txt",
+                f"* * data/jec/Autumn18_RunB_V19_DATA_L3Absolute_AK4PFchs.jec.txt",         
+                f"* * data/jec/Autumn18_RunB_V19_DATA_UncertaintySources_AK4PFchs.junc.txt",
+                f"* * data/jec/Autumn18_RunB_V19_DATA_Uncertainty_AK4PFchs.junc.txt",
+                f"* * data/jec/Autumn18_RunC_V19_DATA_L1FastJet_AK4PFchs.jec.txt",
+                f"* * data/jec/Autumn18_RunC_V19_DATA_L2Relative_AK4PFchs.jec.txt",
+                f"* * data/jec/Autumn18_RunC_V19_DATA_L2L3Residual_AK4PFchs.jec.txt",
+                f"* * data/jec/Autumn18_RunC_V19_DATA_L3Absolute_AK4PFchs.jec.txt",         
+                f"* * data/jec/Autumn18_RunC_V19_DATA_UncertaintySources_AK4PFchs.junc.txt",
+                f"* * data/jec/Autumn18_RunC_V19_DATA_Uncertainty_AK4PFchs.junc.txt",
+                f"* * data/jec/Autumn18_RunD_V19_DATA_L1FastJet_AK4PFchs.jec.txt",
+                f"* * data/jec/Autumn18_RunD_V19_DATA_L2Relative_AK4PFchs.jec.txt",
+                f"* * data/jec/Autumn18_RunD_V19_DATA_L2L3Residual_AK4PFchs.jec.txt",
+                f"* * data/jec/Autumn18_RunD_V19_DATA_L3Absolute_AK4PFchs.jec.txt",         
+                f"* * data/jec/Autumn18_RunD_V19_DATA_UncertaintySources_AK4PFchs.junc.txt",
+                f"* * data/jec/Autumn18_RunD_V19_DATA_Uncertainty_AK4PFchs.junc.txt",
                 ]
 }
 
 parameters['jec_names'] = {
-    '2016': ['Summer16_07Aug2017_V11_MC_L1FastJet_AK4PFchs','Summer16_07Aug2017_V11_MC_L2Relative_AK4PFchs'],
-    '2017': ['Fall17_17Nov2017_V32_MC_L1FastJet_AK4PFchs','Fall17_17Nov2017_V32_MC_L2Relative_AK4PFchs'],
-    '2018': ['Autumn18_V19_MC_L1FastJet_AK4PFchs','Autumn18_V19_MC_L2Relative_AK4PFchs'],
+    y: [f"{jec_tag[y]}_{level}_AK4PFchs" for level in jec_levels] for y in ['2016', '2017', '2018'] 
 }
 
 parameters['junc_names'] = {
-    '2016': ['Summer16_07Aug2017_V11_MC_Uncertainty_AK4PFchs'],
-    '2017': ['Fall17_17Nov2017_V32_MC_Uncertainty_AK4PFchs'],
-    '2018': ['Autumn18_V19_MC_Uncertainty_AK4PFchs'],
+    y: [f"{jec_tag[y]}_Uncertainty_AK4PFchs"] for y in ['2016', '2017', '2018']
+}
+
+parameters['jec_unc_sources'] = {
+    y: f"{jec_tag[y]}_UncertaintySources_AK4PFchs" for y in ['2016', '2017', '2018']
+}
+
+parameters['jec_names_data'] = {
+    '2016': {
+        'B': [f"Summer16_07Aug2017BCD_V11_DATA_{level}_AK4PFchs" for level in jec_levels],
+        'C': [f"Summer16_07Aug2017BCD_V11_DATA_{level}_AK4PFchs" for level in jec_levels],
+        'D': [f"Summer16_07Aug2017BCD_V11_DATA_{level}_AK4PFchs" for level in jec_levels],
+        'E': [f"Summer16_07Aug2017EF_V11_DATA_{level}_AK4PFchs" for level in jec_levels],
+        'F': [f"Summer16_07Aug2017EF_V11_DATA_{level}_AK4PFchs" for level in jec_levels],
+        'G': [f"Summer16_07Aug2017GH_V11_DATA_{level}_AK4PFchs" for level in jec_levels],
+        'H': [f"Summer16_07Aug2017GH_V11_DATA_{level}_AK4PFchs" for level in jec_levels]
+    },
+    '2017': {
+        'B': [f"Fall17_17Nov2017B_V32_DATA_{level}_AK4PFchs" for level in jec_levels],
+        'C': [f"Fall17_17Nov2017C_V32_DATA_{level}_AK4PFchs" for level in jec_levels],
+        'D': [f"Fall17_17Nov2017DE_V32_DATA_{level}_AK4PFchs" for level in jec_levels],
+        'E': [f"Fall17_17Nov2017DE_V32_DATA_{level}_AK4PFchs" for level in jec_levels],
+        'F': [f"Fall17_17Nov2017F_V32_DATA_{level}_AK4PFchs" for level in jec_levels],
+    },
+    '2018': {
+        'A': [f"Autumn18_RunA_V19_DATA_{level}_AK4PFchs" for level in jec_levels],
+        'B': [f"Autumn18_RunB_V19_DATA_{level}_AK4PFchs" for level in jec_levels],
+        'C': [f"Autumn18_RunC_V19_DATA_{level}_AK4PFchs" for level in jec_levels],
+        'D': [f"Autumn18_RunD_V19_DATA_{level}_AK4PFchs" for level in jec_levels],
+    }
+}
+
+
+parameters['junc_names_data'] = {
+    '2016': {
+        'B': ["Summer16_07Aug2017BCD_V11_DATA_Uncertainty_AK4PFchs"],
+        'C': ["Summer16_07Aug2017BCD_V11_DATA_Uncertainty_AK4PFchs"],
+        'D': ["Summer16_07Aug2017BCD_V11_DATA_Uncertainty_AK4PFchs"],
+        'E': ["Summer16_07Aug2017EF_V11_DATA_Uncertainty_AK4PFchs"],
+        'F': ["Summer16_07Aug2017EF_V11_DATA_Uncertainty_AK4PFchs"],
+        'G': ["Summer16_07Aug2017GH_V11_DATA_Uncertainty_AK4PFchs"],
+        'H': ["Summer16_07Aug2017GH_V11_DATA_Uncertainty_AK4PFchs"]
+    },
+    '2017': {
+        'B': ["Fall17_17Nov2017B_V32_DATA_Uncertainty_AK4PFchs"],
+        'C': ["Fall17_17Nov2017C_V32_DATA_Uncertainty_AK4PFchs"],
+        'D': ["Fall17_17Nov2017DE_V32_DATA_Uncertainty_AK4PFchs"],
+        'E': ["Fall17_17Nov2017DE_V32_DATA_Uncertainty_AK4PFchs"],
+        'F': ["Fall17_17Nov2017F_V32_DATA_Uncertainty_AK4PFchs"],
+    },
+    '2018': {
+        'A': ["Autumn18_RunA_V19_DATA_Uncertainty_AK4PFchs"],
+        'B': ["Autumn18_RunB_V19_DATA_Uncertainty_AK4PFchs"],
+        'C': ["Autumn18_RunC_V19_DATA_Uncertainty_AK4PFchs"],
+        'D': ["Autumn18_RunD_V19_DATA_Uncertainty_AK4PFchs"],
+    }
 }
 
 parameters['jer_names'] = {
@@ -119,7 +254,32 @@ parameters['jer_names'] = {
 parameters['jersf_names'] = {
     '2016': ['Summer16_25nsV1_MC_SF_AK4PFchs'],
     '2017': ['Fall17_V3_MC_SF_AK4PFchs'],
-    '2017': ['Autumn18_V7_MC_SF_AK4PFchs'],
+    '2018': ['Autumn18_V7_MC_SF_AK4PFchs'],
+}
+
+parameters['jec_unc_names_data'] = {
+    '2016': {
+        'B': ["Summer16_07Aug2017BCD_V11_DATA_UncertaintySources_AK4PFchs"],
+        'C': ["Summer16_07Aug2017BCD_V11_DATA_UncertaintySources_AK4PFchs"],
+        'D': ["Summer16_07Aug2017BCD_V11_DATA_UncertaintySources_AK4PFchs"],
+        'E': ["Summer16_07Aug2017EF_V11_DATA_UncertaintySources_AK4PFchs"],
+        'F': ["Summer16_07Aug2017EF_V11_DATA_UncertaintySources_AK4PFchs"],
+        'G': ["Summer16_07Aug2017GH_V11_DATA_UncertaintySources_AK4PFchs"],
+        'H': ["Summer16_07Aug2017GH_V11_DATA_UncertaintySources_AK4PFchs"]
+    },
+    '2017': {
+        'B': ["Fall17_17Nov2017B_V32_DATA_UncertaintySources_AK4PFchs"],
+        'C': ["Fall17_17Nov2017C_V32_DATA_UncertaintySources_AK4PFchs"],
+        'D': ["Fall17_17Nov2017DE_V32_DATA_UncertaintySources_AK4PFchs"],
+        'E': ["Fall17_17Nov2017DE_V32_DATA_UncertaintySources_AK4PFchs"],
+        'F': ["Fall17_17Nov2017F_V32_DATA_UncertaintySources_AK4PFchs"],
+    },
+    '2018': {
+        'A': ["Autumn18_RunA_V19_DATA_UncertaintySources_AK4PFchs"],
+        'B': ["Autumn18_RunB_V19_DATA_UncertaintySources_AK4PFchs"],
+        'C': ["Autumn18_RunC_V19_DATA_UncertaintySources_AK4PFchs"],
+        'D': ["Autumn18_RunD_V19_DATA_UncertaintySources_AK4PFchs"],
+    }
 }
 
 parameters['zpt_weights_file'] = for_all_years("data/zpt/zpt_weights.histo.json")
@@ -172,11 +332,13 @@ vtx_branches = ['Pileup_nTrueInt', 'PV_npvsGood']
 other_branches = ['MET_pt']
 event_flags = ['Flag_BadPFMuonFilter','Flag_EcalDeadCellTriggerPrimitiveFilter',
                 'Flag_HBHENoiseFilter','Flag_HBHENoiseIsoFilter',
-                'Flag_globalSuperTightHalo2016Filter','Flag_goodVertices','Flag_BadChargedCandidateFilter']
+                'Flag_globalSuperTightHalo2016Filter','Flag_goodVertices',
+               #'Flag_BadChargedCandidateFilter'
+              ]
 
-branches_2016 = ['HLT_IsoMu24', 'HLT_IsoTkMu24', 'L1PreFiringWeight_Nom']
-branches_2017 = ['HLT_IsoMu27', 'L1PreFiringWeight_Nom']
-branches_2018 = ['HLT_IsoMu24', 'L1PreFiringWeight_Nom']
+branches_2016 = ['HLT_IsoMu24', 'HLT_IsoTkMu24', 'L1PreFiringWeight_Nom', 'L1PreFiringWeight_Up', 'L1PreFiringWeight_Dn']
+branches_2017 = ['HLT_IsoMu27', 'L1PreFiringWeight_Nom', 'L1PreFiringWeight_Up', 'L1PreFiringWeight_Dn']
+branches_2018 = ['HLT_IsoMu24']
 
 proc_columns = event_branches + muon_branches + jet_branches + vtx_branches + other_branches + event_flags 
 parameters["proc_columns"] = {
