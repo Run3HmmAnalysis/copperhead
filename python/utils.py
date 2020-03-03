@@ -45,10 +45,25 @@ def p4_sum(obj1, obj2):
     return pt, eta, phi, mass
 
 
-def get_regions(mass):
-    regions = {
-        "z-peak": ((mass>70) & (mass<110)),
-        "h-sidebands": ((mass>110) & (mass<115)) | ((mass>135) & (mass<150)),
-        "h-peak": ((mass>115) & (mass<135)),
-    }
-    return regions
+import uproot
+import numpy as np
+
+class NNLOPS_Evaluator(object):
+    def __init__(self, input_path):
+        with uproot.open(input_path) as f:
+            self.ratio_0jet = {"mcatnlo": f["gr_NNLOPSratio_pt_mcatnlo_0jet"], "powheg": f["gr_NNLOPSratio_pt_powheg_0jet"]}
+            self.ratio_1jet = {"mcatnlo": f["gr_NNLOPSratio_pt_mcatnlo_1jet"], "powheg": f["gr_NNLOPSratio_pt_powheg_1jet"]}
+            self.ratio_2jet = {"mcatnlo": f["gr_NNLOPSratio_pt_mcatnlo_2jet"], "powheg": f["gr_NNLOPSratio_pt_powheg_2jet"]}
+            self.ratio_3jet = {"mcatnlo": f["gr_NNLOPSratio_pt_mcatnlo_3jet"], "powheg": f["gr_NNLOPSratio_pt_powheg_3jet"]}
+
+    def evaluate(self, hig_pt, njets, mode):
+        result = np.ones(len(hig_pt), dtype=float)
+        hig_pt = np.array(hig_pt)
+        njets = np.array(njets)
+
+        result[njets==0] = np.interp(np.minimum(hig_pt[njets==0],125.), self.ratio_0jet[mode]._fX, self.ratio_0jet[mode]._fY)
+        result[njets==1] = np.interp(np.minimum(hig_pt[njets==1],652.), self.ratio_1jet[mode]._fX, self.ratio_1jet[mode]._fY)
+        result[njets==2] = np.interp(np.minimum(hig_pt[njets==2],800.), self.ratio_2jet[mode]._fX, self.ratio_2jet[mode]._fY)
+        result[njets >2] = np.interp(np.minimum(hig_pt[njets >2],925.), self.ratio_3jet[mode]._fX, self.ratio_3jet[mode]._fY)
+
+        return result
