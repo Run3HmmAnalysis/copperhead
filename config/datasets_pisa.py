@@ -65,7 +65,18 @@ datasets = {
     },
 
     "2017": {
-
+        "ggh_amcPS": "/store/user/arizzi/FSRmyNanoProdMc2017_NANOV8a/GluGluHToMuMu_M125_TuneCP5_PSweights_13TeV_amcatnloFXFX_pythia8/",
+        "ggh_powhegPS": "/store/user/arizzi/FSRmyNanoProdMc2017_NANOV8a/GluGluHToMuMu_M-125_TuneCP5_PSweights_13TeV_powheg_pythia8/",
+        "vbf_amcPS": "/store/user/arizzi/FSRmyNanoProdMc2017_NANOV8a/VBFHToMuMu_M125_TuneCP5_PSweights_13TeV_amcatnlo_pythia8/",
+        "vbf_powhegPS": "/store/user/arizzi/FSRmyNanoProdMc2017_NANOV8a/VBFHToMuMu_M-125_TuneCP5_PSweights_13TeV_powheg_pythia8/",
+        "ttw": "",
+        "ttz": "",
+        
+        "ewk_lljj_mll105_160_ptj0" : "/store/user/arizzi/FSRmyNanoProdMc2017_NANOV8d/EWK_LLJJ_MLL_105-160_ptJ-0_SM_5f_LO_TuneEEC5_13TeV-madgraph-h7/",
+        "www": "",
+        "wwz": "",
+        "wzz": "",
+        "zzz": "",
     },
 
     "2018": {
