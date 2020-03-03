@@ -1,3 +1,5 @@
+from coffea.lumi_tools import LumiData, LumiList, LumiMask
+
 def read_via_xrootd(server, path):
     import subprocess
     command = f"xrdfs {server} ls -R {path} | grep '.root'"
@@ -10,12 +12,15 @@ def read_via_xrootd(server, path):
     return result
 
 class SamplesInfo(object):
-    def __init__(self, year='2016', out_path='/output/', at_purdue=True, server='root://xrootd.rcac.purdue.edu/', datasets_from='purdue', debug=False, example=False, example_datasets=[]):
+    def __init__(self, year, out_path='/output/', at_purdue=True, server='root://xrootd.rcac.purdue.edu/', datasets_from='purdue', debug=False, example=False, example_datasets=[]):
 
         self.year = year
         self.out_path = out_path
         self.at_purdue = at_purdue
         self.debug = debug
+
+        from config.parameters import parameters
+        self.parameters = {k:v[self.year] for k,v in parameters.items()}
         
         if example:
             datasets = example_datasets
@@ -31,9 +36,19 @@ class SamplesInfo(object):
         self.datasets = datasets
         self.lumi_data = lumi_data
 
-        self.lumi = 35860.0 # default value
+        if '2016' in self.year:
+            self.lumi = 35917.15021920668
+        elif '2017' in self.year:
+            self.lumi = 41525.06046688122
+        elif '2018' in self.year:
+            self.lumi = 59725.42030414335           
+        print('year: ', self.year)  
+        print('Default lumi: ', self.lumi)  
         self.data_entries = 0
 
+#        self.lumi_mask = LumiMask(self.parameters['lumimask'])
+        self.lumi_list = LumiList()
+    
         self.samples = []
         self.missing_samples = []
 
@@ -43,8 +58,9 @@ class SamplesInfo(object):
 
         #--- Define regions and channels used in the analysis ---#
         self.regions = ['z-peak', 'h-sidebands', 'h-peak']
-        self.channels = ['ggh_01j', 'ggh_2j', 'vbf']
-
+        #self.channels = ['ggh_01j', 'ggh_2j', 'vbf']
+        self.channels = ['vbf']
+        
         #--- Select samples for which unbinned data will be saved ---#
         self.signal_samples = ['ggh_amcPS', 'vbf_amcPS']
         self.additional_signal = ['ggh_powheg', 'ggh_powhegPS', 'vbf_powheg', 'vbf_powhegPS', 'vbf_powheg_herwig']
@@ -76,16 +92,19 @@ class SamplesInfo(object):
         self.lumi_weights = {}
 
 
-    def load(self, samples, nchunks=1, parallelize=True):
+    def load(self, samples, nchunks=1, parallelize_outer=1, parallelize_inner=1):
         import multiprocessing as mp
         import time
         import numpy as np
         t0 = time.time()
-        
+        if (parallelize_outer*parallelize_inner)>(mp.cpu_count()-1):
+            print(f"Trying to create too many workers ({parallelize_outer*parallelize_inner})! Max allowed: {mp.cpu_count()-1}.")
+            raise
+                
         self.nchunks = nchunks
 
-        if parallelize:
-            pool = mp.Pool(mp.cpu_count()-2)
+        if parallelize_outer>1:
+            pool = mp.Pool(parallelize_outer)
             a = [pool.apply_async(self.load_sample, args=(s,)) for s in samples]
             results = []
             for process in a:
@@ -95,7 +114,7 @@ class SamplesInfo(object):
         else:
             results=[]
             for s in samples:
-                results.append(self.load_sample(s))
+                results.append(self.load_sample(s, parallelize_inner))
                 
         self.filesets_chunked = {}
         for res in results:
@@ -112,7 +131,8 @@ class SamplesInfo(object):
                 self.metadata[sample] = {}
                 self.metadata[sample] = res['metadata']
                 self.data_entries = self.data_entries + res['data_entries']
-        
+                self.lumi_list += res['lumi_list']
+
                 all_filenames = np.array(self.filesets[sample][sample]['files'])
                 all_filenames_chunked = np.array_split(all_filenames, nchunks)
                 for i in range(nchunks):
@@ -128,9 +148,11 @@ class SamplesInfo(object):
             print(f"Loaded {self.data_entries} of {self.year} data events")
             prc = round(self.data_entries/data_entries_total*100, 2)
             print(f"This is ~ {prc}% of {self.year} data.")
+            lumi_data = LumiData(f"data/lumimasks/lumi{self.year}.csv")
+ #           print(self.lumi_list.array)
 
-            self.lumi = self.lumi_data[self.year]['lumi']*self.data_entries/data_entries_total
-            print(f"Integrated luminosity {self.lumi}/pb")
+            self.lumi = lumi_data.get_lumi(self.lumi_list)
+            print(f"Integrated luminosity: {self.lumi}/pb")
             print()
         if self.missing_samples:
             print(f"Missing samples: {self.missing_samples}")
@@ -144,9 +166,10 @@ class SamplesInfo(object):
         self.datasets_to_save_unbin += self.data_samples
 
 
-    def load_sample(self, sample):
+    def load_sample(self, sample, parallelize=1):
         import glob, tqdm
         import uproot
+        import multiprocessing as mp
         print("Loading", sample)
 
         if sample not in self.paths:
@@ -156,7 +179,10 @@ class SamplesInfo(object):
         all_files = []
         metadata = {}
         data_entries = 0
-
+        data_runs = []
+        data_lumis = []
+        lumi_list = LumiList()
+        
         if self.at_purdue:
             all_files = read_via_xrootd(self.server, self.paths[sample])
         else:
@@ -168,30 +194,88 @@ class SamplesInfo(object):
         if self.debug:
             all_files = [all_files[0]]
 
-        if 'data' in sample:
-            for f in all_files:
-                tree = uproot.open(f)['Events']
-                data_entries += tree.numentries
-        else:
-            sumGenWgts = 0
-            nGenEvts = 0
-            for f in all_files:
-                tree = uproot.open(f)['Runs']
-                if 'NanoAODv6' in self.paths[sample]:
-                    sumGenWgts += tree.array('genEventSumw_')[0]
-                    nGenEvts += tree.array('genEventCount_')[0]
+        sumGenWgts = 0
+        nGenEvts = 0
+            
+        if parallelize>1:
+            pool = mp.Pool(parallelize)
+            if 'data' in sample:
+                a = [pool.apply_async(self.get_data, args=(f,)) for f in all_files]
+            else:
+                a = [pool.apply_async(self.get_mc, args=(f,)) for f in all_files]
+            results = []
+            for process in a:
+                process.wait()
+                results.append(process.get())
+                pool.close()
+            for ret in results:
+                if 'data' in sample:
+                    data_entries += ret['data_entries']
+                    lumi_list += ret['lumi_list']
                 else:
-                    sumGenWgts += tree.array('genEventSumw')[0]
-                    nGenEvts += tree.array('genEventCount')[0]
-            metadata['sumGenWgts'] = sumGenWgts
-            metadata['nGenEvts'] = nGenEvts
+                    sumGenWgts += ret['sumGenWgts']
+                    nGenEvts += ret['nGenEvts']
+        else:   
+            for f in all_files:
+                if 'data' in sample:
+                    tree = uproot.open(f)['Events']
+                    data_entries += tree.numentries
+                    lumi_mask = LumiMask(self.parameters['lumimask'])
+                    lumi_filter = lumi_mask(tree.array('run'), tree.array('luminosityBlock'))
+                    lumi_list += LumiList(tree.array('run')[lumi_filter], tree.array('luminosityBlock')[lumi_filter])
+                else:
+                    tree = uproot.open(f)['Runs']
+                    if 'NanoAODv6' in self.paths[sample]:
+                        sumGenWgts += tree.array('genEventSumw_')[0]
+                        nGenEvts += tree.array('genEventCount_')[0]
+                    else:
+                        sumGenWgts += tree.array('genEventSumw')[0]
+                        nGenEvts += tree.array('genEventCount')[0]
+        metadata['sumGenWgts'] = sumGenWgts
+        metadata['nGenEvts'] = nGenEvts
 
         files = {
             'files': all_files,
             'treename': 'Events'
         }
-        return {'sample': sample, 'metadata': metadata, 'files': files, 'data_entries':data_entries, 'is_missing':False}
+        return {'sample': sample, 'metadata': metadata, 'files': files,\
+                'data_entries':data_entries, 'lumi_list':lumi_list, 'is_missing':False}
 
+    def get_data(self, f):
+        import uproot
+        from coffea.lumi_tools import LumiData, LumiList
+        import numpy as np
+        ret = {}
+        file = uproot.open(f)
+        tree = file['Events']
+        ret['data_entries'] = tree.numentries
+        
+        bl = file.get("LuminosityBlocks")
+        runs = bl.array("run")
+        lumis = bl.array("luminosityBlock")
+        lumi_mask = LumiMask(self.parameters['lumimask'])
+        lumi_filter = lumi_mask(runs, lumis)
+        print("Lumi filter eff.: ",lumi_filter.mean())
+        if len(runs[lumi_filter])>0:
+            ret['lumi_list'] = LumiList(runs[lumi_filter], lumis[lumi_filter])
+        else:
+            ret['lumi_list'] = LumiList()
+        return ret
+
+    def get_mc(self, f):
+        import uproot
+        from coffea.lumi_tools import LumiData, LumiList
+        ret = {}
+        tree = uproot.open(f)['Runs']
+        if 'NanoAODv6' in f:
+            ret['sumGenWgts'] = tree.array('genEventSumw_')[0]
+            ret['nGenEvts'] = tree.array('genEventCount_')[0]
+        else:
+            ret['sumGenWgts'] = tree.array('genEventSumw')[0]
+            ret['nGenEvts'] = tree.array('genEventCount')[0]
+        return ret
+
+    
     def compute_lumi_weights(self):
         from config.cross_sections import cross_sections
         import json
