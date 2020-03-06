@@ -2,6 +2,7 @@ from coffea import hist, util
 import mplhep as hep
 import numpy as np
 from config.variables import variables
+from config.parameters import parameters
 var_names = [v.name for v in variables]
 
 def get_variable(vname):
@@ -332,7 +333,9 @@ class Plotter(object):
 #        else:
 #            plt1.set_ylim(0., 1e5)
         plt1.set_xlabel('')
-        if 'dimuon_mass' not in var:
+        if 'dnn_score' in var:
+            plt1.set_xlim(0, parameters["dnn_max"][year])
+        elif 'dimuon_mass' not in var:
             plt1.set_xlim(variable.xmin, variable.xmax)
         plt1.tick_params(axis='x', labelbottom=False)
         plt1.legend(prop={'size': 'xx-small'})

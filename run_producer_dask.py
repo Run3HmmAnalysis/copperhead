@@ -43,16 +43,16 @@ samples = [
 
 ## Less important other MC: ##    
     'ttjets_sl',
-    'ttz', #missing for 2017
-    'ttw', #missing for 2017
+#    'ttz', #missing for 2017
+#    'ttw', #missing for 2017
     'st_tw_top','st_tw_antitop',
     'ww_2l2nu',
     'wz_2l2q',
     'wz_3lnu',
     'wz_1l1nu2q',
     'zz',
-    'www','wwz', #missing for 2017
-    'wzz','zzz', #missing for 2017
+#    'www','wwz', #missing for 2017
+#    'wzz','zzz', #missing for 2017
 #    
 
 # ##
@@ -63,29 +63,34 @@ purdue = 'root://xrootd.rcac.purdue.edu/'
 legrano = 'root://t2-xrdcms.lnl.infn.it:7070//'
 
 if __name__ == "__main__":
-    suff="mar5"
+    suff="mar6"
     do_jer=False
     do_geofit=False
-    do_jecunc=False
-    debug=False
+    do_jecunc=True
+    debug=True
     if not do_jer:
         suff += '_nojer'
     if do_jecunc:
         suff+= '_jecunc'
-#    samp_info = SamplesInfo(year="2016", out_path=f'all_2016_{suff}', server=purdue, datasets_from='purdue', debug=debug)
+    samp_info = SamplesInfo(year="2016", out_path=f'all_2016_{suff}', server=purdue, datasets_from='purdue', debug=debug)
 #    samp_info = SamplesInfo(year="2016", out_path=f'all_2016_{suff}', server=legrano, datasets_from='pisa', debug=debug)
 
 #    samp_info = SamplesInfo(year="2017", out_path=f'all_2017_{suff}', server=purdue, datasets_from='purdue', debug=debug)
 #    samp_info = SamplesInfo(year="2017", out_path=f'all_2017_{suff}', server=legrano, datasets_from='pisa', debug=debug)
 
-    samp_info = SamplesInfo(year="2018", out_path=f'all_2018_{suff}', server=purdue, datasets_from='purdue', debug=debug)
+#    samp_info = SamplesInfo(year="2018", out_path=f'all_2018_{suff}', server=purdue, datasets_from='purdue', debug=debug)
 #    samp_info = SamplesInfo(year="2018", out_path=f'all_2018_{suff}', server=legrano, datasets_from='pisa', debug=debug)
 
-    samp_info.load(samples, nchunks=1, parallelize_outer=1, parallelize_inner=42)
-#    samp_info.load(samples, nchunks=1, parallelize_outer=5, parallelize_inner=8)
+    if debug:
+        samp_info.load(samples, nchunks=1, parallelize_outer=32, parallelize_inner=1)
+    else:
+        samp_info.load(samples, nchunks=1, parallelize_outer=1, parallelize_inner=42)
+#        samp_info.load(samples, nchunks=1, parallelize_outer=5, parallelize_inner=8)
+
     samp_info.compute_lumi_weights()
 
     n_workers = 24
+#    n_workers = 12
 
     distributed = pytest.importorskip("distributed", minversion="1.28.1")
     distributed.config['distributed']['worker']['memory']['terminate'] = False
@@ -101,9 +106,9 @@ if __name__ == "__main__":
                                       DimuonProcessor(samp_info=samp_info,\
                                                       do_fsr=True,\
                                                       do_roccor=True,\
-                                                      evaluate_dnn=False, save_unbin=True,
+                                                      evaluate_dnn=True, save_unbin=True,
                                                       do_lheweights=False, apply_jec=True, do_jer=do_jer, do_nnlops=True,
-                                                      do_geofit=do_geofit, do_jecunc=do_jesunc,
+                                                      do_geofit=do_geofit, do_jecunc=do_jecunc,
                                                   ),\
                                       dask_executor,\
                                       executor_args={'nano': True, 'client': client})

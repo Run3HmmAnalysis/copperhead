@@ -235,7 +235,7 @@ class DimuonProcessor(processor.ProcessorABC):
     def __init__(self, samp_info, do_roccor=True, do_fsr=True, evaluate_dnn=False,\
                  do_timer=False, save_unbin=True, do_lheweights=True, do_geofit=False, apply_jec=True,\
                  do_jer=True, do_jecunc=False, do_nnlops=True, do_btagsf=False, debug=False): 
-        from config.parameters import parameters, jec_unc_to_consider
+        from config.parameters import parameters
         from config.variables import variables
         if not samp_info:
             print("Samples info missing!")
@@ -259,7 +259,6 @@ class DimuonProcessor(processor.ProcessorABC):
         self.evaluate_dnn = evaluate_dnn
         self.do_lheweights = do_lheweights
         self.parameters = {k:v[self.year] for k,v in parameters.items()}
-        self.jec_unc_to_consider = jec_unc_to_consider
         self.timer = Timer('global') if do_timer else None
         
         self._columns = self.parameters["proc_columns"]
@@ -288,10 +287,11 @@ class DimuonProcessor(processor.ProcessorABC):
                 variables.append(Variable(f"weight_{syst}_down", f"weight_{syst}_down", 1, 0, 1))    
 
         if self.evaluate_dnn:
-            variables.append(Variable(f"dnn_score_nominal", f"dnn_score_nominal", 12, 0, 1))
+            variables.append(Variable(f"dnn_score_nominal", f"dnn_score_nominal", 12, 0, self.parameters["dnn_max"]))
             if self.do_jecunc:
-                for v_name in self.jec_unc_to_consider:
-                    variables.append(Variable(f"dnn_score_{v_name}", f"dnn_score_{v_name}", 12, 0, 1))
+                for v_name in self.parameters["jec_unc_to_consider"]:
+                    variables.append(Variable(f"dnn_score_{v_name}_up", f"dnn_score_{v_name}_up", 12, 0, self.parameters["dnn_max"]))
+                    variables.append(Variable(f"dnn_score_{v_name}_down", f"dnn_score_{v_name}_down", 12, 0, self.parameters["dnn_max"]))
                 
         for i in range(9):
             variables.append(Variable(f"LHEScaleWeight_{i}", f"LHEScaleWeight_{i}", 1, 0, 1))
@@ -318,6 +318,7 @@ class DimuonProcessor(processor.ProcessorABC):
         if self.save_unbin:
             for p in self.samp_info.samples:
                 for v in self.vars_unbin:
+                    if 'dnn_score' in v: continue
                     for c in self.channels:
                         for r in self.regions:
     #                        if 'z-peak' in r: continue # don't need unbinned data for Z-peak
@@ -791,7 +792,7 @@ class DimuonProcessor(processor.ProcessorABC):
         # Btag weight    
         if self.do_btagsf and not isData:
             btag_wgt = self.btag_sf('central', jet.hadronFlavour, abs(jet.eta), jet.pt, jet.btagDeepB, True)
-            print(btag_wgt)
+            print(btag_wgt.prod().mean())
         
 #        if self.debug:
 #            print("Avg. jet PU ID SF: ", puid_weight.mean())
@@ -856,7 +857,11 @@ class DimuonProcessor(processor.ProcessorABC):
 #            jetarrays.update({'pt': pt_corr})            
             jet = JaggedCandidateArray.candidatesfromcounts(jet.counts, **jetarrays)
             jet_variation_names = ['nominal']
-        
+            
+            for junc_name in self.jet_unc_names:
+                if junc_name not in self.parameters["jec_unc_to_consider"]: continue
+                jet_variation_names += [f"{junc_name}_up", f"{junc_name}_down"]
+            
             if isData:
                 for run in self.data_runs: # 'B', 'C', 'D', etc...
                     if run in dataset: # dataset name is something like 'data_B'
@@ -865,13 +870,13 @@ class DimuonProcessor(processor.ProcessorABC):
                 self.Jet_transformer.transform(jet, forceStochastic=False)
                 if self.do_jecunc:
                     for junc_name in self.jet_unc_names:
-                        if junc_name not in self.jec_unc_to_consider: continue
+                        if junc_name not in self.parameters["jec_unc_to_consider"]: continue
                         jec_up_down = get_jec_unc(junc_name, jet.pt, jet.eta, self.JECuncertaintySources)
                         jec_corr_up, jec_corr_down = jec_up_down[:,:,0], jec_up_down[:,:,1]
                         pt_name_up = f"pt_{junc_name}_up"
                         pt_name_down = f"pt_{junc_name}_down"
                         jet.add_attributes(**{pt_name_up: jet.pt*jec_corr_up, pt_name_down: jet.pt*jec_corr_down})
-                        jet_variation_names += [f"{junc_name}_up", f"{junc_name}_down"]
+                        
     
 #            if self.debug:
 #                print("mean jec pt change (Coffea): ", (jet.pt.flatten()-original_jet_pt).mean())
@@ -1229,32 +1234,35 @@ class DimuonProcessor(processor.ProcessorABC):
             # https://github.com/keras-team/keras/issues/9964
             dnn_model = load_model(f'output/trained_models/test_{self.year}.h5')
             scaler = np.load(f"output/trained_models/scalers_{self.year}.npy")
-
+            regions = get_regions(variable_map['dimuon_mass'])
             
             for v_name in jet_variation_names:
-                #print(v_name)
+                if (v_name != 'nominal') and isData:
+                    variable_map[f'dnn_score_{v_name}'] = variable_map['dnn_score_nominal']
+                    continue
                 jet_vars = get_variated_jet_variables(v_name, jets, dimuons, one_jet, two_jets, event_weight)
-
                 dnn_score = np.full(len(event_weight), -1.)
-
-                n_rows = len(dimuons.mass[two_jets].flatten())
-                df_for_dnn = pd.DataFrame(columns=training_features)
-
-                for tf in training_features:
-                    if tf in jet_vars.keys():
-                        feature_column = jet_vars[tf][two_jets]
-                    else:
-                        feature_column = variable_map[tf][two_jets]
-                    assert(n_rows==len(feature_column))
-                    df_for_dnn[tf] = feature_column
-                df_for_dnn[training_features] = (df_for_dnn[training_features]-scaler[0])/scaler[1]
+                
+                for region, rcut in regions.items():
+                    df_for_dnn = pd.DataFrame(columns=training_features)
+                    mask = two_jets & rcut
+                    n_rows = len(dimuons.mass[mask].flatten())
+                    for tf in training_features:
+                        if tf=='dimuon_mass' and region!='h-peak':
+                            feature_column = np.full(sum(mask), 125.)
+                        elif tf in jet_vars.keys():
+                            feature_column = jet_vars[tf][mask]
+                        else:
+                            feature_column = variable_map[tf][mask]
+                        assert(n_rows==len(feature_column))
+                        df_for_dnn[tf] = feature_column
+                    df_for_dnn[training_features] = (df_for_dnn[training_features]-scaler[0])/scaler[1]
+                    dnn_score[mask] = np.array(dnn_model.predict(df_for_dnn[training_features])).flatten()
+                    
+                variable_map[f'dnn_score_{v_name}'] = np.arctanh((dnn_score))
             
-                dnn_score[two_jets] = dnn_model.predict(df_for_dnn[training_features]).flatten()
-                #print(dnn_score)
-                variable_map[f'dnn_score_{v_name}'] = dnn_score
-            
-            if self.timer:
-                self.timer.add_checkpoint("Evaluated DNN")
+                if self.timer:
+                    self.timer.add_checkpoint("Evaluated DNN")
 
 
         #################### Fill outputs ####################
@@ -1294,6 +1302,7 @@ class DimuonProcessor(processor.ProcessorABC):
         if self.save_unbin:
             for v in self.vars_unbin:
                 if v not in variable_map: continue
+                if 'dnn_score' in vname: continue 
                 regions = get_regions(variable_map['dimuon_mass']) 
                 for cname in self.channels:
                     ccut = (category==cname)

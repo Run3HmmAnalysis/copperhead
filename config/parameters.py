@@ -7,25 +7,7 @@ training_features = ['dimuon_mass', 'dimuon_pt', 'dimuon_eta', 'dimuon_dEta', 'd
                      'htsoft5',
                     ]
 
-#jec_unc_to_consider = [
-#            'AbsoluteMPFBias', 'AbsoluteScale', 'AbsoluteStat',
-#            'FlavorQCD', 'Fragmentation',
-#            'PileUpDataMC', 'PileUpPtBB', 'PileUpPtEC1', 'PileUpPtEC2', 'PileUpPtHF', 'PileUpPtRef',
-#            'RelativeFSR', 'RelativeJEREC1', 'RelativeJEREC2', 'RelativeJERHF', 'RelativePtBB',
-#            'RelativePtEC1', 'RelativePtEC2', 'RelativePtHF', 'RelativeBal', 'RelativeSample',
-#            'RelativeStatEC', 'RelativeStatFSR', 'RelativeStatHF', 'SinglePionECAL', 'SinglePionHCAL', 'TimePtEta'
-#        ]
 
-# Reduced set
-jec_unc_to_consider = [
-            'Absolute', 'Absolute2016', 'Absolute2017', 'Absolute2018',
-            'BBEC1', 'BBEC12016', 'BBEC12017', 'BBEC12018',
-            'EC2', 'EC22016',  'EC22017', 'EC22018',
-            'HF', 'HF2016', 'HF2017', 'HF2018',
-            'RelativeBal', 
-            'RelativeSample2016', 'RelativeSample2017', 'RelativeSample2018',   
-            'FlavorQCD',   
-        ]
 
 def for_all_years(value):
     out = {k:value for k in ["2016", "2017", "2018"]}
@@ -123,6 +105,25 @@ jec_tag = {
     '2016': 'Summer16_07Aug2017_V11_MC',
     '2017': 'Fall17_17Nov2017_V32_MC',
     '2018': 'Autumn18_V19_MC'
+}
+
+#jec_unc_to_consider = [
+#            'AbsoluteMPFBias', 'AbsoluteScale', 'AbsoluteStat',
+#            'FlavorQCD', 'Fragmentation',
+#            'PileUpDataMC', 'PileUpPtBB', 'PileUpPtEC1', 'PileUpPtEC2', 'PileUpPtHF', 'PileUpPtRef',
+#            'RelativeFSR', 'RelativeJEREC1', 'RelativeJEREC2', 'RelativeJERHF', 'RelativePtBB',
+#            'RelativePtEC1', 'RelativePtEC2', 'RelativePtHF', 'RelativeBal', 'RelativeSample',
+#            'RelativeStatEC', 'RelativeStatFSR', 'RelativeStatHF', 'SinglePionECAL', 'SinglePionHCAL', 'TimePtEta'
+#        ]
+
+# Reduced set
+parameters["jec_unc_to_consider"] = {
+    "2016": ['Absolute', 'Absolute2016', 'BBEC1', 'BBEC12016', 'EC2', 'EC22016', 
+            'HF', 'HF2016', 'RelativeBal', 'RelativeSample2016','FlavorQCD'],
+    "2017": ['Absolute', 'Absolute2017', 'BBEC1', 'BBEC12017', 'EC2', 'EC22017', 
+            'HF', 'HF2017', 'RelativeBal', 'RelativeSample2017','FlavorQCD'],
+    "2018": ['Absolute', 'Absolute2018', 'BBEC1', 'BBEC12018', 'EC2', 'EC22018', 
+            'HF', 'HF2018', 'RelativeBal', 'RelativeSample2018','FlavorQCD'] 
 }
 
 parameters['jec_weight_sets'] = {
@@ -365,7 +366,11 @@ parameters.update({
 })
 
 
-
+parameters["dnn_max"] = {
+    '2016': 1.75,
+    '2017': 2.0,
+    '2018': 2.35
+}
 
 event_branches = ['run', 'luminosityBlock', 'genWeight']
 muon_branches = ['nMuon', 'Muon_pt', 'Muon_eta', 'Muon_phi', 'Muon_mass', 'Muon_charge', 'Muon_pfRelIso04_all']
