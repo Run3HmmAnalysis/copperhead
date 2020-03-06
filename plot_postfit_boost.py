@@ -9,14 +9,15 @@ import coffea
 import matplotlib.pyplot as plt
 import mplhep as hep
 import json
-year = '2018'
+year = '2017'
 #suffix = ''
 suffix = '_CRfit'
 input_file = uproot.open(f"combine/fitDiagnostics{year}{suffix}.root")
 #print(input_file['shapes_prefit'].keys())
 #print(input_file['shapes_fit_b'][b'h_peak;1'][b'ggh_amcPS;1'].values)
 
-regions = ['ch1', 'ch2_h_sidebands', 'ch2_z_peak']
+#regions = ['ch1', 'ch2_h_sidebands', 'ch2_z_peak']
+regions = ['ch1', 'ch2']
 #regions = ['h_peak', 'h_sidebands', 'z_peak']
 #regions = ['h_peak', 'h_sidebands']
 #regions = ['z_peak']

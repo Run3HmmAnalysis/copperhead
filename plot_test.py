@@ -4,31 +4,31 @@ from python.samples_info import SamplesInfo
 import os
 
 year = '2016'
-suff = 'mar2'
+suff = 'mar5_nojer'
 vars_to_plot = []
 
 vars_to_plot += ['dimuon_mass', 'dimuon_pt']
-vars_to_plot += ['dimuon_mass_res', 'dimuon_mass_res_rel']
-vars_to_plot += ['dimuon_eta', 'dimuon_phi', 'dimuon_cosThetaCS']
-vars_to_plot += ['dimuon_dEta', 'dimuon_dPhi', 'dimuon_dR']
+#vars_to_plot += ['dimuon_mass_res', 'dimuon_mass_res_rel']
+#vars_to_plot += ['dimuon_eta', 'dimuon_phi', 'dimuon_cosThetaCS']
+#vars_to_plot += ['dimuon_dEta', 'dimuon_dPhi', 'dimuon_dR']
 
-vars_to_plot += ['mu1_pt', 'mu1_pt_over_mass', 'mu1_eta', 'mu1_phi', 'mu1_iso']
-vars_to_plot += ['mu2_pt', 'mu2_pt_over_mass', 'mu2_eta', 'mu2_phi', 'mu2_iso']
+#vars_to_plot += ['mu1_pt', 'mu1_pt_over_mass', 'mu1_eta', 'mu1_phi', 'mu1_iso']
+#vars_to_plot += ['mu2_pt', 'mu2_pt_over_mass', 'mu2_eta', 'mu2_phi', 'mu2_iso']
 
-vars_to_plot += ['jet1_pt']
-vars_to_plot += ['jet1_eta', 'jet1_phi', 'jet1_qgl']
-vars_to_plot += ['jet2_pt']
-vars_to_plot += ['jet2_eta', 'jet2_phi', 'jet2_qgl']
-vars_to_plot += ['deta_mumuj1', 'dphi_mumuj1']
-vars_to_plot += ['deta_mumuj2', 'dphi_mumuj2']
-vars_to_plot += ['min_deta_mumuj', 'min_dphi_mumuj']
-vars_to_plot += ['jj_mass']
-vars_to_plot += ['jj_pt', 'jj_eta', 'jj_phi']
-vars_to_plot += ['jj_dEta', 'jj_dPhi']
+#vars_to_plot += ['jet1_pt']
+#vars_to_plot += ['jet1_eta', 'jet1_phi', 'jet1_qgl']
+#vars_to_plot += ['jet2_pt']
+#vars_to_plot += ['jet2_eta', 'jet2_phi', 'jet2_qgl']
+#vars_to_plot += ['deta_mumuj1', 'dphi_mumuj1']
+#vars_to_plot += ['deta_mumuj2', 'dphi_mumuj2']
+#vars_to_plot += ['min_deta_mumuj', 'min_dphi_mumuj']
+#vars_to_plot += ['jj_mass']
+#vars_to_plot += ['jj_pt', 'jj_eta', 'jj_phi']
+#vars_to_plot += ['jj_dEta', 'jj_dPhi']
 
-vars_to_plot += ['mmjj_mass', 'mmjj_pt', 'mmjj_eta', 'mmjj_phi']
-vars_to_plot += ['zeppenfeld', 'rpt', 'nsoftjets2', 'nsoftjets5', 'htsoft2', 'htsoft5']
-vars_to_plot += ['njets', 'npv', 'met']
+#vars_to_plot += ['mmjj_mass', 'mmjj_pt', 'mmjj_eta', 'mmjj_phi']
+#vars_to_plot += ['zeppenfeld', 'rpt', 'nsoftjets2', 'nsoftjets5', 'htsoft2', 'htsoft5']
+#vars_to_plot += ['njets', 'npv', 'met']
 
 all_plots_pars = {
     'processor': DimuonProcessor(SamplesInfo(year)),

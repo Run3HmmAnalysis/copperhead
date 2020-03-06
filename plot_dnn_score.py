@@ -23,8 +23,10 @@ def dnn_rebin(df, nbins):
     return sorted(boundaries)
 
 year = '2017'
+path_label = 'mar2'
 label = 'm125'
-tmp_path = f'/depot/cms/hmm/coffea/tmp_{label}_{year}_feb23/'
+
+tmp_path = f'/depot/cms/hmm/coffea/tmp_{label}_{year}_{path_label}/'
 dfs = []
 systematics = ['nominal', 'muSF_up', 'muSF_down', 'pu_weight_up', 'pu_weight_down']
 if '2018' not in year:
@@ -38,7 +40,8 @@ xmax_ = {
 }
 
 for file in glob.glob(tmp_path+'/*'):
-#    if 'dy' not in file: continue
+#    if 'wzz' in file: continue
+#    if 'wz' not in file: continue
     try:
         df_ = pd.DataFrame(data=np.load(file, allow_pickle=True), columns=['dnn_score', 'dataset', 'region', 'channel', 'weight']+[f'weight_{s}' for s in systematics])
         dfs.append(df_)
@@ -46,6 +49,7 @@ for file in glob.glob(tmp_path+'/*'):
         print(f"{file}: error")
         
 df = pd.concat(dfs).reset_index(drop=True)
+df = df[~df.isna().any(axis=1)]
 
 vbf_name = {
     'm120': 'vbf_powhegPS_m120',
@@ -79,6 +83,7 @@ for r in ['z-peak', 'h-peak', 'h-sidebands']:
         dnn = np.array(df[(df['region']==r)].dnn_score.values, dtype=float)
         df.loc[(df['region']==r), 'dnn_bin'] = np.arctanh((dnn))
 
+
 #df['dnn_bin'] = np.arctanh(np.array(df.dnn_score.values,dtype=float))
 
 dataset_axis = hist.Cat("dataset", "")
@@ -90,6 +95,7 @@ dnn_axis = hist.Bin('dnn_score', 'DNN score', nbins, 0, xmax)
 datasets = df.dataset.unique()
 regions = df.region.unique()
 channels = df.channel.unique()
+print(regions)
 
 accumulators = {}
 accumulators['dnn_score'] = hist.Hist("Counts", dataset_axis, region_axis, channel_axis, syst_axis, dnn_axis)
@@ -104,6 +110,7 @@ for dataset in datasets:
             for syst in systematics:
                 dnn_scores = df[(df['dataset']==dataset)&(df['region']==region)&(df['channel']==channel)].dnn_bin.values
                 weights = df[(df['dataset']==dataset)&(df['region']==region)&(df['channel']==channel)][f'weight_{syst}'].values
+#                print(dataset, region, channel, syst, np.array(dnn_scores, dtype=float), np.array(weights, dtype=float))
                 this_accumulator.fill(**{'dataset': dataset, 'region': region, 'channel': channel,\
                                              'dnn_score': np.array(dnn_scores, dtype=float), 'syst': syst, 'weight': np.array(weights, dtype=float)})
     accumulators['dnn_score'] = accumulators['dnn_score']+this_accumulator
@@ -112,6 +119,7 @@ print(datasets)
 
 from python.plotting import Plotter
 from python.dimuon_processor import DimuonProcessor
+from python.samples_info import SamplesInfo
 
 ggh_name = {
     'm120': 'ggh_amcPS_m120',
@@ -127,8 +135,8 @@ vbf_name = {
 
 ewk_name = {
     '2016':'ewk_lljj_mll105_160_ptj0',
-    '2017':'ewk_lljj_mll105_160',
-    '2018':'ewk_lljj_mll105_160'
+    '2017':'ewk_lljj_mll105_160_ptj0',
+    '2018':'ewk_lljj_mll105_160_ptj0'
 }
 
 syst_sources = {
@@ -141,7 +149,7 @@ with open(f"output/norms_{year}.json") as json_file:
     norms = json.load(json_file)
 
 pars = {
-    'processor': DimuonProcessor(),
+    'processor': DimuonProcessor(samp_info=SamplesInfo(year)),
     'accumulators': accumulators,
     'chunked': True,
     'vars': ['dnn_score'],

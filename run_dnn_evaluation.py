@@ -11,10 +11,11 @@ import warnings
 warnings.filterwarnings('ignore')
 
 year = '2017'
-load_path = f'/depot/cms/hmm/coffea/all_{year}_feb23/'
+path_label = 'mar2'
+load_path = f'/depot/cms/hmm/coffea/all_{year}_{path_label}/unbinned/'
 dnn_label = '2017'
 label = 'm125'
-tmp_path = f'/depot/cms/hmm/coffea/tmp_{label}_{year}_feb23/'
+tmp_path = f'/depot/cms/hmm/coffea/tmp_{label}_{year}_{path_label}/'
 systematics = ['nominal', 'muSF_up', 'muSF_down', 'pu_weight_up', 'pu_weight_down']
 if '2018' not in year:
     systematics = systematics + ['l1prefiring_weight_up', 'l1prefiring_weight_down']
@@ -28,6 +29,7 @@ def load_sample(s):
     import tensorflow as tf
     tf.compat.v1.logging.set_verbosity(tf.compat.v1.logging.ERROR)
     import numpy as np
+    from config.parameters import training_features
     
     config = tf.ConfigProto()
     config.intra_op_parallelism_threads=1
@@ -46,15 +48,6 @@ def load_sample(s):
     prefix = ''
     scalers_path = f'output/trained_models/scalers_{dnn_label}.npy'
     model_path = f'output/trained_models/test_{dnn_label}.h5'
-    
-    training_features = ['dimuon_mass', 'dimuon_pt', 'dimuon_eta', 'dimuon_dEta', 'dimuon_dPhi', 'dimuon_dR',\
-         'jj_mass', 'jj_eta', 'jj_phi', 'jj_pt', 'jj_dEta',\
-         'mmjj_mass', 'mmjj_eta', 'mmjj_phi','zeppenfeld',\
-         'jet1_pt', 'jet1_eta', 'jet1_qgl', 'jet2_pt', 'jet2_eta', 'jet2_qgl',\
-         'dimuon_cosThetaCS',\
-         'dimuon_mass_res_rel', 'deta_mumuj1', 'dphi_mumuj1', 'deta_mumuj2', 'dphi_mumuj2',\
-         'htsoft5',
-        ]
 
     dnn_model = load_model(model_path)
     scalers = np.load(scalers_path)
@@ -104,7 +97,10 @@ def load_sample(s):
 #                print(r,c,df_test)
                 df_test = (df_test[training_features]-scalers[0])/scalers[1]
                 if df.shape[0]>0:
-                    dfs_out[lbl]['dnn_score'] = dnn_model.predict(df_test.reset_index(drop=True)).flatten()
+                    try:
+                        dfs_out[lbl]['dnn_score'] = dnn_model.predict(df_test.reset_index(drop=True)).flatten()
+                    except:
+                        dfs_out[lbl]['dnn_score'] = dnn_model.predict(df_test.reset_index(drop=True))
                     dfs_out[lbl]['dataset'] = s
                     dfs_out[lbl]['region'] = r
                     dfs_out[lbl]['channel'] = c
@@ -187,7 +183,7 @@ samples = [
 # # ##
     
 # # # ## MC for DNN training (Legnaro): ##    
-#    "ewk_lljj_mll105_160_ptj0", 
+    "ewk_lljj_mll105_160_ptj0", 
 # # # ##    
     
 # # # ## Most important of other MC: ##   
