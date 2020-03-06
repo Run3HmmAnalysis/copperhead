@@ -330,8 +330,10 @@ class DimuonProcessor(processor.ProcessorABC):
         mu_id_err = 0
         mu_iso_vals = 0
         mu_iso_err = 0
-        mu_trig_vals = 0
-        mu_trig_err = 0
+        mu_trig_vals_data = 0
+        mu_trig_err_data = 0
+        mu_trig_vals_mc = 0
+        mu_trig_err_mc = 0
 
         for scaleFactors in self.parameters['muSFFileList']:
             id_file = uproot.open(scaleFactors['id'][0])
@@ -346,17 +348,22 @@ class DimuonProcessor(processor.ProcessorABC):
             mu_iso_err += iso_file[scaleFactors['iso'][1]].variances**0.5 * scaleFactors['scale']
             mu_iso_edges = iso_file[scaleFactors['iso'][1]].edges
 
-            mu_trig_vals += trig_file[scaleFactors['trig'][1]].values * scaleFactors['scale']
-            mu_trig_err += trig_file[scaleFactors['trig'][1]].variances**0.5 * scaleFactors['scale']
+            mu_trig_vals_data += trig_file[scaleFactors['trig'][1]].values * scaleFactors['scale']
+            mu_trig_vals_mc += trig_file[scaleFactors['trig'][2]].values * scaleFactors['scale']
+            mu_trig_err_data += trig_file[scaleFactors['trig'][1]].variances**0.5 * scaleFactors['scale']
+            mu_trig_err_mc += trig_file[scaleFactors['trig'][2]].variances**0.5 * scaleFactors['scale']
             mu_trig_edges = trig_file[scaleFactors['trig'][1]].edges
 
         self.mu_id_sf = dense_lookup.dense_lookup(mu_id_vals, mu_id_edges)
         self.mu_id_err = dense_lookup.dense_lookup(mu_id_err, mu_id_edges)
         self.mu_iso_sf = dense_lookup.dense_lookup(mu_iso_vals, mu_iso_edges)
         self.mu_iso_err = dense_lookup.dense_lookup(mu_iso_err, mu_iso_edges)
-        self.mu_trig_sf = dense_lookup.dense_lookup(mu_trig_vals, mu_trig_edges)
-        self.mu_trig_err = dense_lookup.dense_lookup(mu_trig_err, mu_trig_edges)    
 
+        self.mu_trig_eff_data = dense_lookup.dense_lookup(mu_trig_vals_data, mu_trig_edges)
+        self.mu_trig_eff_mc = dense_lookup.dense_lookup(mu_trig_vals_mc, mu_trig_edges)
+        
+        self.mu_trig_err_data = dense_lookup.dense_lookup(mu_trig_err_data, mu_trig_edges)    
+        self.mu_trig_err_mc = dense_lookup.dense_lookup(mu_trig_err_mc, mu_trig_edges)    
         
         zpt_filename = self.parameters['zpt_weights_file']
         puid_filename = self.parameters['puid_sf_file']
@@ -653,27 +660,35 @@ class DimuonProcessor(processor.ProcessorABC):
             if '2016' in self.year:
                 muID = self.mu_id_sf(muons.eta.compact(), muons.pt.compact())
                 muIso = self.mu_iso_sf(muons.eta.compact(), muons.pt.compact())
-                muTrig = self.mu_trig_sf(abs(muons.eta.compact()), muons.pt.compact())
+                muTrig_data = self.mu_trig_eff_data(abs(muons.eta.compact()), muons.pt.compact())
+                muTrig_mc = self.mu_trig_eff_mc(abs(muons.eta.compact()), muons.pt.compact())
                 muIDerr = self.mu_id_err(muons.eta.compact(), muons.pt.compact())
                 muIsoerr = self.mu_iso_err(muons.eta.compact(), muons.pt.compact())
-                muTrigerr = self.mu_trig_err(abs(muons.eta.compact()), muons.pt.compact())
+                muTrigerr_data = self.mu_trig_err_data(abs(muons.eta.compact()), muons.pt.compact())
+                muTrigerr_mc = self.mu_trig_err_mc(abs(muons.eta.compact()), muons.pt.compact())
             elif '2017' in self.year:
                 muID = self.mu_id_sf(muons.pt.compact(), abs(muons.eta.compact()))
                 muIso = self.mu_iso_sf(muons.pt.compact(), abs(muons.eta.compact()))
-                muTrig = self.mu_trig_sf(abs(muons.eta.compact()), muons.pt.compact())
+                muTrig_data = self.mu_trig_eff_data(abs(muons.eta.compact()), muons.pt.compact())
+                muTrig_mc = self.mu_trig_eff_mc(abs(muons.eta.compact()), muons.pt.compact())                
                 muIDerr = self.mu_id_err(muons.pt.compact(), abs(muons.eta.compact()))
                 muIsoerr = self.mu_iso_err(muons.pt.compact(), abs(muons.eta.compact()))
-                muTrigerr = self.mu_trig_err(abs(muons.eta.compact()), muons.pt.compact())
+                muTrigerr_data = self.mu_trig_err_data(abs(muons.eta.compact()), muons.pt.compact())
+                muTrigerr_mc = self.mu_trig_err_mc(abs(muons.eta.compact()), muons.pt.compact())
             elif '2018' in self.year:
                 muID = self.mu_id_sf(muons.pt.compact(), abs(muons.eta.compact()))
                 muIso = self.mu_iso_sf(muons.pt.compact(), abs(muons.eta.compact()))
-                muTrig = self.mu_trig_sf(abs(muons.eta.compact()), muons.pt.compact())
+                muTrig_data = self.mu_trig_eff_data(abs(muons.eta.compact()), muons.pt.compact())
+                muTrig_mc = self.mu_trig_eff_mc(abs(muons.eta.compact()), muons.pt.compact())
                 muIDerr = self.mu_id_err(muons.pt.compact(), abs(muons.eta.compact()))
                 muIsoerr = self.mu_iso_err(muons.pt.compact(), abs(muons.eta.compact()))
-                muTrigerr = self.mu_trig_err(abs(muons.eta.compact()), muons.pt.compact())
-            muTrig = 1 - (1. - muTrig).prod()
-            muTrig_up = 1 - (1. - muTrig + muTrigerr).prod()
-            muTrig_down = 1 - (1. - muTrig - muTrigerr).prod()
+                muTrigerr_data = self.mu_trig_err_data(abs(muons.eta.compact()), muons.pt.compact())
+                muTrigerr_mc = self.mu_trig_err_mc(abs(muons.eta.compact()), muons.pt.compact())
+                
+            muTrig = (1 - (1. - muTrig_data).prod()) / (1 - (1. - muTrig_mc).prod())
+            muTrig_up = (1 - (1. - muTrig_data - muTrigerr_data).prod()) / (1 - (1. - muTrig_mc - muTrigerr_mc).prod())
+            muTrig_down = (1 - (1. - muTrig_data + muTrigerr_data).prod()) / (1 - (1. - muTrig_mc + muTrigerr_mc).prod())
+
             muSF = (muID*muIso*muTrig).prod()
             muSF_up = ((muID + muIDerr) * (muIso + muIsoerr) * muTrig_up).prod()
             muSF_down = ((muID - muIDerr) * (muIso - muIsoerr) * muTrig_down).prod()
@@ -682,7 +697,9 @@ class DimuonProcessor(processor.ProcessorABC):
 #            if self.debug:
 #                print('Avg. muID: ', muID.mean())
 #                print('Avg. muIso: ', muIso.mean())
-#                print('Avg. muTrig: ', (1-muTrig_).mean())                
+#                print('Avg. muTrig: ', muTrig.mean()) 
+#                print('Avg. muTrig up: ', muTrig_up.mean()) 
+#                print('Avg. muTrig down: ', muTrig_down.mean()) 
 #                print('Avg. muSF: ', muSF.mean())
 
 #        if self.debug:

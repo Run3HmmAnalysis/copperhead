@@ -74,38 +74,45 @@ parameters["muSFFileList"] = {'2016': [{'id'   :                                
                      'iso'   : ("data/muon_sf/mu2016/EfficienciesStudies_2016_legacy_rereco_rootfiles_RunBCDEF_SF_ISO.root",\
                                 "NUM_TightRelIso_DEN_TightIDandIPCut_eta_pt"),
                      'trig'  : ("data/muon_sf/mu2016/EfficienciesStudies_2016_trigger_EfficienciesAndSF_RunBtoF.root",\
-                                "IsoMu24_OR_IsoTkMu24_PtEtaBins/abseta_pt_ratio"),
+                                "IsoMu24_OR_IsoTkMu24_PtEtaBins/efficienciesDATA/abseta_pt_DATA",\
+                                "IsoMu24_OR_IsoTkMu24_PtEtaBins/efficienciesMC/abseta_pt_MC"),
                      'scale' : 19.656062760/35.882515396},
                     {'id'     : ("data/muon_sf/mu2016/EfficienciesStudies_2016_legacy_rereco_rootfiles_RunGH_SF_ID.root",\
                                  "NUM_TightID_DEN_genTracks_eta_pt"),
                      'iso'   : ("data/muon_sf/mu2016/EfficienciesStudies_2016_legacy_rereco_rootfiles_RunGH_SF_ISO.root",\
                                 "NUM_TightRelIso_DEN_TightIDandIPCut_eta_pt"),
                      'trig'  : ("data/muon_sf/mu2016/EfficienciesStudies_2016_trigger_EfficienciesAndSF_RunGtoH.root",\
-                                "IsoMu24_OR_IsoTkMu24_PtEtaBins/abseta_pt_ratio"),
+                                "IsoMu24_OR_IsoTkMu24_PtEtaBins/efficienciesDATA/abseta_pt_DATA",\
+                                "IsoMu24_OR_IsoTkMu24_PtEtaBins/efficienciesMC/abseta_pt_MC"),
                      'scale' : 16.226452636/35.882515396}],
              '2017': [{'id'     : ("data/muon_sf/mu2017/RunBCDEF_SF_ID.root", "NUM_TightID_DEN_genTracks_pt_abseta"),
                      'iso'   : ("data/muon_sf/mu2017/RunBCDEF_SF_ISO.root", "NUM_TightRelIso_DEN_TightIDandIPCut_pt_abseta"),
                      'trig'  : ("data/muon_sf/mu2017/EfficienciesAndSF_RunBtoF_Nov17Nov2017.root",\
-                                "IsoMu27_PtEtaBins/abseta_pt_ratio"),
+                                "IsoMu27_PtEtaBins/efficienciesDATA/abseta_pt_DATA",\
+                               "IsoMu27_PtEtaBins/efficienciesMC/abseta_pt_MC"),
                      'scale' : 1.}],
              '2018': [{'id'     : ("data/muon_sf/mu2018/EfficienciesStudies_2018_rootfiles_RunABCD_SF_ID.root",\
                                  "NUM_TightID_DEN_TrackerMuons_pt_abseta"),
                      'iso'   : ("data/muon_sf/mu2018/EfficienciesStudies_2018_rootfiles_RunABCD_SF_ISO.root",\
                                 "NUM_TightRelIso_DEN_TightIDandIPCut_pt_abseta"),
                      'trig'  : ("data/muon_sf/mu2018/EfficienciesStudies_2018_trigger_EfficienciesAndSF_2018Data_BeforeMuonHLTUpdate.root",\
-                                "IsoMu24_PtEtaBins/abseta_pt_ratio"),
+                                "IsoMu24_PtEtaBins/efficienciesDATA/abseta_pt_DATA",\
+                               "IsoMu24_PtEtaBins/efficienciesMC/abseta_pt_MC"),
                      'scale' : 8.950818835/59.688059536},
                     {'id'     : ("data/muon_sf/mu2018/EfficienciesStudies_2018_rootfiles_RunABCD_SF_ID.root",\
                                  "NUM_TightID_DEN_TrackerMuons_pt_abseta"),
                      'iso'   : ("data/muon_sf/mu2018/EfficienciesStudies_2018_rootfiles_RunABCD_SF_ISO.root",\
                                 "NUM_TightRelIso_DEN_TightIDandIPCut_pt_abseta"),
                      'trig'  : ("data/muon_sf/mu2018/EfficienciesStudies_2018_trigger_EfficienciesAndSF_2018Data_AfterMuonHLTUpdate.root",\
-                                "IsoMu24_PtEtaBins/abseta_pt_ratio"),
+                                "IsoMu24_PtEtaBins/efficienciesDATA/abseta_pt_DATA",\
+                               "IsoMu24_PtEtaBins/efficienciesMC/abseta_pt_MC"),
                      'scale' : 50.737240701/59.688059536}],
             }
 
 
-jec_levels = ['L1FastJet', 'L2Relative', 'L2L3Residual', 'L3Absolute']
+jec_levels_mc = ['L1FastJet', 'L2Relative', 'L2L3Residual', 'L3Absolute']
+jec_levels_data = ['L1FastJet', 'L2Relative', 'L3Absolute']
+
 jec_tag = {
     '2016': 'Summer16_07Aug2017_V11_MC',
     '2017': 'Fall17_17Nov2017_V32_MC',
@@ -212,7 +219,7 @@ parameters['jec_weight_sets'] = {
 }
 
 parameters['jec_names'] = {
-    y: [f"{jec_tag[y]}_{level}_AK4PFchs" for level in jec_levels] for y in ['2016', '2017', '2018'] 
+    y: [f"{jec_tag[y]}_{level}_AK4PFchs" for level in jec_levels_mc] for y in ['2016', '2017', '2018'] 
 }
 
 parameters['junc_names'] = {
@@ -225,26 +232,26 @@ parameters['jec_unc_sources'] = {
 
 parameters['jec_names_data'] = {
     '2016': {
-        'B': [f"Summer16_07Aug2017BCD_V11_DATA_{level}_AK4PFchs" for level in jec_levels],
-        'C': [f"Summer16_07Aug2017BCD_V11_DATA_{level}_AK4PFchs" for level in jec_levels],
-        'D': [f"Summer16_07Aug2017BCD_V11_DATA_{level}_AK4PFchs" for level in jec_levels],
-        'E': [f"Summer16_07Aug2017EF_V11_DATA_{level}_AK4PFchs" for level in jec_levels],
-        'F': [f"Summer16_07Aug2017EF_V11_DATA_{level}_AK4PFchs" for level in jec_levels],
-        'G': [f"Summer16_07Aug2017GH_V11_DATA_{level}_AK4PFchs" for level in jec_levels],
-        'H': [f"Summer16_07Aug2017GH_V11_DATA_{level}_AK4PFchs" for level in jec_levels]
+        'B': [f"Summer16_07Aug2017BCD_V11_DATA_{level}_AK4PFchs" for level in jec_levels_data],
+        'C': [f"Summer16_07Aug2017BCD_V11_DATA_{level}_AK4PFchs" for level in jec_levels_data],
+        'D': [f"Summer16_07Aug2017BCD_V11_DATA_{level}_AK4PFchs" for level in jec_levels_data],
+        'E': [f"Summer16_07Aug2017EF_V11_DATA_{level}_AK4PFchs" for level in jec_levels_data],
+        'F': [f"Summer16_07Aug2017EF_V11_DATA_{level}_AK4PFchs" for level in jec_levels_data],
+        'G': [f"Summer16_07Aug2017GH_V11_DATA_{level}_AK4PFchs" for level in jec_levels_data],
+        'H': [f"Summer16_07Aug2017GH_V11_DATA_{level}_AK4PFchs" for level in jec_levels_data]
     },
     '2017': {
-        'B': [f"Fall17_17Nov2017B_V32_DATA_{level}_AK4PFchs" for level in jec_levels],
-        'C': [f"Fall17_17Nov2017C_V32_DATA_{level}_AK4PFchs" for level in jec_levels],
-        'D': [f"Fall17_17Nov2017DE_V32_DATA_{level}_AK4PFchs" for level in jec_levels],
-        'E': [f"Fall17_17Nov2017DE_V32_DATA_{level}_AK4PFchs" for level in jec_levels],
-        'F': [f"Fall17_17Nov2017F_V32_DATA_{level}_AK4PFchs" for level in jec_levels],
+        'B': [f"Fall17_17Nov2017B_V32_DATA_{level}_AK4PFchs" for level in jec_levels_data],
+        'C': [f"Fall17_17Nov2017C_V32_DATA_{level}_AK4PFchs" for level in jec_levels_data],
+        'D': [f"Fall17_17Nov2017DE_V32_DATA_{level}_AK4PFchs" for level in jec_levels_data],
+        'E': [f"Fall17_17Nov2017DE_V32_DATA_{level}_AK4PFchs" for level in jec_levels_data],
+        'F': [f"Fall17_17Nov2017F_V32_DATA_{level}_AK4PFchs" for level in jec_levels_data],
     },
     '2018': {
-        'A': [f"Autumn18_RunA_V19_DATA_{level}_AK4PFchs" for level in jec_levels],
-        'B': [f"Autumn18_RunB_V19_DATA_{level}_AK4PFchs" for level in jec_levels],
-        'C': [f"Autumn18_RunC_V19_DATA_{level}_AK4PFchs" for level in jec_levels],
-        'D': [f"Autumn18_RunD_V19_DATA_{level}_AK4PFchs" for level in jec_levels],
+        'A': [f"Autumn18_RunA_V19_DATA_{level}_AK4PFchs" for level in jec_levels_data],
+        'B': [f"Autumn18_RunB_V19_DATA_{level}_AK4PFchs" for level in jec_levels_data],
+        'C': [f"Autumn18_RunC_V19_DATA_{level}_AK4PFchs" for level in jec_levels_data],
+        'D': [f"Autumn18_RunD_V19_DATA_{level}_AK4PFchs" for level in jec_levels_data],
     }
 }
 
