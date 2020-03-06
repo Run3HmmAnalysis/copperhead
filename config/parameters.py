@@ -1,3 +1,32 @@
+training_features = ['dimuon_mass', 'dimuon_pt', 'dimuon_eta', 'dimuon_dEta', 'dimuon_dPhi', 'dimuon_dR',\
+                     'jj_mass', 'jj_eta', 'jj_phi', 'jj_pt', 'jj_dEta',\
+                     'mmjj_mass', 'mmjj_eta', 'mmjj_phi','zeppenfeld',\
+                     'jet1_pt', 'jet1_eta', 'jet1_qgl', 'jet2_pt', 'jet2_eta', 'jet2_qgl',\
+                     'dimuon_cosThetaCS',\
+                     'dimuon_mass_res_rel', 'deta_mumuj1', 'dphi_mumuj1', 'deta_mumuj2', 'dphi_mumuj2',\
+                     'htsoft5',
+                    ]
+
+#jec_unc_to_consider = [
+#            'AbsoluteMPFBias', 'AbsoluteScale', 'AbsoluteStat',
+#            'FlavorQCD', 'Fragmentation',
+#            'PileUpDataMC', 'PileUpPtBB', 'PileUpPtEC1', 'PileUpPtEC2', 'PileUpPtHF', 'PileUpPtRef',
+#            'RelativeFSR', 'RelativeJEREC1', 'RelativeJEREC2', 'RelativeJERHF', 'RelativePtBB',
+#            'RelativePtEC1', 'RelativePtEC2', 'RelativePtHF', 'RelativeBal', 'RelativeSample',
+#            'RelativeStatEC', 'RelativeStatFSR', 'RelativeStatHF', 'SinglePionECAL', 'SinglePionHCAL', 'TimePtEta'
+#        ]
+
+# Reduced set
+jec_unc_to_consider = [
+            'Absolute', 'Absolute2016', 'Absolute2017', 'Absolute2018',
+            'BBEC1', 'BBEC12016', 'BBEC12017', 'BBEC12018',
+            'EC2', 'EC22016',  'EC22017', 'EC22018',
+            'HF', 'HF2016', 'HF2017', 'HF2018',
+            'RelativeBal', 
+            'RelativeSample2016', 'RelativeSample2017', 'RelativeSample2018',   
+            'FlavorQCD',   
+        ]
+
 def for_all_years(value):
     out = {k:value for k in ["2016", "2017", "2018"]}
     return out
@@ -92,7 +121,7 @@ parameters['jec_weight_sets'] = {
                 f"* * data/jec/Summer16_07Aug2017_V11_MC_Uncertainty_AK4PFchs.junc.txt",
                 f"* * data/jec/Summer16_25nsV1_MC_PtResolution_AK4PFchs.jr.txt",
                 f"* * data/jec/Summer16_25nsV1_MC_SF_AK4PFchs.jersf.txt",
-                f"* * data/jec/Summer16_07Aug2017_V11_MC_UncertaintySources_AK4PFchs.junc.txt",
+                f"* * data/jec/Summer16_07Aug2017_V11_MC_UncertaintySources_AK4PFchs.junc.txt",       
                 f"* * data/jec/Summer16_07Aug2017BCD_V11_DATA_L1FastJet_AK4PFchs.jec.txt",
                 f"* * data/jec/Summer16_07Aug2017BCD_V11_DATA_L2Relative_AK4PFchs.jec.txt",
                 f"* * data/jec/Summer16_07Aug2017BCD_V11_DATA_L2L3Residual_AK4PFchs.jec.txt",

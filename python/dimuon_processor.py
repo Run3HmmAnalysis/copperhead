@@ -36,13 +36,14 @@ def get_jec_unc(name, jet_pt, jet_eta, jesunc):
     idx_func = jesunc.levels.index(name)
     jec_unc_func = jesunc._funcs[idx_func]
     function_signature = jesunc._funcs[idx_func].signature
+    counts = jet_pt.counts
     args = {
         "JetPt": np.array(jet_pt.flatten()),
         "JetEta": np.array(jet_eta.flatten())
     }
     func_args = tuple([args[s] for s in function_signature])
     jec_unc_vec = jec_unc_func(*func_args)
-    return np.array(jec_unc_vec)
+    return awkward.JaggedArray.fromcounts(counts, jec_unc_vec)
 
 def delta_r(eta1, eta2, phi1, phi2):
     deta = abs(eta1 - eta2)
@@ -141,14 +142,99 @@ def correct_muon_with_fsr(muons_offsets, fsr_offsets, muons_pt, muons_eta, muons
                 muons_phi[imu] = out_phi
 
     return  muons_pt, muons_eta, muons_phi, muons_mass, muons_iso
+ 
+def get_variated_jet_variables(v_name, jets, dimuons, one_jet, two_jets, event_weight):
+    if v_name=='nominal': 
+        return {}
+    
+    cols = {
+            f'pt_{v_name}': 'pt',
+            '__fast_eta': 'eta',
+            '__fast_phi': 'phi',
+            '__fast_mass': 'mass',
+            'qgl': 'qgl',
+    }
+    
+    ret = {}
+
+    jet1_mask = np.zeros(len(event_weight))
+    jet1_mask[one_jet] = 1
+    jet2_mask = np.zeros(len(event_weight))
+    jet2_mask[two_jets] = 1
+    
+    my_jets_arrays = {v:jets[key].flatten() for key, v in cols.items()}
+    my_jet1_arrays = {v:jets[one_jet][jets[one_jet].pt.argmax()][key].flatten() for key, v in cols.items()}
+    my_jet2_arrays = {v:jets[two_jets][jets[two_jets].pt.argmin()][key].flatten() for key, v in cols.items()}
+                
+    jet1 = JaggedCandidateArray.candidatesfromcounts(jet1_mask, **my_jet1_arrays)
+    jet2 = JaggedCandidateArray.candidatesfromcounts(jet2_mask, **my_jet2_arrays)
+    jets = JaggedCandidateArray.candidatesfromcounts(jets.counts, **my_jets_arrays) 
+
+    dijet_pairs = jets[two_jets, 0:2]
+    dijet_mask = np.zeros(len(event_weight))
+    dijet_mask[two_jets] = 2
+    dijet_jca = JaggedCandidateArray.candidatesfromcounts(
+        dijet_mask,
+        pt=dijet_pairs.pt.flatten(),
+        eta=dijet_pairs.eta.flatten(),
+        phi=dijet_pairs.phi.flatten(),
+        mass=dijet_pairs.mass.flatten(),
+    )
+        
+    dijet = dijet_jca.distincts()
+    dijet = dijet.p4.sum()
+
+    dijet_deta = np.full(len(event_weight), -999.)
+    dijet_deta[two_jets] = abs(jet1[two_jets].eta - jet2[two_jets].eta)
+    
+    dijet_dphi = np.full(len(event_weight), -999.)
+    dijet_dphi[two_jets] = abs(jet1[two_jets].p4.delta_phi(jet2[two_jets].p4))
+
+    zeppenfeld = np.full(len(event_weight), -999.)
+    zeppenfeld[two_jets] = (dimuons.eta[two_jets] - 0.5*(jet1.eta[two_jets] + jet2.eta[two_jets]))
+        
+    rpt = np.full(len(event_weight), -999.)
+    mmjj_pt = np.full(len(event_weight), 0.)
+    mmjj_eta = np.full(len(event_weight), -999.)
+    mmjj_phi = np.full(len(event_weight), -999.)
+    mmjj_mass = np.full(len(event_weight), 0.)
+    mmjj_pt[two_jets], mmjj_eta[two_jets], mmjj_phi[two_jets], mmjj_mass[two_jets] = p4_sum(dimuons[two_jets], dijet[two_jets])
+    rpt[two_jets] =  mmjj_pt[two_jets]/(dimuons.pt[two_jets] + jet1.pt[two_jets] + jet2.pt[two_jets])
+
+
+    ret["jet1_pt"] = jet1["__fast_pt"]
+    ret["jet1_eta"] = jet1["__fast_eta"]
+    ret["jet1_phi"] = jet1["__fast_phi"]
+    ret["jet1_qgl"] = jet1["qgl"]  
+    
+    ret["jet2_pt"] = jet2["__fast_pt"]
+    ret["jet2_eta"] = jet2["__fast_eta"]
+    ret["jet2_phi"] = jet2["__fast_phi"]
+    ret["jet2_qgl"] = jet2["qgl"] 
+    
+    ret["jj_deta"] = dijet_deta
+    ret["jj_dphi"] = dijet_dphi
+    ret["jj_mass"] = dijet.mass
+    ret["jj_pt"] = dijet.pt
+    ret["jj_eta"] = dijet.eta
+    ret["jj_phi"] = dijet.phi
+    ret["zeppenfeld"] = zeppenfeld
+    ret["rpt"] = rpt
+    ret["mmjj_pt"] = mmjj_pt
+    ret["mmjj_eta"] = mmjj_eta
+    ret["mmjj_phi"] = mmjj_phi
+    ret["mmjj_mass"] = mmjj_mass
+    
+    
+    return ret
     
 # Look at ProcessorABC documentation to see the expected methods and what they are supposed to do
 # https://coffeateam.github.io/coffea/api/coffea.processor.ProcessorABC.html
 class DimuonProcessor(processor.ProcessorABC):
     def __init__(self, samp_info, do_roccor=True, do_fsr=True, evaluate_dnn=False,\
                  do_timer=False, save_unbin=True, do_lheweights=True, do_geofit=False, apply_jec=True,\
-                 do_jer=True, do_nnlops=True, debug=False): 
-        from config.parameters import parameters
+                 do_jer=True, do_jecunc=False, do_nnlops=True, debug=False): 
+        from config.parameters import parameters, jec_unc_to_consider
         from config.variables import variables
         if not samp_info:
             print("Samples info missing!")
@@ -163,6 +249,7 @@ class DimuonProcessor(processor.ProcessorABC):
         self.do_geofit = do_geofit
         self.apply_jec = apply_jec
         self.do_jer = do_jer
+        self.do_jecunc = do_jecunc
         self.debug = debug
         
         self.do_nnlops = do_nnlops
@@ -170,6 +257,7 @@ class DimuonProcessor(processor.ProcessorABC):
         self.evaluate_dnn = evaluate_dnn
         self.do_lheweights = do_lheweights
         self.parameters = {k:v[self.year] for k,v in parameters.items()}
+        self.jec_unc_to_consider = jec_unc_to_consider
         self.timer = Timer('global') if do_timer else None
         
         self._columns = self.parameters["proc_columns"]
@@ -197,6 +285,12 @@ class DimuonProcessor(processor.ProcessorABC):
                 variables.append(Variable(f"weight_{syst}_up", f"weight_{syst}_up", 1, 0, 1))
                 variables.append(Variable(f"weight_{syst}_down", f"weight_{syst}_down", 1, 0, 1))    
 
+        if self.evaluate_dnn:
+            variables.append(Variable(f"dnn_score_nominal", f"dnn_score_nominal", 12, 0, 1))
+            if self.do_jecunc:
+                for v_name in self.jec_unc_to_consider:
+                    variables.append(Variable(f"dnn_score_{v_name}", f"dnn_score_{v_name}", 12, 0, 1))
+                
         for i in range(9):
             variables.append(Variable(f"LHEScaleWeight_{i}", f"LHEScaleWeight_{i}", 1, 0, 1))
                 
@@ -317,30 +411,12 @@ class DimuonProcessor(processor.ProcessorABC):
             JECuncertainties_Data = JetCorrectionUncertainty(**{name:Jetevaluator[name] for name in self.parameters['junc_names_data'][run]})
 
             self.Jet_transformer_data[run] = JetTransformer(jec=JECcorrector_Data,junc=JECuncertainties_Data)
-        
-        self.jec_unc_to_consider = [
-            'AbsoluteMPFBias', 'AbsoluteScale', 'AbsoluteStat',
-            'FlavorQCD', 'Fragmentation',
-            'PileUpDataMC', 'PileUpPtBB', 'PileUpPtEC1', 'PileUpPtEC2', 'PileUpPtHF', 'PileUpPtRef',
-            'RelativeFSR', 'RelativeJEREC1', 'RelativeJEREC2', 'RelativeJERHF', 'RelativePtBB',
-            'RelativePtEC1', 'RelativePtEC2', 'RelativePtHF', 'RelativeBal', 'RelativeSample',
-            'RelativeStatEC', 'RelativeStatFSR', 'RelativeStatHF', 'SinglePionECAL', 'SinglePionHCAL', 'TimePtEta'
-        ]
-        
-#        self.jec_unc_to_consider = [
-#            'Absolute', 'Absolute2016', 'Absolute2017', 'Absolute2018',
-#            'BBEC1', 'BBEC12016', 'BBEC12017', 'BBEC12018',
-#            'EC2', 'EC22016',  'EC22017', 'EC22018',
-#            'HF', 'HF2016', 'HF2017', 'HF2018',
-#            'RelativeBal', 
-#            'RelativeSample2016', 'RelativeSample2017', 'RelativeSample2018',   
-#            'FlavorQCD',   
-#        ]
             
         all_jec_names = [name for name in dir(Jetevaluator) if self.parameters['jec_unc_sources'] in name]
         self.JECuncertaintySources =\
         JetCorrectionUncertainty(**{name: Jetevaluator[name] for name in all_jec_names})
         self.jet_unc_names = list(self.JECuncertaintySources.levels)
+#        print(self.jet_unc_names)
     
     @property
     def accumulator(self):
@@ -366,7 +442,7 @@ class DimuonProcessor(processor.ProcessorABC):
         
         df = df[hlt&(df.Muon.counts>1)]
         if self.debug:
-#            print("Events loaded: ", len(df))
+            print("Events loaded: ", len(df))
             all_muons = len(df.Muon.flatten())
             
         if self.timer:
@@ -399,6 +475,8 @@ class DimuonProcessor(processor.ProcessorABC):
                 
             event_weight = genweight*pu_weight
             weights = weights.multiply(genweight, axis=0)
+#            if self.debug:
+#                print('Avg. pu weight: ', pu_weight.mean())
             add_systematic(weights, 'pu_weight', pu_weight, pu_weight_up, pu_weight_down)
             if dataset in self.lumi_weights:
                 event_weight = event_weight*self.lumi_weights[dataset]
@@ -538,6 +616,8 @@ class DimuonProcessor(processor.ProcessorABC):
             zpt_weights = self.evaluator[self.zpt_path](dimuons.pt).flatten()
             event_weight = event_weight*zpt_weights
             weights = weights.multiply(zpt_weights, axis=0)
+#            if self.debug:
+#                print('Avg. zpt weight: ', zpt_weights.mean())
 
         mu_pass_leading_pt = muons[(muons.pt > self.parameters["muon_leading_pt"]) &\
                                    (muons.pfRelIso04_all < self.parameters["muon_trigmatch_iso"]) &\
@@ -573,32 +653,37 @@ class DimuonProcessor(processor.ProcessorABC):
             if '2016' in self.year:
                 muID = self.mu_id_sf(muons.eta.compact(), muons.pt.compact())
                 muIso = self.mu_iso_sf(muons.eta.compact(), muons.pt.compact())
-                muTrig = self.mu_iso_sf(abs(muons.eta.compact()), muons.pt.compact())
+                muTrig = self.mu_trig_sf(abs(muons.eta.compact()), muons.pt.compact())
                 muIDerr = self.mu_id_err(muons.eta.compact(), muons.pt.compact())
                 muIsoerr = self.mu_iso_err(muons.eta.compact(), muons.pt.compact())
-                muTrigerr = self.mu_iso_err(abs(muons.eta.compact()), muons.pt.compact())
+                muTrigerr = self.mu_trig_err(abs(muons.eta.compact()), muons.pt.compact())
             elif '2017' in self.year:
                 muID = self.mu_id_sf(muons.pt.compact(), abs(muons.eta.compact()))
                 muIso = self.mu_iso_sf(muons.pt.compact(), abs(muons.eta.compact()))
-                muTrig = self.mu_iso_sf(abs(muons.eta.compact()), muons.pt.compact())
+                muTrig = self.mu_trig_sf(abs(muons.eta.compact()), muons.pt.compact())
                 muIDerr = self.mu_id_err(muons.pt.compact(), abs(muons.eta.compact()))
                 muIsoerr = self.mu_iso_err(muons.pt.compact(), abs(muons.eta.compact()))
-                muTrigerr = self.mu_iso_err(abs(muons.eta.compact()), muons.pt.compact())
+                muTrigerr = self.mu_trig_err(abs(muons.eta.compact()), muons.pt.compact())
             elif '2018' in self.year:
                 muID = self.mu_id_sf(muons.pt.compact(), abs(muons.eta.compact()))
                 muIso = self.mu_iso_sf(muons.pt.compact(), abs(muons.eta.compact()))
-                muTrig = self.mu_iso_sf(abs(muons.eta.compact()), muons.pt.compact())
+                muTrig = self.mu_trig_sf(abs(muons.eta.compact()), muons.pt.compact())
                 muIDerr = self.mu_id_err(muons.pt.compact(), abs(muons.eta.compact()))
                 muIsoerr = self.mu_iso_err(muons.pt.compact(), abs(muons.eta.compact()))
-                muTrigerr = self.mu_iso_err(abs(muons.eta.compact()), muons.pt.compact())
+                muTrigerr = self.mu_trig_err(abs(muons.eta.compact()), muons.pt.compact())
+            muTrig = 1 - (1. - muTrig).prod()
+            muTrig_up = 1 - (1. - muTrig + muTrigerr).prod()
+            muTrig_down = 1 - (1. - muTrig - muTrigerr).prod()
             muSF = (muID*muIso*muTrig).prod()
-            muSF_up = ((muID + muIDerr) * (muIso + muIsoerr) * (muTrig + muTrigerr)).prod()
-            muSF_down = ((muID - muIDerr) * (muIso - muIsoerr) * (muTrig - muTrigerr)).prod()
+            muSF_up = ((muID + muIDerr) * (muIso + muIsoerr) * muTrig_up).prod()
+            muSF_down = ((muID - muIDerr) * (muIso - muIsoerr) * muTrig_down).prod()
             event_weight = event_weight*muSF
             add_systematic(weights, 'muSF', muSF, muSF_up, muSF_down)
-
-            muSF_up = ((muID + muIDerr) * (muIso + muIsoerr) * (muTrig + muTrigerr)).prod()
-            muSF_down = ((muID - muIDerr) * (muIso - muIsoerr) * (muTrig - muTrigerr)).prod() 
+#            if self.debug:
+#                print('Avg. muID: ', muID.mean())
+#                print('Avg. muIso: ', muIso.mean())
+#                print('Avg. muTrig: ', (1-muTrig_).mean())                
+#                print('Avg. muSF: ', muSF.mean())
 
 #        if self.debug:
 #            dimuon_filter = np.ones(len(event_weight), dtype=bool)
@@ -657,12 +742,11 @@ class DimuonProcessor(processor.ProcessorABC):
         elif "2017corrected" in jet_puid_opt:
             eta_window = ((abs(jet.eta)>2.6)&(abs(jet.eta)<3.0))
             not_eta_window = ((abs(jet.eta)<2.6)|(abs(jet.eta)>3.0))
-            jet_puid = (eta_window & jet_puid_wps['tight']) | (not_eta_window & jet_puid_wps['loose'])
+            jet_puid = (eta_window & (jet.puId >= 7)) | (not_eta_window & jet_puid_wps['loose'])
             jet_puid_opt = "loose" # for sf evaluation
         else:
             jet_puid = jet.ones_like()
 
-        # BUG IN PUID WGT
         # Jet PUID scale factors
         wp_dict = {"loose": "L", "medium": "M", "tight": "T"}
         wp = wp_dict[jet_puid_opt]
@@ -674,14 +758,17 @@ class DimuonProcessor(processor.ProcessorABC):
         jets_failed = (jet.pt>25) & (jet.pt<50) & (~jet_puid)
         
         pMC   = puid_eff[jets_passed].prod() * (1.-puid_eff[jets_failed]).prod() 
-        pData = puid_eff[jets_passed].prod()*puid_sf[jets_passed].prod() *\
-                (1.-puid_eff[jets_failed].prod()*puid_sf[jets_failed]).prod()
+        pData = puid_eff[jets_passed].prod() * puid_sf[jets_passed].prod() * \
+                (1. - puid_eff[jets_failed] * puid_sf[jets_failed]).prod()
             
         puid_weight = np.ones(len(event_weight))
-        puid_weight = np.divide(pData, pMC)
-#        if not isData:
-#            event_weight = event_weight * puid_weight
-#            weights = weights.multiply(puid_weight, axis=0)
+        puid_weight[pMC!=0] = np.divide(pData[pMC!=0], pMC[pMC!=0])
+        if not isData:
+            event_weight = event_weight * puid_weight
+            weights = weights.multiply(puid_weight, axis=0)
+
+#        if self.debug:
+#            print("Avg. jet PU ID SF: ", puid_weight.mean())
         
         
         mujet = jet.cross(muons_for_jet_selection, nested=True)
@@ -742,6 +829,7 @@ class DimuonProcessor(processor.ProcessorABC):
             jetarrays = {v:jet[key].flatten() for key, v in cols.items()}
 #            jetarrays.update({'pt': pt_corr})            
             jet = JaggedCandidateArray.candidatesfromcounts(jet.counts, **jetarrays)
+            jet_variation_names = ['nominal']
         
             if isData:
                 for run in self.data_runs: # 'B', 'C', 'D', etc...
@@ -749,18 +837,19 @@ class DimuonProcessor(processor.ProcessorABC):
                         self.Jet_transformer_data[run].transform(jet, forceStochastic=False)            
             else:
                 self.Jet_transformer.transform(jet, forceStochastic=False)
+                if self.do_jecunc:
+                    for junc_name in self.jet_unc_names:
+                        if junc_name not in self.jec_unc_to_consider: continue
+                        jec_up_down = get_jec_unc(junc_name, jet.pt, jet.eta, self.JECuncertaintySources)
+                        jec_corr_up, jec_corr_down = jec_up_down[:,:,0], jec_up_down[:,:,1]
+                        pt_name_up = f"pt_{junc_name}_up"
+                        pt_name_down = f"pt_{junc_name}_down"
+                        jet.add_attributes(**{pt_name_up: jet.pt*jec_corr_up, pt_name_down: jet.pt*jec_corr_down})
+                        jet_variation_names += [f"{junc_name}_up", f"{junc_name}_down"]
     
-            if self.debug:
-                print("mean jec pt change (Coffea): ", (jet.pt.flatten()-original_jet_pt).mean())
-                print("std jec pt change (Coffea): ", (jet.pt.flatten()-original_jet_pt).std())           
-
-#                for junc_name in self.jet_unc_names:
-#                    if junc_name not in self.jec_unc_to_consider: continue
-#                    jec_up_down = get_jec_unc(junc_name, jet.pt, jet.eta, self.JECuncertaintySources)
-#                    jec_corr_up, jec_corr_down = jec_up_down[:, 0], jec_up_down[:, 1]
-#                # TODO: apply JEC uncertainties
-#        print('jet pT post-jec: ', jet.pt)
-        
+#            if self.debug:
+#                print("mean jec pt change (Coffea): ", (jet.pt.flatten()-original_jet_pt).mean())
+#                print("std jec pt change (Coffea): ", (jet.pt.flatten()-original_jet_pt).std())                   
 
         # Jet selection
         jet_selection = ((jet.pt > self.parameters["jet_pt_cut"]) &\
@@ -826,6 +915,10 @@ class DimuonProcessor(processor.ProcessorABC):
         
         if not isData:
             cols.update({'genJetIdx': 'genJetIdx'})
+            if self.do_jecunc:
+                for v_name in jet_variation_names:
+                    if v_name=='nominal': continue
+                    cols.update({f"pt_{v_name}": f"pt_{v_name}"})
       
         my_jet1_arrays = {v:jets[one_jet][jets[one_jet].pt.argmax()][key].flatten() for key, v in cols.items()}
         my_jet2_arrays = {v:jets[two_jets][jets[two_jets].pt.argmin()][key].flatten() for key, v in cols.items()}
@@ -967,6 +1060,7 @@ class DimuonProcessor(processor.ProcessorABC):
         category[two_jets&(~vbf_cut)] = 'ggh_2j'
         category[two_jets&vbf_cut] = 'vbf'
         if self.debug:
+#            print(f"{dataset}: ", event_weight[two_jets].sum(), "events w/ 2 jets")
             print(f"{dataset}: ", event_weight[two_jets&vbf_cut].sum(), "events in VBF")
         if self.timer:
             self.timer.add_checkpoint("Computed jet variables")
@@ -1092,6 +1186,50 @@ class DimuonProcessor(processor.ProcessorABC):
         for syst in weights.columns:
             variable_map[f'weight_{syst}'] = np.array(weights[syst])
 #            print(syst, len(np.array(weights[syst])))
+
+        # Evaluate DNN 
+
+        if self.evaluate_dnn:
+            from config.parameters import training_features
+            from keras.models import load_model
+            import keras.backend as K
+            import tensorflow as tf
+            config = tf.ConfigProto()
+            config.intra_op_parallelism_threads=1
+            config.inter_op_parallelism_threads=1
+            K.set_session(tf.Session(config=config))
+
+            # BOTTLENECK: can't load model outside of a worker
+            # https://github.com/keras-team/keras/issues/9964
+            dnn_model = load_model(f'output/trained_models/test_{self.year}.h5')
+            scaler = np.load(f"output/trained_models/scalers_{self.year}.npy")
+
+            
+            for v_name in jet_variation_names:
+                #print(v_name)
+                jet_vars = get_variated_jet_variables(v_name, jets, dimuons, one_jet, two_jets, event_weight)
+
+                dnn_score = np.full(len(event_weight), -1.)
+
+                n_rows = len(dimuons.mass[two_jets].flatten())
+                df_for_dnn = pd.DataFrame(columns=training_features)
+
+                for tf in training_features:
+                    if tf in jet_vars.keys():
+                        feature_column = jet_vars[tf][two_jets]
+                    else:
+                        feature_column = variable_map[tf][two_jets]
+                    assert(n_rows==len(feature_column))
+                    df_for_dnn[tf] = feature_column
+                df_for_dnn[training_features] = (df_for_dnn[training_features]-scaler[0])/scaler[1]
+            
+                dnn_score[two_jets] = dnn_model.predict(df_for_dnn[training_features]).flatten()
+                #print(dnn_score)
+                variable_map[f'dnn_score_{v_name}'] = dnn_score
+            
+            if self.timer:
+                self.timer.add_checkpoint("Evaluated DNN")
+
 
         #################### Fill outputs ####################
         #------------------ Binned outputs ------------------#  
