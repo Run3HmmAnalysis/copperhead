@@ -196,13 +196,14 @@ class Plotter(object):
  
         if inclusive:
             bkg_sources = all_bkg_sources
-            accumulators_copy['nominal'] = self.accumulators[var].sum('region')[:,channel,'nominal'].copy()
+#            accumulators_copy['nominal'] = self.accumulators[var].sum('region')[:,channel,'nominal'].copy()
+            accumulators_copy['nominal'] = self.accumulators[var][:,:,channel,'nominal'].copy()
             for syst in self.syst_sources:
                 accumulators_copy[f'{syst}_up'] = self.accumulators[var].sum('region')[:,channel,f'{syst}_up'].copy()
                 accumulators_copy[f'{syst}_down'] = self.accumulators[var].sum('region')[:,channel,f'{syst}_down'].copy()
         else:
             bkg_sources = bkg_sources_by_region[region]
-#            print(self.accumulators[var][:,region,channel,'nominal'].values())
+#            print(region, channel,self.accumulators[var][:,region,channel,'nominal'].values())
             accumulators_copy['nominal'] = self.accumulators[var][:,region, channel, 'nominal'].copy()
             for syst in self.syst_sources:
                 accumulators_copy[f'{syst}_up'] = self.accumulators[var][:,region, channel, f'{syst}_up'].copy()
@@ -238,7 +239,11 @@ class Plotter(object):
 #                    print("Couldn't rebin variable ",var)
                     
         if inclusive:
-            data = accumulators_copy['nominal'].sum('channel').sum('syst').group('dataset', hist.Cat("dataset", "Dataset"), data_sources)
+            if var=="dimuon_mass":
+                data = accumulators_copy['nominal'][:, ['h-sidebands', 'z-peak'], :,'nominal'].sum('region').sum('channel').sum('syst').group('dataset', hist.Cat("dataset", "Dataset"), data_sources)
+            else:
+                data = accumulators_copy['nominal'].sum('region').sum('channel').sum('syst').group('dataset', hist.Cat("dataset", "Dataset"), data_sources)
+            accumulators_copy['nominal'] = accumulators_copy['nominal'].sum('region')
             bkg = accumulators_copy['nominal'].sum('channel').sum('syst').group('dataset', hist.Cat("dataset", "Dataset"), bkg_sources)
             ggh = accumulators_copy['nominal'][self.ggh_name].sum('channel').sum('syst')
             vbf = accumulators_copy['nominal'][self.vbf_name].sum('channel').sum('syst')
@@ -267,6 +272,7 @@ class Plotter(object):
                         
         data_is_valid = data.sum(var).sum('dataset').values()
         bkg_is_valid = bkg.sum(var).sum('dataset').values()
+#        print(bkg_is_valid)
         ggh_is_valid = ggh.sum(var).sum('dataset').values()
         vbf_is_valid = vbf.sum(var).sum('dataset').values()
 
