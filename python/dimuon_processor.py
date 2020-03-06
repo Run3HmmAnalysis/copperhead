@@ -3,6 +3,7 @@ from coffea.analysis_objects import JaggedCandidateArray, JaggedCandidateMethods
 import coffea.processor as processor
 from coffea.lookup_tools import extractor, dense_lookup, txt_converters, rochester_lookup
 from coffea.jetmet_tools import FactorizedJetCorrector, JetCorrectionUncertainty, JetTransformer, JetResolution, JetResolutionScaleFactor
+from coffea.btag_tools import BTagScaleFactor
 from coffea.lumi_tools import LumiMask
 
 import awkward
@@ -233,7 +234,7 @@ def get_variated_jet_variables(v_name, jets, dimuons, one_jet, two_jets, event_w
 class DimuonProcessor(processor.ProcessorABC):
     def __init__(self, samp_info, do_roccor=True, do_fsr=True, evaluate_dnn=False,\
                  do_timer=False, save_unbin=True, do_lheweights=True, do_geofit=False, apply_jec=True,\
-                 do_jer=True, do_jecunc=False, do_nnlops=True, debug=False): 
+                 do_jer=True, do_jecunc=False, do_nnlops=True, do_btagsf=False, debug=False): 
         from config.parameters import parameters, jec_unc_to_consider
         from config.variables import variables
         if not samp_info:
@@ -252,6 +253,7 @@ class DimuonProcessor(processor.ProcessorABC):
         self.do_jecunc = do_jecunc
         self.debug = debug
         
+        self.do_btagsf = do_btagsf
         self.do_nnlops = do_nnlops
         self.do_fsr = do_fsr
         self.evaluate_dnn = evaluate_dnn
@@ -424,6 +426,8 @@ class DimuonProcessor(processor.ProcessorABC):
         JetCorrectionUncertainty(**{name: Jetevaluator[name] for name in all_jec_names})
         self.jet_unc_names = list(self.JECuncertaintySources.levels)
 #        print(self.jet_unc_names)
+        if self.do_btagsf:
+            self.btag_sf = BTagScaleFactor(self.parameters["btag_sf_csv"], BTagScaleFactor.RESHAPE, 'iterativefit,iterativefit,iterativefit')
     
     @property
     def accumulator(self):
@@ -784,6 +788,11 @@ class DimuonProcessor(processor.ProcessorABC):
             event_weight = event_weight * puid_weight
             weights = weights.multiply(puid_weight, axis=0)
 
+        # Btag weight    
+        if self.do_btagsf and not isData:
+            btag_wgt = self.btag_sf('central', jet.hadronFlavour, abs(jet.eta), jet.pt, jet.btagDeepB, True)
+            print(btag_wgt)
+        
 #        if self.debug:
 #            print("Avg. jet PU ID SF: ", puid_weight.mean())
         

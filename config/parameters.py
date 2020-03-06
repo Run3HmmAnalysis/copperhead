@@ -51,6 +51,12 @@ parameters["roccor_file"] = {
     "2018": "data/roch_corr/RoccoR2018.txt",
 }
 
+parameters["btag_sf_csv"] = {
+    "2016": "data/btag/DeepCSV_2016LegacySF_V1.csv",
+    "2017": "data/btag/DeepCSV_94XSF_V5_B_F.csv",
+    "2018": "data/btag/DeepCSV_102XSF_V1.csv",
+}
+
 parameters["puLookup"] = {
     '2016': 'data/pileup/puLookup_2016.coffea',
     '2017': 'data/pileup/puLookup_2017.coffea',
