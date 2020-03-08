@@ -13,28 +13,28 @@ from python.samples_info import SamplesInfo
 samples = [
 ## Data: ##
     'data_A','data_B',
-#    'data_C',
-#    'data_D','data_E',
-#    'data_F',
-#    'data_G',
-#    'data_H',
+    'data_C',
+    'data_D','data_E',
+    'data_F',
+    'data_G',
+    'data_H',
 ##
 
 ## MC for DNN training (Purdue): ##
-#    'dy_0j',
-#    'dy_1j',
-#    'dy_2j',
-#    'ewk_lljj_mll50_mjj120',
+    'dy_0j',
+    'dy_1j',
+    'dy_2j',
+    'ewk_lljj_mll50_mjj120',
     
-#    'dy_m105_160_amc', 
-#    'dy_m105_160_vbf_amc',
-#    'ewk_lljj_mll105_160',
+    'dy_m105_160_amc', 
+    'dy_m105_160_vbf_amc',
+    'ewk_lljj_mll105_160',
 #    'ggh_amcPS', # GeoFit: get from Pisa
 #    'vbf_amcPS', # GeoFit: get from Pisa
 #    'ggh_powhegPS', # GeoFit: get from Pisa
 #    'vbf_powhegPS', # GeoFit: get from Pisa
 
-#    'ttjets_dl', 
+    'ttjets_dl', 
 ##
     
 ## MC for DNN training (Legnaro): ##    
@@ -43,17 +43,17 @@ samples = [
     
 
 ## Less important other MC: ##    
-#    'ttjets_sl',
-#    'ttz', #missing for 2017
-#    'ttw', #missing for 2017
-#    'st_tw_top','st_tw_antitop',
-#    'ww_2l2nu',
-#    'wz_2l2q',
-#    'wz_3lnu',
-#    'wz_1l1nu2q',
-#    'zz',
-#    'www','wwz', #missing for 2017
-#    'wzz','zzz', #missing for 2017
+    'ttjets_sl',
+    'ttz', #missing for 2017
+    'ttw', #missing for 2017
+    'st_tw_top','st_tw_antitop',
+    'ww_2l2nu',
+    'wz_2l2q',
+    'wz_3lnu',
+    'wz_1l1nu2q',
+    'zz',
+    'www','wwz', #missing for 2017
+    'wzz','zzz', #missing for 2017
 #    
 
 # ##
@@ -64,24 +64,19 @@ purdue = 'root://xrootd.rcac.purdue.edu/'
 legrano = 'root://t2-xrdcms.lnl.infn.it:7070//'
 
 if __name__ == "__main__":
-    suff="mar6"
+    year = '2016'
+    suff="mar7"
     do_jer=False
     do_geofit=False
     evaluate_dnn = True
-    do_jecunc=False
+    do_jecunc=True
     debug=False
     if not do_jer:
         suff += '_nojer'
     if do_jecunc:
         suff+= '_jecunc'
-    samp_info = SamplesInfo(year="2016", out_path=f'all_2016_{suff}', server=purdue, datasets_from='purdue', debug=debug)
-#    samp_info = SamplesInfo(year="2016", out_path=f'all_2016_{suff}', server=legrano, datasets_from='pisa', debug=debug)
-
-#    samp_info = SamplesInfo(year="2017", out_path=f'all_2017_{suff}', server=purdue, datasets_from='purdue', debug=debug)
-#    samp_info = SamplesInfo(year="2017", out_path=f'all_2017_{suff}', server=legrano, datasets_from='pisa', debug=debug)
-
-#    samp_info = SamplesInfo(year="2018", out_path=f'all_2018_{suff}', server=purdue, datasets_from='purdue', debug=debug)
-#    samp_info = SamplesInfo(year="2018", out_path=f'all_2018_{suff}', server=legrano, datasets_from='pisa', debug=debug)
+    samp_info = SamplesInfo(year=year, out_path=f'all_{year}_{suff}', server=purdue, datasets_from='purdue', debug=debug)
+#    samp_info = SamplesInfo(year=year, out_path=f'all_{year}_{suff}', server=legrano, datasets_from='pisa', debug=debug)
 
     if debug:
         samp_info.load(samples, nchunks=1, parallelize_outer=32, parallelize_inner=1)
@@ -91,7 +86,6 @@ if __name__ == "__main__":
 
     samp_info.compute_lumi_weights()
 
-#    n_workers = 24
     n_workers = 48
 
     distributed = pytest.importorskip("distributed", minversion="1.28.1")
@@ -125,12 +119,13 @@ if __name__ == "__main__":
                 os.mkdir(out_dir_binned)
                 os.mkdir(out_dir_unbinned)
             except:
-                print("Output paths already exist")
+                pass
+#                print("Output paths already exist")
             out_path_binned = f"{out_dir_binned}/{prefix}{label}_{ichunk}.coffea"
             out_path_unbinned = f"{out_dir_unbinned}/{prefix}{label}_{ichunk}.coffea"
             util.save(output['binned'], out_path_binned)
             util.save(output['unbinned'], out_path_unbinned)
-            print(f"Saved output to {out_path_binned} and {out_path_unbinned}")   
+            print(f"Saved output to {out_dir}")   
     
     elapsed = time.time() - tstart
     print(f"Total time: {elapsed} s")

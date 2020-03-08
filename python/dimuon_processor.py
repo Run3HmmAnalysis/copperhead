@@ -33,10 +33,10 @@ def add_systematic(weights_df, sys_name, w_nom, w_up, w_down):
         weights_df.loc[:,(weights_df.columns!=sys_name_up)&(weights_df.columns!=sys_name_down)] =\
         weights_df.loc[:,(weights_df.columns!=sys_name_up)&(weights_df.columns!=sys_name_down)].multiply(w_nom, axis=0)
 
-def get_jec_unc(name, jet_pt, jet_eta, jesunc):
-    idx_func = jesunc.levels.index(name)
-    jec_unc_func = jesunc._funcs[idx_func]
-    function_signature = jesunc._funcs[idx_func].signature
+def get_jec_unc(name, jet_pt, jet_eta, jecunc):
+    idx_func = jecunc.levels.index(name)
+    jec_unc_func = jecunc._funcs[idx_func]
+    function_signature = jecunc._funcs[idx_func].signature
     counts = jet_pt.counts
     args = {
         "JetPt": np.array(jet_pt.flatten()),
@@ -439,7 +439,6 @@ class DimuonProcessor(processor.ProcessorABC):
         return self._columns
     
     def process(self, df):
-        # TODO: btag sf
         # TODO: Add systematic uncertainties
         
         # Variables to add (all need to be saved for unbinned analysis):
@@ -788,11 +787,6 @@ class DimuonProcessor(processor.ProcessorABC):
         if not isData:
             event_weight = event_weight * puid_weight
             weights = weights.multiply(puid_weight, axis=0)
-
-        # Btag weight    
-        if self.do_btagsf and not isData:
-            btag_wgt = self.btag_sf('central', jet.hadronFlavour, abs(jet.eta), jet.pt, jet.btagDeepB, True)
-            print(btag_wgt.prod().mean())
         
 #        if self.debug:
 #            print("Avg. jet PU ID SF: ", puid_weight.mean())
@@ -843,6 +837,7 @@ class DimuonProcessor(processor.ProcessorABC):
                 '__fast_mass': 'mass',
                 'qgl': 'qgl',
                 'btagDeepB':'btagDeepB',
+                'hadronFlavour': 'hadronFlavour',
                 'ptRaw':'ptRaw',
                 'massRaw':'massRaw',
                 'rho':'rho',
@@ -888,6 +883,16 @@ class DimuonProcessor(processor.ProcessorABC):
                          (abs(jet.eta) < self.parameters["jet_eta_cut"]))
 
         jets = jet[jet_selection]
+        
+        # Btag weight    
+        if self.do_btagsf and not isData:
+            btag_wgt = np.ones(len(event_weight), dtype=float)
+            jet_pt_ = awkward.JaggedArray.fromcounts(jets[jets.counts>0].counts, np.minimum(jets.pt.flatten(), 1000.))
+            btag_wgt[(jet_selection.any())&(jets.counts>0)] = self.btag_sf('central', jets[jets.counts>0].hadronFlavour, abs(jets[jets.counts>0].eta), jet_pt_, jets[jets.counts>0].btagDeepB, True).prod()
+            event_weight = event_weight * btag_wgt
+            weights = weights.multiply(btag_wgt, axis=0)
+
+           
         has_good_jets = np.zeros(len(event_weight), dtype=bool)
         has_good_jets[jets.counts>0] = (jets[jets.counts>0][:,0]["__fast_pt"]>35.)
         
