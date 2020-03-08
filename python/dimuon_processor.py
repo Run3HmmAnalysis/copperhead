@@ -837,7 +837,6 @@ class DimuonProcessor(processor.ProcessorABC):
                 '__fast_mass': 'mass',
                 'qgl': 'qgl',
                 'btagDeepB':'btagDeepB',
-                'hadronFlavour': 'hadronFlavour',
                 'ptRaw':'ptRaw',
                 'massRaw':'massRaw',
                 'rho':'rho',
@@ -845,7 +844,7 @@ class DimuonProcessor(processor.ProcessorABC):
             }
         
             if not isData:
-                cols.update({'genJetIdx': 'genJetIdx', 'ptGenJet':'ptGenJet'})
+                cols.update({'genJetIdx': 'genJetIdx', 'ptGenJet':'ptGenJet','hadronFlavour': 'hadronFlavour',})
 
 
             jetarrays = {v:jet[key].flatten() for key, v in cols.items()}
