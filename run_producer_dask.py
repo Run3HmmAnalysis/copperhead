@@ -12,28 +12,29 @@ from python.dimuon_processor import DimuonProcessor
 from python.samples_info import SamplesInfo
 samples = [
 ## Data: ##
-    'data_A','data_B','data_C',
-    'data_D','data_E',
-    'data_F',
-    'data_G',
-    'data_H',
+    'data_A','data_B',
+#    'data_C',
+#    'data_D','data_E',
+#    'data_F',
+#    'data_G',
+#    'data_H',
 ##
 
 ## MC for DNN training (Purdue): ##
-    'dy_0j',
-    'dy_1j',
-    'dy_2j',
-    'ewk_lljj_mll50_mjj120',
+#    'dy_0j',
+#    'dy_1j',
+#    'dy_2j',
+#    'ewk_lljj_mll50_mjj120',
     
-    'dy_m105_160_amc', 
-    'dy_m105_160_vbf_amc',
-    'ewk_lljj_mll105_160',
+#    'dy_m105_160_amc', 
+#    'dy_m105_160_vbf_amc',
+#    'ewk_lljj_mll105_160',
 #    'ggh_amcPS', # GeoFit: get from Pisa
 #    'vbf_amcPS', # GeoFit: get from Pisa
 #    'ggh_powhegPS', # GeoFit: get from Pisa
 #    'vbf_powhegPS', # GeoFit: get from Pisa
 
-    'ttjets_dl', 
+#    'ttjets_dl', 
 ##
     
 ## MC for DNN training (Legnaro): ##    
@@ -42,15 +43,15 @@ samples = [
     
 
 ## Less important other MC: ##    
-    'ttjets_sl',
+#    'ttjets_sl',
 #    'ttz', #missing for 2017
 #    'ttw', #missing for 2017
-    'st_tw_top','st_tw_antitop',
-    'ww_2l2nu',
-    'wz_2l2q',
-    'wz_3lnu',
-    'wz_1l1nu2q',
-    'zz',
+#    'st_tw_top','st_tw_antitop',
+#    'ww_2l2nu',
+#    'wz_2l2q',
+#    'wz_3lnu',
+#    'wz_1l1nu2q',
+#    'zz',
 #    'www','wwz', #missing for 2017
 #    'wzz','zzz', #missing for 2017
 #    
@@ -66,8 +67,9 @@ if __name__ == "__main__":
     suff="mar6"
     do_jer=False
     do_geofit=False
-    do_jecunc=True
-    debug=True
+    evaluate_dnn = True
+    do_jecunc=False
+    debug=False
     if not do_jer:
         suff += '_nojer'
     if do_jecunc:
@@ -89,12 +91,12 @@ if __name__ == "__main__":
 
     samp_info.compute_lumi_weights()
 
-    n_workers = 24
-#    n_workers = 12
+#    n_workers = 24
+    n_workers = 48
 
     distributed = pytest.importorskip("distributed", minversion="1.28.1")
     distributed.config['distributed']['worker']['memory']['terminate'] = False
-    client = distributed.Client(processes=True, dashboard_address=None, n_workers=n_workers, threads_per_worker=1) 
+    client = distributed.Client(processes=True, dashboard_address=None, n_workers=n_workers, threads_per_worker=1, memory_limit='12GB') 
 
     tstart = time.time()
     from coffea.processor.executor import iterative_executor
@@ -106,7 +108,7 @@ if __name__ == "__main__":
                                       DimuonProcessor(samp_info=samp_info,\
                                                       do_fsr=True,\
                                                       do_roccor=True,\
-                                                      evaluate_dnn=True, save_unbin=True,
+                                                      evaluate_dnn=evaluate_dnn, save_unbin=True,
                                                       do_lheweights=False, apply_jec=True, do_jer=do_jer, do_nnlops=True,
                                                       do_geofit=do_geofit, do_jecunc=do_jecunc,
                                                   ),\

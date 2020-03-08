@@ -188,8 +188,8 @@ class SamplesInfo(object):
         else:
             all_files = [server+f for f in glob.glob(self.paths[sample]+'/**/**/*.root')]
 
-        if 'ttjets_sl' in sample:
-            all_files = all_files[0:10]
+#        if 'ttjets_sl' in sample:
+#            all_files = all_files[0:10]
             
         if self.debug:
             all_files = [all_files[0]]
@@ -255,7 +255,7 @@ class SamplesInfo(object):
         lumis = bl.array("luminosityBlock")
         lumi_mask = LumiMask(self.parameters['lumimask'])
         lumi_filter = lumi_mask(runs, lumis)
-        print("Lumi filter eff.: ",lumi_filter.mean())
+        #print("Lumi filter eff.: ",lumi_filter.mean())
         if len(runs[lumi_filter])>0:
             ret['lumi_list'] = LumiList(runs[lumi_filter], lumis[lumi_filter])
         else:
