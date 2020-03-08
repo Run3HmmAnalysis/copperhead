@@ -858,9 +858,10 @@ class DimuonProcessor(processor.ProcessorABC):
             jet = JaggedCandidateArray.candidatesfromcounts(jet.counts, **jetarrays)
             jet_variation_names = ['nominal']
             
-            for junc_name in self.jet_unc_names:
-                if junc_name not in self.parameters["jec_unc_to_consider"]: continue
-                jet_variation_names += [f"{junc_name}_up", f"{junc_name}_down"]
+            if self.do_jecunc:
+                for junc_name in self.jet_unc_names:
+                    if junc_name not in self.parameters["jec_unc_to_consider"]: continue
+                    jet_variation_names += [f"{junc_name}_up", f"{junc_name}_down"]
             
             if isData:
                 for run in self.data_runs: # 'B', 'C', 'D', etc...
@@ -1220,49 +1221,59 @@ class DimuonProcessor(processor.ProcessorABC):
 
         # Evaluate DNN 
 
-        if self.evaluate_dnn:
+        if self.evaluate_dnn:            
             from config.parameters import training_features
-            from keras.models import load_model
-            import keras.backend as K
+            #import keras.backend as K
             import tensorflow as tf
-            config = tf.ConfigProto()
-            config.intra_op_parallelism_threads=1
-            config.inter_op_parallelism_threads=1
-            K.set_session(tf.Session(config=config))
+            from tensorflow.keras.models import load_model
+            config = tf.compat.v1.ConfigProto(intra_op_parallelism_threads=1, 
+                        inter_op_parallelism_threads=1, 
+                        allow_soft_placement=True,
+                        device_count = {'CPU': 1})
+            tf.compat.v1.logging.set_verbosity(tf.compat.v1.logging.ERROR)
+            sess = tf.compat.v1.Session(config=config)
 
-            # BOTTLENECK: can't load model outside of a worker
-            # https://github.com/keras-team/keras/issues/9964
-            dnn_model = load_model(f'output/trained_models/test_{self.year}.h5')
-            scaler = np.load(f"output/trained_models/scalers_{self.year}.npy")
-            regions = get_regions(variable_map['dimuon_mass'])
+            with sess:
+                # BOTTLENECK: can't load model outside of a worker
+                # https://github.com/keras-team/keras/issues/9964
+                dnn_model = load_model(f'output/trained_models/test_{self.year}.h5')
+                scaler = np.load(f"output/trained_models/scalers_{self.year}.npy")
+                regions = get_regions(variable_map['dimuon_mass'])
             
-            for v_name in jet_variation_names:
-                if (v_name != 'nominal') and isData:
-                    variable_map[f'dnn_score_{v_name}'] = variable_map['dnn_score_nominal']
-                    continue
-                jet_vars = get_variated_jet_variables(v_name, jets, dimuons, one_jet, two_jets, event_weight)
-                dnn_score = np.full(len(event_weight), -1.)
+                for v_name in jet_variation_names:
+                    if (v_name != 'nominal') and (not self.do_jecunc): continue
+                    if (v_name != 'nominal') and isData:
+                        variable_map[f'dnn_score_{v_name}'] = variable_map['dnn_score_nominal']
+                        continue
+                    jet_vars = get_variated_jet_variables(v_name, jets, dimuons, one_jet, two_jets, event_weight)
+                    dnn_score = np.full(len(event_weight), -1.)
                 
-                for region, rcut in regions.items():
-                    df_for_dnn = pd.DataFrame(columns=training_features)
-                    mask = two_jets & rcut
-                    n_rows = len(dimuons.mass[mask].flatten())
-                    for tf in training_features:
-                        if tf=='dimuon_mass' and region!='h-peak':
-                            feature_column = np.full(sum(mask), 125.)
-                        elif tf in jet_vars.keys():
-                            feature_column = jet_vars[tf][mask]
-                        else:
-                            feature_column = variable_map[tf][mask]
-                        assert(n_rows==len(feature_column))
-                        df_for_dnn[tf] = feature_column
-                    df_for_dnn[training_features] = (df_for_dnn[training_features]-scaler[0])/scaler[1]
-                    dnn_score[mask] = np.array(dnn_model.predict(df_for_dnn[training_features])).flatten()
+                    for region, rcut in regions.items():
+                        df_for_dnn = pd.DataFrame(columns=training_features)
+                        mask = two_jets & rcut
+                        n_rows = len(dimuons.mass[mask].flatten())
+                        for trf in training_features:
+                            if trf=='dimuon_mass' and region!='h-peak':
+                                feature_column = np.full(sum(mask), 125.)
+                            elif trf in jet_vars.keys():
+                                feature_column = jet_vars[trf][mask]
+                            else:
+                                feature_column = variable_map[trf][mask]
+                            assert(n_rows==len(feature_column))
+                            df_for_dnn[trf] = feature_column
+                        df_for_dnn[training_features] = (df_for_dnn[training_features]-scaler[0])/scaler[1]
+                        try:
+                            prediction = dnn_model.predict(df_for_dnn[training_features], verbose=0)
+                            pred_array = tf.reshape(prediction, [-1]).eval()
+                        except:
+                            pred_array = np.zeros(sum(mask))
+
+                        dnn_score[mask] = pred_array
                     
-                variable_map[f'dnn_score_{v_name}'] = np.arctanh((dnn_score))
-            
-                if self.timer:
-                    self.timer.add_checkpoint("Evaluated DNN")
+                    variable_map[f'dnn_score_{v_name}'] = np.arctanh((dnn_score))
+
+            if self.timer:
+                self.timer.add_checkpoint("Evaluated DNN")
 
 
         #################### Fill outputs ####################
