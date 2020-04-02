@@ -98,8 +98,8 @@ parameters["muSFFileList"] = {'2016': [{'id'   :                                
             }
 
 
-jec_levels_mc = ['L1FastJet', 'L2Relative', 'L2L3Residual', 'L3Absolute']
-jec_levels_data = ['L1FastJet', 'L2Relative', 'L3Absolute']
+jec_levels_mc = ['L1FastJet', 'L2Relative', 'L3Absolute']
+jec_levels_data = ['L1FastJet', 'L2Relative', 'L3Absolute', 'L2L3Residual']
 
 jec_tag = {
     '2016': 'Summer16_07Aug2017_V11_MC',
@@ -365,6 +365,11 @@ parameters.update({
     "softjet_dr2" : for_all_years(0.16),
 })
 
+parameters["n_pdf_variations"] = {
+    '2016': 103,
+    '2017': 33,
+    '2018': 33
+}
 
 parameters["dnn_max"] = {
     '2016': 1.75,

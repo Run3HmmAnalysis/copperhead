@@ -1,11 +1,10 @@
-def apply_roccor(rochester, isData, muons):
+def apply_roccor(rochester, is_mc, muons):
     import awkward
     import numpy as np
     muons = muons.compact()
     corrections = muons.pt.ones_like()  
-    if isData:
-        corrections = rochester.kScaleDT(muons.charge, muons.pt, muons.eta, muons.phi)      
-    else:
+    
+    if is_mc:
         mc_rand = np.random.rand(*muons.pt.flatten().shape)
         mc_rand = awkward.JaggedArray.fromoffsets(muons.pt.offsets, mc_rand)
         hasgen = ~np.isnan(muons.matched_gen.pt.fillna(np.nan))
@@ -18,6 +17,9 @@ def apply_roccor(rochester, isData, muons):
         corrections = np.ones_like(muons.pt.flatten())
         corrections[hasgen.flatten()] = mc_kspread.flatten()
         corrections[~hasgen.flatten()] = mc_ksmear.flatten() 
+    else:
+        corrections = rochester.kScaleDT(muons.charge, muons.pt, muons.eta, muons.phi)      
+    
     return corrections
 
 def p4_sum(obj1, obj2):
@@ -33,6 +35,42 @@ def p4_sum(obj1, obj2):
         py_ = obj.pt*np.sin(obj.phi)
         pz_ = obj.pt*np.sinh(obj.eta)
         e_  = np.sqrt(px_**2 + py_**2 + pz_**2 + obj.mass**2)
+        px = px + px_
+        py = py + py_
+        pz = pz + pz_
+        e = e + e_
+        
+    pt = np.sqrt(px**2 + py**2)
+    eta = np.arcsinh(pz / pt)
+    phi = np.arctan2(py, px)
+    mass = np.sqrt(e**2 - px**2 - py**2 - pz**2)
+    return pt, eta, phi, mass
+
+def p4_sum_alt(obj1_pt, obj1_eta, obj1_phi, obj1_mass, obj2_pt, obj2_eta, obj2_phi, obj2_mass):
+    import numpy as np
+    assert(len(obj1_pt)==len(obj2_pt))
+    px = np.zeros(len(obj1_pt))
+    py = np.zeros(len(obj1_pt))
+    pz = np.zeros(len(obj1_pt))
+    e = np.zeros(len(obj1_pt))
+    obj1 = {
+        'pt': obj1_pt,
+        'eta': obj1_eta,
+        'phi': obj1_phi,
+        'mass': obj1_mass,
+    }
+    obj2 = {
+        'pt': obj2_pt,
+        'eta': obj2_eta,
+        'phi': obj2_phi,
+        'mass': obj2_mass,
+    }
+
+    for obj in [obj1, obj2]:
+        px_ = obj['pt']*np.cos(obj['phi'])
+        py_ = obj['pt']*np.sin(obj['phi'])
+        pz_ = obj['pt']*np.sinh(obj['eta'])
+        e_  = np.sqrt(px_**2 + py_**2 + pz_**2 + obj['mass']**2)
         px = px + px_
         py = py + py_
         pz = pz + pz_

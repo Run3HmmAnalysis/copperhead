@@ -1,12 +1,12 @@
 datasets = {
     "2016": {
-        "data_B": "",    
-        "data_C": "",
-        "data_D": "",
-        "data_E": "",
-        "data_F": "",
-        "data_G": "",
-        "data_H": "",
+        "data_B":"/store/user/arizzi/FSRNANO2016DATAV8a/SingleMuon/RunIIData17_FSRNANO2016DATAV8a_un2016B-17Jul2018_ver2-v1/",
+        "data_C": "/store/user/arizzi/FSRNANO2016DATAV8a/SingleMuon/RunIIData17_FSRNANO2016DATAV8a_Run2016C-17Jul2018-v1",
+        "data_D": "/store/user/arizzi/FSRNANO2016DATAV8a/SingleMuon/RunIIData17_FSRNANO2016DATAV8a_Run2016D-17Jul2018-v1",
+        "data_E": "/store/user/arizzi/FSRNANO2016DATAV8a/SingleMuon/RunIIData17_FSRNANO2016DATAV8a_Run2016E-17Jul2018-v1",
+        "data_F": "/store/user/arizzi/FSRNANO2016DATAV8a/SingleMuon/RunIIData17_FSRNANO2016DATAV8a_Run2016F-17Jul2018-v1",
+        "data_G": "/store/user/arizzi/FSRNANO2016DATAV8a/SingleMuon/RunIIData17_FSRNANO2016DATAV8a_Run2016G-17Jul2018-v1",
+        "data_H": "/store/user/arizzi/FSRNANO2016DATAV8a/SingleMuon/RunIIData17_FSRNANO2016DATAV8a_Run2016H-17Jul2018-v1",
 
         "dy": "",
         "dy_0j" : "",
@@ -65,6 +65,12 @@ datasets = {
     },
 
     "2017": {
+        "data_B": "/store/user/arizzi/FSRmyNanoProdData2017_NANOV8a/SingleMuon/RunIIData17_FSRmyNanoProdData2017_NANOV8a_Run2017B-31Mar2018-v1/",
+        "data_C": "/store/user/arizzi/FSRmyNanoProdData2017_NANOV8a/SingleMuon/RunIIData17_FSRmyNanoProdData2017_NANOV8a_Run2017C-31Mar2018-v1/",
+        "data_D": "/store/user/arizzi/FSRmyNanoProdData2017_NANOV8a/SingleMuon/RunIIData17_FSRmyNanoProdData2017_NANOV8a_Run2017D-31Mar2018-v1/",
+        "data_E": "/store/user/arizzi/FSRmyNanoProdData2017_NANOV8a/SingleMuon/RunIIData17_FSRmyNanoProdData2017_NANOV8a_Run2017E-31Mar2018-v1/",
+        "data_F": "/store/user/arizzi/FSRmyNanoProdData2017_NANOV8a/SingleMuon/RunIIData17_FSRmyNanoProdData2017_NANOV8a_Run2017F-31Mar2018-v1/",
+
         "ggh_amcPS": "/store/user/arizzi/FSRmyNanoProdMc2017_NANOV8a/GluGluHToMuMu_M125_TuneCP5_PSweights_13TeV_amcatnloFXFX_pythia8/",
         "ggh_powhegPS": "/store/user/arizzi/FSRmyNanoProdMc2017_NANOV8a/GluGluHToMuMu_M-125_TuneCP5_PSweights_13TeV_powheg_pythia8/",
         "vbf_amcPS": "/store/user/arizzi/FSRmyNanoProdMc2017_NANOV8a/VBFHToMuMu_M125_TuneCP5_PSweights_13TeV_amcatnlo_pythia8/",
@@ -80,7 +86,10 @@ datasets = {
     },
 
     "2018": {
-
+        "data_A": "/store/user/arizzi/FSRmyNanoProdData2018ABC_NANOV8a/SingleMuon/RunIIData17_FSRmyNanoProdData2018ABC_NANOV8a_Run2018A-17Sep2018-v2/",
+        "data_B": "/store/user/arizzi/FSRmyNanoProdData2018ABC_NANOV8a/SingleMuon/RunIIData17_FSRmyNanoProdData2018ABC_NANOV8a_Run2018B-17Sep2018-v1/",
+        "data_C": "/store/user/arizzi/FSRmyNanoProdData2018ABC_NANOV8a/SingleMuon/RunIIData17_FSRmyNanoProdData2018ABC_NANOV8a_Run2018C-17Sep2018-v1/",
+        "data_D": "/store/user/arizzi/FSRmyNanoProdData2018D_NANOV8a/SingleMuon/RunIIData17_FSRmyNanoProdData2018D_NANOV8a_Run2018D-22Jan2019-v2"
     }
 }
 

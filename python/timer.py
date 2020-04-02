@@ -22,7 +22,7 @@ class Timer(object):
         self.last_checkpoint = now
         
     def summary(self):
-        columns = ["Action", "Time (s)", "% CPU"]
+        columns = ["Action", "Time (s)", "Time (%)"]
         summary = pd.DataFrame(columns=columns)        
         total_time = round(sum(list(self.time_dict.values())),5)
         summary[columns[0]] = np.array(list(self.time_dict.keys()))

@@ -1,5 +1,6 @@
 datasets = {
     "2016": {
+#        "data_B": "/store/data/Run2016B_ver1/SingleMuon/NANOAOD/Nano25Oct2019_ver1-v1/",
         "data_B": "/store/data/Run2016B_ver2/SingleMuon/NANOAOD/Nano25Oct2019_ver2-v1/",    
         "data_C": "/store/data/Run2016C/SingleMuon/NANOAOD/Nano25Oct2019-v1/",
         "data_D": "/store/data/Run2016D/SingleMuon/NANOAOD/Nano25Oct2019-v1/",
@@ -14,7 +15,8 @@ datasets = {
         "dy_1j" : "/store/mc/RunIISummer16NanoAODv6/DYToLL_1J_13TeV-amcatnloFXFX-pythia8/",
         "dy_2j" : "/store/mc/RunIISummer16NanoAODv6/DYToLL_2J_13TeV-amcatnloFXFX-pythia8/",
         
-        "dy_m105_160_amc": "/store/mc/RunIISummer16NanoAODv6/DYJetsToLL_M-105To160_TuneCP5_PSweights_13TeV-amcatnloFXFX-pythia8/",
+        #"dy_m105_160_amc": "/store/mc/RunIISummer16NanoAODv6/DYJetsToLL_M-105To160_TuneCP5_PSweights_13TeV-amcatnloFXFX-pythia8/",
+        "dy_m105_160_amc": "/store/mc/RunIISummer16NanoAODv6/DYJetsToLL_M-105To160_TuneCUETP8M1_13TeV-amcatnloFXFX-pythia8/",
         "dy_m105_160_vbf_amc" : "/store/mc/RunIISummer16NanoAODv6/DYJetsToLL_M-105To160_VBFFilter_TuneCUETP8M1_13TeV-amcatnloFXFX-pythia8/",
         "dy_m105_160_mg" : "/store/mc/RunIISummer16NanoAODv6/DYJetsToLL_M-105To160_TuneCP5_PSweights_13TeV-madgraphMLM-pythia8/",
         
@@ -67,7 +69,7 @@ datasets = {
         "vbf_amcPS_TuneCP5up" : "/store/mc/RunIISummer16NanoAODv6/VBFHToMuMu_M125_TuneCP5up_PSweights_13TeV_amcatnlo_pythia8/",
         "vbf_powheg" : "/store/mc/RunIISummer16NanoAODv6/VBF_HToMuMu_M125_13TeV_powheg_pythia8/",
         "vbf_powhegPS" : "/store/mc/RunIISummer16NanoAODv6/VBFHToMuMu_M-125_TuneCP5_PSweights_13TeV_powheg_pythia8/",
-#        "vbf_powhegPS" : "/store/group/local/hmm/FSRNANO2016MCV8a/VBFHToMuMu_M-125_TuneCP5_PSweights_13TeV_powheg_pythia8/",
+        "vbf_powhegPS" : "/store/group/local/hmm/FSRNANO2016MCV8a/VBFHToMuMu_M-125_TuneCP5_PSweights_13TeV_powheg_pythia8/",
         "vbf_powhegPS_m120" : "/store/mc/RunIISummer16NanoAODv6/VBFHToMuMu_M-120_TuneCP5_PSweights_13TeV_powheg_pythia8/", 
         "vbf_powhegPS_m130" : "/store/mc/RunIISummer16NanoAODv6/VBFHToMuMu_M-130_TuneCP5_PSweights_13TeV_powheg_pythia8/",         
         "vbf_amc_herwig" :  "/store/mc/RunIISummer16NanoAODv6/VBFHToMuMu_M-125_TuneEEC5_13TeV-amcatnlo-herwigpp/",
@@ -86,10 +88,10 @@ datasets = {
 #        "data_E": "/store/data/Run2017E/SingleMuon/NANOAOD/Nano25Oct2019-v1/",
 #        "data_F": "/store/data/Run2017F/SingleMuon/NANOAOD/Nano25Oct2019-v1/",
 
-#        "ggh_amcPS": "/store/mc/RunIIFall17NanoAODv6/GluGluHToMuMu_M125_TuneCP5_PSweights_13TeV_amcatnloFXFX_pythia8/",
-#        "ggh_powhegPS": "/store/mc/RunIIFall17NanoAODv6/GluGluHToMuMu_M-125_TuneCP5_PSweights_13TeV_powheg_pythia8/",
-#        "vbf_powhegPS": "/store/mc/RunIIFall17NanoAODv6/VBFHToMuMu_M-125_TuneCP5_PSweights_13TeV_powheg_pythia8/",
-#        "vbf_amcPS": "/store/mc/RunIIFall17NanoAODv6/VBFHToMuMu_M125_TuneCP5_PSweights_13TeV_amcatnlo_pythia8/",
+        "ggh_amcPS": "/store/mc/RunIIFall17NanoAODv6/GluGluHToMuMu_M125_TuneCP5_PSweights_13TeV_amcatnloFXFX_pythia8/",
+        "ggh_powhegPS": "/store/mc/RunIIFall17NanoAODv6/GluGluHToMuMu_M-125_TuneCP5_PSweights_13TeV_powheg_pythia8/",
+        "vbf_powhegPS": "/store/mc/RunIIFall17NanoAODv6/VBFHToMuMu_M-125_TuneCP5_PSweights_13TeV_powheg_pythia8/",
+        "vbf_amcPS": "/store/mc/RunIIFall17NanoAODv6/VBFHToMuMu_M125_TuneCP5_PSweights_13TeV_amcatnlo_pythia8/",
         
 #        "dy_0j": "/store/mc/RunIIFall17NanoAODv6/DYJetsToLL_0J_TuneCP5_13TeV-amcatnloFXFX-pythia8/",
 #        "dy_1j": "/store/mc/RunIIFall17NanoAODv6/DYJetsToLL_1J_TuneCP5_13TeV-amcatnloFXFX-pythia8/",
@@ -189,16 +191,16 @@ datasets = {
         "data_C": "/store/data/Run2018C/SingleMuon/NANOAOD/Nano25Oct2019-v1/",
         "data_D": "/store/data/Run2018D/SingleMuon/NANOAOD/Nano25Oct2019-v1/",
         
-        #"ggh_amcPS": "/store/mc/RunIIAutumn18NanoAODv6/GluGluHToMuMu_M125_TuneCP5_PSweights_13TeV_amcatnloFXFX_pythia8/",
+        "ggh_amcPS": "/store/mc/RunIIAutumn18NanoAODv6/GluGluHToMuMu_M125_TuneCP5_PSweights_13TeV_amcatnloFXFX_pythia8/",
         "ggh_amcPS": "/store/group/local/hmm/FSRmyNanoProdMc2018_NANOV8a/GluGluHToMuMu_M125_TuneCP5_PSweights_13TeV_amcatnloFXFX_pythia8/",
         "ggh_amcPS_TuneCP5down": "/store/mc/RunIIAutumn18NanoAODv6/GluGluHToMuMu_M125_TuneCP5down_PSweights_13TeV_amcatnloFXFX_pythia8/",
         "ggh_amcPS_TuneCP5up": "/store/mc/RunIIAutumn18NanoAODv6/GluGluHToMuMu_M125_TuneCP5up_PSweights_13TeV_amcatnloFXFX_pythia8/",
-        #"ggh_powhegPS": "/store/mc/RunIIAutumn18NanoAODv6/GluGluHToMuMu_M-125_TuneCP5_PSweights_13TeV_powheg_pythia8/",
+        "ggh_powhegPS": "/store/mc/RunIIAutumn18NanoAODv6/GluGluHToMuMu_M-125_TuneCP5_PSweights_13TeV_powheg_pythia8/",
         "ggh_powhegPS": "/store/group/local/hmm/FSRmyNanoProdMc2018_NANOV8a/GluGluHToMuMu_M-125_TuneCP5_PSweights_13TeV_powheg_pythia8/",
-        #"vbf_powhegPS": "/store/mc/RunIIAutumn18NanoAODv6/VBFHToMuMu_M-125_TuneCP5_PSweights_13TeV_powheg_pythia8/",
+        "vbf_powhegPS": "/store/mc/RunIIAutumn18NanoAODv6/VBFHToMuMu_M-125_TuneCP5_PSweights_13TeV_powheg_pythia8/",
         "vbf_powhegPS": "/store/group/local/hmm/FSRmyNanoProdMc2018_NANOV8a/VBFHToMuMu_M-125_TuneCP5_PSweights_13TeV_powheg_pythia8/",
 
-        #"vbf_amcPS": "/store/mc/RunIIAutumn18NanoAODv6/VBFHToMuMu_M125_TuneCP5_PSweights_13TeV_amcatnlo_pythia8/",
+        "vbf_amcPS": "/store/mc/RunIIAutumn18NanoAODv6/VBFHToMuMu_M125_TuneCP5_PSweights_13TeV_amcatnlo_pythia8/",
         "vbf_amcPS": "/store/group/local/hmm/FSRmyNanoProdMc2018_NANOV8a/VBFHToMuMu_M125_TuneCP5_PSweights_13TeV_amcatnlo_pythia8/",
 
         "vbf_amcPS_TuneCP5down": "/store/mc/RunIIAutumn18NanoAODv6/VBFHToMuMu_M125_TuneCP5down_PSweights_13TeV_amcatnlo_pythia8/",

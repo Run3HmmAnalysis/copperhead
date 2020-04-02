@@ -162,7 +162,7 @@ class Plotter(object):
             'DY': ['dy_0j', 'dy_1j', 'dy_2j'],
             'EWK': ['ewk_lljj_mll50_mjj120'],
             'TTbar + Single Top':['ttjets_dl',\
-                                  #'ttjets_sl',\
+                                  'ttjets_sl',\
                                   'ttw', 'ttz', 'st_tw_top', 'st_tw_antitop'],
             'VV + VVV': ['ww_2l2nu', 'wz_2l2q', 'wz_1l1nu2q', 'wz_3lnu', 'www','wwz','wzz','zzz'],
         },
@@ -171,7 +171,7 @@ class Plotter(object):
             'DY': [ 'dy_m105_160_amc', 'dy_m105_160_vbf_amc'],
             'EWK': [self.ewk_name],
             'TTbar + Single Top':['ttjets_dl',\
-                                  #'ttjets_sl',\
+                                  'ttjets_sl',\
                                   'ttw', 'ttz', 'st_tw_top', 'st_tw_antitop'],
             'VV + VVV': ['ww_2l2nu', 'wz_2l2q', 'wz_1l1nu2q', 'wz_3lnu', 'www','wwz','wzz','zzz'],
         },
@@ -179,7 +179,7 @@ class Plotter(object):
             'DY': [ 'dy_m105_160_amc', 'dy_m105_160_vbf_amc'],
             'EWK': [self.ewk_name],
             'TTbar + Single Top':['ttjets_dl',\
-                                  #'ttjets_sl',\
+                                  'ttjets_sl',\
                                   'ttw', 'ttz', 'st_tw_top', 'st_tw_antitop'],
             'VV + VVV': ['ww_2l2nu', 'wz_2l2q', 'wz_1l1nu2q', 'wz_3lnu', 'www','wwz','wzz','zzz'],
         }    
@@ -291,10 +291,10 @@ class Plotter(object):
             print(f'Total bkg: {bkg_is_valid[()]}')
         if ggh_is_valid:
             ggh.scale(mc_factor)
-#            print(f'Total ggh: {ggh_is_valid[()]}')
+            print(f'Total ggh: {ggh_is_valid[()]}')
         if vbf_is_valid:
             vbf.scale(mc_factor)
-#            print(f'Total vbf: {vbf_is_valid[()]}')
+            print(f'Total vbf: {vbf_is_valid[()]}')
         if data_is_valid:
             print(f'Total data: {data_is_valid[()]}')
                   
@@ -315,7 +315,10 @@ class Plotter(object):
 
         plt1 = fig.add_subplot(gs[0])
         if bkg_is_valid:
-            ax_bkg = hist.plot1d(bkg, ax=plt1, overlay='dataset', overflow='all', stack=True, fill_opts=stack_fill_opts, error_opts=stack_error_opts)
+            try:
+                ax_bkg = hist.plot1d(bkg, ax=plt1, overlay='dataset', overflow='all', stack=True, fill_opts=stack_fill_opts, error_opts=stack_error_opts)
+            except:
+                ax_bkg = hist.plot1d(bkg, ax=plt1, overlay='dataset', overflow='all', stack=False, fill_opts=stack_fill_opts, error_opts=stack_error_opts)
         # draw signal histograms one by one manually because set_prop_cycle didn't work for changing color map
         if ggh_is_valid:
             ax_ggh = hist.plot1d(ggh, overlay='dataset', overflow='all', line_opts={'linewidth':2, 'color':'lime'}, error_opts=None)    
@@ -369,6 +372,9 @@ class Plotter(object):
             else:
                 fig.savefig(save_to+f"{var}_{channel}_{region}_{self.suffix}_{self.year}.png")
                 print(f"Saving {var}_{channel}_{region}_{self.suffix}_{self.year}.png")
+                
+                
+                
     def plot_shapes(self, samples, inclusive, channel, region, fig, var, gs, year='2016'):
 
         plots = {}
@@ -414,14 +420,21 @@ class Plotter(object):
 
         plt1 = fig.add_subplot(gs)
         axes = {}
-        colors = ['r', 'g', 'b']
+        colors = ['r', 'g', 'b', 'black']
         for i, s in enumerate(plots.keys()):
             if valid[s]:
-                axes[s] = hist.plot1d(plots[s], overlay='dataset', overflow='all',\
+                try:
+                    axes[s] = hist.plot1d(plots[s], overlay='dataset', overflow='all',\
                                       line_opts={'linewidth':2, 'color':colors[i]}, error_opts=None) 
+                except:
+                    pass
 #        plt1.set_yscale('log')
 #        plt1.set_ylim(0.0001, 1)
         lbl = hep.cms.cmslabel(ax=plt1, data=False, paper=False, year=year)
         plt1.set_xlabel(var)
+        if var=='dimuon_mass':
+            plt1.set_xlim(100,135)
+           #plt1.set_xlim(80,100)
+
         plt1.legend(prop={'size': 'small'})
 

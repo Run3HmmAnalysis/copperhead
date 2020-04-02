@@ -192,7 +192,8 @@ class SamplesInfo(object):
 #            all_files = all_files[0:10]
             
         if self.debug:
-            all_files = [all_files[0]]
+#            all_files = [all_files[0]]
+            all_files = [all_files[31]]
 
         sumGenWgts = 0
         nGenEvts = 0
@@ -286,6 +287,9 @@ class SamplesInfo(object):
                 xsec = cross_sections[sample][self.year]
             else:
                 xsec = cross_sections[sample]
-            self.lumi_weights[sample] = xsec*self.lumi / N
+            if N>0:
+                self.lumi_weights[sample] = xsec*self.lumi / N
+            else:
+                self.lumi_weights[sample] = 0
             lumi_wgt = self.lumi_weights[sample]
           #  print(f"{sample}: xsec={xsec}, N={N}, lumi_wgt={lumi_wgt}")

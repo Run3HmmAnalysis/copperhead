@@ -35,6 +35,8 @@ variables.append(Variable("jet1_pt", r"$p_{T}(jet1)$ [GeV]", 50, 0, 200))
 variables.append(Variable("jet1_eta", r"$\eta (jet1)$", 50, -4.7, 4.7))
 variables.append(Variable("jet1_phi", r"$\phi (jet1)$", 50, -3.2, 3.2))
 variables.append(Variable("jet1_qgl", r"$QGL (jet1)$", 10, 0, 1))
+variables.append(Variable("jet1_id", "jet1 ID", 8, 0, 8))
+variables.append(Variable("jet1_puid", "jet1 PUID", 8, 0, 8))
 variables.append(Variable("deta_mumuj1", r"$\Delta\eta (\mu\mu, jet1)$", 50, 0, 10))
 variables.append(Variable("dphi_mumuj1", r"$\Delta\phi (\mu\mu, jet1)$", 50, 0, 4))
 
@@ -42,6 +44,8 @@ variables.append(Variable("jet2_pt", r"$p_{T}(jet2)$ [GeV]", 50, 0, 150))
 variables.append(Variable("jet2_eta", r"$\eta (jet2)$", 50, -4.7, 4.7))
 variables.append(Variable("jet2_phi", r"$\phi (jet2)$", 50, -3.2, 3.2))
 variables.append(Variable("jet2_qgl", r"$QGL (jet2)$", 10, 0, 1))
+variables.append(Variable("jet2_id", "jet2 ID", 8, 0, 8))
+variables.append(Variable("jet2_puid", "jet2 PUID", 8, 0, 8))
 variables.append(Variable("deta_mumuj2", r"$\Delta\eta (\mu\mu, jet2)$", 50, 0, 10))
 variables.append(Variable("dphi_mumuj2", r"$\Delta\phi (\mu\mu, jet2)$", 50, 0, 4))
 
@@ -76,7 +80,7 @@ variables.append(Variable("met", r"$E_{T}^{miss.}$ [GeV]", 50, 0, 200))
 variables.append(Variable("dnn_score", r"DNN score", 50, 0, 1))
 
 variables.append(Variable("event", "event", 1, 0, 1))
-variables.append(Variable("event_weight", "event_weight", 1, 0, 1))
+#variables.append(Variable("event_weight", "event_weight", 1, 0, 1))
 
 
 #vars_unbin = ['event', 'event_weight',\
