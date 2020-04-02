@@ -1,3 +1,4 @@
+
 import uproot
 from python.plotting import Plotter
 from python.dimuon_processor import DimuonProcessor
@@ -18,7 +19,7 @@ input_file = uproot.open(f"combine/fitDiagnostics{year}{suffix}.root")
 
 #regions = ['ch1', 'ch2_h_sidebands', 'ch2_z_peak']
 regions = ['ch1', 'ch2']
-#regions = ['h_peak', 'h_sidebands', 'z_peak']
+regions_original = ['h-peak', 'h-sidebands', 'z-peak']
 #regions = ['h_peak', 'h_sidebands']
 #regions = ['z_peak']
 
@@ -88,7 +89,7 @@ for option in ['prefit', 'postfit']:
                 hists[option][loc(sample), loc(region), loc('vbf'), loc('nominal'), :, loc('value')] = values
                 hists[option][loc(sample), loc(region), loc('vbf'), loc('nominal'), :, loc('sumw2')] = sumw2
 
-def plot_data_mc(hist, datasets, r, c, s, p):
+def plot_data_mc(hist, datasets, r, c, s, p, jec=None):
     bkg_df = pd.DataFrame()
     bkg_labels = []
     ggh = []
@@ -96,6 +97,15 @@ def plot_data_mc(hist, datasets, r, c, s, p):
     data = []
     edges = []
 
+    ch_map = {
+        'ch1': 'h-peak',
+        'ch2': 'h-sidebands',
+    }
+
+    if jec:
+        jec_up = jec[ch_map[r]][c]["up"]
+        jec_down = jec[ch_map[r]][c]["down"] 
+    
     def get_hist(hist, d_,r_,c_,s_,v_):
 #        return hist[loc(d_), loc(r_), loc(c_), loc(s_), ::bh.rebin(4), loc(v_)]
         return hist[loc(d_), loc(r_), loc(c_), loc(s_), :, loc(v_)]
@@ -184,7 +194,9 @@ def plot_data_mc(hist, datasets, r, c, s, p):
     ratios = np.array(data / bkg_total)
     if (data.sum()*bkg_total.sum()):
         ax_ratio = hep.histplot(ratios, edges,  histtype='errorbar', yerr=[data_err_lo/bkg_total, data_err_hi/bkg_total],  **data_opts)
-    
+        if jec:
+            ax_jec_up = hep.histplot(jec_up, edges,  histtype='step',  **{'linewidth':3, 'color':'red'})
+            ax_jec_down = hep.histplot(jec_down, edges,  histtype='step',  **{'linewidth':3, 'color':'red'})
         unity = np.ones_like(bkg_total)
         zero = np.zeros_like(bkg_total)
         bkg_unc = coffea.hist.plot.poisson_interval(unity, sumw2_total / bkg_total**2)
@@ -240,15 +252,100 @@ def save_to_datacard(hist, datasets, r, c, s, p):
     out_file['data_obs'] = th1_data
     out_file.close()
     return norms
-            
-            
+
+
+def get_variated_hist(ds_name, r, c, syst, variation):
+    global year
+    tmp_path_dnn =  f'/depot/cms/hmm/coffea/tmp_m125_{year}_mar10_jecunc_dnn/'
+
+    dnn_bins = []
+    for i in range(nbins):
+        dnn_bins.append(f'dnn_{i}')
+    file = tmp_path_dnn+f"temp_{ds_name}.npy"
+
+    try:
+        df_ = pd.DataFrame(data=np.load(file, allow_pickle=True), columns=dnn_bins+['variation', 'dataset', 'region', 'channel'])
+    except:
+#        print(f"Error: {ds_name}")
+        return []
+
+#    nominal_integral = df_[((df_['dataset']==ds) & (df_['region']==r) & (df_['channel']==c) & (df_['variation']=='nominal'))][dnn_bins].values.flatten().sum()
+#    target_integral = hist_nom.sum()
+#    factor = target_integral / nominal_integral
+#    print(factor)
+    if variation=='nominal':
+        mask = (df_['dataset']==ds_name) & (df_['region']==r) & (df_['channel']==c) & (df_['variation']=='nominal')
+        hist = df_[mask][dnn_bins].values.flatten()
+        return hist
+
+    result = []
+    for ud in ['_up', '_down']:
+        mask = (df_['dataset']==ds_name) & (df_['region']==r) & (df_['channel']==c) & (df_['variation']==variation+ud)
+        mask_nom = (df_['dataset']==ds_name) & (df_['region']==r) & (df_['channel']==c) & (df_['variation']=='nominal')
+        hist = df_[mask][dnn_bins].values.flatten()
+#        hist_nom = df_[mask_nom][dnn_bins].values.flatten()
+#        hist_nom[hist_nom==0] = -1
+#        res = hist/hist_nom 
+#        res[res==-1] = 1
+#        res[res==0] = 1
+        res = hist
+        result.append(res)
+        
+    return result
+
+from config.parameters import parameters
+parameters = {k:v[year] for k,v in parameters.items()}
+variations = parameters["jec_unc_to_consider"]
+#variations = ["Absolute"]
+
+df_v = {}
+jec = {}
+dnn_bins = []
+for i in range(nbins):
+    dnn_bins.append(f'dnn_{i}')
+for r in regions_original:
+    df_v[r] = {}
+    jec[r] = {}
+    for c in channels:
+        df_v[r][c] = {}
+        jec[r][c] = {"nom":[], "up":[], "down":[]}
+        for v in ['nominal']+variations:
+            df_v[r][c][v] = {
+                "nom":pd.DataFrame(),
+                "up":pd.DataFrame(),
+                "down":pd.DataFrame(),
+                }
+            for ds in all_bkg:
+                res = get_variated_hist(ds, r, c, 'nominal', v)
+                if not len(res): continue
+                if v=='nominal':
+                    df_v[r][c][v]["nom"] = df_v[r][c][v]["nom"].append(pd.Series(res), ignore_index=True)
+                else:
+                    if len(res[0]):
+                        df_v[r][c][v]["up"] = df_v[r][c][v]["up"].append(pd.Series(res[0]), ignore_index=True)
+                    if len(res[1]):
+                        df_v[r][c][v]["down"] = df_v[r][c][v]["down"].append(pd.Series(res[1]), ignore_index=True)
+
+            for ud in ["up", "down"]:
+                if len(jec[r][c][ud]):
+                    if df_v[r][c][v][ud].shape[0]>0:
+                        square_ = np.square(df_v[r][c][v][ud].sum()/df_v[r][c]['nominal']["nom"].sum() - 1)
+                        jec[r][c][ud] += square_
+                else:
+                    if df_v[r][c][v][ud].shape[0]>0:
+                        square_ = np.square(df_v[r][c][v][ud].sum()/df_v[r][c]['nominal']["nom"].sum() - 1)
+                        jec[r][c][ud] = square_
+                
+        jec[r][c]["up"] = 1+np.sqrt(jec[r][c]["up"])
+        jec[r][c]["down"] = 1-np.sqrt(jec[r][c]["down"])
+
 for p in ['prefit','postfit']:
     norms = {}
     for r in regions:
         norms[r] = {}
         for c in channels:
             for s in systematics:
-                plot_data_mc(hists[p], all_datasets, r, c, s, p)
+                plot_data_mc(hists[p], all_datasets, r, c, s, p, jec)
                 if 'postfit' in p:
                     norms[r] = save_to_datacard(hists[p], all_datasets, r, c, s, p)
                 

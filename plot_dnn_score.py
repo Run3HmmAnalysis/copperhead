@@ -6,32 +6,51 @@ import json
 import uproot
 
 
-def dnn_rebin(df, nbins):
+def dnn_rebin(df, vbf_name, r, nbins=0, bin_yield=0):
     # assuming dnn score is in [0;1]
+    if nbins==0 and bin_yield==0:
+        raise Exception
     print('Rebinning...')
-    vbf_yield = df['weight'].sum()
-    bin_yield = vbf_yield/nbins
+
+    global norms
+    factor = norms[r][vbf_name]/df['weight'].sum()
+    print(factor)
+    vbf_yield = df['weight'].sum()*factor
+    if nbins>0:
+        bin_yield = vbf_yield/nbins
+    elif bin_yield>0:
+        nbins = int(vbf_yield/bin_yield)+1
 
     boundaries = []
-    nsteps = 10000
+    nsteps = 1000
     for ibin in range(nbins):
         for i in range(nsteps):
             ii = 1 - (i/nsteps)
-            if df[df['dnn_score']>ii].weight.sum() >= bin_yield*(ibin+1):
+            if df[df['dnn_score']>ii].weight.sum()*factor >= bin_yield*(ibin+1):
                 boundaries.append(ii)
                 break
+#    print(boundaries)
     return sorted(boundaries)
 
-year = '2017'
-path_label = 'mar2'
+year = '2016'
+path_label = 'mar17'
 label = 'm125'
+do_jecunc=False
+if do_jecunc:
+    path_label += '_jecunc'
 
 tmp_path = f'/depot/cms/hmm/coffea/tmp_{label}_{year}_{path_label}/'
+tmp_path_dnn =  f'/depot/cms/hmm/coffea/tmp_{label}_{year}_{path_label}_dnn/'
+#print(tmp_path)
+#print(tmp_path_dnn)
 dfs = []
 systematics = ['nominal', 'muSF_up', 'muSF_down', 'pu_weight_up', 'pu_weight_down']
 if '2018' not in year:
     systematics = systematics + ['l1prefiring_weight_up', 'l1prefiring_weight_down']
-score_rescaling = 2
+score_rescaling = 1
+
+with open(f"output/norms_{year}.json") as json_file:
+    norms = json.load(json_file)
 
 xmax_ = {
     '2016': 1.75,
@@ -40,8 +59,8 @@ xmax_ = {
 }
 
 for file in glob.glob(tmp_path+'/*'):
-#    if 'wzz' in file: continue
-#    if 'wz' not in file: continue
+#    if 'vbf_powheg'not in file: continue
+#    if ('wz' not in file) and ('ww' not in file): continue
     try:
         df_ = pd.DataFrame(data=np.load(file, allow_pickle=True), columns=['dnn_score', 'dataset', 'region', 'channel', 'weight']+[f'weight_{s}' for s in systematics])
         dfs.append(df_)
@@ -64,26 +83,39 @@ df_vbf = {
 }
 df['dnn_bin'] = np.zeros(df.shape[0], dtype=float)
 dnn_bins = {}
-nbins = 12
+nbins = 9
 if score_rescaling==1:
-    xmax = 1
+    xmax = 9
 elif score_rescaling==2:
     xmax = xmax_[year]
-    
+
+nbins_r = {}
+
 for r in ['z-peak', 'h-peak', 'h-sidebands']:
     print(r)
     if score_rescaling ==1:
-        dnn_bins[r] = dnn_rebin(df_vbf[r], nbins)
+        dnn_bins[r] = dnn_rebin(df_vbf[r], vbf_name[label], r, 0, 0.7)
+        print(dnn_bins[r])
+        nbins_r[r] = len(dnn_bins[r])-1
         for i in range(len(dnn_bins[r])-1):
             left = dnn_bins[r][i]
             right = dnn_bins[r][i+1]
 #            print(df.loc[(df['region']==r) & (df['dnn_score']>=left)&(df['dnn_score']<right)&(df['dataset']==vbf_name[label]), 'weight_nominal'].sum())
-            df.loc[(df['region']==r) & (df['dnn_score']>=left)&(df['dnn_score']<right), 'dnn_bin'] = (i+1)/nbins
+            df.loc[(df['region']==r) & (df['dnn_score']>=left)&(df['dnn_score']<right), 'dnn_bin'] = i#(i+1)/nbins
     elif score_rescaling==2:
         dnn = np.array(df[(df['region']==r)].dnn_score.values, dtype=float)
         df.loc[(df['region']==r), 'dnn_bin'] = np.arctanh((dnn))
 
-
+datasets = df.dataset.unique()
+for r in ['z-peak', 'h-peak', 'h-sidebands']:
+    for ds in datasets:
+        print(ds)
+        print('='*20)
+        for ibin in range(nbins_r[r]+1):
+            factor = norms[r][ds]/df.loc[(df['region']==r)&(df['dataset']==ds)]['weight'].sum()
+            sum_ = df.loc[(df['region']==r)&(df['dnn_bin']==ibin)&(df['dataset']==ds)].weight.sum()*factor
+            print(f'{sum_}')
+        print('='*20)
 #df['dnn_bin'] = np.arctanh(np.array(df.dnn_score.values,dtype=float))
 
 dataset_axis = hist.Cat("dataset", "")
@@ -136,7 +168,10 @@ vbf_name = {
 ewk_name = {
     '2016':'ewk_lljj_mll105_160_ptj0',
     '2017':'ewk_lljj_mll105_160_ptj0',
-    '2018':'ewk_lljj_mll105_160_ptj0'
+#    '2018':'ewk_lljj_mll105_160_ptj0'
+#    '2016':'ewk_lljj_mll105_160',
+#    '2017':'ewk_lljj_mll105_160',
+    '2018':'ewk_lljj_mll105_160'
 }
 
 syst_sources = {
@@ -145,8 +180,8 @@ syst_sources = {
     '2018':['muSF', 'pu_weight',]
 }
 
-with open(f"output/norms_{year}.json") as json_file:
-    norms = json.load(json_file)
+#with open(f"output/norms_{year}.json") as json_file:
+#    norms = json.load(json_file)
 
 pars = {
     'processor': DimuonProcessor(samp_info=SamplesInfo(year)),
@@ -165,8 +200,8 @@ pars = {
 }
 
 plots = Plotter(**pars)
-plots.make_datamc_comparison(do_inclusive=False, do_exclusive=True, normalize=False, logy=True, get_rates=True, save_to='plots/dnn_score/')
-    
+plots.make_datamc_comparison(do_inclusive=False, do_exclusive=True, normalize=False, logy=True, get_rates=True)
+plots.make_datamc_comparison(do_inclusive=False, do_exclusive=True, normalize=False, logy=True, get_rates=True, save_to='plots/dnn_score/')    
 from uproot_methods.classes.TH1 import from_numpy
 
 xmin = 0.
@@ -188,166 +223,87 @@ bin_map = {
     'h-sidebands':'h_sidebands',
 }
 
-grouped = False
+from config.parameters import parameters
+parameters = {k:v[year] for k,v in parameters.items()}
 
-if grouped:
+def get_variated_hist(ds, r, c, syst, variation, hist_nom):
+    global tmp_path_dnn
+    dnn_bins = []
+    for i in range(nbins):
+        dnn_bins.append(f'dnn_{i}')
+    file = tmp_path_dnn+f"temp_{ds}.npy"
+    
+    df_ = pd.DataFrame(data=np.load(file, allow_pickle=True), columns=dnn_bins+['variation', 'dataset', 'region', 'channel'])
+    nominal_integral = df_[((df_['dataset']==ds) & (df_['region']==r) & (df_['channel']==c) & (df_['variation']=='nominal'))][dnn_bins].values.flatten().sum()
+    target_integral = hist_nom.sum()
+    factor = target_integral / nominal_integral
+#    print(factor)
+    
+    if variation=='nominal':
+        return([[],[]])       
+    else:
+        result = []
+        for ud in ['_up', '_down']:
+            mask = (df_['dataset']==ds) & (df_['region']==r) & (df_['channel']==c) & (df_['variation']==variation+ud)
+            result.append(df_[mask][dnn_bins].values.flatten()*factor)
 
-    all_groups = {
-        'z-peak':{
-            'data': ['data_A', 'data_B', 'data_C', 'data_D', 'data_E', 'data_F', 'data_G', 'data_H'],
-            'ggh_amcPS': ['ggh_amcPS'],
-            'vbf_powhegPS': ['vbf_powhegPS'],
-            'DY': ['dy_0j', 'dy_1j', 'dy_2j',],
-            'EWK': ['ewk_lljj_mll50_mjj120'],
-            'TTbar':['ttjets_dl', 'ttjets_sl', 'ttw', 'ttz'],
-            'SingleTop': [ 'st_tw_top', 'st_tw_antitop'],
-            'VV': ['ww_2l2nu', 'wz_2l2q', 'wz_1l1nu2q', 'wz_3lnu',],
-            'VVV': ['www','wwz','wzz','zzz'],
-        },
-        'h-sidebands': {
-            'data': ['data_A', 'data_B', 'data_C', 'data_D', 'data_E', 'data_F', 'data_G', 'data_H'],
-            'ggh_amcPS': ['ggh_amcPS'],
-            'vbf_powhegPS': ['vbf_powhegPS'],
-            'DY': ['dy_m105_160_amc', 'dy_m105_160_vbf_amc',],
-            'EWK': ['ewk_lljj_mll105_160_ptj0'],
-            'TTbar':['ttjets_dl', 'ttjets_sl', 'ttw', 'ttz'],
-            'SingleTop': [ 'st_tw_top', 'st_tw_antitop'],
-            'VV': ['ww_2l2nu', 'wz_2l2q', 'wz_1l1nu2q', 'wz_3lnu',],
-            'VVV': ['www','wwz','wzz','zzz'],
-        },
-        'h-peak': {
-            'data': ['data_A', 'data_B', 'data_C', 'data_D', 'data_E', 'data_F', 'data_G', 'data_H'],
-            'ggh_amcPS': ['ggh_amcPS'],
-            'vbf_powhegPS': ['vbf_powhegPS'],
-            'DY': ['dy_m105_160_amc', 'dy_m105_160_vbf_amc'],
-            'EWK': ['ewk_lljj_mll105_160_ptj0'],
-            'TTbar':['ttjets_dl', 'ttjets_sl', 'ttw', 'ttz'],
-            'SingleTop': [ 'st_tw_top', 'st_tw_antitop'],
-            'VV': ['ww_2l2nu', 'wz_2l2q', 'wz_1l1nu2q', 'wz_3lnu',],
-            'VVV': ['www','wwz','wzz','zzz'],
-    }}
+    return result
 
-
-    for r in ['z-peak', 'h-peak', 'h-sidebands']:
-        out_fn = f'combine/datacard_{r}_{label}_{year}_grouped.root'
-        out_file = uproot.recreate(out_fn)
-        data_obs_hist = np.zeros(nbins, dtype=float)
-        data_obs_sumw2 = np.zeros(nbins, dtype=float)
-        for group, datasets in all_groups[r].items():
-            sumw2_grouped = np.array([])
-            histogram_grouped = np.array([])
-            for dataset in datasets:
-                if dataset not in plots.hist_dict[r]: continue
-                histogram = np.array(plots.hist_dict[r][dataset]['hist'])
-                sumw2 = plots.hist_dict[r][dataset]['sumw2']
-                sumw2 = np.array(sumw2[1:-2])
-                if sumw2_grouped.shape[0]:
-                    histogram_grouped = histogram_grouped+histogram
-                    sumw2_grouped = sumw2_grouped+sumw2
-                else:
-                    histogram_grouped = histogram
-                    sumw2_grouped = sumw2
-                if 'data' in dataset:
-                    data_obs_hist = data_obs_hist + histogram
-                    data_obs_sumw2 = data_obs_sumw2 + sumw2
-            if 'data' not in dataset:
-                name = f'{bin_map[r]}_{group}'
-                if not histogram_grouped.shape[0]:continue
-                th1 = from_numpy([histogram_grouped, edges])
-                th1._fName = name
-                th1._fSumw2 = np.array(sumw2_grouped)
-                th1._fTsumw2 = np.array(sumw2_grouped).sum()
-                th1._fTsumwx2 = np.array(sumw2_grouped * centers).sum()
-                print(r,group, th1._fTsumw2, th1._fTsumwx2)
-                out_file[group] = th1
-            for updown in ['Up', 'Down']:
-                for syst in plots.syst_sources:
-                    sumw2_grouped = np.array([])
-                    histogram_grouped = np.array([])
-                    for dataset in datasets:
-                        if dataset not in plots.hist_syst[r]: continue
-                        if 'data' in dataset: continue
-                        histogram = np.array(plots.hist_syst[r][dataset][f'{syst}{updown}']['hist'])
-                        sumw2 = plots.hist_syst[r][dataset][f'{syst}{updown}']['sumw2']
-                        sumw2 = np.array(sumw2[1:-2])
-                        if sumw2_grouped.shape[0]:
-                            histogram_grouped = histogram_grouped+histogram
-                            sumw2_grouped = sumw2_grouped+sumw2
-                        else:
-                            histogram_grouped = histogram
-                            sumw2_grouped = sumw2
-
-                    name = f'{bin_map[r]}_{group}_{syst}{updown}'
-                    if not histogram_grouped.shape[0]:continue
-                    th1 = from_numpy([histogram_grouped, edges])
-                    th1._fName = name
-                    th1._fSumw2 = np.array(sumw2_grouped)
-                    th1._fTsumw2 = np.array(sumw2_grouped).sum()
-                    th1._fTsumwx2 = np.array(sumw2_grouped * centers).sum()
-                    out_file[f'{group}_{syst}{updown}'] = th1
-        th1_data = from_numpy([data_obs_hist, edges])
-        th1_data._fName = 'data_obs'
-        th1_data._fSumw2 = np.array(data_obs_sumw2)
-        th1_data._fTsumw2 = np.array(data_obs_sumw2).sum()
-        th1_data._fTsumwx2 = np.array(data_obs_sumw2 * centers).sum()
-        out_file['data_obs'] = th1_data
-        out_file.close()
-        print(r, data_obs_hist.sum())
-
-    norms_grouped = {r:{} for r in regions}
-
-    for r in regions:
-        for group, datasets in all_groups[r].items():
-            norms_grouped[r][group] = 0
-            for ds in datasets:
-                if ds in norms[r].keys():
-                    norms_grouped[r][group] += norms[r][ds]
-        
-    with open(f'output/norms_{year}_grouped.json', 'w') as fp:
-        json.dump(norms_grouped, fp)
-
-else:
-    for r in ['z-peak', 'h-peak', 'h-sidebands']:
-        out_fn = f'combine/datacard_{r}_{label}_{year}.root'
-        out_file = uproot.recreate(out_fn)
-        data_obs_hist = np.zeros(nbins, dtype=float)
-        data_obs_sumw2 = np.zeros(nbins, dtype=float)
-        for dataset in plots.datasets[r]:
-            if dataset not in plots.hist_dict[r]: continue
-            histogram = plots.hist_dict[r][dataset]['hist']
-            sumw2 = plots.hist_dict[r][dataset]['sumw2']
-            sumw2 = sumw2[1:-2]
-            print(dataset, sumw2)
-            name = f'{bin_map[r]}_{dataset}'
-            if 'data' in dataset:
-                data_obs_hist = data_obs_hist + histogram
-                data_obs_sumw2 = data_obs_sumw2 + sumw2
-            else:
+for r in ['z-peak', 'h-peak', 'h-sidebands']:
+    out_fn = f'combine/datacard_{r}_{label}_{year}.root'
+    out_file = uproot.recreate(out_fn)
+    data_obs_hist = np.zeros(nbins, dtype=float)
+    data_obs_sumw2 = np.zeros(nbins, dtype=float)
+    for dataset in plots.datasets[r]:
+        if dataset not in plots.hist_dict[r]: continue
+        histogram = plots.hist_dict[r][dataset]['hist']
+        nominal_histogram = histogram
+        sumw2 = plots.hist_dict[r][dataset]['sumw2']
+        sumw2 = sumw2[1:-2]
+#        print(dataset, sumw2)
+        name = f'{bin_map[r]}_{dataset}'
+        if 'data' in dataset:
+            data_obs_hist = data_obs_hist + histogram
+            data_obs_sumw2 = data_obs_sumw2 + sumw2
+        else:
+            th1 = from_numpy([histogram, edges])
+            th1._fName = name
+            th1._fSumw2 = np.array(sumw2)
+            th1._fTsumw2 = np.array(sumw2).sum()
+            th1._fTsumwx2 = np.array(sumw2 * centers).sum()
+            out_file[dataset] = th1
+        for syst in plots.syst_sources:
+            if dataset not in plots.hist_syst[r]: continue
+            if 'data' in dataset: continue
+            for updown in ['Up','Down']:
+                histogram = plots.hist_syst[r][dataset][f'{syst}{updown}']['hist']
+                sumw2 = plots.hist_syst[r][dataset][f'{syst}{updown}']['sumw2']
+                sumw2 = sumw2[1:-2]
+                name = f'{bin_map[r]}_{dataset}_{syst}{updown}'
                 th1 = from_numpy([histogram, edges])
                 th1._fName = name
                 th1._fSumw2 = np.array(sumw2)
                 th1._fTsumw2 = np.array(sumw2).sum()
                 th1._fTsumwx2 = np.array(sumw2 * centers).sum()
-                out_file[dataset] = th1
-            for syst in plots.syst_sources:
-                if dataset not in plots.hist_syst[r]: continue
-                if 'data' in dataset: continue
-                for updown in ['Up','Down']:
-                    histogram = plots.hist_syst[r][dataset][f'{syst}{updown}']['hist']
-                    sumw2 = plots.hist_syst[r][dataset][f'{syst}{updown}']['sumw2']
-                    sumw2 = sumw2[1:-2]
-                    name = f'{bin_map[r]}_{dataset}_{syst}{updown}'
-                    th1 = from_numpy([histogram, edges])
-                    th1._fName = name
-                    th1._fSumw2 = np.array(sumw2)
-                    th1._fTsumw2 = np.array(sumw2).sum()
-                    th1._fTsumwx2 = np.array(sumw2 * centers).sum()
-                    out_file[f'{dataset}_{syst}{updown}'] = th1
-        th1_data = from_numpy([data_obs_hist, edges])
-        th1_data._fName = 'data_obs'
-        th1_data._fSumw2 = np.array(data_obs_sumw2)
-        th1_data._fTsumw2 = np.array(data_obs_sumw2).sum()
-        th1_data._fTsumwx2 = np.array(data_obs_sumw2 * centers).sum()
-        out_file['data_obs'] = th1_data
-        out_file.close()
-        print(r, data_obs_hist.sum())
+                out_file[f'{dataset}_{syst}{updown}'] = th1
+        for variation in parameters["jec_unc_to_consider"]:
+            if variation=='nominal': continue
+            hist_updown = get_variated_hist(dataset, r, 'vbf', 'nominal', variation, nominal_histogram)
+            for iud, ud in enumerate(['Up','Down']):
+                hist_ud = hist_updown[iud]
+                sumw2 = hist_ud**2 #wrong but maybe doesn't matter
+                name = f'{bin_map[r]}_{dataset}_{variation}{ud}'
+                th1 = from_numpy([hist_ud, edges])
+                th1._fName = name
+                th1._fSumw2 = np.array(sumw2)
+                th1._fTsumw2 = np.array(sumw2).sum()
+                th1._fTsumwx2 = np.array(sumw2 * centers).sum()
+                out_file[f'{dataset}_{variation}{ud}'] = th1
+    th1_data = from_numpy([data_obs_hist, edges])
+    th1_data._fName = 'data_obs'
+    th1_data._fSumw2 = np.array(data_obs_sumw2)
+    th1_data._fTsumw2 = np.array(data_obs_sumw2).sum()
+    th1_data._fTsumwx2 = np.array(data_obs_sumw2 * centers).sum()
+    out_file['data_obs'] = th1_data
+    out_file.close()
+    print(r, data_obs_hist.sum())
