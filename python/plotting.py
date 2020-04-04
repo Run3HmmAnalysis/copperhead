@@ -4,6 +4,8 @@ import numpy as np
 from config.variables import variables
 from config.parameters import parameters
 var_names = [v.name for v in variables]
+from python.accumulator import *
+from collections import Mapping
 
 def get_variable(vname):
     for v in variables:
@@ -16,6 +18,8 @@ def load_sample_chunked(path):
     print(f'Loading {path}')
     result = util.load(path)
     print(f'Done: {path}')
+#    result = dict_accumulator(result)
+#    print(isinstance(result,Mapping))
     return result
 
 class Plotter(object):
@@ -34,7 +38,7 @@ class Plotter(object):
         if 'accumulators' not in kwargs:
             if self.merge_files:
                 self.files = self.samples
-                self.accumulators = self.processor.accumulator.identity()
+                self.accumulators = self.processor.accumulator.identity()['binned']
                 self.load_data()
             else:
                 self.accumulators = {}
@@ -231,14 +235,7 @@ class Plotter(object):
             if get_rates:
                 accumulators_copy[syst].scale(rescale, axis='dataset')
             accumulators_copy[syst].scale(self.weights_by_ds, axis='dataset')
-            if self.rebin>0:
-                if not variable: continue
-                if 'dimuon_mass' in var: continue
-#                try:
-#                    accumulators_copy[syst] = accumulators_copy[syst].rebin(var, hist.Bin(var, variable.caption, round(variable.nbins/self.rebin), variable.xmin, variable.xmax))
-#                except:
-#                    print("Couldn't rebin variable ",var)
-                    
+
         if inclusive:
             if var=="dimuon_mass":
                 data = accumulators_copy['nominal'][:, ['h-sidebands', 'z-peak'], :,'nominal'].sum('region').sum('channel').sum('syst').group('dataset', hist.Cat("dataset", "Dataset"), data_sources)
@@ -273,6 +270,8 @@ class Plotter(object):
                         
         data_is_valid = data.sum(var).sum('dataset').values()
         bkg_is_valid = bkg.sum(var).sum('dataset').values()
+        bkgs_by_source = bkg.sum(var).values()
+        print(bkgs_by_source)
 #        print(bkg_is_valid)
         ggh_is_valid = ggh.sum(var).sum('dataset').values()
         vbf_is_valid = vbf.sum(var).sum('dataset').values()

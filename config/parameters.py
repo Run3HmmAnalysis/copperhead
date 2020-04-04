@@ -3,7 +3,7 @@ training_features = ['dimuon_mass', 'dimuon_pt', 'dimuon_eta', 'dimuon_dEta', 'd
                      'mmjj_mass', 'mmjj_eta', 'mmjj_phi','zeppenfeld',\
                      'jet1_pt', 'jet1_eta', 'jet1_qgl', 'jet2_pt', 'jet2_eta', 'jet2_qgl',\
                      'dimuon_cosThetaCS',\
-                     'dimuon_mass_res_rel', 'deta_mumuj1', 'dphi_mumuj1', 'deta_mumuj2', 'dphi_mumuj2',\
+                     'dimuon_mass_res_rel', 'mmj1_dEta', 'mmj1_dPhi', 'mmj2_dEta', 'mmj2_dPhi',\
                      'htsoft5',
                     ]
 
@@ -64,7 +64,7 @@ parameters["muSFFileList"] = {'2016': [{'id'   :                                
                      'trig'  : ("data/muon_sf/mu2016/EfficienciesStudies_2016_trigger_EfficienciesAndSF_RunBtoF.root",\
                                 "IsoMu24_OR_IsoTkMu24_PtEtaBins/efficienciesDATA/abseta_pt_DATA",\
                                 "IsoMu24_OR_IsoTkMu24_PtEtaBins/efficienciesMC/abseta_pt_MC"),
-                     'scale' : 19.656062760/35.882515396},
+                     'scale' : 20.1/36.4},
                     {'id'     : ("data/muon_sf/mu2016/EfficienciesStudies_2016_legacy_rereco_rootfiles_RunGH_SF_ID.root",\
                                  "NUM_TightID_DEN_genTracks_eta_pt"),
                      'iso'   : ("data/muon_sf/mu2016/EfficienciesStudies_2016_legacy_rereco_rootfiles_RunGH_SF_ISO.root",\
@@ -72,7 +72,7 @@ parameters["muSFFileList"] = {'2016': [{'id'   :                                
                      'trig'  : ("data/muon_sf/mu2016/EfficienciesStudies_2016_trigger_EfficienciesAndSF_RunGtoH.root",\
                                 "IsoMu24_OR_IsoTkMu24_PtEtaBins/efficienciesDATA/abseta_pt_DATA",\
                                 "IsoMu24_OR_IsoTkMu24_PtEtaBins/efficienciesMC/abseta_pt_MC"),
-                     'scale' : 16.226452636/35.882515396}],
+                     'scale' : 16.3/36.4}],
              '2017': [{'id'     : ("data/muon_sf/mu2017/RunBCDEF_SF_ID.root", "NUM_TightID_DEN_genTracks_pt_abseta"),
                      'iso'   : ("data/muon_sf/mu2017/RunBCDEF_SF_ISO.root", "NUM_TightRelIso_DEN_TightIDandIPCut_pt_abseta"),
                      'trig'  : ("data/muon_sf/mu2017/EfficienciesAndSF_RunBtoF_Nov17Nov2017.root",\
@@ -86,7 +86,7 @@ parameters["muSFFileList"] = {'2016': [{'id'   :                                
                      'trig'  : ("data/muon_sf/mu2018/EfficienciesStudies_2018_trigger_EfficienciesAndSF_2018Data_BeforeMuonHLTUpdate.root",\
                                 "IsoMu24_PtEtaBins/efficienciesDATA/abseta_pt_DATA",\
                                "IsoMu24_PtEtaBins/efficienciesMC/abseta_pt_MC"),
-                     'scale' : 8.950818835/59.688059536},
+                     'scale' : 8.95/59.74},
                     {'id'     : ("data/muon_sf/mu2018/EfficienciesStudies_2018_rootfiles_RunABCD_SF_ID.root",\
                                  "NUM_TightID_DEN_TrackerMuons_pt_abseta"),
                      'iso'   : ("data/muon_sf/mu2018/EfficienciesStudies_2018_rootfiles_RunABCD_SF_ISO.root",\
@@ -94,7 +94,7 @@ parameters["muSFFileList"] = {'2016': [{'id'   :                                
                      'trig'  : ("data/muon_sf/mu2018/EfficienciesStudies_2018_trigger_EfficienciesAndSF_2018Data_AfterMuonHLTUpdate.root",\
                                 "IsoMu24_PtEtaBins/efficienciesDATA/abseta_pt_DATA",\
                                "IsoMu24_PtEtaBins/efficienciesMC/abseta_pt_MC"),
-                     'scale' : 50.737240701/59.688059536}],
+                     'scale' : 50.79/59.74}],
             }
 
 

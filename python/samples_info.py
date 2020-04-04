@@ -192,8 +192,8 @@ class SamplesInfo(object):
 #            all_files = all_files[0:10]
             
         if self.debug:
-#            all_files = [all_files[0]]
-            all_files = [all_files[31]]
+            all_files = [all_files[0]]
+#            all_files = [all_files[31]]
 
         sumGenWgts = 0
         nGenEvts = 0
@@ -283,7 +283,7 @@ class SamplesInfo(object):
         self.lumi_weights = {'data':1}
         for sample in self.mc_samples:
             N = self.metadata[sample]['sumGenWgts']
-            if ('ewk_lljj_mll50_mjj120' in sample) or ('ewk_lljj_mll105_160_ptj0' in sample):
+            if isinstance(cross_sections[sample], dict):
                 xsec = cross_sections[sample][self.year]
             else:
                 xsec = cross_sections[sample]
