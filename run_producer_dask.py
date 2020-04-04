@@ -15,13 +15,13 @@ from python.samples_info import SamplesInfo
 sample_sources = [
     'data',
     'main_mc',
-#    'other_mc',
-#    'more_signal',
+    'other_mc',
+    'more_signal',
 #    'pisa_mc'
 ]
 
 year = '2016'
-suff="mar31"
+suff="apr2"
 server_name = 'purdue'
 #server_name = 'legnaro'
 try_cluster = True
@@ -34,8 +34,8 @@ evaluate_dnn = False
 do_jecunc=False
 do_pdf=False
 debug=False
-if not do_jec:
-    suff += '_nojec'
+#if not do_jec:
+#    suff += '_nojec'
 if (not do_roch) and (not do_fsr):
     suff += '_raw'
 elif not do_roch:
@@ -89,9 +89,9 @@ smp['other_mc'] = [
 ]
 
 smp['more_signal'] = [
-    'ggh_amcPS',
-    'vbf_amcPS',
-    'vbf_powhegPS',
+#    'ggh_amcPS',
+#    'vbf_amcPS',
+#    'vbf_powhegPS',
 #    'vbf_powheg_herwig',
 ]
 
@@ -127,7 +127,7 @@ if __name__ == "__main__":
         distributed = pytest.importorskip("distributed", minversion="1.28.1")
         distributed.config['distributed']['worker']['memory']['terminate'] = False
 #        client = distributed.Client(cluster)
-        client = distributed.Client('128.211.149.133:36408')
+        client = distributed.Client('128.211.149.133:36152')
     
     else:
         n_workers = 48
@@ -168,6 +168,15 @@ if __name__ == "__main__":
             out_path_unbinned = f"{out_dir_unbinned}/{prefix}{label}_{ichunk}.coffea"
             util.save(output['binned'], out_path_binned)
             util.save(output['unbinned'], out_path_unbinned)
+            for c in ['vbf']:
+                for r in ['z-peak', 'h-sidebands', 'h-peak']:
+                    path = out_dir+f'/event_weight_{c}_{r}/'
+                    try:
+                        os.mkdir(path)
+                    except:
+                        pass
+                    util.save(output[f'event_weight_{c}_{r}'], path+f'{prefix}{label}_{ichunk}.coffea')
+            
             output.clear()
             print(f"Saved output to {out_dir}")
             

@@ -15,8 +15,8 @@ do_unbin=True
 do_bin=False
 
 
-year = '2016'
-path_label = 'mar25'
+year = '2018'
+path_label = 'apr2'
 do_jer = False
 do_jecunc = False
 #if not do_jer:
@@ -25,6 +25,7 @@ if do_jecunc:
     path_label += "_jecunc"
 
 nbins=12
+_path = f'/depot/cms/hmm/coffea/all_{year}_{path_label}/'
 load_path = f'/depot/cms/hmm/coffea/all_{year}_{path_label}/unbinned/'
 load_path_binned = f'/depot/cms/hmm/coffea/all_{year}_{path_label}/binned/'
 dnn_label = '2017'
@@ -93,6 +94,14 @@ def load_sample(s):
         paths_binned = glob.glob(f"{load_path_binned}/{prefix}{s}_?.coffea")
         for p in paths_binned:
             proc_outs_binned.append(util.load(p))
+        event_weights = {}
+        for c in channels:
+            for r in regions:
+                location = _path+f'/event_weight_{c}_{r}/'
+                paths = glob.glob(f"{location}/{prefix}{s}_?.coffea")
+                event_weights[f'event_weight_{c}_{r}'] = []
+                for p in paths:
+                    event_weights[f'event_weight_{c}_{r}'].append(util.load(p).value)
             
     else:
         proc_outs = [util.load(f"{load_path}/{prefix}{s}.coffea")]
@@ -107,6 +116,7 @@ def load_sample(s):
                         device_count = {'CPU': 1})
     tf.compat.v1.logging.set_verbosity(tf.compat.v1.logging.ERROR)
     sess = tf.compat.v1.Session(config=config)
+
     with sess:    
         dnn_model = load_model(model_path)
         for ip, proc_out in enumerate(proc_outs):
@@ -120,22 +130,38 @@ def load_sample(s):
                     for v in variables:
 #                        print(v)
                         if v not in training_features+['event']+[f'weight_{s}' for s in systematics]: continue
-                        if (v=='dimuon_mass') and ('h-peak' not in r):
-                            df[v] = np.full(len(proc_out[f'{v}_unbin_{s}_c_{c}_r_{r}'].value), 125.)
-                        elif 'weight' not in v:
-                            len_ = len(proc_out[f'{v}_unbin_{s}_c_{c}_r_{r}'].value)
-                            df[v] = proc_out[f'{v}_unbin_{s}_c_{c}_r_{r}'].value
-                        else:
-                            if 'data' in s:
-                                df[v] = proc_out[f'weight_nominal_unbin_{s}_c_{c}_r_{r}'].value
+                        try:
+                            if (v=='dimuon_mass') and ('h-peak' not in r):
+                                df[v] = np.full(len(proc_out[f'dimuon_mass_unbin_{s}_c_{c}_r_{r}'].value), 125.)
+                            elif 'weight' not in v:
+                                len_ = len(proc_out[f'dimuon_mass_unbin_{s}_c_{c}_r_{r}'].value)
+                                df[v] = proc_out[f'{v}_unbin_{s}_c_{c}_r_{r}'].value
+                                print(df[v])
                             else:
-                                #                            print(r,c,v)
-                                df[v] = proc_out[f'{v}_unbin_{s}_c_{c}_r_{r}'].value[0:len_]
-                    print(df['weight_nominal'].sum())
+                                if 'data' in s:
+                                    df[v] = proc_out[f'weight_nominal_unbin_{s}_c_{c}_r_{r}'].value
+                                else:
+                                    # I don't know why every element is repeated in the output!
+                                      
+                                    repeated = int(len(proc_out[f'{v}_unbin_{s}_c_{c}_r_{r}'].value)/len_)
+                                    value = proc_out[f'{v}_unbin_{s}_c_{c}_r_{r}'].value
+#                                    print(value)
+                                    uniques, idx = np.unique(value, return_index=True) 
+#                                    print(value[[np.sort(idx)]])
+#                                    print(f"Should be {len_}, total number of unique is ", value[[np.sort(idx)]].shape[0])
+#                                    print(np.where(abs(value-value[0])<0.0000001))
+                                    df[v] = value[[np.sort(idx)]]
+                        except:
+                            pass
+                            print('Skip: ',v)
+#                    sumw = df['weight_nominal'].sum()
+                    sumw = sum(sum(event_weights[f'event_weight_{c}_{r}']))
+                    print(len(event_weights[f'event_weight_{c}_{r}'][0]))
+#                    print(sumw)
                     if s in norm[r]:
-                        norm[r][s] += df['weight_nominal'].sum()
+                        norm[r][s] += sumw
                     else:
-                        norm[r][s] = df['weight_nominal'].sum()
+                        norm[r][s] = sumw
                     if 'data' in s:
                         df_test = df
                     else:
@@ -144,16 +170,16 @@ def load_sample(s):
 
                     df_test = (df_test[training_features]-scalers[0])/scalers[1]
                     if df.shape[0]>0:
-                        try:
-                            dfs_out[lbl]['dnn_score'] = dnn_model.predict(df_test.reset_index(drop=True)).flatten()
-                        except:
-                            dfs_out[lbl]['dnn_score'] = dnn_model.predict(df_test.reset_index(drop=True))
+#                        try:
+#                            dfs_out[lbl]['dnn_score'] = dnn_model.predict(df_test.reset_index(drop=True)).flatten()
+#                        except:
+#                            dfs_out[lbl]['dnn_score'] = dnn_model.predict(df_test.reset_index(drop=True))
                         dfs_out[lbl]['dataset'] = s
                         dfs_out[lbl]['region'] = r
                         dfs_out[lbl]['channel'] = c
                         dfs_out[lbl]['weight'] = df['weight_nominal'].reset_index(drop=True)
-                        for syst in systematics:
-                            dfs_out[lbl][f'weight_{syst}'] = df[f'weight_{syst}'].reset_index(drop=True)
+#                        for syst in systematics:
+#                            dfs_out[lbl][f'weight_{syst}'] = df[f'weight_{syst}'].reset_index(drop=True)
 
     df_from_unbin = pd.concat(list(dfs_out.values())).reset_index(drop=True)
 
@@ -215,15 +241,7 @@ def load_data(samples, out_path, out_path_dnn, parallelize=True):
             load_sample(s)
     return norms
 
-training_features = ['dimuon_mass', 'dimuon_pt', 'dimuon_eta', 'dimuon_dEta', 'dimuon_dPhi', 'dimuon_dR',\
-         'jj_mass', 'jj_eta', 'jj_phi', 'jj_pt', 'jj_dEta',\
-         'mmjj_mass', 'mmjj_eta', 'mmjj_phi','zeppenfeld',\
-         'jet1_pt', 'jet1_eta', 'jet1_qgl', 'jet2_pt', 'jet2_eta', 'jet2_qgl',\
-         'dimuon_cosThetaCS',\
-         'dimuon_mass_res_rel', 'deta_mumuj1', 'dphi_mumuj1', 'deta_mumuj2', 'dphi_mumuj2',\
-         'htsoft5',
-        ]
-
+from config.parameters import training_features
 
 classes = {
     'data': ['data_A', 'data_B','data_C','data_D','data_E','data_F','data_G','data_H'], 
@@ -242,10 +260,10 @@ samples = [
      'dy_m105_160_amc',
      'dy_m105_160_vbf_amc',
 
-     'ggh_amcPS',
-     'vbf_amcPS',
-     'ggh_powhegPS', 
-     'vbf_powhegPS',
+#     'ggh_amcPS',
+#     'vbf_amcPS',
+#     'ggh_powhegPS', 
+#     'vbf_powhegPS',
 
 #    'vbf_powheg_herwig',
 # #     'ggh_amcPS_m120',
@@ -263,7 +281,7 @@ samples = [
 # # ##
     
 # # # ## MC for DNN training (Legnaro): ##    
-#    "ewk_lljj_mll105_160_ptj0", 
+    "ewk_lljj_mll105_160_ptj0", 
 # # # ##    
     
 # # # ## Most important of other MC: ##   
