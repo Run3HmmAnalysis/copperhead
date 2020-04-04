@@ -1,64 +1,69 @@
 cross_sections = {
-    "dy": 2026.96*3, #https://indico.cern.ch/event/841566/contributions/3565385/attachments/1914850/3165328/Drell-Yan_jets_crosssection_September2019.pdf 
-    "dy_0j": 4620.52, #https://indico.cern.ch/event/673253/contributions/2756806/attachments/1541203/2416962/20171016_VJetsXsecsUpdate_PH-GEN.pdf
+    "dy": 5765.40,
+    "dy_0j": 4620.52,     
     "dy_1j": 859.59,
     "dy_2j": 338.26,
-    "dy_m105_160_mg": 46.9479,
-    "dy_m105_160_vbf_mg": 2.02,
-    "dy_m105_160_amc": 46.9479, # https://docs.google.com/document/d/1bViX80nXQ_p-W4gI6Fqt9PNQ49B6cP1_FhcKwTZVujo/edit?usp=sharing
-    "dy_m105_160_vbf_amc": 46.9479*0.0425242, #https://docs.google.com/document/d/1bViX80nXQ_p-W4gI6Fqt9PNQ49B6cP1_FhcKwTZVujo/edit?usp=sharing
-    "ggh_powheg": 0.010571, #48.61 * 0.0002176; https://twiki.cern.ch/twiki/bin/view/LHCPhysics/CERNHLHE2019
+    "dy_m105_160_mg": 47.17,
+    "dy_m105_160_vbf_mg": {"2016": 1.77, "2017": 2.04, "2018": 2.03},
+    "dy_m105_160_amc": 47.17,
+    "dy_m105_160_vbf_amc": {"2016": 1.77, "2017": 2.04, "2018": 2.03},
+
+    "ewk_lljj_mll105_160": 0.0508896,
+    "ewk_lljj_mll105_160_ptj0": {"2016": 0.07486, "2017": 0.0789, "2018": 0.0789},
+    "ewk_lljj_mll50_mjj120": 1.664,
+
+    "st_top": 136.02,
+    "st_t_top": 3.36,
+    "st_t_antitop": 80.95,
+    "st_tw_top": 35.85,
+    "st_tw_antitop": 35.85,
+
+    "ttjets_dl": 85.65,
+    "ttjets_sl": 356.18677888,
+
+    "ww_2l2nu": 5.405545772,
+    "wz_3lnu":  1.01571116658,
+    "wz_2l2q": 2.1378257075700002,
+    "wz_1l1nu2q": 7.0312276121999995,
+    "zz": 1.554564439194,
+
+    "ttw": 0.2001,
+    "ttz": 0.2529,
+    "www": 0.2086,
+    "wwz": 0.1651,
+    "wzz": 0.05565,
+    "zzz": 0.01398,
+    
+    "ggh_powheg": 0.010571, 
     "ggh_powhegPS": 0.010571,
-    "ggh_powhegPS_m120": 0.010571, 
-    "ggh_powhegPS_m130": 0.010571,    
     "ggh_amcPS": 0.010571,
-    "ggh_amcPS_m120": 0.010571,
-    "ggh_amcPS_m130": 0.010571,
     "ggh_amcPS_TuneCP5down": 0.010571,
     "ggh_amcPS_TuneCP5up": 0.010571,
     "ggh_amc": 0.010571,
-    "vbf": 0.000823,
-    "vbf_sync": 0.000823,
-    "vbf_powheg_herwig": 0.000823,
-    "vbf_powheg": 0.000823,
-    "vbf_powhegPS": 0.000823,
-    "vbf_powhegPS_m120": 0.000823,
-    "vbf_powhegPS_m130": 0.000823,
-    "vbf_amc_herwig": 0.000823,
-    "vbf_amcPS_TuneCP5down": 0.000823,
-    "vbf_amcPS_TuneCP5up": 0.000823,
-    "vbf_amcPS": 0.000823,
-    "vbf_amcPS_m120": 0.000823,
-    "vbf_amcPS_m130": 0.000823,    
-    "vbf_amc": 0.000823,
+    
+    "vbf": 0.0008210722,
+    "vbf_sync": 0.0008210722,
+    "vbf_powheg_herwig": 0.0008210722,
+    "vbf_powheg": 0.0008210722,
+    "vbf_powhegPS": 0.0008210722,
+    "vbf_amc_herwig": 0.0008210722,
+    "vbf_amcPS_TuneCP5down": 0.0008210722,
+    "vbf_amcPS_TuneCP5up": 0.0008210722,
+    "vbf_amcPS": 0.0008210722,
+    "vbf_amc": 0.0008210722,
+
+    "ggh_powhegPS_m120": 0.012652906, 
+    "ggh_amcPS_m120": 0.012652906,
+    "vbf_powhegPS_m120": 0.0009534505,
+    "vbf_amcPS_m120": 0.0009534505,
+
+    "ggh_powhegPS_m130": 0.008504687,    
+    "ggh_amcPS_m130": 0.008504687,
+    "vbf_powhegPS_m130": 0.0006826649,
+    "vbf_amcPS_m130": 0.0006826649,    
+
     "wmh": 0.000116,
     "wph": 0.000183,
     "zh": 0.000192,
     "tth": 0.000110,
-    "ttjets_dl": 85.656,
-    "ttjets_sl": 687.0,
-    "ww_2l2nu": 5.595,
-    "wz_3lnu":  4.42965,
-    "wz_2l2q": 5.595,
-    "wz_1l1nu2q": 11.61,
-    "zz": 16.523,
-    "st_top": 136.02,
-    "st_t_antitop": 80.95,
-    "st_tw_top": 35.85,
-    "st_tw_antitop": 35.85,
-    "ewk_lljj_mll105_160": 0.0508896,
-    "ewk_lljj_mll105_160_ptj0": {"2016": 0.07486, "2017": 0.0789, "2018": 0.0789},
-
-    # Note via Nan L.: the 2016 sample has a different tune, for which Stephane C.
-    # computed a new cross-section from MINIAOD using
-    # https://twiki.cern.ch/twiki/bin/viewauth/CMS/HowToGenXSecAnalyzer
-    "ewk_lljj_mll50_mjj120": {"2016": 1.611, "2017": 1.700, "2018": 1.700},
-
-    "ttw": 0.2001,
-    "ttz": 0.2529,
-    "st_t_top": 3.36,
-    "www": 0.2086,
-    "wwz": 0.1651,
-    "wzz": 0.05565,
-    "zzz": 0.01398
 }
