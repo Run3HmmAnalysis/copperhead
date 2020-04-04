@@ -59,7 +59,6 @@ def delta_r(eta1, eta2, phi1, phi2):
 
 def apply_geofit(muons_pt, muons_eta, muons_dxybs, muons_charge, year, mask):
     pt_cor = np.zeros(len(muons_pt.flatten()), dtype=float)
-
     d0_BS_charge_full = np.multiply(muons_dxybs.flatten(),muons_charge.flatten()) 
     passes_mask = (~mask) & (np.abs(d0_BS_charge_full)<999999.)
     d0_BS_charge = d0_BS_charge_full[passes_mask]
@@ -191,7 +190,6 @@ class DimuonProcessor(processor.ProcessorABC):
         region_axis = hist.Cat("region", "") # Z-peak, Higgs SB, Higgs peak
         channel_axis = hist.Cat("channel", "") # ggh or VBF  
         syst_axis = hist.Cat("syst", "")
-        accumulators = processor.dict_accumulator({'binned':processor.dict_accumulator({}), 'unbinned':processor.dict_accumulator({})})
                         
         self.regions = self.samp_info.regions
         self.channels = self.samp_info.channels
@@ -223,37 +221,41 @@ class DimuonProcessor(processor.ProcessorABC):
             variables.append(Variable("pdf_rms", "pdf_rms", 1, 0, 1))
         
         self.vars_unbin = [v.name for v in variables]
-        
         ### Prepare accumulators for binned output ###
-        
+        bin_dict = {}
         for v in variables:
             if v.name=='dimuon_mass':
                 axis = hist.Bin(v.name, v.caption, v.nbins, self.mass_window[0], self.mass_window[1])
             else:
                 axis = hist.Bin(v.name, v.caption, v.nbins, v.xmin, v.xmax)
-            accumulators['binned'][v.name] = hist.Hist("Counts", dataset_axis, region_axis, channel_axis, syst_axis, axis)
-            
-#        accumulators['binned']['cutflow'] = processor.defaultdict_accumulator(int)
-
-        ### Prepare accumulators for unbinned output ###
-    
-        
+            bin_dict[v.name] = hist.Hist("Counts", dataset_axis, region_axis, channel_axis, syst_axis, axis)  
+        accumulator_binned = processor.dict_accumulator(bin_dict)
         ### --------------------------------------- ###
         
-        #for p in self.datasets_to_save_unbin:
+        ### Prepare accumulators for unbinned output ###
+        unbin_dict = {}
         if self.save_unbin:
             for p in self.samp_info.samples:
                 for v in self.vars_unbin:
                     if 'dnn_score' in v: continue
                     for c in self.channels:
                         for r in self.regions:
-    #                        if 'z-peak' in r: continue # don't need unbinned data for Z-peak
-                            accumulators['unbinned'][f'{v}_unbin_{p}_c_{c}_r_{r}'] = processor.column_accumulator(np.ndarray([]))
+#                            print(v,p,c,r)
+                            unbin_dict[f'{v}_unbin_{p}_c_{c}_r_{r}'] = processor.column_accumulator(np.ndarray([]))
                             # have to encode everything into the name because having multiple axes isn't possible
-        
-        self._accumulator = processor.dict_accumulator(accumulators)
-    
+        accumulator_unbinned = processor.dict_accumulator(unbin_dict)
         ### --------------------------------------- ###
+        
+        event_weights = {}
+        for c in self.channels:
+            for r in self.regions:
+                event_weights[f'event_weight_{c}_{r}'] = processor.column_accumulator(np.ndarray([]))
+        
+        acc_dicts = {'binned':accumulator_binned, 'unbinned':accumulator_unbinned}
+        acc_dicts.update(**event_weights)
+        
+        accumulators = processor.dict_accumulator(acc_dicts)
+        self._accumulator = accumulators
         
         mu_id_vals = 0
         mu_id_err = 0
@@ -354,21 +356,21 @@ class DimuonProcessor(processor.ProcessorABC):
             self.btag_sf = BTagScaleFactor(self.parameters["btag_sf_csv"], BTagScaleFactor.RESHAPE,\
                                            'iterativefit,iterativefit,iterativefit')
             
-            btag_files = {
-                "2016": "DeepCSV_102XSF_V1.btag.csv",
-                "2017": "DeepCSV_2016LegacySF_V1.btag.csv",
-                "2018": "DeepCSV_94XSF_V5_B_F.btag.csv",
-            }
-            btag_file = btag_files[self.year]
-            btag_ext = extractor()
-            btag_ext.add_weight_sets([f"btag{self.year} * data/btag/{btag_file}"])
-            btag_ext.finalize()
-            self.btag_csv = btag_ext.make_evaluator()
-            import pickle
-            with open(f'data/btag/eff_lookup_{self.year}_L.pkl', 'rb') as _file:
-                self.eff_lookup_L = pickle.load(_file)
-            with open(f'data/btag/eff_lookup_{self.year}_M.pkl', 'rb') as _file:
-                self.eff_lookup_M = pickle.load(_file)
+#            btag_files = {
+#                "2016": "DeepCSV_102XSF_V1.btag.csv",
+#                "2017": "DeepCSV_2016LegacySF_V1.btag.csv",
+#                "2018": "DeepCSV_94XSF_V5_B_F.btag.csv",
+#            }
+#            btag_file = btag_files[self.year]
+#            btag_ext = extractor()
+#            btag_ext.add_weight_sets([f"btag{self.year} * data/btag/{btag_file}"])
+#            btag_ext.finalize()
+#            self.btag_csv = btag_ext.make_evaluator()
+#            import pickle
+#            with open(f'data/btag/eff_lookup_{self.year}_L.pkl', 'rb') as _file:
+#                self.eff_lookup_L = pickle.load(_file)
+#            with open(f'data/btag/eff_lookup_{self.year}_M.pkl', 'rb') as _file:
+#                self.eff_lookup_M = pickle.load(_file)
 
                 
     @property
@@ -390,8 +392,8 @@ class DimuonProcessor(processor.ProcessorABC):
         #---------------------------------------------------------------#
 #        self.test_event = 213589
         self.test_event = 223846166
-        self.debug=False
-        self.timer=None
+#        self.debug=False
+#        self.timer=None
         for ev in [self.test_event]:
             if self.test_event in df.event:
                 print(ev)
@@ -445,7 +447,7 @@ class DimuonProcessor(processor.ProcessorABC):
 
             if dataset in self.lumi_weights:
                 weights = weights.multiply(self.lumi_weights[dataset], axis=0)
-                
+
             if self.parameters["do_l1prefiring_wgts"]:
                 prefiring_wgt = df.L1PreFiringWeight.Nom.flatten()
                 add_systematic(weights, 'l1prefiring_weight', prefiring_wgt,\
@@ -794,11 +796,12 @@ class DimuonProcessor(processor.ProcessorABC):
             elif 'powheg' in dataset:
                 nnlopsw[has_higgs] = nnlops.evaluate(gen_hpt[has_higgs], gen_njets[has_higgs], "powheg")
             weights = weights.multiply(nnlopsw, axis=0)
-            
+
         if 'dy' in dataset:
             zpt_weight = np.ones(numevents, dtype=float)
             zpt_weight[two_muons] = self.evaluator[self.zpt_path](dimuon_variables['dimuon_pt'][two_muons]).flatten()
             weights = weights.multiply(zpt_weight, axis=0)
+
             if self.debug:
                 print("Avg. Zpt weight: ", zpt_weight[df.event==self.test_event])
                 print("Avg. Zpt weight: ", zpt_weight.mean())
@@ -869,7 +872,7 @@ class DimuonProcessor(processor.ProcessorABC):
         genJetMass = variable_map['genJetMass']
     
         if self.debug:
-            print(df.event[mask&two_jets])
+ #           print(df.event[mask&two_jets])
             for k,v in variable_map.items():            
                 print(k, v[df.event==self.test_event])
 
@@ -879,7 +882,7 @@ class DimuonProcessor(processor.ProcessorABC):
 #                    variable_map[f'LHEScaleWeight_{i}'] = df.LHEScaleWeight[:,i]
 #                except:
 #                    variable_map[f'LHEScaleWeight_{i}'] = np.ones(numevents, dtype=float)
-                
+            
         for syst in weights.columns:
             variable_map[f'weight_{syst}'] = np.array(weights[syst])
 
@@ -952,9 +955,10 @@ class DimuonProcessor(processor.ProcessorABC):
         #---------------------------------------------------------------#                        
 
         #------------------ Binned outputs ------------------#  
+        regions = get_regions(variable_map['dimuon_mass'])            
+
         for vname, expression in variable_map.items():
             if vname not in output['binned']: continue
-            regions = get_regions(variable_map['dimuon_mass'])            
             for cname in self.channels:
                 ccut = (category==cname)
                 for rname, rcut in regions.items():
@@ -965,7 +969,7 @@ class DimuonProcessor(processor.ProcessorABC):
                         genJetMass = ret_jec_loop[variated_scores[vname]]['variable_map']['genJetMass']
                         rcut = get_regions(ret_jec_loop[variated_scores[vname]]['variable_map']['dimuon_mass'])[rname]
                         ccut = (ret_jec_loop[variated_scores[vname]]['category']==cname)
-                        wgts = weights = ret_jec_loop[variated_scores[vname]]['weights']
+                        wgts = ret_jec_loop[variated_scores[vname]]['weights']
                     else:
                         genJetMass = variable_map['genJetMass']
                         wgts = weights
@@ -986,14 +990,11 @@ class DimuonProcessor(processor.ProcessorABC):
                         output['binned'][vname].fill(**{'dataset': dataset, 'region': rname, 'channel': cname, 'syst': syst,\
                                              vname: value.flatten(), 'weight': weight})
 
-        
         #----------------- Unbinned outputs -----------------#
-        
         if self.save_unbin:
             for v in self.vars_unbin:
                 if v not in variable_map: continue
                 if 'dnn_score' in v: continue 
-                regions = get_regions(variable_map['dimuon_mass']) 
                 for cname in self.channels:
                     ccut = (category==cname)
                     for rname, rcut in regions.items():
@@ -1001,10 +1002,15 @@ class DimuonProcessor(processor.ProcessorABC):
                             ccut = ccut & (genJetMass > 350.)
                         if ('dy_m105_160_amc' in dataset) and ('vbf' in cname):
                             ccut = ccut & (genJetMass < 350.)
+                        if v=='dimuon_mass':
+                            output[f'event_weight_{cname}_{rname}'] +=\
+                                    processor.column_accumulator(np.array(variable_map['weight_nominal'][rcut & ccut]))
 #                        if  ('h-peak' in rname) and ('weight_nominal' in v):
 #                            print('unbinned:', sum(variable_map[v][rcut & ccut].flatten()))
-                        output['unbinned'][f'{v}_unbin_{dataset}_c_{cname}_r_{rname}'] += processor.column_accumulator(variable_map[v][rcut & ccut].flatten())
-    
+                        output['unbinned'][f'{v}_unbin_{dataset}_c_{cname}_r_{rname}'] +=\
+                            processor.column_accumulator(np.array(variable_map[v][rcut & ccut].flatten()))
+  #      print(output['unbinned'][f'dimuon_mass_unbin_{dataset}_c_vbf_r_z-peak'].value.shape)
+  #      print(output['unbinned'][f'weight_nominal_unbin_{dataset}_c_vbf_r_z-peak'].value.shape)
         if self.timer:
             self.timer.add_checkpoint("Filled outputs")
             
@@ -1100,8 +1106,9 @@ class DimuonProcessor(processor.ProcessorABC):
 
         # Jet PUID scale factors
         if is_mc:     
-            puid_weight = self.get_puid_weight(jets, pt_name, jet_puid_opt, jet_puid, numevents)    
+            puid_weight = self.get_puid_weight(jets, pt_name, jet_puid_opt, jet_puid, numevents)   
             weights = weights.multiply(puid_weight, axis=0)
+
             if self.debug:
                 print('Jet PUID weight: ', puid_weight[df.event==self.test_event])
                 print("Avg. jet PU ID weight: ", puid_weight.mean())            
@@ -1250,7 +1257,8 @@ class DimuonProcessor(processor.ProcessorABC):
         # Btag weight
         if self.do_btagsf and is_mc:
             btag_wgt = self.get_btag_weight(jets, pt_name, weights, bjet_sel_mask, numevents)
-
+            weights = weights.multiply(btag_wgt, axis=0)
+            
         # Separate from ttH and VH phase space        
         nBtagLoose = jets[(jets.btagDeepB>self.parameters["btag_loose_wp"]) & (abs(jets.eta)<2.5)].counts
         nBtagMedium = jets[(jets.btagDeepB>self.parameters["btag_medium_wp"])  & (abs(jets.eta)<2.5)].counts
