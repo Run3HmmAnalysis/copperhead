@@ -30,7 +30,7 @@ datasets = {
         
         "ewk_lljj_mll50_mjj120": "/store/mc/RunIISummer16NanoAODv6/EWK_LLJJ_MLL-50_MJJ-120_13TeV-madgraph-herwigpp/",
         "ewk_lljj_mll105_160": "/store/mc/RunIISummer16NanoAODv6/EWK_LLJJ_MLL_105-160_SM_5f_LO_TuneEEC5_13TeV-madgraph-herwigpp/",
-#        "ewk_lljj_mll105_160_ptj0": "/store/group/local/hmm/RunIISummer16MiniAODv3_FSRNANO2016MCV8b_bcad356ea4ed7e4f08b4/",
+        "ewk_lljj_mll105_160_ptj0": "/store/group/local/hmm/FSRNANO2016MCV8d/EWK_LLJJ_MLL_105-160_ptJ-0_SM_5f_LO_TuneEEC5_13TeV-madgraph-herwigpp/",
         
         "st_tw_top": "/store/mc/RunIISummer16NanoAODv6/ST_tW_top_5f_NoFullyHadronicDecays_13TeV-powheg_TuneCUETP8M1/",
         "st_tw_antitop": "/store/mc/RunIISummer16NanoAODv6/ST_tW_antitop_5f_NoFullyHadronicDecays_13TeV-powheg_TuneCUETP8M1/",
@@ -88,10 +88,11 @@ datasets = {
 #        "data_E": "/store/data/Run2017E/SingleMuon/NANOAOD/Nano25Oct2019-v1/",
 #        "data_F": "/store/data/Run2017F/SingleMuon/NANOAOD/Nano25Oct2019-v1/",
 
-        "ggh_amcPS": "/store/mc/RunIIFall17NanoAODv6/GluGluHToMuMu_M125_TuneCP5_PSweights_13TeV_amcatnloFXFX_pythia8/",
-        "ggh_powhegPS": "/store/mc/RunIIFall17NanoAODv6/GluGluHToMuMu_M-125_TuneCP5_PSweights_13TeV_powheg_pythia8/",
-        "vbf_powhegPS": "/store/mc/RunIIFall17NanoAODv6/VBFHToMuMu_M-125_TuneCP5_PSweights_13TeV_powheg_pythia8/",
-        "vbf_amcPS": "/store/mc/RunIIFall17NanoAODv6/VBFHToMuMu_M125_TuneCP5_PSweights_13TeV_amcatnlo_pythia8/",
+        "ggh_amcPS": "/store/group/local/hmm/FSRmyNanoProdMc2017_NANOV8a//GluGluHToMuMu_M125_TuneCP5_PSweights_13TeV_amcatnloFXFX_pythia8/",
+        "ggh_powhegPS": "/store/group/local/hmm/FSRmyNanoProdMc2017_NANOV8a//GluGluHToMuMu_M-125_TuneCP5_PSweights_13TeV_powheg_pythia8/",
+        "vbf_powhegPS": "/store/group/local/hmm/FSRmyNanoProdMc2017_NANOV8a/VBFHToMuMu_M-125_TuneCP5_PSweights_13TeV_powheg_pythia8/",
+        "vbf_powheg_herwig": "/store/group/local/hmm/FSRmyNanoProdMc2017_NANOV8a/VBFHToMuMu_M-125_TuneEEC5_13TeV-powheg-herwigpp/",
+        "vbf_amcPS": "/store/group/local/hmm/FSRmyNanoProdMc2017_NANOV8a//VBFHToMuMu_M125_TuneCP5_PSweights_13TeV_amcatnlo_pythia8/",
         
 #        "dy_0j": "/store/mc/RunIIFall17NanoAODv6/DYJetsToLL_0J_TuneCP5_13TeV-amcatnloFXFX-pythia8/",
 #        "dy_1j": "/store/mc/RunIIFall17NanoAODv6/DYJetsToLL_1J_TuneCP5_13TeV-amcatnloFXFX-pythia8/",
@@ -137,10 +138,10 @@ datasets = {
         "data_E": "/store/group/local/hmm/nanoAODv6_private/FSRmyNanoProdData2017_NANOV4/SingleMuon/RunIISummer16MiniAODv3_FSRmyNanoProdData2017_NANOV4_un2017E-31Mar2018-v1/",
         "data_F": "/store/group/local/hmm/nanoAODv6_private/FSRmyNanoProdData2017_NANOV4/SingleMuon/RunIISummer16MiniAODv3_FSRmyNanoProdData2017_NANOV4_un2017F-31Mar2018-v1/",        
         
-        "ggh_amcPS": "",
-        "ggh_powhegPS": "/store/group/local/hmm/nanoAODv6_private/FSRmyNanoProdMc2017_NANOV4/GluGluHToMuMu_M-125_TuneCP5_PSweights_13TeV_powheg_pythia8/",
-        "vbf_powhegPS": "",
-        "vbf_amcPS": "",
+#        "ggh_amcPS": "",
+#        "ggh_powhegPS": "/store/group/local/hmm/nanoAODv6_private/FSRmyNanoProdMc2017_NANOV4/GluGluHToMuMu_M-125_TuneCP5_PSweights_13TeV_powheg_pythia8/",
+#        "vbf_powhegPS": "",
+#        "vbf_amcPS": "",
         
         
         "dy_0j": "/store/group/local/hmm/nanoAODv6_private/FSRmyNanoProdMc2017_NANOV4b/DYJetsToLL_0J_TuneCP5_13TeV-amcatnloFXFX-pythia8/",
@@ -158,7 +159,7 @@ datasets = {
         
         "ewk_lljj_mll50_mjj120": "/store/group/local/hmm/nanoAODv6_private/FSRmyNanoProdMc2017_NANOV4a/EWK_LLJJ_MLL-50_MJJ-120_TuneCP5_PSweights_13TeV-madgraph-pythia8/",
         "ewk_lljj_mll105_160": "/store/group/local/hmm/nanoAODv6_private/FSRmyNanoProdMc2017_NANOV4a/EWK_LLJJ_MLL_105-160_SM_5f_LO_TuneCH3_13TeV-madgraph-herwig7/",
-        "ewk_lljj_mll105_160_ptj0" : "",
+        "ewk_lljj_mll105_160_ptj0" : "/store/group/local/hmm/FSRmyNanoProdMc2017_NANOV8d/EWK_LLJJ_MLL_105-160_ptJ-0_SM_5f_LO_TuneEEC5_13TeV-madgraph-h7/",
         
         "ww_2l2nu": "/store/group/local/hmm/nanoAODv6_private/FSRmyNanoProdMc2017_NANOV4a/WWTo2L2Nu_NNPDF31_TuneCP5_PSweights_13TeV-powheg-pythia8/",
         "wz_3lnu": "/store/group/local/hmm/nanoAODv6_private/FSRmyNanoProdMc2017_NANOV4a/WZTo3LNu_TuneCP5_13TeV-amcatnloFXFX-pythia8/",
@@ -186,10 +187,16 @@ datasets = {
     },
 
     "2018": {
-        "data_A": "/store/data/Run2018A/SingleMuon/NANOAOD/Nano25Oct2019-v1/",    
-        "data_B": "/store/data/Run2018B/SingleMuon/NANOAOD/Nano25Oct2019-v1/",    
-        "data_C": "/store/data/Run2018C/SingleMuon/NANOAOD/Nano25Oct2019-v1/",
-        "data_D": "/store/data/Run2018D/SingleMuon/NANOAOD/Nano25Oct2019-v1/",
+        #"data_A": "/store/data/Run2018A/SingleMuon/NANOAOD/Nano25Oct2019-v1/",    
+        #"data_B": "/store/data/Run2018B/SingleMuon/NANOAOD/Nano25Oct2019-v1/",    
+        #"data_C": "/store/data/Run2018C/SingleMuon/NANOAOD/Nano25Oct2019-v1/",
+        #"data_D": "/store/data/Run2018D/SingleMuon/NANOAOD/Nano25Oct2019-v1/",
+
+        #Samples with GeoFit
+        "data_A": "/store/group/local/hmm/FSRmyNanoProdData2018ABC_NANOV8a/SingleMuon/RunIIData17_FSRmyNanoProdData2018ABC_NANOV8a_Run2018A-17Sep2018-v2/",
+        "data_B": "/mnt/hadoop/store/group/local/hmm/FSRmyNanoProdData2018ABC_NANOV8a/SingleMuon/RunIIData17_FSRmyNanoProdData2018ABC_NANOV8a_Run2018B-17Sep2018-v1/",
+        "data_C": "/mnt/hadoop/store/group/local/hmm/FSRmyNanoProdData2018ABC_NANOV8a/SingleMuon/RunIIData17_FSRmyNanoProdData2018ABC_NANOV8a_Run2018C-17Sep2018-v1/",
+        "data_D": "/store/group/local/hmm/FSRmyNanoProdData2018D_NANOV8a/SingleMuon/RunIIData17_FSRmyNanoProdData2018D_NANOV8a_Run2018D-22Jan2019-v2/",
         
         "ggh_amcPS": "/store/mc/RunIIAutumn18NanoAODv6/GluGluHToMuMu_M125_TuneCP5_PSweights_13TeV_amcatnloFXFX_pythia8/",
         "ggh_amcPS": "/store/group/local/hmm/FSRmyNanoProdMc2018_NANOV8a/GluGluHToMuMu_M125_TuneCP5_PSweights_13TeV_amcatnloFXFX_pythia8/",
@@ -219,6 +226,7 @@ datasets = {
         "ttz": "/store/mc/RunIIAutumn18NanoAODv6/TTZToLLNuNu_M-10_TuneCP5_13TeV-amcatnlo-pythia8/",
         "ewk_lljj_mll50_mjj120": "/store/mc/RunIIAutumn18NanoAODv6/EWK_LLJJ_MLL-50_MJJ-120_TuneCH3_PSweights_13TeV-madgraph-herwig7/",
         "ewk_lljj_mll105_160": "/store/mc/RunIIAutumn18NanoAODv6/EWK_LLJJ_MLL_105-160_SM_5f_LO_TuneCH3_13TeV-madgraph-herwig7/",
+        "ewk_lljj_mll105_160_ptj0": "/store/group/local/hmm/FSRmyNanoProdMc2018_NANOV8d/EWK_LLJJ_MLL_105-160_ptJ-0_SM_5f_LO_TuneEEC5_13TeV-madgraph-h7/",
         "ww_2l2nu": "/store/mc/RunIIAutumn18NanoAODv6/WWTo2L2Nu_NNPDF31_TuneCP5_13TeV-powheg-pythia8/",
         "wz_3lnu": "/store/mc/RunIIAutumn18NanoAODv6/WZTo3LNu_TuneCP5_13TeV-powheg-pythia8/",
         "wz_2l2q": "/store/mc/RunIIAutumn18NanoAODv6/WZTo2L2Q_13TeV_amcatnloFXFX_madspin_pythia8/",
