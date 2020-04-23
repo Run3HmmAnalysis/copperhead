@@ -57,6 +57,18 @@ parameters["puLookup_Down"] = {
     '2018': 'data/pileup/puLookup_Down_2018.coffea',
 }
 
+parameters["pu_file_data"] = {
+    '2016': 'data/pileup/PileupData_GoldenJSON_Full2016.root',
+    '2017': 'data/pileup/puData2017_withVar.root',
+    '2018': 'data/pileup/puData2018_withVar.root',
+}
+
+parameters["pu_file_mc"] = {
+    '2016': 'data/pileup/pileup_profile_Summer16.root',
+    '2017': 'data/pileup/mcPileup2017.root',
+    '2018': 'data/pileup/mcPileup2018.root',
+}
+
 parameters["muSFFileList"] = {'2016': [{'id'   :                                        ("data/muon_sf/mu2016/EfficienciesStudies_2016_legacy_rereco_rootfiles_RunBCDEF_SF_ID.root",\
                                                                                        "NUM_TightID_DEN_genTracks_eta_pt"),
                      'iso'   : ("data/muon_sf/mu2016/EfficienciesStudies_2016_legacy_rereco_rootfiles_RunBCDEF_SF_ISO.root",\
@@ -341,7 +353,8 @@ parameters.update({
     "muon_eta_cut" : for_all_years(2.4),
     "muon_iso_cut" : for_all_years(0.25), # medium iso
     "muon_id" : for_all_years("mediumId"),
-    "muon_flags": for_all_years(["isGlobal", "isTracker"]),
+#    "muon_flags": for_all_years(["isGlobal", "isTracker"]),
+    "muon_flags": for_all_years([]),
 
     "muon_leading_pt": {"2016": 26., "2017": 29., "2018": 26.},
     "muon_trigmatch_iso" : for_all_years(0.15), # tight iso
