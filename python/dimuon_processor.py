@@ -79,7 +79,7 @@ class DimuonProcessor(processor.ProcessorABC):
         self.lumi_weights = self.samp_info.lumi_weights
         
         from config.variables import Variable
-        self.variations = ['nominal', 'pu_weight', 'muSF', 'l1prefiring_weight']
+        self.variations = ['nominal', 'pu_weight', 'muSF', 'l1prefiring_weight', 'qgl_weight']
         
         for syst in self.variations:
             if 'nominal' in syst:
@@ -917,7 +917,7 @@ class DimuonProcessor(processor.ProcessorABC):
             isHerwig = ('herwig' in dataset)
             qgl_wgt[one_jet] = qgl_wgt[one_jet]*qgl_weights(jet1, isHerwig)
             qgl_wgt[two_jets] = qgl_wgt[two_jets]*qgl_weights(jet2, isHerwig)
-            weights.add_weight('qgl_weight', qgl_wgt)
+            weights.add_weight_with_variations('qgl_weight', qgl_wgt, up=qgl_wgt*qgl_wgt, down=np.ones(numevents, dtype=float))
             
         jet1_variables['jet1_pt'][one_jet] = jet1['__fast_pt'].flatten()
         jet1_variables['jet1_eta'][one_jet] = jet1['__fast_eta'].flatten()
