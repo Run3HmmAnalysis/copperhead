@@ -37,11 +37,14 @@ class SamplesInfo(object):
         self.lumi_data = lumi_data
 
         if '2016' in self.year:
-            self.lumi = 35917.15021920668
+#            self.lumi = 35917.15021920668
+            self.lumi = 35900.
         elif '2017' in self.year:
-            self.lumi = 41525.06046688122
+#            self.lumi = 41525.06046688122
+            self.lumi = 41530.
         elif '2018' in self.year:
-            self.lumi = 59725.42030414335           
+#            self.lumi = 59725.42030414335  
+            self.lumi = 59970.
         print('year: ', self.year)  
         print('Default lumi: ', self.lumi)  
         self.data_entries = 0
@@ -151,7 +154,7 @@ class SamplesInfo(object):
             lumi_data = LumiData(f"data/lumimasks/lumi{self.year}.csv")
  #           print(self.lumi_list.array)
 
-            self.lumi = lumi_data.get_lumi(self.lumi_list)
+#            self.lumi = lumi_data.get_lumi(self.lumi_list)
             print(f"Integrated luminosity: {self.lumi}/pb")
             print()
         if self.missing_samples:
