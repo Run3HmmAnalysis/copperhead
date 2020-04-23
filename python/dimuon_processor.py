@@ -143,8 +143,8 @@ class DimuonProcessor(processor.ProcessorABC):
         self.roccor_lookup = rochester_lookup.rochester_lookup(rochester_data)
         self.musf_lookup = musf_lookup(self.parameters)
         self.pu_lookup = pu_lookup(self.parameters)
-        self.pu_lookup_up = util.load(self.parameters['puLookup_Up'])
-        self.pu_lookup_down = util.load(self.parameters['puLookup_Down'])
+        self.pu_lookup_up = pu_lookup(self.parameters, 'up')
+        self.pu_lookup_down = pu_lookup(self.parameters, 'down')
         
         self.btag_lookup = BTagScaleFactor(self.parameters["btag_sf_csv"], BTagScaleFactor.RESHAPE,\
                                        'iterativefit,iterativefit,iterativefit')
@@ -267,18 +267,9 @@ class DimuonProcessor(processor.ProcessorABC):
             genweight = df.genWeight.flatten()
             weights.add_weight('genweight', genweight)    
 
-            
-            if '2016' in self.year:
-                pu_weight_up = self.pu_lookup_up(dataset, df.Pileup.nTrueInt)
-                pu_weight_down = self.pu_lookup_down(dataset, df.Pileup.nTrueInt)
-            elif '2017' in self.year:
-                pu_weight_up = self.pu_lookup_up(df.Pileup.nTrueInt)
-                pu_weight_down = self.pu_lookup_down(df.Pileup.nTrueInt)
-            else:
-                pu_weight_up = self.pu_lookup_up(df.Pileup.nTrueInt)
-                pu_weight_down = self.pu_lookup_down(df.Pileup.nTrueInt)
-
             pu_weight = pu_evaluator(self.pu_lookup, numevents, df.Pileup.nTrueInt)
+            pu_weight_up = pu_evaluator(self.pu_lookup_up, numevents, df.Pileup.nTrueInt)
+            pu_weight_down = pu_evaluator(self.pu_lookup_down, numevents, df.Pileup.nTrueInt)
             weights.add_weight_with_variations('pu_weight', pu_weight, pu_weight_up, pu_weight_down)
 
             

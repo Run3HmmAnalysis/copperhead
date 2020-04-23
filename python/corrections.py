@@ -127,22 +127,28 @@ def musf_evaluator(lookups, year, numevents, muons):
     denom = ( (1 - (1. - muTrig_mc).prod()) )
     denom_up = ( (1 - (1. - muTrig_mc - muTrigerr_mc).prod()) != 0 )
     denom_dn = ( (1 - (1. - muTrig_mc + muTrigerr_mc).prod()) != 0 )            
-#    muTrig[denom!=0] = ( (1 - (1. - muTrig_data).prod())[denom!=0] / denom[denom!=0] )
-#    muTrig_up[denom_up!=0] = ( (1 - (1. - muTrig_data - muTrigerr_data).prod())[denom_up!=0] / denom_up[denom_up!=0] )
-#    muTrig_down[denom_dn!=0] = ( (1 - (1. - muTrig_data + muTrigerr_data).prod())[denom_dn!=0] / denom_dn[denom_dn!=0] )
 
-    muTrig[denom!=0] = ( (1 - (1. - muTrig_data).prod()) / denom )[denom!=0]
-    muTrig_up[denom_up!=0] = ( (1 - (1. - muTrig_data - muTrigerr_data).prod()) / denom_up )[denom_up!=0]
-    muTrig_down[denom_dn!=0] = ( (1 - (1. - muTrig_data + muTrigerr_data).prod()) / denom_dn )[denom_dn!=0]
+    muTrig[denom!=0] = ( (1 - (1. - muTrig_data).prod())[denom!=0] / denom[denom!=0] )
+    muTrig_up[denom_up!=0] = ( (1 - (1. - muTrig_data - muTrigerr_data).prod())[denom_up!=0] / denom_up[denom_up!=0] )
+    muTrig_down[denom_dn!=0] = ( (1 - (1. - muTrig_data + muTrigerr_data).prod())[denom_dn!=0] / denom_dn[denom_dn!=0] )
+
     muSF = (muID*muIso).prod()*muTrig
     muSF_up = ((muID + muIDerr) * (muIso + muIsoerr) * muTrig_up).prod()
     muSF_down = ((muID - muIDerr) * (muIso - muIsoerr) * muTrig_down).prod()
     return muSF, muSF_up, muSF_down
 
 
-def pu_lookup(parameters):
+def pu_lookup(parameters, mode='nom'):
     pu_hist_mc = uproot.open(parameters['pu_file_mc'])['pu_mc']
-    pu_hist_data = uproot.open(parameters['pu_file_data'])['pileup']
+    if mode=='nom':
+        pu_hist_data = uproot.open(parameters['pu_file_data'])['pileup']
+    elif mode=='up':
+        pu_hist_data = uproot.open(parameters['pu_file_data'])['pileup_plus']
+    elif mode=='down':
+        pu_hist_data = uproot.open(parameters['pu_file_data'])['pileup_minus']
+    else:
+        print("PU lookup: incorrect mode ", mode)
+        return
     edges = [[i for i in range(102)]]
     lookup = dense_lookup.dense_lookup(pu_reweight(pu_hist_data, pu_hist_mc), edges)
     lookup._axes = lookup._axes[0]

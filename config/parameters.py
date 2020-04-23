@@ -39,24 +39,6 @@ parameters["btag_sf_csv"] = {
     "2018": "data/btag/DeepCSV_102XSF_V1.csv",
 }
 
-parameters["puLookup"] = {
-    '2016': 'data/pileup/puLookup_2016.coffea',
-    '2017': 'data/pileup/puLookup_2017.coffea',
-    '2018': 'data/pileup/puLookup_2018.coffea',
-}
-
-parameters["puLookup_Up"] = {
-    '2016': 'data/pileup/puLookup_Up_2016.coffea',
-    '2017': 'data/pileup/puLookup_Up_2017.coffea',
-    '2018': 'data/pileup/puLookup_Up_2018.coffea',
-}
-
-parameters["puLookup_Down"] = {
-    '2016': 'data/pileup/puLookup_Down_2016.coffea',
-    '2017': 'data/pileup/puLookup_Down_2017.coffea',
-    '2018': 'data/pileup/puLookup_Down_2018.coffea',
-}
-
 parameters["pu_file_data"] = {
     '2016': 'data/pileup/PileupData_GoldenJSON_Full2016.root',
     '2017': 'data/pileup/puData2017_withVar.root',
