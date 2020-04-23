@@ -5,14 +5,21 @@ from config.parameters import parameters
 import os
 
 year = '2016'
-suff = 'mar31'
+suff = 'apr20'
+weight_option = 'nominal'
+#weight_option = 'pu_weight_off'
+#weight_option = 'l1prefiring_weight_off'
+#weight_option = 'muSF_off'
+#weight_option = 'puid_weight_off'
+weight_option = 'qgl_weight_off'
+#weight_option = 'btag_weight_off'
 do_jec = True
 do_jer = False
 do_roch = True
 evaluate_dnn = False
 do_jecunc = False
-if not do_jec:
-    suff += '_nojec'
+#if not do_jec:
+#    suff += '_nojec'
 if not do_roch:
     suff += '_noroch'
 if do_jecunc:
@@ -23,6 +30,7 @@ plot_all = False
 vars_to_plot = []
 
 vars_to_plot += ['dimuon_mass']
+#vars_to_plot += ['btag_wgt']
 #vars_to_plot += ['jet1_id', 'jet1_puid', 'jj_mass', 'jj_dEta']
 #vars_to_plot += ['dimuon_pt']
 #vars_to_plot += ['dimuon_eta', 'dimuon_phi', 'dimuon_cosThetaCS']
@@ -61,14 +69,16 @@ if plot_all:
 
 all_plots_pars = {
     'processor': DimuonProcessor(SamplesInfo(year)),
-    'path': f'/depot/cms/hmm/coffea/all_{year}_{suff}/binned/',
+#    'path': f'/depot/cms/hmm/coffea/all_{year}_{suff}/binned/',
+    'path': f'/home/dkondra/all_{year}_{suff}/binned/',
     'chunked': True,
     'prefix': '',
+    'weight_option': weight_option,
     'samples': [
-        'data_A', 'data_B',
-        'data_C','data_D','data_E','data_F','data_G','data_H',
+ #       'data_A', 'data_B',
+ #       'data_C','data_D','data_E','data_F','data_G','data_H',
          'dy_0j', 'dy_1j', 'dy_2j',
-        'dy_m105_160_amc',
+#        'dy_m105_160_amc',
         'dy_m105_160_vbf_amc',
          'ewk_lljj_mll50_mjj120', 
          'ewk_lljj_mll105_160_ptj0',
@@ -80,8 +90,8 @@ all_plots_pars = {
          'ww_2l2nu','w00z_2l2q','wz_3lnu','wz_1l1nu2q','zz',
         'www','wwz','wzz','zzz',
         ],
-#    'ewk_name': 'ewk_lljj_mll105_160_ptj0',
-    'ewk_name': 'ewk_lljj_mll105_160',
+    'ewk_name': 'ewk_lljj_mll105_160_ptj0',
+#    'ewk_name': 'ewk_lljj_mll105_160',
     'vars': vars_to_plot,
     'year': year,
 #    'rebin': 5,
@@ -98,4 +108,4 @@ try:
 except:
     print("Output path already exists")
 all_plots = Plotter(**all_plots_pars)
-all_plots.make_datamc_comparison(do_inclusive=False, do_exclusive=True, normalize=False, logy=True, get_rates=False, save_to=f'plots/test_{year}_{suff}/', mc_factor=1)
+all_plots.make_datamc_comparison(do_inclusive=True, do_exclusive=True, normalize=False, logy=True, get_rates=False, save_to=f'plots/test_{year}_{suff}/', mc_factor=1)

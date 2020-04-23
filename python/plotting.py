@@ -4,7 +4,6 @@ import numpy as np
 from config.variables import variables
 from config.parameters import parameters
 var_names = [v.name for v in variables]
-from python.accumulator import *
 from collections import Mapping
 
 def get_variable(vname):
@@ -32,6 +31,7 @@ class Plotter(object):
         self.ewk_name = 'ewk_lljj_mll105_160_ptj0'
         self.weights_by_ds = {}
         self.syst_sources = []
+        self.weight_option = 'nominal'
         self.suffix = ""
         self.norms = {}
         self.__dict__.update(kwargs)
@@ -159,7 +159,7 @@ class Plotter(object):
     def plot_data_mc(self, inclusive, channel, region, fig, var, gs, year='2016', normalize=True, logy=True, get_rates=False, mc_factor=1, save_to=''):
         variable = get_variable(var)
         data_sources = {
-            'data': ['data', 'data_B','data_C','data_D','data_E','data_F','data_G','data_H']  
+            'data': ['data', 'data_A', 'data_B','data_C','data_D','data_E','data_F','data_G','data_H']  
         }
         bkg_sources_by_region = {
         "z-peak": {
@@ -201,15 +201,15 @@ class Plotter(object):
  
         if inclusive:
             bkg_sources = all_bkg_sources
-#            accumulators_copy['nominal'] = self.accumulators[var].sum('region')[:,channel,'nominal'].copy()
-            accumulators_copy['nominal'] = self.accumulators[var][:,:,channel,'nominal'].copy()
+#            accumulators_copy[self.weight_option] = self.accumulators[var].sum('region')[:,channel,self.weight_option].copy()
+            accumulators_copy[self.weight_option] = self.accumulators[var][:,:,channel,self.weight_option].copy()
             for syst in self.syst_sources:
                 accumulators_copy[f'{syst}_up'] = self.accumulators[var].sum('region')[:,channel,f'{syst}_up'].copy()
                 accumulators_copy[f'{syst}_down'] = self.accumulators[var].sum('region')[:,channel,f'{syst}_down'].copy()
         else:
             bkg_sources = bkg_sources_by_region[region]
-#            print(region, channel,self.accumulators[var][:,region,channel,'nominal'].values())
-            accumulators_copy['nominal'] = self.accumulators[var][:,region, channel, 'nominal'].copy()
+#            print(region, channel,self.accumulators[var][:,region,channel,self.weight_option].values())
+            accumulators_copy[self.weight_option] = self.accumulators[var][:,region, channel, self.weight_option].copy()
             for syst in self.syst_sources:
                 accumulators_copy[f'{syst}_up'] = self.accumulators[var][:,region, channel, f'{syst}_up'].copy()
                 accumulators_copy[f'{syst}_down'] = self.accumulators[var][:,region, channel, f'{syst}_down'].copy()
@@ -226,9 +226,9 @@ class Plotter(object):
 
         if get_rates:
             for b in all_bkg+data_sources['data']+[self.ggh_name, self.vbf_name]:
-                accum = accumulators_copy['nominal'][b].sum('region').sum('channel').sum('dataset').values()
+                accum = accumulators_copy[self.weight_option][b].sum('region').sum('channel').sum('dataset').values()
                 if not accum: continue
-                integrals[b] = accum[('nominal',)].sum()
+                integrals[b] = accum[(self.weight_option,)].sum()
                 rescale[b] = self.norms[region][b]/integrals[b]
 
         for syst in accumulators_copy.keys():
@@ -238,25 +238,25 @@ class Plotter(object):
 
         if inclusive:
             if var=="dimuon_mass":
-                data = accumulators_copy['nominal'][:, ['h-sidebands', 'z-peak'], :,'nominal'].sum('region').sum('channel').sum('syst').group('dataset', hist.Cat("dataset", "Dataset"), data_sources)
+                data = accumulators_copy[self.weight_option][:, ['h-sidebands', 'z-peak'], :,self.weight_option].sum('region').sum('channel').sum('syst').group('dataset', hist.Cat("dataset", "Dataset"), data_sources)
             else:
-                data = accumulators_copy['nominal'].sum('region').sum('channel').sum('syst').group('dataset', hist.Cat("dataset", "Dataset"), data_sources)
-            accumulators_copy['nominal'] = accumulators_copy['nominal'].sum('region')
-            bkg = accumulators_copy['nominal'].sum('channel').sum('syst').group('dataset', hist.Cat("dataset", "Dataset"), bkg_sources)
-            ggh = accumulators_copy['nominal'][self.ggh_name].sum('channel').sum('syst')
-            vbf = accumulators_copy['nominal'][self.vbf_name].sum('channel').sum('syst')
+                data = accumulators_copy[self.weight_option].sum('region').sum('channel').sum('syst').group('dataset', hist.Cat("dataset", "Dataset"), data_sources)
+            accumulators_copy[self.weight_option] = accumulators_copy[self.weight_option].sum('region')
+            bkg = accumulators_copy[self.weight_option].sum('channel').sum('syst').group('dataset', hist.Cat("dataset", "Dataset"), bkg_sources)
+            ggh = accumulators_copy[self.weight_option][self.ggh_name].sum('channel').sum('syst')
+            vbf = accumulators_copy[self.weight_option][self.vbf_name].sum('channel').sum('syst')
         else:
-            data = accumulators_copy['nominal'].sum('region').sum('channel').sum('syst').group('dataset', hist.Cat("dataset", "Dataset"), data_sources)
-            bkg = accumulators_copy['nominal'].sum('region').sum('channel').sum('syst').group('dataset', hist.Cat("dataset", "Dataset"), bkg_sources)
-            ggh = accumulators_copy['nominal'][self.ggh_name].sum('region').sum('channel').sum('syst')
-            vbf = accumulators_copy['nominal'][self.vbf_name].sum('region').sum('channel').sum('syst')
+            data = accumulators_copy[self.weight_option].sum('region').sum('channel').sum('syst').group('dataset', hist.Cat("dataset", "Dataset"), data_sources)
+            bkg = accumulators_copy[self.weight_option].sum('region').sum('channel').sum('syst').group('dataset', hist.Cat("dataset", "Dataset"), bkg_sources)
+            ggh = accumulators_copy[self.weight_option][self.ggh_name].sum('region').sum('channel').sum('syst')
+            vbf = accumulators_copy[self.weight_option][self.vbf_name].sum('region').sum('channel').sum('syst')
 
             if get_rates:
                 self.datasets[region] = all_bkg+data_sources['data']+[self.ggh_name, self.vbf_name]
                 for b in self.datasets[region]:
-                    if b in  [i[0] for i in list(accumulators_copy['nominal'].values().keys())]:
-                        histogram = accumulators_copy['nominal'][b].sum('region').sum('channel').sum('dataset').values()[('nominal',)]*mc_factor
-                        sumw2 = list(accumulators_copy['nominal'][b].sum('region').sum('channel').sum('dataset')._sumw2.values())[0]*mc_factor
+                    if b in  [i[0] for i in list(accumulators_copy[self.weight_option].values().keys())]:
+                        histogram = accumulators_copy[self.weight_option][b].sum('region').sum('channel').sum('dataset').values()[(self.weight_option,)]*mc_factor
+                        sumw2 = list(accumulators_copy[self.weight_option][b].sum('region').sum('channel').sum('dataset')._sumw2.values())[0]*mc_factor
                         self.hist_dict[region][b] = {'hist':histogram, 'sumw2':sumw2}
                         self.hist_syst[region][b] = {}
                         self.rates[region][b] = histogram.sum()
@@ -407,9 +407,9 @@ class Plotter(object):
             valid[s] = plots[s].sum(var).sum('dataset').values()
             if valid[s]:
                 integral = plots[s].sum(var).sum('dataset').values()[()]
-#                print(f"{s}: {integral}")
-                if integral:
-                    plots[s].scale(1/integral)
+                print(f"{s}: {integral}")
+#                if integral:
+#                    plots[s].scale(1/integral)
             else:
                 plots[s].scale(0)
 
@@ -428,7 +428,8 @@ class Plotter(object):
                 except:
                     pass
 #        plt1.set_yscale('log')
-#        plt1.set_ylim(0.0001, 1)
+        plt1.set_ylim(0., 100)
+#        plt1.set_xlim(300., 600)
         lbl = hep.cms.cmslabel(ax=plt1, data=False, paper=False, year=year)
         plt1.set_xlabel(var)
         if var=='dimuon_mass':
