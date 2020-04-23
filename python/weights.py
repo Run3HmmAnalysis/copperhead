@@ -22,7 +22,7 @@ class Weights(object):
         
     def get_weight(self, name, mask=np.array([])):
         if len(mask)==0:
-            mask = np.ones(self.df.shape[0], dtype=int)        
+            mask = np.ones(self.df.shape[0], dtype=bool)        
         if (name in self.df.columns):
             return self.df[name].to_numpy()[mask]
         else:

@@ -24,14 +24,14 @@ year = '2016'
 suff="apr20"
 server_name = 'purdue'
 #server_name = 'legnaro'
-try_cluster = False
-iterative = True
+try_cluster = True
+iterative = False
 do_jec=True
 do_jer=False
 evaluate_dnn = False
 do_jecunc=False
 do_pdf=False
-debug=True
+debug=False
 #if not do_jec:
 #    suff += '_nojec'
 
@@ -135,13 +135,9 @@ if __name__ == "__main__":
     
     if try_cluster:
         from dask_jobqueue import SLURMCluster
-#        cluster = SLURMCluster( project='cms-express', cores=1, memory='16GB', walltime='23:59:00',\
-#                                job_extra=['--qos=normal', '-o dask_logs/dask_job.%j.%N.out','-e dask_logs/dask_job.%j.%N.error'])
-#        cluster.scale(300)
         distributed = pytest.importorskip("distributed", minversion="1.28.1")
         distributed.config['distributed']['worker']['memory']['terminate'] = False
-#        client = distributed.Client(cluster)
-        client = distributed.Client('128.211.149.133:39742')
+        client = distributed.Client('128.211.149.133:38927')
     
     else:
         n_workers = 46
@@ -163,7 +159,7 @@ if __name__ == "__main__":
                                                   ),\
                                       dask_executor,\
                                       executor_args={'nano': True, 'client': client})
-
+#            print(output['unbinned'][f'wgt_nominal_unbin_dy_m105_160_vbf_amc_c_vbf_r_h-peak'].value.shape)
 
             prefix = ""
             out_dir=f"/home/dkondra/{samp_info.out_path}/"

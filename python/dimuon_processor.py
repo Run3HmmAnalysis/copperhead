@@ -79,14 +79,15 @@ class DimuonProcessor(processor.ProcessorABC):
         self.lumi_weights = self.samp_info.lumi_weights
         
         from config.variables import Variable
-        self.variations = ['nominal', 'pu_weight', 'muSF', 'l1prefiring_weight', 'qgl_weight']
+        self.variations = ['nominal', 'pu_wgt', 'muSF', 'l1prefiring_wgt', 'qgl_wgt', 'btag_wgt', 'puid_wgt', 'lumi', 'genwgt']
         
         for syst in self.variations:
             if 'nominal' in syst:
-                variables.append(Variable("weight_nominal", "weight_nominal", 1, 0, 1))
+                variables.append(Variable("wgt_nominal", "wgt_nominal", 1, 0, 1))
             else:
-                variables.append(Variable(f"weight_{syst}_up", f"weight_{syst}_up", 1, 0, 1))
-                variables.append(Variable(f"weight_{syst}_down", f"weight_{syst}_down", 1, 0, 1))    
+                variables.append(Variable(f"wgt_{syst}_up", f"wgt_{syst}_up", 1, 0, 1))
+                variables.append(Variable(f"wgt_{syst}_down", f"wgt_{syst}_down", 1, 0, 1))    
+                variables.append(Variable(f"wgt_{syst}_off", f"wgt_{syst}_off", 1, 0, 1))
 
         if self.evaluate_dnn:
             variables.append(Variable(f"dnn_score_nominal", f"dnn_score_nominal", 12, 0, self.parameters["dnn_max"]))
@@ -103,7 +104,7 @@ class DimuonProcessor(processor.ProcessorABC):
         if self.do_pdf:
             variables.append(Variable("pdf_rms", "pdf_rms", 1, 0, 1))
         
-        self.vars_unbin = [v.name for v in variables]
+        self.vars_unbin = set([v.name for v in variables])
         
         dataset_axis = hist.Cat("dataset", "")
         region_axis = hist.Cat("region", "") # Z-peak, Higgs SB, Higgs peak
@@ -265,12 +266,12 @@ class DimuonProcessor(processor.ProcessorABC):
             #---------------------------------------------------------------# 
             
             genweight = df.genWeight.flatten()
-            weights.add_weight('genweight', genweight)    
+            weights.add_weight('genwgt', genweight)    
 
             pu_weight = pu_evaluator(self.pu_lookup, numevents, df.Pileup.nTrueInt)
             pu_weight_up = pu_evaluator(self.pu_lookup_up, numevents, df.Pileup.nTrueInt)
             pu_weight_down = pu_evaluator(self.pu_lookup_down, numevents, df.Pileup.nTrueInt)
-            weights.add_weight_with_variations('pu_weight', pu_weight, pu_weight_up, pu_weight_down)
+            weights.add_weight_with_variations('pu_wgt', pu_weight, pu_weight_up, pu_weight_down)
 
             
             if dataset in self.lumi_weights:
@@ -279,7 +280,7 @@ class DimuonProcessor(processor.ProcessorABC):
             
             if self.parameters["do_l1prefiring_wgts"]:
                 prefiring_wgt = df.L1PreFiringWeight.Nom.flatten()
-                weights.add_weight_with_variations('l1prefiring_weight',\
+                weights.add_weight_with_variations('l1prefiring_wgt',\
                                                    prefiring_wgt,\
                                                    df.L1PreFiringWeight.Up.flatten(),\
                                                    df.L1PreFiringWeight.Dn.flatten())
@@ -627,7 +628,7 @@ class DimuonProcessor(processor.ProcessorABC):
 #            if 'dy' in dataset:
 #                zpt_weight = np.ones(numevents, dtype=float)
 #                zpt_weight[two_muons] = self.evaluator[self.zpt_path](dimuon_variables['dimuon_pt'][two_muons]).flatten()
-#                weights.add_weight('zpt_weight', zpt_weight)
+#                weights.add_weight('zpt_wgt', zpt_weight)
             
             muSF, muSF_up, muSF_down = musf_evaluator(self.musf_lookup, self.year, numevents, muons)
             weights.add_weight_with_variations('muSF', muSF, muSF_up, muSF_down)
@@ -730,6 +731,7 @@ class DimuonProcessor(processor.ProcessorABC):
         regions = get_regions(variable_map['dimuon_mass'])            
 
         for vname, expression in variable_map.items():
+            continue
             if vname not in output['binned']: continue
             for cname in self.channels:
                 ccut = (category==cname)
@@ -760,13 +762,14 @@ class DimuonProcessor(processor.ProcessorABC):
                                              vname: value.flatten(), 'weight': weight})
 
         for syst in weights.df.columns:
-            variable_map[f'weight_{syst}'] = weights.get_weight(syst)                        
-                        
+            variable_map[f'wgt_{syst}'] = weights.get_weight(syst)
+            self.vars_unbin.add(f'wgt_{syst}')
+        
         #----------------- Unbinned outputs -----------------#
         if self.save_unbin:
             for v in self.vars_unbin:
                 if v not in variable_map: continue
-                if 'dnn_score' in v: continue 
+                if 'dnn_score' in v: continue
                 for cname in self.channels:
                     ccut = (category==cname)
                     for rname, rcut in regions.items():
@@ -774,11 +777,9 @@ class DimuonProcessor(processor.ProcessorABC):
                             ccut = ccut & (genJetMass > 350.)
                         if ('dy_m105_160_amc' in dataset) and ('vbf' in cname):
                             ccut = ccut & (genJetMass < 350.)
-#                        if v=='dimuon_mass':
-#                            output[f'event_weight_{cname}_{rname}'] +=\
-#                                    processor.column_accumulator(np.array(variable_map['weight_nominal'][rcut & ccut]))
-                        output['unbinned'][f'{v}_unbin_{dataset}_c_{cname}_r_{rname}'] +=\
-                            processor.column_accumulator(np.array(variable_map[v][rcut & ccut].flatten()))
+                        value = np.array(variable_map[v][rcut & ccut]).ravel()
+#                        if 'wgt' in v: print(value)
+                        output['unbinned'][f'{v}_unbin_{dataset}_c_{cname}_r_{rname}'] += processor.column_accumulator(value)
         if self.timer:
             self.timer.add_checkpoint("Filled outputs")
             
@@ -870,7 +871,7 @@ class DimuonProcessor(processor.ProcessorABC):
         # Jet PUID scale factors
         if is_mc:     
             puid_weight = puid_weights(self.evaluator, self.year, jets, pt_name, jet_puid_opt, jet_puid, numevents)   
-            weights.add_weight('puid_weight', puid_weight)
+            weights.add_weight('puid_wgt', puid_weight)
 
         jets = jets[jet_puid]              
 
@@ -908,7 +909,7 @@ class DimuonProcessor(processor.ProcessorABC):
             isHerwig = ('herwig' in dataset)
             qgl_wgt[one_jet] = qgl_wgt[one_jet]*qgl_weights(jet1, isHerwig)
             qgl_wgt[two_jets] = qgl_wgt[two_jets]*qgl_weights(jet2, isHerwig)
-            weights.add_weight_with_variations('qgl_weight', qgl_wgt, up=qgl_wgt*qgl_wgt, down=np.ones(numevents, dtype=float))
+            weights.add_weight_with_variations('qgl_wgt', qgl_wgt, up=qgl_wgt*qgl_wgt, down=np.ones(numevents, dtype=float))
             
         jet1_variables['jet1_pt'][one_jet] = jet1['__fast_pt'].flatten()
         jet1_variables['jet1_eta'][one_jet] = jet1['__fast_eta'].flatten()
@@ -1027,7 +1028,7 @@ class DimuonProcessor(processor.ProcessorABC):
         btag_wgt = np.ones(numevents)
         if is_mc:
             btag_wgt = btag_weights(self.btag_lookup, jets, pt_name, weights, bjet_sel_mask, numevents)
-            weights.add_weight('btag_weight', btag_wgt)
+            weights.add_weight('btag_wgt', btag_wgt)
 
         # Separate from ttH and VH phase space        
         nBtagLoose = jets[(jets.btagDeepB>self.parameters["btag_loose_wp"]) & (abs(jets.eta)<2.5)].counts
