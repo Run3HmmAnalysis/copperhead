@@ -264,10 +264,10 @@ def fsr_evaluator(muons_offsets, fsr_offsets, muons_pt, muons_pt_raw, muons_eta,
 
     return  muons_pt, muons_eta, muons_phi, muons_mass, muons_iso, has_fsr
     
-def btag_weights(lookup, jets, pt_name, weights, bjet_sel_mask, numevents):
+def btag_weights(lookup, jets, weights, bjet_sel_mask, numevents):
     btag_wgt = np.ones(numevents, dtype=float)
     jets_ = jets[abs(jets.eta)<2.4]
-    jet_pt_ = awkward.JaggedArray.fromcounts(jets_[jets_.counts>0].counts, np.minimum(jets_[pt_name].flatten(), 1000.))
+    jet_pt_ = awkward.JaggedArray.fromcounts(jets_[jets_.counts>0].counts, np.minimum(jets_.pt.flatten(), 1000.))
     btag_wgt[(jets_.counts>0)] = lookup('central', jets_[jets_.counts>0].hadronFlavour,\
                                               abs(jets_[jets_.counts>0].eta), jet_pt_,\
                                               jets_[jets_.counts>0].btagDeepB, True).prod()
@@ -335,19 +335,13 @@ def qgl_weights(jet, isHerwig):
     qgl = jet.qgl
 
     if isHerwig:
-        weights[light] = 1.16636*qgl[light]*qgl[light]*qgl[light]-2.45101*qgl[light]*qgl[light] + 1.86096*qgl[light] + 0.596896
-        weights[gluon] = -63.2397*qgl[gluon]*qgl[gluon]*qgl[gluon]*qgl[gluon]*qgl[gluon]*qgl[gluon]*qgl[gluon] +\
-                        111.455*qgl[gluon]*qgl[gluon]*qgl[gluon]*qgl[gluon]*qgl[gluon]*qgl[gluon] -\
-                        16.7487*qgl[gluon]*qgl[gluon]*qgl[gluon]*qgl[gluon]*qgl[gluon]-\
-                        72.8429*qgl[gluon]*qgl[gluon]*qgl[gluon]*qgl[gluon] + 56.7714*qgl[gluon]*qgl[gluon]*qgl[gluon] -\
-                        19.2979*qgl[gluon]*qgl[gluon] + 3.41825*qgl[gluon] + 0.919838
+        weights[light] = 1.16636*qgl[light]**3 - 2.45101*qgl[light]**2 + 1.86096*qgl[light] + 0.596896
+        weights[gluon] = -63.2397*qgl[gluon]**7 + 111.455*qgl[gluon]**6 - 16.7487*qgl[gluon]**5 - 72.8429*qgl[gluon]**4 +\
+                        56.7714*qgl[gluon]**3 - 19.2979*qgl[gluon]**2 + 3.41825*qgl[gluon] + 0.919838
     else:
-        weights[light] = -0.666978*qgl[light]*qgl[light]*qgl[light]+0.929524*qgl[light]*qgl[light]-0.255505*qgl[light]+0.981581
-        weights[gluon] = -55.7067*qgl[gluon]*qgl[gluon]*qgl[gluon]*qgl[gluon]*qgl[gluon]*qgl[gluon]*qgl[gluon] +\
-                        113.218*qgl[gluon]*qgl[gluon]*qgl[gluon]*qgl[gluon]*qgl[gluon]*qgl[gluon] -\
-                        21.1421*qgl[gluon]*qgl[gluon]*qgl[gluon]*qgl[gluon]*qgl[gluon]-\
-                        99.927*qgl[gluon]*qgl[gluon]*qgl[gluon]*qgl[gluon] + 92.8668*qgl[gluon]*qgl[gluon]*qgl[gluon] -\
-                        34.3663*qgl[gluon]*qgl[gluon] + 6.27*qgl[gluon] + 0.612992
+        weights[light] = -0.666978*qgl[light]**3 + 0.929524*qgl[light]**2 - 0.255505*qgl[light]+0.981581
+        weights[gluon] = -55.7067*qgl[gluon]**7 + 113.218*qgl[gluon]**6 - 21.1421*qgl[gluon]**5-\
+                        99.927*qgl[gluon]**4 + 92.8668*qgl[gluon]**3 - 34.3663*qgl[gluon]**2 + 6.27*qgl[gluon] + 0.612992
     
     return weights
 

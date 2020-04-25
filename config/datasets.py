@@ -275,3 +275,43 @@ lumi_data = {
     "2017": {'lumi': 41900., 'events': 769080716}, # to be verified
     "2018": {'lumi': 59900., 'events': 985425574} # to be verified
 }
+
+
+grouping = {
+    'data_A': 'Data',
+    'data_B': 'Data',
+    'data_C': 'Data',
+    'data_D': 'Data',
+    'data_E': 'Data',
+    'data_F': 'Data',
+    'data_G': 'Data',
+    'data_H': 'Data',
+    'dy_0j': 'DY',
+    'dy_1j': 'DY',
+    'dy_2j': 'DY',
+    'dy_m105_160_amc': 'DY',
+    'dy_m105_160_vbf_amc': 'DY_VBF',
+    'ewk_lljj_mll50_mjj120': 'EWK',
+    'ewk_lljj_mll105_160': 'EWK',
+    'ewk_lljj_mll105_160_ptj0': 'EWK',
+    'ttjets_dl': 'TT+ST',
+    'ttjets_sl': 'TT+ST',
+    'ttw': 'TT+ST',
+    'ttz': 'TT+ST',
+    'st_tw_top': 'TT+ST',
+    'st_tw_antitop': 'TT+ST',
+    'ww_2l2nu': 'VV',
+    'wz_2l2q': 'VV',
+    'wz_1l1nu2q': 'VV',
+    'wz_3lnu': 'VV',
+    'www': 'VVV',
+    'wwz': 'VVV',
+    'wzz': 'VVV',
+    'zzz': 'VVV',
+    'ggh_amcPS': 'ggH',
+    'ggh_powhegPS': 'ggH',
+    'vbf_amcPS': 'VBF',
+    'vbf_powhegPS': 'VBF',
+    'vbf_powheg_herwig': 'VBF',
+}
+

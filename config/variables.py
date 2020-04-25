@@ -81,11 +81,7 @@ variables.append(Variable("dnn_score", r"DNN score", 50, 0, 1))
 variables.append(Variable("btag_wgt", r"b-tag weight", 50, 0, 2))
 
 variables.append(Variable("event", "event", 1, 0, 1))
-#variables.append(Variable("event_weight", "event_weight", 1, 0, 1))
+variables.append(Variable("run", "run", 1, 0, 1))
 
 
-#vars_unbin = ['event', 'event_weight',\
-#              'dimuon_mass', 'dimuon_pt', 'dimuon_eta', 'dimuon_phi', 'dimuon_dEta', 'dimuon_dPhi', 'dimuon_dR',\
-#              'mu1_pt', 'mu2_pt']
-
-#vars_unbin = [v.name for v in variables]
+all_columns = ['mu1_pt', 'mmj_min_dPhi', 'mu2_iso', 'mu1_pt_over_mass', 'dimuon_mass_res_rel', 'dimuon_phi', 'jet1_qgl', 'mu2_pt_over_mass', 'wgt_qgl_wgt_off', 'dimuon_mass', 'jet2_qgl', 'rpt', 'wgt_genwgt_down', 'jet1_phi', 'jj_mass', 'jet1_eta', 'wgt_muSF_down', 'jj_dEta', 'wgt_btag_wgt_down', 'wgt_l1prefiring_wgt_off', 'wgt_nnlops_off', 'jet2_eta', 'wgt_pu_wgt_down', 'mu1_phi', 'mu2_pt', 'jet1_puid', 'wgt_l1prefiring_wgt_up', 'jj_phi', 'mmj2_dPhi', 'wgt_lumi_down', 'wgt_puid_wgt_off', 'mmj_min_dEta', 'dimuon_dEta', 'wgt_nnlops_up', 'wgt_pu_wgt_off', 'jj_pt', 'jet1_id', 'wgt_nominal', 'mu2_eta', 'wgt_muSF_up', 'wgt_muSF_off', 'wgt_l1prefiring_wgt_down', 'mmj1_dPhi', 'dimuon_cosThetaCS', 'wgt_genwgt_up', 'btag_wgt', 'nsoftjets2', 'dimuon_dPhi', 'jet2_pt', 'dimuon_eta', 'mu1_eta', 'jet2_puid', 'event', 'jet2_id', 'wgt_btag_wgt_up', 'njets', 'htsoft2', 'dimuon_dR', 'mmjj_pt', 'npv', 'wgt_qgl_wgt_up', 'mu1_iso', 'wgt_btag_wgt_off', 'wgt_pu_wgt_up', 'wgt_nnlops_down', 'jet2_phi', 'wgt_genwgt_off', 'mmj2_dEta', 'wgt_lumi_up', 'mmjj_eta', 'wgt_puid_wgt_up', 'jet1_pt', 'nsoftjets5', 'mu2_phi', 'met', 'dnn_score', 'mmj1_dEta', 'dimuon_mass_res', 'mmjj_mass', 'mmjj_phi', 'htsoft5', 'dimuon_pt', 'jj_eta', 'jj_dPhi', 'wgt_lumi_off', 'wgt_puid_wgt_down', 'zeppenfeld', 'wgt_qgl_wgt_down']
