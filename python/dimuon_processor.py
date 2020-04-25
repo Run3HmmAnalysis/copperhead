@@ -13,6 +13,7 @@ import numpy as np
 import sys
 #np.set_printoptions(threshold=sys.maxsize)
 import pandas as pd
+import copy
 
 from python.utils import p4_sum, p4_sum_alt, delta_r
 from python.timer import Timer
@@ -79,15 +80,19 @@ class DimuonProcessor(processor.ProcessorABC):
         self.lumi_weights = self.samp_info.lumi_weights
         
         from config.variables import Variable
-        self.variations = ['nominal', 'pu_wgt', 'muSF', 'l1prefiring_wgt', 'qgl_wgt', 'btag_wgt', 'puid_wgt', 'lumi', 'genwgt']
+        weights_ = ['nominal', 'lumi', 'genwgt', 'nnlops']
+        variated_weights_ = ['pu_wgt', 'muSF', 'l1prefiring_wgt', 'qgl_wgt', 'btag_wgt']
         
-        for syst in self.variations:
-            if 'nominal' in syst:
+        for wgt in weights_:
+            if 'nominal' in wgt:
                 variables.append(Variable("wgt_nominal", "wgt_nominal", 1, 0, 1))
             else:
-                variables.append(Variable(f"wgt_{syst}_up", f"wgt_{syst}_up", 1, 0, 1))
-                variables.append(Variable(f"wgt_{syst}_down", f"wgt_{syst}_down", 1, 0, 1))    
                 variables.append(Variable(f"wgt_{syst}_off", f"wgt_{syst}_off", 1, 0, 1))
+
+        for wgt in variated_weights_:
+            variables.append(Variable(f"wgt_{syst}_up", f"wgt_{syst}_up", 1, 0, 1))
+            variables.append(Variable(f"wgt_{syst}_down", f"wgt_{syst}_down", 1, 0, 1))
+            variables.append(Variable(f"wgt_{syst}_off", f"wgt_{syst}_off", 1, 0, 1))
 
         if self.evaluate_dnn:
             variables.append(Variable(f"dnn_score_nominal", f"dnn_score_nominal", 12, 0, self.parameters["dnn_max"]))
@@ -111,6 +116,8 @@ class DimuonProcessor(processor.ProcessorABC):
         channel_axis = hist.Cat("channel", "") # ggh or VBF  
         syst_axis = hist.Cat("syst", "")
         
+        acc_dicts = {}
+
         ### Prepare accumulators for binned output ###
         bin_dict = {}
         for v in variables:
@@ -119,22 +126,28 @@ class DimuonProcessor(processor.ProcessorABC):
             else:
                 axis = hist.Bin(v.name, v.caption, v.nbins, v.xmin, v.xmax)
             bin_dict[v.name] = hist.Hist("Counts", dataset_axis, region_axis, channel_axis, syst_axis, axis)  
-        accumulator_binned = processor.dict_accumulator(bin_dict)
+        acc_dicts['binned'] = processor.dict_accumulator(bin_dict)
         
         ### Prepare accumulators for unbinned output ###
-        unbin_dict = {}
+        variations = ['nominal']
+        if self.do_jecunc:
+            variations += self.parameters["jec_unc_to_consider"]
+        accum_unbin = {}
         if self.save_unbin:
-            for p in self.samp_info.samples:
+            for jec_var in variations:
+                unbin_dict = {}
                 for v in self.vars_unbin:
-                    if 'dnn_score' in v: continue
                     for c in self.channels:
                         for r in self.regions:
-                            unbin_dict[f'{v}_unbin_{p}_c_{c}_r_{r}'] = processor.column_accumulator(np.ndarray([]))
+                            unbin_dict[f'{v}_{c}_{r}'] = processor.column_accumulator(np.ndarray([]))
                             # have to encode everything into the name because having multiple axes isn't possible
-        accumulator_unbinned = processor.dict_accumulator(unbin_dict)
+                if jec_var == 'nominal':
+                    acc_dicts['unbinned'] = processor.dict_accumulator(unbin_dict)
+                else:
+                    acc_dicts[jec_var+'_up'] = processor.dict_accumulator(unbin_dict)
+                    acc_dicts[jec_var+'_down'] = processor.dict_accumulator(unbin_dict)
         ### --------------------------------------- ###
-        
-        acc_dicts = {'binned':accumulator_binned, 'unbinned':accumulator_unbinned}        
+
         accumulators = processor.dict_accumulator(acc_dicts)
         self._accumulator = accumulators
         ### --------------------------------------- ###
@@ -253,10 +266,14 @@ class DimuonProcessor(processor.ProcessorABC):
         #---------------------------------------------------------------#            
         
         numevents = df.shape[0]
-        weights = pd.DataFrame(1, index=np.arange(numevents), columns=['nominal'])
-
         weights = Weights(df)
         
+        event_variables = {
+                'run': df.run.flatten(),
+                'event': df.event.flatten(),
+                'npv': df.PV.npvsGood.flatten(),
+            }
+
         if is_mc:    
             mask = np.ones(numevents, dtype=bool)
             
@@ -421,7 +438,7 @@ class DimuonProcessor(processor.ProcessorABC):
         trigmuarrays = {key:df.TrigObj[key].flatten() for key in df.TrigObj.columns}
         trigmuarrays.update({'mass':0})
         trig_muons = JaggedCandidateArray.candidatesfromcounts(df.TrigObj.counts, **trigmuarrays)
-        trig_muons = trig_muons[trig_muons.id == 13]
+        trig_muons = trig_muons[(trig_muons.id == 13) | (trig_muons.id == -13)]
         trigmuarrays.clear()
         
         # Muons that pass tight id and iso as well as leading muon pT cut     
@@ -437,7 +454,7 @@ class DimuonProcessor(processor.ProcessorABC):
         # Events where there is a trigger object matched to a tight-ID tight-Iso muon passing leading pT cut
         event_passing_trig_match = (mu_for_trigmatch[has_matched_trigmuon].counts>0).flatten()
         
-        mask = mask & pass_leading_pt# & event_passing_trig_match
+        mask = mask & pass_leading_pt & event_passing_trig_match
         
         if self.debug:
             print("Leading pT cut, trigger matching:", sum(mask))
@@ -634,20 +651,40 @@ class DimuonProcessor(processor.ProcessorABC):
             weights.add_weight_with_variations('muSF', muSF, muSF_up, muSF_down)
 
 
+        #---------------------------------------------------------------#
+        # Calculate getJetMass
+        #---------------------------------------------------------------#
+
+        genJetMass = np.zeros(numevents, dtype=float)
+        if is_mc:
+            gjets = df.GenJet
+            gleptons = df.GenPart[(df.GenPart.pdgId == 13) | (df.GenPart.pdgId == 11) | (df.GenPart.pdgId == 15) |\
+                                 (df.GenPart.pdgId == -13) | (df.GenPart.pdgId == -11) | (df.GenPart.pdgId == -15)]
+            gl_pair = gjets.cross(gleptons, nested=True)
+            _,_,dr_gl = delta_r(gl_pair.i0.eta, gl_pair.i1.eta, gl_pair.i0.phi, gl_pair.i1.phi)
+            isolated = (dr_gl > 0.3).all()
+            gjets = gjets[isolated]
+            has_two_jets = gjets.counts>1
+            gjet1 = gjets[has_two_jets,0]
+            gjet2 = gjets[has_two_jets,1]
+            _,_,_, genJetMass[has_two_jets] = p4_sum(gjet1,gjet2)
+
         #---------------------------------------------------------------#        
         # Loop over JEC variations and fill jet variables
         #---------------------------------------------------------------#        
 
         ret_jec_loop = {}
+        variable_map = {}
         for v_name in jet_variation_names:
-             ret_jec_loop[v_name] = self.jec_loop(v_name, is_mc, df, dataset, mask, muons, mu1, mu2, muon_variables, two_muons, jets, weights, numevents)
-    
+            ret_jec_loop[v_name] = self.jec_loop(v_name, is_mc, df, dataset, mask, muons, mu1, mu2, muon_variables,\
+                                                 event_variables, two_muons, jets, weights, numevents)
+        variable_map = ret_jec_loop['nominal']['variable_map']
         weights = ret_jec_loop['nominal']['weights']
         two_jets = ret_jec_loop['nominal']['two_jets']
         category = ret_jec_loop['nominal']['category']
-        variable_map = ret_jec_loop['nominal']['variable_map']
-        genJetMass = variable_map['genJetMass']
-    
+
+        #weights.effect_on_normalization(mask&two_jets&vbf_cut&mass)
+
         if self.debug:
             for k,v in variable_map.items():            
                 print(k, v[df.event==self.test_event])
@@ -660,68 +697,68 @@ class DimuonProcessor(processor.ProcessorABC):
 #                    variable_map[f'LHEScaleWeight_{i}'] = np.ones(numevents, dtype=float)
             
         #---------------------------------------------------------------#        
-        # Evaluate DNN score for each variation
+        # Evaluate DNN score for each variation (obsolete)
         #---------------------------------------------------------------#        
 
-        variated_scores = {}
-        if self.evaluate_dnn:            
-            from config.parameters import training_features
-            import tensorflow as tf
-            from tensorflow.keras.models import load_model
-            config = tf.compat.v1.ConfigProto(intra_op_parallelism_threads=1, 
-                        inter_op_parallelism_threads=1, 
-                        allow_soft_placement=True,
-                        device_count = {'CPU': 1})
-            tf.compat.v1.logging.set_verbosity(tf.compat.v1.logging.ERROR)
-            sess = tf.compat.v1.Session(config=config)
-            with sess:
-                # BOTTLENECK: can't load model outside of a worker
-                # https://github.com/keras-team/keras/issues/9964
-                dnn_model = load_model(f'output/trained_models/test_{self.year}.h5')
-                scaler = np.load(f"output/trained_models/scalers_{self.year}.npy")
+ #       variated_scores = {}
+ #       if self.evaluate_dnn:
+ #           from config.parameters import training_features
+ #           import tensorflow as tf
+ #           from tensorflow.keras.models import load_model
+ #           config = tf.compat.v1.ConfigProto(intra_op_parallelism_threads=1,
+ #                       inter_op_parallelism_threads=1,
+ #                       allow_soft_placement=True,
+ #                       device_count = {'CPU': 1})
+ #           tf.compat.v1.logging.set_verbosity(tf.compat.v1.logging.ERROR)
+ #           sess = tf.compat.v1.Session(config=config)
+ #           with sess:
+ #               # BOTTLENECK: can't load model outside of a worker
+ #               # https://github.com/keras-team/keras/issues/9964
+ #               dnn_model = load_model(f'output/trained_models/test_{self.year}.h5')
+ #               scaler = np.load(f"output/trained_models/scalers_{self.year}.npy")
                 
-                for variation in jet_variation_names:
-                    if (variation != 'nominal') and (not self.do_jecunc): continue
-                    if (variation != 'nominal') and not is_mc:
-                        variable_map[f'dnn_score_{variation}'] = variable_map['dnn_score_nominal']
-                        continue
-                    dnn_score = np.full(numevents, -1.)
-                    regions = get_regions(ret_jec_loop[variation]['variable_map']['dimuon_mass'])
-                    for region, rcut in regions.items():
-                        df_for_dnn = pd.DataFrame(columns=training_features)
-                        variated_mask = ret_jec_loop[variation]['two_jets'] & rcut
-                        n_rows = len(ret_jec_loop[variation]['variable_map']['dimuon_mass'][variated_mask].flatten())
-                        for trf in training_features:
-                            if trf=='dimuon_mass' and region!='h-peak':
-                                feature_column = np.full(sum(variated_mask), 125.)
-                            feature_column = ret_jec_loop[variation]['variable_map'][trf][variated_mask]
-                            assert(n_rows==len(feature_column))
-                            df_for_dnn[trf] = feature_column
-                        df_for_dnn[training_features] = (df_for_dnn[training_features]-scaler[0])/scaler[1]
-                        try:
-                            prediction = dnn_model.predict(df_for_dnn[training_features], verbose=0)
-                            pred_array = tf.reshape(prediction, [-1]).eval()
-                        except:
-                            pred_array = np.zeros(sum(variated_mask))
+ #               for variation in jet_variation_names:
+ #                   if (variation != 'nominal') and (not self.do_jecunc): continue
+ #                   if (variation != 'nominal') and not is_mc:
+ #                       variable_map[f'dnn_score_{variation}'] = variable_map['dnn_score_nominal']
+ #                       continue
+ #                   dnn_score = np.full(numevents, -1.)
+ #                   regions = get_regions(ret_jec_loop[variation]['variable_map']['dimuon_mass'])
+ #                   for region, rcut in regions.items():
+ #                       df_for_dnn = pd.DataFrame(columns=training_features)
+ #                       variated_mask = ret_jec_loop[variation]['two_jets'] & rcut
+ #                       n_rows = len(ret_jec_loop[variation]['variable_map']['dimuon_mass'][variated_mask].flatten())
+ #                       for trf in training_features:
+ #                           if trf=='dimuon_mass' and region!='h-peak':
+ #                               feature_column = np.full(sum(variated_mask), 125.)
+ #                           feature_column = ret_jec_loop[variation]['variable_map'][trf][variated_mask]
+ #                           assert(n_rows==len(feature_column))
+ #                           df_for_dnn[trf] = feature_column
+ #                       df_for_dnn[training_features] = (df_for_dnn[training_features]-scaler[0])/scaler[1]
+ #                       try:
+ #                           prediction = dnn_model.predict(df_for_dnn[training_features], verbose=0)
+ #                           pred_array = tf.reshape(prediction, [-1]).eval()
+ #                       except:
+ #                           pred_array = np.zeros(sum(variated_mask))
 
-                        dnn_score[variated_mask] = pred_array
-                    variable_map[f'dnn_score_{variation}'] = np.arctanh((dnn_score))
-                    variated_scores.update({f'dnn_score_{variation}':variation})
+ #                       dnn_score[variated_mask] = pred_array
+ #                   variable_map[f'dnn_score_{variation}'] = np.arctanh((dnn_score))
+ #                   variated_scores.update({f'dnn_score_{variation}':variation})
                     
-            if self.timer:
-                self.timer.add_checkpoint("Evaluated DNN")
+ #           if self.timer:
+ #               self.timer.add_checkpoint("Evaluated DNN")
                 
-            if self.do_pdf and is_mc and self.year!='2016':
-                pdf_rms = np.zeros(numevents, dtype=float)
-                if ("dy" in dataset or "ewk" in dataset or "ggh" in dataset or "vbf" in dataset):
-                    pdf_wgts = {}
-                    dnn_pdf = pd.DataFrame()
-                    for i in range(self.parameters["n_pdf_variations"]):
-                        pdf_wgt = df.LHEPdfWeight[:,i][two_jets]
-                        dnn_v = variable_map['dnn_score_nominal'][two_jets]*pdf_wgt
-                        dnn_pdf = dnn_pdf.append(pd.Series(dnn_v),ignore_index=True)
-                    pdf_rms[two_jets] = np.nan_to_num(2*dnn_pdf.std(axis=0).values, nan=0, posinf=0, neginf=0)
-                variable_map['pdf_rms'] = pdf_rms
+ #           if self.do_pdf and is_mc and self.year!='2016':
+ #               pdf_rms = np.zeros(numevents, dtype=float)
+ #               if ("dy" in dataset or "ewk" in dataset or "ggh" in dataset or "vbf" in dataset):
+ #                   pdf_wgts = {}
+ #                   dnn_pdf = pd.DataFrame()
+ #                   for i in range(self.parameters["n_pdf_variations"]):
+ #                       pdf_wgt = df.LHEPdfWeight[:,i][two_jets]
+ #                       dnn_v = variable_map['dnn_score_nominal'][two_jets]*pdf_wgt
+ #                       dnn_pdf = dnn_pdf.append(pd.Series(dnn_v),ignore_index=True)
+ #                   pdf_rms[two_jets] = np.nan_to_num(2*dnn_pdf.std(axis=0).values, nan=0, posinf=0, neginf=0)
+ #               variable_map['pdf_rms'] = pdf_rms
 
         #---------------------------------------------------------------#        
         # Fill outputs
@@ -739,19 +776,18 @@ class DimuonProcessor(processor.ProcessorABC):
                     if (dataset in self.overlapping_samples) and (dataset not in self.specific_samples[rname][cname]): 
                         continue
 
-                    if vname in variated_scores.keys():
-                        genJetMass = ret_jec_loop[variated_scores[vname]]['variable_map']['genJetMass']
-                        rcut = get_regions(ret_jec_loop[variated_scores[vname]]['variable_map']['dimuon_mass'])[rname]
-                        ccut = (ret_jec_loop[variated_scores[vname]]['category']==cname)
-                        wgts = ret_jec_loop[variated_scores[vname]]['weights']
-                    else:
-                        genJetMass = variable_map['genJetMass']
-                        wgts = weights
+                    #if vname in variated_scores.keys():
+                    #    genJetMass = ret_jec_loop[variated_scores[vname]]['variable_map']['genJetMass']
+                    #    rcut = get_regions(ret_jec_loop[variated_scores[vname]]['variable_map']['dimuon_mass'])[rname]
+                    #    ccut = (ret_jec_loop[variated_scores[vname]]['category']==cname)
+                    #    wgts = ret_jec_loop[variated_scores[vname]]['weights']
+                    #else:
+                    wgts = weights
                         
                     if ('dy_m105_160_vbf_amc' in dataset) and ('vbf' in cname):
                         ccut = ccut & (genJetMass > 350.)
                     if ('dy_m105_160_amc' in dataset) and ('vbf' in cname):
-                        ccut = ccut & (genJetMass < 350.)                        
+                        ccut = ccut & (genJetMass <= 350.)
                     value = expression[rcut & ccut]
                     if not value.size: continue # skip empty arrays
                     for syst in weights.df.columns:
@@ -764,22 +800,26 @@ class DimuonProcessor(processor.ProcessorABC):
         for syst in weights.df.columns:
             variable_map[f'wgt_{syst}'] = weights.get_weight(syst)
             self.vars_unbin.add(f'wgt_{syst}')
-        
+
         #----------------- Unbinned outputs -----------------#
         if self.save_unbin:
-            for v in self.vars_unbin:
-                if v not in variable_map: continue
-                if 'dnn_score' in v: continue
-                for cname in self.channels:
-                    ccut = (category==cname)
-                    for rname, rcut in regions.items():
-                        if ('dy_m105_160_vbf_amc' in dataset) and ('vbf' in cname):
-                            ccut = ccut & (genJetMass > 350.)
-                        if ('dy_m105_160_amc' in dataset) and ('vbf' in cname):
-                            ccut = ccut & (genJetMass < 350.)
-                        value = np.array(variable_map[v][rcut & ccut]).ravel()
-#                        if 'wgt' in v: print(value)
-                        output['unbinned'][f'{v}_unbin_{dataset}_c_{cname}_r_{rname}'] += processor.column_accumulator(value)
+            for jec_var in jet_variation_names:
+                var_map = ret_jec_loop[jec_var]['variable_map']
+                categ = ret_jec_loop[jec_var]['category']
+                for v in self.vars_unbin:
+                    if v not in var_map: continue
+                    for cname in self.channels:
+                        ccut = (categ==cname)
+                        for rname, rcut in regions.items():
+                            if ('dy_m105_160_vbf_amc' in dataset) and ('vbf' in cname):
+                                ccut = ccut & (genJetMass > 350.)
+                            if ('dy_m105_160_amc' in dataset) and ('vbf' in cname):
+                                ccut = ccut & (genJetMass <= 350.)
+                            value = np.array(var_map[v][rcut & ccut]).ravel()
+                            if jec_var=='nominal':
+                                output['unbinned'][f'{v}_{cname}_{rname}'] += processor.column_accumulator(value)
+                            else:
+                                output[jec_var][f'{v}_{cname}_{rname}'] += processor.column_accumulator(value)
         if self.timer:
             self.timer.add_checkpoint("Filled outputs")
             
@@ -787,7 +827,7 @@ class DimuonProcessor(processor.ProcessorABC):
             self.timer.summary()
 
         variable_map.clear()
-        variated_scores.clear()
+        #variated_scores.clear()
         for ret in ret_jec_loop.values():
             ret['variable_map'].clear()
             ret.clear()
@@ -795,8 +835,8 @@ class DimuonProcessor(processor.ProcessorABC):
         return output
 
     
-    def jec_loop(self, variation, is_mc, df, dataset, mask, muons, mu1, mu2, muon_variables, two_muons, jets, weights, numevents):
-        
+    def jec_loop(self, variation, is_mc, df, dataset, mask, muons, mu1, mu2, muon_variables, event_variables, two_muons, jets, weights, numevents):
+        weights = copy.deepcopy(weights)
         #---------------------------------------------------------------#        
         # Initialize jet-related variables
         #---------------------------------------------------------------#        
@@ -869,9 +909,9 @@ class DimuonProcessor(processor.ProcessorABC):
             jet_puid = jets.ones_like()
 
         # Jet PUID scale factors
-        if is_mc:     
-            puid_weight = puid_weights(self.evaluator, self.year, jets, pt_name, jet_puid_opt, jet_puid, numevents)   
-            weights.add_weight('puid_wgt', puid_weight)
+        #if is_mc:
+            #puid_weight = puid_weights(self.evaluator, self.year, jets, pt_name, jet_puid_opt, jet_puid, numevents)
+            #weights.add_weight('puid_wgt', puid_weight)
 
         jets = jets[jet_puid]              
 
@@ -899,7 +939,6 @@ class DimuonProcessor(processor.ProcessorABC):
         jet1 = JaggedCandidateArray.candidatesfromcounts(jet1_mask, **jet1_arrays)
         jet2 = JaggedCandidateArray.candidatesfromcounts(jet2_mask, **jet2_arrays)
         jets = JaggedCandidateArray.candidatesfromcounts(jets.counts, **jetarrays) 
-        
         jetarrays.clear()
         jet1_arrays.clear()
         jet2_arrays.clear()
@@ -988,35 +1027,13 @@ class DimuonProcessor(processor.ProcessorABC):
         
         softjet_variables['nsoftjets5'],\
         softjet_variables['htsoft5'] = self.get_softjet_vars(5, df, muons, softjets, jet1, jet2, one_jet, two_jets)
-        
-        #---------------------------------------------------------------#        
-        # Calculate getJetMass
-        #---------------------------------------------------------------#        
 
-        
-        genJetMass = np.zeros(numevents, dtype=float)        
-        if is_mc:     
-            genJetMass_filtered = genJetMass          
-            gjets = df.GenJet     
-            gleptons = df.GenPart[(df.GenPart.pdgId == 13) | (df.GenPart.pdgId == 11) | (df.GenPart.pdgId == 15)]
-            gleptons = gleptons
-            
-            gl_pair = gjets.cross(gleptons, nested=True)
-            _,_,dr_gl = delta_r(gl_pair.i0.eta, gl_pair.i1.eta, gl_pair.i0.phi, gl_pair.i1.phi)
-            isolated = (dr_gl > 0.3).all()
-            gjets = gjets[isolated]
-            has_two_jets = gjets.counts>1
-            gjet1 = gjets[has_two_jets,0]
-            gjet2 = gjets[has_two_jets,1]
-            _,_,_, genJetMass_filtered[has_two_jets] = p4_sum(gjet1,gjet2)
-            
         #---------------------------------------------------------------#        
         # Apply remaining cuts
         #---------------------------------------------------------------#        
         
         leading_jet_pt = np.zeros(numevents, dtype=bool)
-        leading_jet_pt[jets.counts>0] = (jets[jets.counts>0][:,0][[pt_name]]>35.)
-        
+        leading_jet_pt[jets.counts>0] = (jets.pt[jets.counts>0][:,0]>35.)
         vbf_cut = (dijet_variables['jj_mass']>400)&(dijet_variables['jj_dEta']>2.5)&leading_jet_pt
         
         #---------------------------------------------------------------#        
@@ -1027,7 +1044,7 @@ class DimuonProcessor(processor.ProcessorABC):
         # Btag weight
         btag_wgt = np.ones(numevents)
         if is_mc:
-            btag_wgt = btag_weights(self.btag_lookup, jets, pt_name, weights, bjet_sel_mask, numevents)
+            btag_wgt = btag_weights(self.btag_lookup, jets, weights, bjet_sel_mask, numevents)
             weights.add_weight('btag_wgt', btag_wgt)
 
         # Separate from ttH and VH phase space        
@@ -1036,7 +1053,6 @@ class DimuonProcessor(processor.ProcessorABC):
         mask = mask & (nBtagLoose<2) & (nBtagMedium<1)
 
         mass = (muon_variables['dimuon_mass']>115) & (muon_variables['dimuon_mass']<135)
- #       weights.effect_on_normalization(mask&two_jets&vbf_cut&mass)
         
         if self.debug:
             print("VBF category (unweighted):", sum(mask&two_jets&vbf_cut))
@@ -1057,32 +1073,29 @@ class DimuonProcessor(processor.ProcessorABC):
         #---------------------------------------------------------------#        
             
         ret = {}
-        ret.update(**muon_variables)
-        ret.update(**dijet_variables)
-        ret.update(**jet1_variables)
-        ret.update(**jet2_variables)
-        ret.update(**dijet_variables)
-        ret.update(**mmjj_variables)
-        ret.update(**mmj_variables)
-        ret.update(**softjet_variables)
+        ret.update(event_variables)
+        ret.update(muon_variables)
+        ret.update(dijet_variables)
+        ret.update(jet1_variables)
+        ret.update(jet2_variables)
+        ret.update(dijet_variables)
+        ret.update(mmjj_variables)
+        ret.update(mmj_variables)
+        ret.update(softjet_variables)
         ret.update(**{
                 'njets': jets.counts.flatten(),
-                'npv': df.PV.npvsGood.flatten(),
                 'met': df.MET.pt.flatten(),
-                'genJetMass': genJetMass,
                 'btag_wgt': btag_wgt,
-                'event': df.event.flatten(),
             })
 
-
         return {
-                'variable_map': ret, 
-                'category': category,
-                'two_jets': two_jets, 
+                'variable_map': copy.deepcopy(ret),
+                'category': copy.deepcopy(category),
+                'two_jets': copy.deepcopy(two_jets),
                 'weights': weights, 
                }
 
-        
+
     def get_softjet_vars(self, cutoff, df, muons, softjets, jet1, jet2, one_jet, two_jets):
         nsoftjets = df[f'SoftActivityJetNjets{cutoff}']
         htsoft = df[f'SoftActivityJetHT{cutoff}']
