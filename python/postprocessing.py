@@ -1,6 +1,7 @@
 import sys, os
 os.environ['TF_CPP_MIN_LOG_LEVEL']='2'
 import pandas as pd
+pd.options.mode.chained_assignment = None
 import multiprocessing as mp
 import coffea
 from coffea import util
@@ -57,7 +58,9 @@ def postprocess(args, parallelize=True):
                         argsets.append(argset)
 
     if parallelize:
-        pool = mp.Pool(mp.cpu_count()-4)
+        cpus = mp.cpu_count()-2
+        print(f'Using {cpus} CPUs')
+        pool = mp.Pool(cpus)
         a = [pool.apply_async(worker, args=(argset,)) for argset in argsets]
         results = []
         for process in a:
@@ -94,14 +97,15 @@ def postprocess(args, parallelize=True):
 # for unbinned processor output (column_accumulators)
 def to_pandas(args):
     proc_out = util.load(args['proc_path'])
-    #print(f"Loading data from {args['proc_path']}")
     c = args['c']
     r = args['r']
     suff = f'_{c}_{r}'
     columns = [c.replace(suff, '') for c in list(proc_out.keys()) if suff in c]
-    df = pd.DataFrame(columns=columns+['c', 'r', 's', 'v'])
+    df = pd.DataFrame()
     len_ = len(proc_out[f'dimuon_mass_{c}_{r}'].value)
     for var in columns:
+        if (not args['wgt_variations']) and ('wgt_' in var) and ('nominal' not in var): continue
+        if ('wgt_' not in var) and (var not in [v.name for v in args['vars_to_plot']]): continue
         try:
             df[var] = proc_out[f'{var}_{c}_{r}'].value
         except:
@@ -146,8 +150,8 @@ def get_hists(df, var, args):
     val_err_axis = bh.axis.StrCategory(['value', 'sumw2'])
     var_axis = bh.axis.Regular(var.nbins, var.xmin, var.xmax)
 
-    df_out = pd.DataFrame(columns = ['var','s','r','c','v','w']+[f'bin{i}' for i in range(var.nbins)]+\
-                                                          [f'sumw2_{i}' for i in range(var.nbins)])
+    df_out = pd.DataFrame()#columns = ['var','s','r','c','v','w']+[f'bin{i}' for i in range(var.nbins)]+\
+                                                        #  [f'sumw2_{i}' for i in range(var.nbins)])
     edges = []
     syst_variations = args['syst_variations']
     wgts = [c for c in df.columns if ('wgt_' in c) and ('_off' not in c)]
@@ -242,7 +246,7 @@ def save_shapes(var, hist, edges, args):
             out_file['data_obs'] = th1_data
             out_file.close()
 
-def plot(var, hist, wgt_option, edges, args, r=''):
+def plot(var, hist, wgt_option, edges, args, r='', save=True, show=False, plotsize=12):
     def add_source(hist, group_name):
         bin_columns = [c for c in hist.columns if 'bin' in c]
         sumw2_columns = [c for c in hist.columns if 'sumw2' in c]
@@ -263,7 +267,6 @@ def plot(var, hist, wgt_option, edges, args, r=''):
         
     year = args['year']
     label = args['label']
-    out_path = args['out_path']
 
     bkg = ['DY','DY_VBF', 'EWK', 'TT+ST', 'VV']
 
@@ -296,7 +299,7 @@ def plot(var, hist, wgt_option, edges, args, r=''):
 
     
     # Report yields
-    if True:
+    if not show:
         print("="*50)
         if r=='':
             print(f"{var.name}: Inclusive yields:")
@@ -313,7 +316,6 @@ def plot(var, hist, wgt_option, edges, args, r=''):
     # Make plot
     fig = plt.figure()
     plt.rcParams.update({'font.size': 22})
-    plotsize=12
     ratio_plot_size = 0.25
     data_opts = {'color': 'k', 'marker': '.', 'markersize':15}
     stack_fill_opts = {'alpha': 0.8, 'edgecolor':(0,0,0)}
@@ -353,16 +355,16 @@ def plot(var, hist, wgt_option, edges, args, r=''):
     
     if (data.sum()*bkg_total.sum()):
         ratios = np.zeros(len(data))
+        yerr = np.zeros(len(data))
         ratios[bkg_total!=0] = np.array(data[bkg_total!=0] / bkg_total[bkg_total!=0])
-        ax_ratio = hep.histplot(ratios, edges, histtype='errorbar', yerr=np.sqrt(data)/bkg_total,**data_opts)
+        yerr[bkg_total!=0] = np.sqrt(data[bkg_total!=0])/bkg_total[bkg_total!=0]
+        ax_ratio = hep.histplot(ratios, edges, histtype='errorbar', yerr=yerr,**data_opts)
         unity = np.ones_like(bkg_total)
         zero = np.zeros_like(bkg_total)
         bkg_total[bkg_total==0] = 1e-20
         ggh[ggh==0] = 1e-20
         vbf[vbf==0] = 1e-20
         bkg_unc = coffea.hist.plot.poisson_interval(unity, bkg_sumw2 / bkg_total**2)
-#        ggh_unc = coffea.hist.plot.poisson_interval(unity, ggh_sumw2 / ggh**2)
-#        vbf_unc = coffea.hist.plot.poisson_interval(unity, vbf_sumw2 / vbf**2)
         denom_unc = bkg_unc
         ax_ratio.fill_between(edges,np.r_[denom_unc[0],denom_unc[0, -1]],np.r_[denom_unc[1], denom_unc[1, -1]], **ratio_err_opts)
     
@@ -372,23 +374,28 @@ def plot(var, hist, wgt_option, edges, args, r=''):
     lbl = plt2.get_xlabel()
     plt2.set_xlabel(f'{var.caption}')
     
-    # Save plots
-    try:
-        os.mkdir(out_path)
-    except:
-        pass
-    try:
-        os.mkdir(f"{out_path}/plots_{year}_{label}")
-    except:
-        pass
+    if save:
+        # Save plots
+        try:
+            os.mkdir(out_path)
+        except:
+            pass
+        try:
+            os.mkdir(f"{out_path}/plots_{year}_{label}")
+        except:
+            pass
 
-    if r=='':
-        out_name = f"{out_path}/plots_{year}_{label}/{var.name}_{wgt_option}_inclusive.png"
-    else:
-        out_name = f"{out_path}/plots_{year}_{label}/{var.name}_{wgt_option}_{r}.png"
-    print(f"Saving {out_name}")
-    fig.savefig(out_name)
+        out_path = args['out_path']
+        if r=='':
+            out_name = f"{out_path}/plots_{year}_{label}/{var.name}_{wgt_option}_inclusive.png"
+        else:
+            out_name = f"{out_path}/plots_{year}_{label}/{var.name}_{wgt_option}_{r}.png"
+        print(f"Saving {out_name}")
+        fig.savefig(out_name)
 
+    if show:
+        plt.show()
+        
 
 
 
