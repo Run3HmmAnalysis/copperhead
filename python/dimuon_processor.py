@@ -54,6 +54,7 @@ class DimuonProcessor(processor.ProcessorABC):
         if not samp_info:
             print("Samples info missing!")
             return
+        self.auto_pu = True
         self.samp_info = samp_info
         self.year = self.samp_info.year
         self.debug = debug
@@ -80,19 +81,19 @@ class DimuonProcessor(processor.ProcessorABC):
         self.lumi_weights = self.samp_info.lumi_weights
         
         from config.variables import Variable
-        weights_ = ['nominal', 'lumi', 'genwgt', 'nnlops']
-        variated_weights_ = ['pu_wgt', 'muSF', 'l1prefiring_wgt', 'qgl_wgt', 'btag_wgt']
+        weights_ = ['nominal', 'lumi', 'genwgt', 'nnlops', 'btag_wgt']
+        variated_weights_ = ['pu_wgt', 'muSF', 'l1prefiring_wgt', 'qgl_wgt']#, 'btag_wgt']
         
         for wgt in weights_:
             if 'nominal' in wgt:
                 variables.append(Variable("wgt_nominal", "wgt_nominal", 1, 0, 1))
             else:
-                variables.append(Variable(f"wgt_{syst}_off", f"wgt_{syst}_off", 1, 0, 1))
+                variables.append(Variable(f"wgt_{wgt}_off", f"wgt_{wgt}_off", 1, 0, 1))
 
         for wgt in variated_weights_:
-            variables.append(Variable(f"wgt_{syst}_up", f"wgt_{syst}_up", 1, 0, 1))
-            variables.append(Variable(f"wgt_{syst}_down", f"wgt_{syst}_down", 1, 0, 1))
-            variables.append(Variable(f"wgt_{syst}_off", f"wgt_{syst}_off", 1, 0, 1))
+            variables.append(Variable(f"wgt_{wgt}_up", f"wgt_{wgt}_up", 1, 0, 1))
+            variables.append(Variable(f"wgt_{wgt}_down", f"wgt_{wgt}_down", 1, 0, 1))
+            variables.append(Variable(f"wgt_{wgt}_off", f"wgt_{wgt}_off", 1, 0, 1))
 
         if self.evaluate_dnn:
             variables.append(Variable(f"dnn_score_nominal", f"dnn_score_nominal", 12, 0, self.parameters["dnn_max"]))
@@ -230,9 +231,10 @@ class DimuonProcessor(processor.ProcessorABC):
         #---------------------------------------------------------------#        
         # Filter out events not passing HLT or having less than 2 muons.
         #---------------------------------------------------------------#
-        self.test_event = 71548460
+        self.test_event = 0
         self.debug=False
         self.timer=None
+#        print(df.event)
         for ev in [self.test_event]:
             if self.test_event in df.event:
                 print(ev)
@@ -284,7 +286,10 @@ class DimuonProcessor(processor.ProcessorABC):
             
             genweight = df.genWeight.flatten()
             weights.add_weight('genwgt', genweight)    
-
+            if self.auto_pu:
+                self.pu_lookup = pu_lookup(self.parameters, 'nom', auto=df.Pileup.nTrueInt)
+                self.pu_lookup_up = pu_lookup(self.parameters, 'up', auto=df.Pileup.nTrueInt)
+                self.pu_lookup_down = pu_lookup(self.parameters, 'down', auto=df.Pileup.nTrueInt)
             pu_weight = pu_evaluator(self.pu_lookup, numevents, df.Pileup.nTrueInt)
             pu_weight_up = pu_evaluator(self.pu_lookup_up, numevents, df.Pileup.nTrueInt)
             pu_weight_down = pu_evaluator(self.pu_lookup_down, numevents, df.Pileup.nTrueInt)
@@ -454,7 +459,7 @@ class DimuonProcessor(processor.ProcessorABC):
         # Events where there is a trigger object matched to a tight-ID tight-Iso muon passing leading pT cut
         event_passing_trig_match = (mu_for_trigmatch[has_matched_trigmuon].counts>0).flatten()
         
-        mask = mask & pass_leading_pt & event_passing_trig_match
+        mask = mask & pass_leading_pt #& event_passing_trig_match
         
         if self.debug:
             print("Leading pT cut, trigger matching:", sum(mask))
@@ -684,11 +689,20 @@ class DimuonProcessor(processor.ProcessorABC):
         category = ret_jec_loop['nominal']['category']
 
         #weights.effect_on_normalization(mask&two_jets&vbf_cut&mass)
+#        evnum = 7622591
+        evnum = 7624382
+        #print(variable_map['jet1_pt'][df.event==evnum])
+        #print(variable_map['jet2_pt'][df.event==evnum])
 
-        if self.debug:
-            for k,v in variable_map.items():            
-                print(k, v[df.event==self.test_event])
+#        print(df.event[(df.event>7600000)&(df.event<7700000)])
+        print(weights.wgts.loc[evnum,:])
+        
+#        if self.debug:
+#            for k,v in variable_map.items():            
+#                print(k, v[df.event==self.test_event])
 
+                
+                
 #        if ("dy" in dataset or "ewk" in dataset) and self.do_lheweights:
 #            for i in range(9):
 #                try:
@@ -949,6 +963,7 @@ class DimuonProcessor(processor.ProcessorABC):
             qgl_wgt[one_jet] = qgl_wgt[one_jet]*qgl_weights(jet1, isHerwig)
             qgl_wgt[two_jets] = qgl_wgt[two_jets]*qgl_weights(jet2, isHerwig)
             weights.add_weight_with_variations('qgl_wgt', qgl_wgt, up=qgl_wgt*qgl_wgt, down=np.ones(numevents, dtype=float))
+
             
         jet1_variables['jet1_pt'][one_jet] = jet1['__fast_pt'].flatten()
         jet1_variables['jet1_eta'][one_jet] = jet1['__fast_eta'].flatten()
@@ -1066,8 +1081,7 @@ class DimuonProcessor(processor.ProcessorABC):
         category[mask&(~two_jets)] = 'ggh_01j'
         category[mask&two_jets&(~vbf_cut)] = 'ggh_2j'
         category[mask&two_jets&vbf_cut] = 'vbf'
-#        category[mask&two_jets] = 'vbf'         
-
+#        category[mask&two_jets] = 'vbf'
         #---------------------------------------------------------------#        
         # Fill outputs
         #---------------------------------------------------------------#        

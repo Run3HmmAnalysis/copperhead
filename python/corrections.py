@@ -3,6 +3,7 @@ import awkward
 from awkward import JaggedArray
 import uproot
 import numba
+import copy 
 
 from coffea.lookup_tools import extractor, dense_lookup, txt_converters, rochester_lookup
 
@@ -138,8 +139,13 @@ def musf_evaluator(lookups, year, numevents, muons):
     return muSF, muSF_up, muSF_down
 
 
-def pu_lookup(parameters, mode='nom'):
-    pu_hist_mc = uproot.open(parameters['pu_file_mc'])['pu_mc']
+def pu_lookup(parameters, mode='nom', auto=[]):
+    edges = [[i for i in range(102)]]
+    if len(auto)==0:
+        pu_hist_mc = uproot.open(parameters['pu_file_mc'])['pu_mc']
+    else:
+        pu_hist_mc = np.histogram(auto, bins=range(103))[0]
+        
     if mode=='nom':
         pu_hist_data = uproot.open(parameters['pu_file_data'])['pileup']
     elif mode=='up':
@@ -149,7 +155,6 @@ def pu_lookup(parameters, mode='nom'):
     else:
         print("PU lookup: incorrect mode ", mode)
         return
-    edges = [[i for i in range(102)]]
     lookup = dense_lookup.dense_lookup(pu_reweight(pu_hist_data, pu_hist_mc), edges)
     lookup._axes = lookup._axes[0]
     return lookup 
@@ -157,19 +162,18 @@ def pu_lookup(parameters, mode='nom'):
 def pu_reweight(pu_hist_data, pu_hist_mc):
     pu_arr_mc = np.zeros(len(pu_hist_mc))
     for ibin,value in enumerate(pu_hist_mc):
-        pu_arr_mc[ibin]=value
+        pu_arr_mc[ibin] = max(value, 0)
 
     pu_arr_data = np.zeros(len(pu_hist_data))
     for ibin,value in enumerate(pu_hist_data):
-        pu_arr_data[ibin]=value
+        pu_arr_data[ibin] = max(value, 0)
 
-    pu_arr_mc_ref = pu_arr_mc
+    pu_arr_mc_ref = copy.deepcopy(pu_arr_mc)
     pu_arr_mc = pu_arr_mc/pu_arr_mc.sum()
     pu_arr_data = pu_arr_data/pu_arr_data.sum()
 
     weights = np.ones(len(pu_hist_mc))
     weights[pu_arr_mc!=0] = pu_arr_data[pu_arr_mc!=0]/pu_arr_mc[pu_arr_mc!=0]
-
     maxw = min(weights.max(), 5.)
     cropped=[]
     while (maxw > 3):
@@ -186,7 +190,7 @@ def pu_reweight(pu_hist_data, pu_hist_mc):
             cropped[i] = min(maxw,weights[i])
         normshift = checkIntegral(cropped,weights, pu_arr_mc_ref)
         for i in range(len(weights)):
-            weights[i] = cropped[i]*(1-normshift)       
+            weights[i] = cropped[i]*(1-normshift)
     return weights
     
 def checkIntegral(wgt1, wgt2, ref):
@@ -203,6 +207,7 @@ def pu_evaluator(lookup, numevents, ntrueint):
     pu_weight[ntrueint>100]=1
     pu_weight[ntrueint<1]=1
     return pu_weight
+
 
 # https://github.com/jpata/hepaccelerate-cms/blob/f5965648f8a7861cb9856d0b5dd34a53ed42c027/tests/hmm/hmumu_utils.py#L1396
 @numba.njit(parallel=True)
@@ -327,10 +332,10 @@ def puid_weights(evaluator, year, jets, pt_name, jet_puid_opt, jet_puid, numeven
 def qgl_weights(jet, isHerwig):
     jet = jet.flatten()
     weights = np.ones(len(jet.qgl), dtype=float)
-  
+    
     wgt_mask = (jet.partonFlavour!=0) & (abs(jet['__fast_eta'])<2) & (jet.qgl>0)
-    light = wgt_mask & jet.partonFlavour<4
-    gluon = wgt_mask & jet.partonFlavour==4
+    light = wgt_mask & (abs(jet.partonFlavour)<4)
+    gluon = wgt_mask & (jet.partonFlavour==21)
   
     qgl = jet.qgl
 
