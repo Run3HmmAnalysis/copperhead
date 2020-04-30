@@ -157,10 +157,9 @@ class DimuonProcessor(processor.ProcessorABC):
         rochester_data = txt_converters.convert_rochester_file(self.parameters["roccor_file"], loaduncs=True)
         self.roccor_lookup = rochester_lookup.rochester_lookup(rochester_data)
         self.musf_lookup = musf_lookup(self.parameters)
-        if not self.auto_pu:
-            self.pu_lookup = pu_lookup(self.parameters)
-            self.pu_lookup_up = pu_lookup(self.parameters, 'up')
-            self.pu_lookup_down = pu_lookup(self.parameters, 'down')
+        self.pu_lookup = pu_lookup(self.parameters)
+        self.pu_lookup_up = pu_lookup(self.parameters, 'up')
+        self.pu_lookup_down = pu_lookup(self.parameters, 'down')
         
         self.btag_lookup = BTagScaleFactor(self.parameters["btag_sf_csv"], BTagScaleFactor.RESHAPE,\
                                        'iterativefit,iterativefit,iterativefit')
