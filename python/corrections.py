@@ -140,12 +140,6 @@ def musf_evaluator(lookups, year, numevents, muons):
 
 
 def pu_lookup(parameters, mode='nom', auto=[]):
-    edges = [[i for i in range(102)]]
-    if len(auto)==0:
-        pu_hist_mc = uproot.open(parameters['pu_file_mc'])['pu_mc']
-    else:
-        pu_hist_mc = np.histogram(auto, bins=range(103))[0]
-        
     if mode=='nom':
         pu_hist_data = uproot.open(parameters['pu_file_data'])['pileup']
     elif mode=='up':
@@ -155,6 +149,15 @@ def pu_lookup(parameters, mode='nom', auto=[]):
     else:
         print("PU lookup: incorrect mode ", mode)
         return
+    
+    nbins = len(pu_hist_data)
+    edges = [[i for i in range(nbins)]]
+    if len(auto)==0:
+        pu_hist_mc = uproot.open(parameters['pu_file_mc'])['pu_mc']
+    else:
+        pu_hist_mc = np.histogram(auto, bins=range(nbins+1))[0]
+        
+
     lookup = dense_lookup.dense_lookup(pu_reweight(pu_hist_data, pu_hist_mc), edges)
     lookup._axes = lookup._axes[0]
     return lookup 

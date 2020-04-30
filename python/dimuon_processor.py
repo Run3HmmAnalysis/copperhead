@@ -157,9 +157,10 @@ class DimuonProcessor(processor.ProcessorABC):
         rochester_data = txt_converters.convert_rochester_file(self.parameters["roccor_file"], loaduncs=True)
         self.roccor_lookup = rochester_lookup.rochester_lookup(rochester_data)
         self.musf_lookup = musf_lookup(self.parameters)
-        self.pu_lookup = pu_lookup(self.parameters)
-        self.pu_lookup_up = pu_lookup(self.parameters, 'up')
-        self.pu_lookup_down = pu_lookup(self.parameters, 'down')
+        if not self.auto_pu:
+            self.pu_lookup = pu_lookup(self.parameters)
+            self.pu_lookup_up = pu_lookup(self.parameters, 'up')
+            self.pu_lookup_down = pu_lookup(self.parameters, 'down')
         
         self.btag_lookup = BTagScaleFactor(self.parameters["btag_sf_csv"], BTagScaleFactor.RESHAPE,\
                                        'iterativefit,iterativefit,iterativefit')
@@ -690,12 +691,12 @@ class DimuonProcessor(processor.ProcessorABC):
 
         #weights.effect_on_normalization(mask&two_jets&vbf_cut&mass)
 #        evnum = 7622591
-        evnum = 7624382
+#        evnum = 7624382
         #print(variable_map['jet1_pt'][df.event==evnum])
         #print(variable_map['jet2_pt'][df.event==evnum])
 
 #        print(df.event[(df.event>7600000)&(df.event<7700000)])
-        print(weights.wgts.loc[evnum,:])
+#        print(weights.wgts.loc[evnum,:])
         
 #        if self.debug:
 #            for k,v in variable_map.items():            
