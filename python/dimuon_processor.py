@@ -47,20 +47,19 @@ def get_jec_unc(name, jet_pt, jet_eta, jecunc):
 
 class DimuonProcessor(processor.ProcessorABC):
     def __init__(self, samp_info, evaluate_dnn=False,\
-                 do_timer=False, save_unbin=True, do_lheweights=False, do_jec=True,\
-                 do_jer=True, do_jecunc=False, do_pdf=True, debug=False): 
+                 do_timer=False, save_unbin=True, do_lheweights=False,\
+                 do_jer=True, do_jecunc=False, do_pdf=True, auto_pu=True, debug=False): 
         from config.parameters import parameters
         from config.variables import variables
         if not samp_info:
             print("Samples info missing!")
             return
-        self.auto_pu = True
+        self.auto_pu = auto_pu
         self.samp_info = samp_info
         self.year = self.samp_info.year
         self.debug = debug
         self.mass_window = [76, 150]
         self.save_unbin = save_unbin
-        self.do_jec = do_jec
         self.do_jer = do_jer
         self.do_jecunc = do_jecunc
         self.do_pdf = do_pdf
@@ -567,8 +566,14 @@ class DimuonProcessor(processor.ProcessorABC):
         # Apply JEC, get JEC variations
         #---------------------------------------------------------------#
     
+        if self.year=='2018' and 'data' in dataset: 
+            self.do_jec = True
+        else:
+            self.do_jec = False
+            
         jet_variation_names = ['nominal']
-        if self.do_jec: 
+            
+        if self.do_jec or self.do_jecunc: 
             cols = {'pt':'__fast_pt',
                     'eta':'__fast_eta',
                     'phi':'__fast_phi',
@@ -589,7 +594,8 @@ class DimuonProcessor(processor.ProcessorABC):
             
                         
             if is_mc:
-                self.Jet_transformer.transform(jets, forceStochastic=False)
+                if self.do_jec:
+                    self.Jet_transformer.transform(jets, forceStochastic=False)
                 if self.do_jecunc:
                     for junc_name in self.jet_unc_names:
                         if junc_name not in self.parameters["jec_unc_to_consider"]: continue
@@ -599,11 +605,10 @@ class DimuonProcessor(processor.ProcessorABC):
                         pt_name_down = f"pt_{junc_name}_down"
                         jets.add_attributes(**{pt_name_up: jets.pt*jec_corr_up, pt_name_down: jets.pt*jec_corr_down})
             else:
-                for run in self.data_runs: # 'A', 'B', 'C', 'D', etc...
-                    if run in dataset: # dataset name is something like 'data_B'
-                        self.Jet_transformer_data[run].transform(jets, forceStochastic=False) 
-                        print(run)
-                        print(jets.pt[jets.pt<0].sum().sum())
+                if self.do_jec:
+                    for run in self.data_runs: # 'A', 'B', 'C', 'D', etc...
+                        if run in dataset: # dataset name is something like 'data_B'
+                            self.Jet_transformer_data[run].transform(jets, forceStochastic=False) 
 
         jets.add_attributes(**{'pt_nominal': jets.pt})
         jets = jets[jets.pt.argsort()]  
@@ -691,8 +696,8 @@ class DimuonProcessor(processor.ProcessorABC):
         #weights.effect_on_normalization(mask&two_jets&vbf_cut&mass)
 #        evnum = 7622591
 #        evnum = 7624382
-        #print(variable_map['jet1_pt'][df.event==evnum])
-        #print(variable_map['jet2_pt'][df.event==evnum])
+#        print(variable_map['jet1_pt'][df.event==evnum])
+#        print(variable_map['jet2_pt'][df.event==evnum])
 
 #        print(df.event[(df.event>7600000)&(df.event<7700000)])
 #        print(weights.wgts.loc[evnum,:])
@@ -701,78 +706,6 @@ class DimuonProcessor(processor.ProcessorABC):
 #            for k,v in variable_map.items():            
 #                print(k, v[df.event==self.test_event])
 
-                
-                
-#        if ("dy" in dataset or "ewk" in dataset) and self.do_lheweights:
-#            for i in range(9):
-#                try:
-#                    variable_map[f'LHEScaleWeight_{i}'] = df.LHEScaleWeight[:,i]
-#                except:
-#                    variable_map[f'LHEScaleWeight_{i}'] = np.ones(numevents, dtype=float)
-            
-        #---------------------------------------------------------------#        
-        # Evaluate DNN score for each variation (obsolete)
-        #---------------------------------------------------------------#        
-
- #       variated_scores = {}
- #       if self.evaluate_dnn:
- #           from config.parameters import training_features
- #           import tensorflow as tf
- #           from tensorflow.keras.models import load_model
- #           config = tf.compat.v1.ConfigProto(intra_op_parallelism_threads=1,
- #                       inter_op_parallelism_threads=1,
- #                       allow_soft_placement=True,
- #                       device_count = {'CPU': 1})
- #           tf.compat.v1.logging.set_verbosity(tf.compat.v1.logging.ERROR)
- #           sess = tf.compat.v1.Session(config=config)
- #           with sess:
- #               # BOTTLENECK: can't load model outside of a worker
- #               # https://github.com/keras-team/keras/issues/9964
- #               dnn_model = load_model(f'output/trained_models/test_{self.year}.h5')
- #               scaler = np.load(f"output/trained_models/scalers_{self.year}.npy")
-                
- #               for variation in jet_variation_names:
- #                   if (variation != 'nominal') and (not self.do_jecunc): continue
- #                   if (variation != 'nominal') and not is_mc:
- #                       variable_map[f'dnn_score_{variation}'] = variable_map['dnn_score_nominal']
- #                       continue
- #                   dnn_score = np.full(numevents, -1.)
- #                   regions = get_regions(ret_jec_loop[variation]['variable_map']['dimuon_mass'])
- #                   for region, rcut in regions.items():
- #                       df_for_dnn = pd.DataFrame(columns=training_features)
- #                       variated_mask = ret_jec_loop[variation]['two_jets'] & rcut
- #                       n_rows = len(ret_jec_loop[variation]['variable_map']['dimuon_mass'][variated_mask].flatten())
- #                       for trf in training_features:
- #                           if trf=='dimuon_mass' and region!='h-peak':
- #                               feature_column = np.full(sum(variated_mask), 125.)
- #                           feature_column = ret_jec_loop[variation]['variable_map'][trf][variated_mask]
- #                           assert(n_rows==len(feature_column))
- #                           df_for_dnn[trf] = feature_column
- #                       df_for_dnn[training_features] = (df_for_dnn[training_features]-scaler[0])/scaler[1]
- #                       try:
- #                           prediction = dnn_model.predict(df_for_dnn[training_features], verbose=0)
- #                           pred_array = tf.reshape(prediction, [-1]).eval()
- #                       except:
- #                           pred_array = np.zeros(sum(variated_mask))
-
- #                       dnn_score[variated_mask] = pred_array
- #                   variable_map[f'dnn_score_{variation}'] = np.arctanh((dnn_score))
- #                   variated_scores.update({f'dnn_score_{variation}':variation})
-                    
- #           if self.timer:
- #               self.timer.add_checkpoint("Evaluated DNN")
-                
- #           if self.do_pdf and is_mc and self.year!='2016':
- #               pdf_rms = np.zeros(numevents, dtype=float)
- #               if ("dy" in dataset or "ewk" in dataset or "ggh" in dataset or "vbf" in dataset):
- #                   pdf_wgts = {}
- #                   dnn_pdf = pd.DataFrame()
- #                   for i in range(self.parameters["n_pdf_variations"]):
- #                       pdf_wgt = df.LHEPdfWeight[:,i][two_jets]
- #                       dnn_v = variable_map['dnn_score_nominal'][two_jets]*pdf_wgt
- #                       dnn_pdf = dnn_pdf.append(pd.Series(dnn_v),ignore_index=True)
- #                   pdf_rms[two_jets] = np.nan_to_num(2*dnn_pdf.std(axis=0).values, nan=0, posinf=0, neginf=0)
- #               variable_map['pdf_rms'] = pdf_rms
 
         #---------------------------------------------------------------#        
         # Fill outputs
@@ -782,7 +715,6 @@ class DimuonProcessor(processor.ProcessorABC):
         regions = get_regions(variable_map['dimuon_mass'])            
 
         for vname, expression in variable_map.items():
-            continue
             if vname not in output['binned']: continue
             for cname in self.channels:
                 ccut = (category==cname)
@@ -811,17 +743,17 @@ class DimuonProcessor(processor.ProcessorABC):
                         output['binned'][vname].fill(**{'dataset': dataset, 'region': rname, 'channel': cname, 'syst': syst,\
                                              vname: value.flatten(), 'weight': weight})
 
-        for syst in weights.df.columns:
-            variable_map[f'wgt_{syst}'] = weights.get_weight(syst)
-            self.vars_unbin.add(f'wgt_{syst}')
-
         #----------------- Unbinned outputs -----------------#
+        # TODO: for jecunc variations the weights are not recorded correctly
         if self.save_unbin:
             for jec_var in jet_variation_names:
                 var_map = ret_jec_loop[jec_var]['variable_map']
                 categ = ret_jec_loop[jec_var]['category']
-                for v in self.vars_unbin:
-                    if v not in var_map: continue
+                weights = ret_jec_loop[jec_var]['weights']
+                for wgt in weights.df.columns:
+                    var_map[f'wgt_{wgt}'] = weights.get_weight(wgt)                
+                for v in var_map:
+                    if (v not in self.vars_unbin) and ('wgt_' not in v): continue
                     for cname in self.channels:
                         ccut = (categ==cname)
                         for rname, rcut in regions.items():
@@ -841,7 +773,6 @@ class DimuonProcessor(processor.ProcessorABC):
             self.timer.summary()
 
         variable_map.clear()
-        #variated_scores.clear()
         for ret in ret_jec_loop.values():
             ret['variable_map'].clear()
             ret.clear()
