@@ -290,7 +290,7 @@ grouping = {
     'dy_1j': 'DY',
     'dy_2j': 'DY',
     'dy_m105_160_amc': 'DY',
-    'dy_m105_160_vbf_amc': 'DY_VBF',
+    'dy_m105_160_vbf_amc': 'DY',
     'ewk_lljj_mll50_mjj120': 'EWK',
     'ewk_lljj_mll105_160': 'EWK',
     'ewk_lljj_mll105_160_ptj0': 'EWK',
