@@ -24,7 +24,6 @@ def worker(args):
     df = to_pandas(args)
     if 'dnn_evaluation' in modules:
         df = dnn_evaluation(df, args)
-
     hists = {}
     edges = {}
     if 'get_hists' in modules:
@@ -41,15 +40,9 @@ def postprocess(args, parallelize=True):
     path = args['in_path']
     argsets = []
     for s in args['samples']:
-        if 'data' in s:
-            variations = ['nominal']
-        else:
-            variations = args['syst_variations']
+        variations = ['nominal'] if 'data' in s else args['syst_variations']
         for v in variations:
-            if v=='nominal':
-                proc_outs = glob.glob(f"{path}/unbinned/{s}_?.coffea")
-            else:
-                proc_outs = glob.glob(f"{path}/{v}/{s}_?.coffea")
+            proc_outs = glob.glob(f"{path}/unbinned/{s}_?.coffea") if v=='nominal' else glob.glob(f"{path}/{v}/{s}_?.coffea")
             for proc_path in proc_outs:
                 for c in args['channels']:
                     for r in args['regions']:
@@ -99,6 +92,8 @@ def to_pandas(args):
     proc_out = util.load(args['proc_path'])
     c = args['c']
     r = args['r']
+    s = args['s']
+    v = args['v']
     suff = f'_{c}_{r}'
     columns = [c.replace(suff, '') for c in list(proc_out.keys()) if suff in c]
     df = pd.DataFrame()
@@ -106,17 +101,17 @@ def to_pandas(args):
     for var in columns:
         if (not args['wgt_variations']) and ('wgt_' in var) and ('nominal' not in var): continue
         if ('wgt_' not in var) and (var not in [v.name for v in args['vars_to_plot']]): continue
+        if (v!='nominal') and ('wgt_' in var) and ('nominal' not in var): continue
+        if ('ggh' in s) and ('prefiring' in var): continue #just for tests to show '-' in datacards
         try:
             df[var] = proc_out[f'{var}_{c}_{r}'].value
         except:
-            if 'wgt_' in var:
-                df[var] = proc_out[f'wgt_nominal_{c}_{r}'].value
-            else:
-                df[var] = np.zeros(len_, dtype=float)
+            df[var] = proc_out[f'wgt_nominal_{c}_{r}'].value if 'wgt_' in var else np.zeros(len_, dtype=float)
+            
     df['c'] = c
     df['r'] = r
-    df['s'] = args['s']
-    df['v'] = args['v']
+    df['s'] = s
+    df['v'] = v
     return df
 
 def dnn_evaluation(df, args):
@@ -147,14 +142,12 @@ def get_hists(df, var, args):
     dataset_axis = bh.axis.StrCategory(df.s.unique())
     region_axis = bh.axis.StrCategory(df.r.unique())
     channel_axis = bh.axis.StrCategory(df.c.unique())
+    syst_axis = bh.axis.StrCategory(df.v.unique())
     val_err_axis = bh.axis.StrCategory(['value', 'sumw2'])
     var_axis = bh.axis.Regular(var.nbins, var.xmin, var.xmax)
 
-    df_out = pd.DataFrame()#columns = ['var','s','r','c','v','w']+[f'bin{i}' for i in range(var.nbins)]+\
-                                                        #  [f'sumw2_{i}' for i in range(var.nbins)])
+    df_out = pd.DataFrame()
     edges = []
-    syst_variations = args['syst_variations']
-    wgts = [c for c in df.columns if ('wgt_' in c) and ('_off' not in c)]
     regions = df.r.unique()
     channels = df.c.unique()
     
@@ -162,23 +155,29 @@ def get_hists(df, var, args):
         if 'data' in s:
             syst_variations = ['nominal']
             wgts = ['wgt_nominal']
-        for v in syst_variations:
-            for w in wgts:
+        else:
+            syst_variations = args['syst_variations']
+            wgts = [c for c in df.columns if ('wgt_' in c)]# and ('_off' not in c)]
+        for w in wgts:
+            hist = bh.Histogram(dataset_axis, region_axis, channel_axis, syst_axis, val_err_axis, var_axis)
+            hist.fill(df.s.to_numpy(), df.r.to_numpy(), df.c.to_numpy(), df.v.to_numpy(), 'value',\
+                              df[var.name].to_numpy(), weight=df[w].to_numpy())
+            hist.fill(df.s.to_numpy(), df.r.to_numpy(), df.c.to_numpy(), df.v.to_numpy(), 'sumw2',\
+                              df[var.name].to_numpy(), weight=(df[w]*df[w]).to_numpy())    
+            for v in df.v.unique():
+                if v not in syst_variations: continue
                 if (v!='nominal')&(w!='wgt_nominal'): continue
-                hist = bh.Histogram(dataset_axis, region_axis, channel_axis, val_err_axis, var_axis)
-                hist.fill(df.s.to_numpy(), df.r.to_numpy(), df.c.to_numpy(), 'value',\
-                          df[var.name].to_numpy(), weight=df[w].to_numpy())
-                hist.fill(df.s.to_numpy(), df.r.to_numpy(), df.c.to_numpy(), 'sumw2',\
-                          df[var.name].to_numpy(), weight=(df[w]*df[w]).to_numpy())
                 for r in regions:
                     for c in channels:
-                        values = hist[loc(s), loc(r), loc(c), loc('value'), :].to_numpy()[0]
-                        sumw2 = hist[loc(s), loc(r), loc(c), loc('sumw2'), :].to_numpy()[0]
-                        edges = hist[loc(s), loc(r), loc(c), loc('value'), :].to_numpy()[1]
+                        values = hist[loc(s), loc(r), loc(c), loc(v), loc('value'), :].to_numpy()[0]
+                        integral = values.sum()
+                        sumw2 = hist[loc(s), loc(r), loc(c), loc(v), loc('sumw2'), :].to_numpy()[0]
+                        edges = hist[loc(s), loc(r), loc(c), loc(v), loc('value'), :].to_numpy()[1]
                         contents = {}
                         contents.update({f'bin{i}':[values[i]] for i in range(var.nbins)})
                         contents.update({f'sumw2_{i}':[sumw2[i]] for i in range(var.nbins)})
-                        contents.update({'s':[s],'r':[r],'c':[c], 'v':[v], 'w':[w], 'var':[var.name]})
+                        contents.update({'g':grouping[s],'s':[s],'r':[r],'c':[c], 'v':[v], 'w':[w],\
+                                         'var':[var.name], 'integral':integral})
                         row = pd.DataFrame(contents)
                         df_out = pd.concat([df_out, row], ignore_index=True)
     return df_out, edges
@@ -222,14 +221,11 @@ def save_shapes(var, hist, edges, args):
                         data_obs_hist = data_obs[bin_columns].sum(axis=0).values
                         data_obs_sumw2 = data_obs[sumw2_columns].sum(axis=0).values
                     mc_hist = hist[~hist.s.isin(data_names)&(hist.v==v)&(hist.w==w)&(hist.r==r)&(hist.c==c)]
-                    for s in mc_hist.s.unique():
-                        if s in grouping.keys():
-                            mc_hist.loc[hist.s==s,'group'] = grouping[s]
-                    mc_hist = mc_hist.groupby('group').aggregate(np.sum).reset_index() 
-                    for g in mc_hist.group.unique():
-                        histo = mc_hist[mc_hist.group==g][bin_columns].values[0]
+                    mc_hist = mc_hist.groupby('g').aggregate(np.sum).reset_index() 
+                    for g in mc_hist.g.unique():
+                        histo = mc_hist[mc_hist.g==g][bin_columns].values[0]
                         if len(histo)==0: continue
-                        sumw2 = mc_hist[mc_hist.group==g][sumw2_columns].values[0]
+                        sumw2 = mc_hist[mc_hist.g==g][sumw2_columns].values[0]
                         rname = r.replace('-','_')
                         name = f'{rname}_{g}_{vwname}'
                         th1 = from_numpy([histo, edges])
@@ -246,22 +242,140 @@ def save_shapes(var, hist, edges, args):
             out_file['data_obs'] = th1_data
             out_file.close()
 
-def plot(var, hist, wgt_option, edges, args, r='', save=True, show=False, plotsize=12):
-    def add_source(hist, group_name):
-        bin_columns = [c for c in hist.columns if 'bin' in c]
-        sumw2_columns = [c for c in hist.columns if 'sumw2' in c]
-        vals = hist[hist['group']==group_name]
-        vals = vals.groupby('group').aggregate(np.sum).reset_index()
-        sumw2 = vals[sumw2_columns].sum(axis=0).reset_index(drop=True).values 
-        try:
-            vals = vals[bin_columns].values[0] 
-            return vals, sumw2
-        except:
-            print(group_name, "missing")
-            return np.array([]), np.array([])
+rate_syst_lookup = {
+    '2016':{
+        'DY':{'XsecAndNorm': 1.12189, 'lumi': 1.025},
+        'EWK':{'XsecAndNorm': 1.06217,'lumi': 1.025},
+        'TT+ST':{'XsecAndNorm': 1.18261,'lumi': 1.025},
+        'VV':{'XsecAndNorm': 1.0609,'lumi': 1.025},
+        'ggH':{'XsecAndNorm': 1.36133,'lumi': 1.025},
+        'VBF':{'lumi': 1.025},
+        },
+    '2017':{
+        'DY':{'XsecAndNorm': 1.12452, 'lumi': 1.025},
+        'EWK':{'XsecAndNorm': 1.05513,'lumi': 1.025},
+        'TT+ST':{'XsecAndNorm': 1.18402,'lumi': 1.025},
+        'VV':{'XsecAndNorm': 1.05734,'lumi': 1.025},
+        'ggH':{'XsecAndNorm': 1.36667,'lumi': 1.025},
+        'VBF':{'lumi': 1.025},
+        },
+    '2018':{
+        'DY':{'XsecAndNorm': 1.12152, 'lumi': 1.025},
+        'EWK':{'XsecAndNorm': 1.05851,'lumi': 1.025},
+        'TT+ST':{'XsecAndNorm': 1.18592,'lumi': 1.025},
+        'VV':{'XsecAndNorm': 1.05734,'lumi': 1.025},
+        'ggH':{'XsecAndNorm': 1.39295,'lumi': 1.025},
+        'VBF':{'lumi': 1.025},
+        },
+}            
+            
+def get_numbers(hist, bin_name, args):
+    groups = hist.g.unique()
     
+    sig_groups = ['ggH', 'VBF']
+    sig_counter = 0
+    bkg_counter = 0
+    
+    systs = []
+    shape_systs = [w.replace('_up','').replace('wgt_','') for w in hist.w.unique() if '_up' in w]
+    shape_systs.extend(['jes'+v.replace('_up','') for v in hist.v.unique() if '_up' in v])
+    lnn_systs = ['XsecAndNorm'+g for g in groups if 'Data' not in g]
+    lnn_systs.extend(['lumi'])
+    systs.extend(shape_systs)
+    systs.extend(lnn_systs)
+
+    data_yields = pd.DataFrame()
+    data_yields['index'] = ['bin','observation']
+    
+    mc_yields = pd.DataFrame()
+    mc_yields['index'] = ['bin','process','process','rate']
+    
+    systematics = pd.DataFrame(index=systs)
+
+    for g in groups:
+        counter = 0
+        if g in sig_groups:
+            sig_counter += 1
+            counter = -sig_counter
+        elif 'Data'not in g:
+            bkg_counter += 1
+            counter = bkg_counter
+        hist_g = hist[(hist.g==g)]
+        systs_g = [w.replace('_up','').replace('wgt_','') for w in hist_g.w.unique() if '_up' in w]
+        systs_g.extend(['jes'+v.replace('_up','') for v in hist_g.v.unique() if '_up' in v])
+        hist_g = hist_g[(hist_g.v=='nominal')&(hist_g.w=='wgt_nominal')].groupby('g').aggregate(np.sum).reset_index()
+        rate = hist_g.integral.values[0]
+        if g=='Data':
+            data_yields.loc[0,'value'] = bin_name
+            data_yields.loc[1,'value'] = f'{rate}'
+        else:
+            mc_yields.loc[0,g] = bin_name
+            mc_yields.loc[1,g] = g
+            mc_yields.loc[2,g] = f'{counter}'
+            mc_yields.loc[3,g] = f'{rate}'
+            for syst in shape_systs:
+                systematics.loc[syst,'type'] = 'shape'
+                systematics.loc[syst,g] = '1.0' if syst in systs_g else '-'
+            for syst in lnn_systs:
+                systematics.loc[syst,'type'] = 'lnN'
+                val = rate_syst_lookup[args['year']][g][syst.replace(g,'')] if syst.replace(g,'') in\
+                                            rate_syst_lookup[args['year']][g].keys() else '-'
+                systematics.loc[syst,g] = f'{val}'
+                    
+    def to_string(df):
+        string = ''
+        for row in df.values:
+            for i,item in enumerate(row):
+                ncols = 2 if item in ['bin','process','rate', 'observation'] else 1
+                row[i] = item+' '*(ncols*20-len(item))
+            string += ' '.join(row)
+            string += '\n'
+        return string
+    return to_string(data_yields), to_string(mc_yields), to_string(systematics.reset_index())
+    
+        
+            
+def make_datacards(var, hist, args):
+    r_names = {'h-peak':'SR','h-sidebands':'SB'}
     hist = hist[var.name]
-    hist = hist[hist.w==wgt_option]
+    for c in args['channels']:
+        for r in args['regions']:            
+            datacard_name = f'combine_new/datacard_{c}_{r}_{args["year"]}_{args["label"]}.txt'
+            shapes_file = f'combine_new/shapes_{c}_{r}_{args["year"]}_{args["label"]}.root'
+            datacard = open(datacard_name, 'w')
+            datacard.write(f"imax 1\n") # will combine the datacards later
+            datacard.write(f"jmax *\n")
+            datacard.write(f"kmax *\n")
+            datacard.write("---------------\n")
+            datacard.write(f"shapes * {r} {shapes_file} $PROCESS $PROCESS_$SYSTEMATIC\n")
+            datacard.write("---------------\n")
+            bin_name = f'{r_names[r]}_{args["year"]}'
+            ret = data_yields, mc_yields, systematics = get_numbers(hist[(hist.c==c) & (hist.r==r)], bin_name, args)
+            datacard.write(data_yields)
+            datacard.write("---------------\n")
+            datacard.write(mc_yields)
+            datacard.write("---------------\n")
+            datacard.write(systematics)
+            datacard.close()
+            print(f'Saved datacard to {datacard_name}')
+    return
+
+def add_source(hist, group_name):
+    bin_columns = [c for c in hist.columns if 'bin' in c]
+    sumw2_columns = [c for c in hist.columns if 'sumw2' in c]
+    vals = hist[hist['g']==group_name]
+    vals = vals.groupby('g').aggregate(np.sum).reset_index()
+    sumw2 = vals[sumw2_columns].sum(axis=0).reset_index(drop=True).values 
+    try:
+        vals = vals[bin_columns].values[0] 
+        return vals, sumw2
+    except:
+        print(group_name, "missing")
+        return np.array([]), np.array([])
+        
+def plot(var, hist, wgt_option, edges, args, r='', save=True, show=False, plotsize=12):    
+    hist = hist[var.name]
+    hist = hist[(hist.w==wgt_option)&(hist.v=='nominal')]
     if r!='':
         hist = hist[hist.r==r]
         
@@ -270,23 +384,16 @@ def plot(var, hist, wgt_option, edges, args, r='', save=True, show=False, plotsi
 
     bkg = ['DY','DY_VBF', 'EWK', 'TT+ST', 'VV']
 
-    hist.loc[:,'group'] = None
-    for s in hist.s.unique():
-        if s in grouping.keys():
-            hist.loc[hist.s==s,'group'] = grouping[s]
-
-
     vbf, vbf_sumw2 = add_source(hist, 'VBF')
     ggh, ggh_sumw2 = add_source(hist, 'ggH')
     data, data_sumw2 = add_source(hist, 'Data')    
 
     bin_columns = [c for c in hist.columns if 'bin' in c]
     sumw2_columns = [c for c in hist.columns if 'sumw2' in c]
-    bkg_df = hist[hist['group'].isin(bkg)]
-#    print(bkg_df[bin_columns])
-    bkg_df.loc[:,'integral'] = bkg_df[bin_columns].sum(axis=1)
-    bkg_df = bkg_df.groupby('group').aggregate(np.sum).reset_index()
-    bkg_df = bkg_df.sort_values(by='integral').reset_index(drop=True)
+    bkg_df = hist[hist['g'].isin(bkg)]
+    bkg_df.loc[:,'bkg_integral'] = bkg_df[bin_columns].sum(axis=1)
+    bkg_df = bkg_df.groupby('g').aggregate(np.sum).reset_index()
+    bkg_df = bkg_df.sort_values(by='bkg_integral').reset_index(drop=True)
     bkg_total = bkg_df[bin_columns].sum(axis=0).reset_index(drop=True)    
     bkg_sumw2 = bkg_df[sumw2_columns].sum(axis=0).reset_index(drop=True)
     if len(bkg_df.values)>1:
@@ -295,7 +402,7 @@ def plot(var, hist, wgt_option, edges, args, r='', save=True, show=False, plotsi
     else:
         bkg = bkg_df[bin_columns].values
         stack=False
-    bkg_labels = bkg_df['group']
+    bkg_labels = bkg_df.g
 
     
     # Report yields
@@ -307,7 +414,7 @@ def plot(var, hist, wgt_option, edges, args, r='', save=True, show=False, plotsi
             print(f"{var.name}: Yields in {r}")
         print("="*50)
         print('Data', data.sum())
-        for row in bkg_df[['group','integral']].values:
+        for row in bkg_df[['g','integral']].values:
             print(row)
         print('VBF', vbf.sum())
         print('ggH', ggh.sum())
@@ -376,6 +483,7 @@ def plot(var, hist, wgt_option, edges, args, r='', save=True, show=False, plotsi
     
     if save:
         # Save plots
+        out_path = args['out_path']
         try:
             os.mkdir(out_path)
         except:
@@ -384,8 +492,6 @@ def plot(var, hist, wgt_option, edges, args, r='', save=True, show=False, plotsi
             os.mkdir(f"{out_path}/plots_{year}_{label}")
         except:
             pass
-
-        out_path = args['out_path']
         if r=='':
             out_name = f"{out_path}/plots_{year}_{label}/{var.name}_{wgt_option}_inclusive.png"
         else:

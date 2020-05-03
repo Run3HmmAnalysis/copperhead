@@ -1,6 +1,6 @@
 import os,glob
 import argparse
-from python.postprocessing import postprocess, plot, save_shapes
+from python.postprocessing import postprocess, plot, save_shapes, make_datacards
 from config.variables import variables
 from config.datasets import datasets
 import pandas as pd
@@ -8,7 +8,6 @@ import pandas as pd
 parser = argparse.ArgumentParser()
 parser.add_argument("-y", "--year", dest="year", default=2016, action='store')
 parser.add_argument("-l", "--label", dest="label", default="apr23", action='store')
-parser.add_argument("-o", "--out_path", dest="out_path", default="plots_new", action='store')
 parser.add_argument("--dnn", action='store_true')
 args = parser.parse_args()
 
@@ -56,11 +55,12 @@ postproc_args = {
     'label': args.label,
     'in_path': f'/depot/cms/hmm/coffea/all_{args.year}_{args.label}/',
     'syst_variations': ['nominal']+syst_variations,
-    'out_path': args.out_path,
+    'out_path': 'plots_new/',
     'samples':samples,
     'channels': ['vbf'],
     'regions': ['h-peak', 'h-sidebands'],
     'vars_to_plot': list(vars_to_plot.values()),
+    'wgt_variations': True
 }
 
 
@@ -70,11 +70,12 @@ for var, hists in hist_dfs.items():
     hist[var] = pd.concat(hists, ignore_index=True)
 
 save_shapes(vars_to_plot['dimuon_mass'], hist, edges['dimuon_mass'], postproc_args)
-    
+make_datacards(vars_to_plot['dimuon_mass'], hist, postproc_args)
+   
 for vname, var in vars_to_plot.items():
     for r in postproc_args['regions']:
         plot(var, hist, 'wgt_nominal', edges[vname], postproc_args, r)
-#        plot(var, hist, 'wgt_puid_wgt_off', edges[vname], postproc_args, r)
+#        plot(var, hist, 'wgt_qgl_wgt_off', edges[vname], postproc_args, r)
 
     # inclusive
 #    plot(var, hist, 'nominal', edges[vname], postproc_args)
