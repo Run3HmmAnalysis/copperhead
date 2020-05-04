@@ -81,7 +81,7 @@ class DimuonProcessor(processor.ProcessorABC):
         
         from config.variables import Variable
         weights_ = ['nominal', 'lumi', 'genwgt', 'nnlops', 'btag_wgt']
-        variated_weights_ = ['pu_wgt', 'muSF', 'l1prefiring_wgt', 'qgl_wgt']#, 'btag_wgt']
+        variated_weights_ = ['pu_wgt', 'muSF', 'l1prefiring_wgt', 'qgl_wgt', 'LHEFac', 'LHERen']#, 'btag_wgt']
         
         for wgt in weights_:
             if 'nominal' in wgt:
@@ -660,6 +660,26 @@ class DimuonProcessor(processor.ProcessorABC):
             muSF, muSF_up, muSF_down = musf_evaluator(self.musf_lookup, self.year, numevents, muons)
             weights.add_weight_with_variations('muSF', muSF, muSF_up, muSF_down)
 
+            lhefactor = 2. if ('dy_m105_160_amc' in dataset) and (('2017' in self.year) or ('2018' in self.year)) else 1.
+            nLHEScaleWeight = df.LHEScaleWeight.counts
+
+            lhe_ren = np.ones(numevents, dtype=float)
+            lhe_ren_up = np.full(numevents, lhefactor, dtype=float)
+            lhe_ren_up[nLHEScaleWeight>8] = df.LHEScaleWeight[nLHEScaleWeight>8][:,7]*lhefactor
+            lhe_ren_up[nLHEScaleWeight>30] = df.LHEScaleWeight[nLHEScaleWeight>30][:,34]*lhefactor
+            lhe_ren_down = np.full(numevents, lhefactor, dtype=float)
+            lhe_ren_down[nLHEScaleWeight>8] = df.LHEScaleWeight[nLHEScaleWeight>8][:,1]*lhefactor
+            lhe_ren_down[nLHEScaleWeight>30] = df.LHEScaleWeight[nLHEScaleWeight>30][:,5]*lhefactor  
+            weights.add_weight_with_variations('LHERen', lhe_ren, lhe_ren_up, lhe_ren_down)
+
+            lhe_fac = np.ones(numevents, dtype=float)
+            lhe_fac_up = np.full(numevents, lhefactor, dtype=float)
+            lhe_fac_up[nLHEScaleWeight>8] = df.LHEScaleWeight[nLHEScaleWeight>8][:,5]*lhefactor
+            lhe_fac_up[nLHEScaleWeight>30] = df.LHEScaleWeight[nLHEScaleWeight>30][:,24]*lhefactor
+            lhe_fac_down = np.full(numevents, lhefactor, dtype=float)
+            lhe_fac_down[nLHEScaleWeight>8] = df.LHEScaleWeight[nLHEScaleWeight>8][:,3]*lhefactor
+            lhe_fac_down[nLHEScaleWeight>30] = df.LHEScaleWeight[nLHEScaleWeight>30][:,15]*lhefactor
+            weights.add_weight_with_variations('LHEFac', lhe_fac, lhe_fac_up, lhe_fac_down)
 
         #---------------------------------------------------------------#
         # Calculate getJetMass
