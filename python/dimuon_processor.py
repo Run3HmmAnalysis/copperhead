@@ -549,7 +549,7 @@ class DimuonProcessor(processor.ProcessorABC):
         jetarrays.update(**{'ptRaw':(df.Jet.pt * (1-df.Jet.rawFactor)).flatten(),\
                             'massRaw':(df.Jet.mass * (1-df.Jet.rawFactor)).flatten(),\
                             'rho': (df.Jet.pt.ones_like()*df.fixedGridRhoFastjetAll).flatten() })
-        
+
         if is_mc:
             ptGenJet = df.Jet.pt.zeros_like()
             genJetIdx = df.Jet.genJetIdx
@@ -582,8 +582,9 @@ class DimuonProcessor(processor.ProcessorABC):
                     'eta':'__fast_eta',
                     'phi':'__fast_phi',
                     'mass':'__fast_mass',
-                    'matched_muons': 'matched_muons'}
-            cols.update(**{k:k for k in ['qgl','btagDeepB','ptRaw','massRaw','rho','area','jetId','puId']})
+                    }
+            cols.update(**{k:k for k in ['qgl','btagDeepB','ptRaw','massRaw','rho',\
+                                         'area','jetId','puId','matched_muons']})
             if self.year=="2017":
                 cols.update(**{'puId17':'puId17'})
             if is_mc:
@@ -1040,12 +1041,17 @@ class DimuonProcessor(processor.ProcessorABC):
         #---------------------------------------------------------------#        
         # Define categories
         #---------------------------------------------------------------#        
+        two_jets_matched = np.zeros(numevents, dtype=bool)
+        two_jets_matched[two_jets] = (jet1.genJetIdx[two_jets]>0)&(jet1.genJetIdx[two_jets]>0)
         
         category = np.empty(numevents, dtype=object)
         category[mask&(~two_jets)] = 'ggh_01j'
         category[mask&two_jets&(~vbf_cut)] = 'ggh_2j'
         category[mask&two_jets&vbf_cut] = 'vbf'
-#        category[mask&two_jets] = 'vbf'
+        if 'dy' in dataset:
+            category[mask&two_jets&vbf_cut&(~two_jets_matched)] = 'vbf_01j'
+            category[mask&two_jets&vbf_cut&two_jets_matched] = 'vbf_2j'
+
         #---------------------------------------------------------------#        
         # Fill outputs
         #---------------------------------------------------------------#        

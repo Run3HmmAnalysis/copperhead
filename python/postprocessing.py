@@ -97,10 +97,10 @@ def to_pandas(args):
     suff = f'_{c}_{r}'
     columns = [c.replace(suff, '') for c in list(proc_out.keys()) if suff in c]
     df = pd.DataFrame()
-    len_ = len(proc_out[f'dimuon_mass_{c}_{r}'].value)
+    len_ = len(proc_out[f'dimuon_mass_{c}_{r}'].value) if f'dimuon_mass_{c}_{r}' in proc_out.keys() else 0
     for var in columns:
         if (not args['wgt_variations']) and ('wgt_' in var) and ('nominal' not in var): continue
-        if ('wgt_' not in var) and (var not in [v.name for v in args['vars_to_plot']]): continue
+#        if ('wgt_' not in var) and (var not in [v.name for v in args['vars_to_plot']]): continue
         if (v!='nominal') and ('wgt_' in var) and ('nominal' not in var): continue
         if ('ggh' in s) and ('prefiring' in var): continue #just for tests to show '-' in datacards
         try:
@@ -127,15 +127,16 @@ def dnn_evaluation(df, args):
     tf.compat.v1.logging.set_verbosity(tf.compat.v1.logging.ERROR)
     sess = tf.compat.v1.Session(config=config)
     scalers_path = f'output/trained_models/scalers_{dnn_label}.npy'
+    scalers = np.load(scalers_path)
     model_path = f'output/trained_models/test_{dnn_label}_hw.h5'
     with sess:
         dnn_model = load_model(model_path)
         df_eval = df[training_features]
         if args['r']!='h-peak':
             df_eval['dimuon_mass'] = 125.
+        df_eval = (df_eval[training_features]-scalers[0])/scalers[1]
         prediction = dnn_model.predict(df_eval).ravel()
         df['dnn_score'] = np.arctanh((prediction))
-        print(df['dnn_score'])
     return df
 
 def get_hists(df, var, args):
@@ -206,7 +207,8 @@ def save_shapes(var, hist, edges, args):
     bin_columns = [c for c in hist.columns if 'bin' in c]
     sumw2_columns = [c for c in hist.columns if 'sumw2' in c]
     data_names = [n for n in hist.s.unique() if 'data' in n]
-    for c in args['channels']:
+#    for c in args['channels']: # Unite channels here
+    for c,cg in args['channel_groups'].items():
         for r in args['regions']:
             out_fn = f'combine_new/shapes_{c}_{r}_{args["year"]}_{args["label"]}.root'
             out_file = uproot.recreate(out_fn)
@@ -217,10 +219,12 @@ def save_shapes(var, hist, edges, args):
                     vwname = get_vwname(v,w)
                     if vwname == '': continue
                     if vwname == 'nominal':
-                        data_obs = hist[hist.s.isin(data_names)&(hist.r==r)&(hist.c==c)]
+                        #data_obs = hist[hist.s.isin(data_names)&(hist.r==r)&(hist.c==c)]
+                        data_obs = hist[hist.s.isin(data_names)&(hist.r==r)&(hist.c.isin(cg))]                        
                         data_obs_hist = data_obs[bin_columns].sum(axis=0).values
                         data_obs_sumw2 = data_obs[sumw2_columns].sum(axis=0).values
-                    mc_hist = hist[~hist.s.isin(data_names)&(hist.v==v)&(hist.w==w)&(hist.r==r)&(hist.c==c)]
+                    #mc_hist = hist[~hist.s.isin(data_names)&(hist.v==v)&(hist.w==w)&(hist.r==r)&(hist.c==c)]
+                    mc_hist = hist[~hist.s.isin(data_names)&(hist.v==v)&(hist.w==w)&(hist.r==r)&(hist.c.isin(cg))]
                     mc_hist = mc_hist.groupby('g').aggregate(np.sum).reset_index() 
                     for g in mc_hist.g.unique():
                         histo = mc_hist[mc_hist.g==g][bin_columns].values[0]
@@ -272,6 +276,7 @@ rate_syst_lookup = {
 def get_numbers(hist, bin_name, args):
     groups = hist.g.unique()
     
+    floating_norm = {'DY':['vbf_01j','vbf_2j']}
     sig_groups = ['ggH', 'VBF']
     sig_counter = 0
     bkg_counter = 0
@@ -338,7 +343,8 @@ def get_numbers(hist, bin_name, args):
 def make_datacards(var, hist, args):
     r_names = {'h-peak':'SR','h-sidebands':'SB'}
     hist = hist[var.name]
-    for c in args['channels']:
+#    for c in args['channels']: # Unite channels here
+    for c,cg in args['channel_groups'].items():
         for r in args['regions']:            
             datacard_name = f'combine_new/datacard_{c}_{r}_{args["year"]}_{args["label"]}.txt'
             shapes_file = f'combine_new/shapes_{c}_{r}_{args["year"]}_{args["label"]}.root'
@@ -350,7 +356,9 @@ def make_datacards(var, hist, args):
             datacard.write(f"shapes * {r} {shapes_file} $PROCESS $PROCESS_$SYSTEMATIC\n")
             datacard.write("---------------\n")
             bin_name = f'{r_names[r]}_{args["year"]}'
-            ret = data_yields, mc_yields, systematics = get_numbers(hist[(hist.c==c) & (hist.r==r)], bin_name, args)
+#            ret = data_yields, mc_yields, systematics = get_numbers(hist[(hist.c==c) & (hist.r==r)], bin_name, args)
+            print(hist)
+            ret = data_yields, mc_yields, systematics = get_numbers(hist[(hist.c.isin(cg)) & (hist.r==r)], bin_name, args)
             datacard.write(data_yields)
             datacard.write("---------------\n")
             datacard.write(mc_yields)
@@ -378,6 +386,9 @@ def plot(var, hist, wgt_option, edges, args, r='', save=True, show=False, plotsi
     hist = hist[(hist.w==wgt_option)&(hist.v=='nominal')]
     if r!='':
         hist = hist[hist.r==r]
+        
+#    if 'dnn_score' in var.name:
+#        var.xmax = hist.max_score.max()
         
     year = args['year']
     label = args['label']

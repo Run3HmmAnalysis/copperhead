@@ -11,7 +11,8 @@ parser.add_argument("-l", "--label", dest="label", default="apr23", action='stor
 parser.add_argument("--dnn", action='store_true')
 args = parser.parse_args()
 
-to_plot = ['dimuon_mass']#, 'dimuon_pt', 'dnn_score']
+#to_plot = ['dimuon_mass', 'dimuon_pt', 'dnn_score']
+to_plot = ['dnn_score']
 vars_to_plot = {v.name:v for v in variables if v.name in to_plot}
 #samples = list(datasets[args.year].keys())        
 samples = [
@@ -57,7 +58,8 @@ postproc_args = {
     'syst_variations': ['nominal']+syst_variations,
     'out_path': 'plots_new/',
     'samples':samples,
-    'channels': ['vbf'],
+    'channels': ['vbf','vbf_01j','vbf_2j'],
+    'channel_groups': {'vbf':['vbf','vbf_01j','vbf_2j']},
     'regions': ['h-peak', 'h-sidebands'],
     'vars_to_plot': list(vars_to_plot.values()),
     'wgt_variations': True
@@ -69,8 +71,9 @@ hist = {}
 for var, hists in hist_dfs.items():
     hist[var] = pd.concat(hists, ignore_index=True)
 
-save_shapes(vars_to_plot['dimuon_mass'], hist, edges['dimuon_mass'], postproc_args)
-make_datacards(vars_to_plot['dimuon_mass'], hist, postproc_args)
+myvar = 'dnn_score'    
+save_shapes(vars_to_plot[myvar], hist, edges[myvar], postproc_args)
+make_datacards(vars_to_plot[myvar], hist, postproc_args)
    
 for vname, var in vars_to_plot.items():
     for r in postproc_args['regions']:
