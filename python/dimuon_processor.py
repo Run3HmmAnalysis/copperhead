@@ -21,6 +21,7 @@ from python.samples_info import SamplesInfo
 from python.weights import Weights
 from python.corrections import musf_lookup, musf_evaluator, pu_lookup, pu_evaluator, NNLOPS_Evaluator, roccor_evaluator
 from python.corrections import qgl_weights, puid_weights, btag_weights, geofit_evaluator, fsr_evaluator
+from python.stxs_uncert import vbf_uncert_stage_1_1, stxs_lookups
 
 import gc
     
@@ -81,7 +82,10 @@ class DimuonProcessor(processor.ProcessorABC):
         
         from config.variables import Variable
         weights_ = ['nominal', 'lumi', 'genwgt', 'nnlops', 'btag_wgt']
-        variated_weights_ = ['pu_wgt', 'muSF', 'l1prefiring_wgt', 'qgl_wgt', 'LHEFac', 'LHERen']#, 'btag_wgt']
+        variated_weights = ['pu_wgt', 'muSF', 'l1prefiring_wgt', 'qgl_wgt', 'LHEFac', 'LHERen']
+        #, 'btag_wgt']
+        self.sths_names=["Yield","PTH200","Mjj60","Mjj120","Mjj350","Mjj700","Mjj1000","Mjj1500","PTH25","JET01"]
+        variated_weights.extend(["THU_VBF_"+name for name in self.sths_names])
         
         for wgt in weights_:
             if 'nominal' in wgt:
@@ -89,7 +93,7 @@ class DimuonProcessor(processor.ProcessorABC):
             else:
                 variables.append(Variable(f"wgt_{wgt}_off", f"wgt_{wgt}_off", 1, 0, 1))
 
-        for wgt in variated_weights_:
+        for wgt in variated_weights:
             variables.append(Variable(f"wgt_{wgt}_up", f"wgt_{wgt}_up", 1, 0, 1))
             variables.append(Variable(f"wgt_{wgt}_down", f"wgt_{wgt}_down", 1, 0, 1))
             variables.append(Variable(f"wgt_{wgt}_off", f"wgt_{wgt}_off", 1, 0, 1))
@@ -162,7 +166,7 @@ class DimuonProcessor(processor.ProcessorABC):
         
         self.btag_lookup = BTagScaleFactor(self.parameters["btag_sf_csv"], BTagScaleFactor.RESHAPE,\
                                        'iterativefit,iterativefit,iterativefit')
-        
+        self.stxs_acc_lookups, self.powheg_xsec_lookup = stxs_lookups()
         
         ### Prepare evaluator for corrections that can be loaded together ###        
         zpt_filename = self.parameters['zpt_weights_file']
@@ -681,6 +685,15 @@ class DimuonProcessor(processor.ProcessorABC):
             lhe_fac_down[nLHEScaleWeight>30] = df.LHEScaleWeight[nLHEScaleWeight>30][:,15]*lhefactor
             weights.add_weight_with_variations('LHEFac', lhe_fac, lhe_fac_up, lhe_fac_down)
 
+            if ('vbf' in dataset) and ('dy' not in dataset):
+                for i, name in enumerate(self.sths_names):
+                    wgt = np.ones(numevents, dtype=float)
+                    wgt_up = vbf_uncert_stage_1_1(i, df.HTXS.stage1_1_fine_cat_pTjet30GeV, 1.,\
+                                                  self.stxs_acc_lookups, self.powheg_xsec_lookup)
+                    wgt_down = vbf_uncert_stage_1_1(i, df.HTXS.stage1_1_fine_cat_pTjet30GeV, -1.,\
+                                                    self.stxs_acc_lookups, self.powheg_xsec_lookup)
+                    weights.add_weight_with_variations("THU_VBF_"+name, wgt, wgt_up, wgt_down)
+#            print(weights.df)
         #---------------------------------------------------------------#
         # Calculate getJetMass
         #---------------------------------------------------------------#
