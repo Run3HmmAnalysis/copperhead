@@ -266,10 +266,11 @@ def save_shapes(var, hist, edges, args):
     except:
         pass
     
-    to_variate = ['vbf_amcPS', 'vbf_powhegPS', 'vbf_powheg_herwig', 'vbf_powheg_dipole']
+    to_variate = ['vbf_amcPS', 'vbf_powhegPS', 'vbf_powheg_herwig','vbf_powheg_dipole',\
+                  'ewk_lljj_mll105_160_ptj0','ewk_lljj_mll105_160','ewk_lljj_mll105_160_py']
     sample_variations = {
-     #   'SignalPartonShower': {'VBF': ['vbf_powhegPS','vbf_powheg_herwig']}, 
-    #    'EWKPartonShower': {'EWK': ['ewk_lljj_mll105_160','ewk_lljj_mll105_160_py']}, 
+        'SignalPartonShower': {'VBF': ['vbf_powhegPS','vbf_powheg_herwig']}, 
+        'EWKPartonShower': {'EWK': ['ewk_lljj_mll105_160','ewk_lljj_mll105_160_py']}, 
     }
 
     variated_shapes = {}
@@ -329,8 +330,6 @@ def save_shapes(var, hist, edges, args):
                             th1._fSumw2 = np.array(sumw2)
                             th1._fTsumw2 = np.array(sumw2).sum()
                             th1._fTsumwx2 = np.array(sumw2 * centers).sum()
-#                            if 'hf' in w:
-#                                print(sumw2)
                             if vwname=='nominal':
                                 out_file[f'{g}_{c}'] = th1
                             else:
@@ -392,8 +391,8 @@ def get_numbers(hist, bin_name, args):
     floating_norm = {'DY':['vbf_01j']}
     sig_groups = ['ggH', 'VBF']
     sample_variations = {
-     #   'SignalPartonShower': {'VBF': ['vbf_powhegPS','vbf_powheg_herwig']}, 
-   #     'EWKPartonShower': {'EWK': ['ewk_lljj_mll105_160','ewk_lljj_mll105_160_py']}, 
+        'SignalPartonShower': {'VBF': ['vbf_powhegPS','vbf_powheg_herwig']}, 
+        'EWKPartonShower': {'EWK': ['ewk_lljj_mll105_160','ewk_lljj_mll105_160_py']}, 
     }
 
     sig_counter = 0
