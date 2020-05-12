@@ -62,7 +62,7 @@ class SamplesInfo(object):
         #--- Define regions and channels used in the analysis ---#
         self.regions = ['z-peak', 'h-sidebands', 'h-peak']
         #self.channels = ['ggh_01j', 'ggh_2j', 'vbf']
-        self.channels = ['vbf']
+        self.channels = ['vbf','vbf_01j','vbf_2j']
         
         #--- Select samples for which unbinned data will be saved ---#
         self.signal_samples = ['ggh_amcPS', 'vbf_amcPS']
@@ -78,17 +78,23 @@ class SamplesInfo(object):
                 'z-peak': {
                     'ggh_01j' : ["dy_0j", "dy_1j", "dy_2j", 'ewk_lljj_mll50_mjj120'],
                     'ggh_2j' : ["dy_0j", "dy_1j", "dy_2j", 'ewk_lljj_mll50_mjj120'],
-                    'vbf' : ["dy_0j", "dy_1j", "dy_2j", 'ewk_lljj_mll50_mjj120']
+                    'vbf' : ["dy_0j", "dy_1j", "dy_2j", 'ewk_lljj_mll50_mjj120'],
+                    'vbf_01j' : ["dy_0j", "dy_1j", "dy_2j", 'ewk_lljj_mll50_mjj120'],
+                    'vbf_2j' : ["dy_0j", "dy_1j", "dy_2j", 'ewk_lljj_mll50_mjj120']
                 },
                 'h-sidebands': {
                     'ggh_01j' : ['dy_m105_160_amc', 'ewk_lljj_mll105_160','ewk_lljj_mll105_160_ptj0'],
                     'ggh_2j' : ['dy_m105_160_amc', 'ewk_lljj_mll105_160','ewk_lljj_mll105_160_ptj0'],
                     'vbf' : ['dy_m105_160_amc', 'dy_m105_160_vbf_amc', 'ewk_lljj_mll105_160','ewk_lljj_mll105_160_ptj0'],
+                    'vbf_01j' : ['dy_m105_160_amc', 'dy_m105_160_vbf_amc', 'ewk_lljj_mll105_160','ewk_lljj_mll105_160_ptj0'],
+                    'vbf_2j' : ['dy_m105_160_amc', 'dy_m105_160_vbf_amc', 'ewk_lljj_mll105_160','ewk_lljj_mll105_160_ptj0'],
                 },
                 'h-peak': {
                     'ggh_01j' : ['dy_m105_160_amc', 'ewk_lljj_mll105_160','ewk_lljj_mll105_160_ptj0'],
                     'ggh_2j' : ['dy_m105_160_amc', 'ewk_lljj_mll105_160','ewk_lljj_mll105_160_ptj0'],
                     'vbf' : ['dy_m105_160_amc','dy_m105_160_vbf_amc', 'ewk_lljj_mll105_160','ewk_lljj_mll105_160_ptj0'],
+                    'vbf_01j' : ['dy_m105_160_amc','dy_m105_160_vbf_amc', 'ewk_lljj_mll105_160','ewk_lljj_mll105_160_ptj0'],
+                    'vbf_2j' : ['dy_m105_160_amc','dy_m105_160_vbf_amc', 'ewk_lljj_mll105_160','ewk_lljj_mll105_160_ptj0'],
                 }
             }
 
@@ -295,4 +301,4 @@ class SamplesInfo(object):
             else:
                 self.lumi_weights[sample] = 0
             lumi_wgt = self.lumi_weights[sample]
-          #  print(f"{sample}: xsec={xsec}, N={N}, lumi_wgt={lumi_wgt}")
+            print(f"{sample}: xsec={xsec}, N={N}, lumi_wgt={lumi_wgt}")

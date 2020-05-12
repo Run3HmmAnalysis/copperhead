@@ -40,17 +40,27 @@ def roccor_evaluator(rochester, is_mc, muons):
         hasgen = ~np.isnan(muons.matched_gen.pt.fillna(np.nan))
         mc_rand = awkward.JaggedArray.fromoffsets(hasgen.offsets, mc_rand)._content
 
+        corrections = np.ones_like(muons.pt.flatten())
+        errors = np.ones_like(muons.pt.flatten())
+        
         mc_kspread = rochester.kSpreadMC(muons.charge[hasgen], muons.pt[hasgen], muons.eta[hasgen], muons.phi[hasgen],
                                          muons.matched_gen.pt[hasgen])
         mc_ksmear = rochester.kSmearMC(muons.charge[~hasgen], muons.pt[~hasgen],muons.eta[~hasgen],muons.phi[~hasgen],
                                        muons.nTrackerLayers[~hasgen], mc_rand[~hasgen])
-        corrections = np.ones_like(muons.pt.flatten())
+        errspread = rochester.kSpreadMCerror(muons.charge[hasgen], muons.pt[hasgen], muons.eta[hasgen], muons.phi[hasgen],
+                                            muons.matched_gen.pt[hasgen])
+        errsmear = rochester.kSmearMCerror(muons.charge[~hasgen], muons.pt[~hasgen], muons.eta[~hasgen], muons.phi[~hasgen],
+                                          muons.nTrackerLayers[~hasgen], mc_rand[~hasgen])
+
         corrections[hasgen.flatten()] = mc_kspread.flatten()
         corrections[~hasgen.flatten()] = mc_ksmear.flatten() 
+        errors[hasgen.flatten()] = errspread.flatten()
+        errors[~hasgen.flatten()] = errsmear.flatten()
+
     else:
-        corrections = rochester.kScaleDT(muons.charge, muons.pt, muons.eta, muons.phi)      
-    
-    return corrections
+        corrections = rochester.kScaleDT(muons.charge, muons.pt, muons.eta, muons.phi)
+        errors = rochester.kScaleDTerror(muons.charge, muons.pt, muons.eta, muons.phi)
+    return corrections.flatten(), errors
     
 def musf_lookup(parameters):
     mu_id_vals = 0
@@ -272,19 +282,30 @@ def fsr_evaluator(muons_offsets, fsr_offsets, muons_pt, muons_pt_raw, muons_eta,
 
     return  muons_pt, muons_eta, muons_phi, muons_mass, muons_iso, has_fsr
     
-def btag_weights(lookup, jets, weights, bjet_sel_mask, numevents):
+def btag_weights(lookup, systs, jets, weights, bjet_sel_mask, numevents):
     btag_wgt = np.ones(numevents, dtype=float)
     jets_ = jets[abs(jets.eta)<2.4]
     jet_pt_ = awkward.JaggedArray.fromcounts(jets_[jets_.counts>0].counts, np.minimum(jets_.pt.flatten(), 1000.))
+
     btag_wgt[(jets_.counts>0)] = lookup('central', jets_[jets_.counts>0].hadronFlavour,\
                                               abs(jets_[jets_.counts>0].eta), jet_pt_,\
                                               jets_[jets_.counts>0].btagDeepB, True).prod()
     btag_wgt[btag_wgt<0.01] = 1.
 
+    btag_syst = {}
+    for sys in systs:
+        btag_syst[sys] = [np.ones(numevents, dtype=float),np.ones(numevents, dtype=float)]
+        btag_syst[sys][0][(jets_.counts>0)] = lookup('up_'+sys, jets_[jets_.counts>0].hadronFlavour,\
+                                              abs(jets_[jets_.counts>0].eta), jet_pt_,\
+                                              jets_[jets_.counts>0].btagDeepB, True).prod()
+        btag_syst[sys][1][(jets_.counts>0)] = lookup('down_'+sys, jets_[jets_.counts>0].hadronFlavour,\
+                                              abs(jets_[jets_.counts>0].eta), jet_pt_,\
+                                              jets_[jets_.counts>0].btagDeepB, True).prod()
+    
     sum_before = weights.df['nominal'][bjet_sel_mask].sum()
     sum_after = weights.df['nominal'][bjet_sel_mask].multiply(btag_wgt[bjet_sel_mask], axis=0).sum()
     btag_wgt = btag_wgt*sum_before/sum_after
-    return btag_wgt
+    return btag_wgt, btag_syst
     
 def puid_weights(evaluator, year, jets, pt_name, jet_puid_opt, jet_puid, numevents):
     if "2017corrected" in jet_puid_opt:

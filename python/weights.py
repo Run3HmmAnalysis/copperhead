@@ -22,6 +22,12 @@ class Weights(object):
         self.df[f'{name}_down'] = self.df['nominal']*down
         self.df[columns]  = self.df[columns].multiply(wgt, axis=0)
         self.variations.append(name)
+
+    def add_only_variations(self, name, up, down):
+        columns = self.df.columns
+        self.df[f'{name}_up'] = self.df['nominal']*up
+        self.df[f'{name}_down'] = self.df['nominal']*down
+        self.variations.append(name)
         
     def get_weight(self, name, mask=np.array([])):
         if len(mask)==0:
