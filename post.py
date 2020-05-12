@@ -1,6 +1,6 @@
 import os,glob
 import argparse
-from python.postprocessing import postprocess, plot, save_shapes, make_datacards
+from python.postprocessing import postprocess, plot, save_shapes, make_datacards, dnn_rebin
 from config.variables import variables
 from config.datasets import datasets
 import pandas as pd
@@ -26,7 +26,7 @@ samples = [
     'data_H',
     'dy_m105_160_amc',
     'dy_m105_160_vbf_amc',
-    'ewk_lljj_mll105_160_ptj0',
+    'ewk_lljj_mll105_160_ptj0','ewk_lljj_mll105_160','ewk_lljj_mll105_160_py',
     'ttjets_dl',
     'ttjets_sl',
     'ttz',
@@ -37,7 +37,7 @@ samples = [
     'wz_3lnu',
     'zz',
     'ggh_amcPS',
-    'vbf_powhegPS',
+    'vbf_powhegPS','vbf_powheg_herwig','vbf_powheg_dipole',
 ]
 #samples = [    'ggh_amcPS',
 #    'vbf_powhegPS',]
@@ -67,6 +67,9 @@ postproc_args = {
 
 
 dfs, hist_dfs, edges = postprocess(postproc_args)
+
+#dnn_rebin(dfs, postproc_args)
+
 hist = {}
 for var, hists in hist_dfs.items():
     hist[var] = pd.concat(hists, ignore_index=True)
@@ -77,8 +80,7 @@ make_datacards(vars_to_plot[myvar], hist, postproc_args)
    
 for vname, var in vars_to_plot.items():
     for r in postproc_args['regions']:
-        plot(var, hist, 'wgt_nominal', edges[vname], postproc_args, r)
-#        plot(var, hist, 'wgt_qgl_wgt_off', edges[vname], postproc_args, r)
-
+        plot(var, hist, edges[vname], postproc_args, r)
+        
     # inclusive
-#    plot(var, hist, 'nominal', edges[vname], postproc_args)
+#    plot(var, hist, edges[vname], postproc_args)
