@@ -272,6 +272,10 @@ def save_shapes(var, hist, edges, args):
         'SignalPartonShower': {'VBF': ['vbf_powhegPS','vbf_powheg_herwig']}, 
         'EWKPartonShower': {'EWK': ['ewk_lljj_mll105_160','ewk_lljj_mll105_160_py']}, 
     }
+    smp_var_alpha ={
+        'SignalPartonShower': 1., 
+        'EWKPartonShower': 0.2,
+    }
 
     variated_shapes = {}
     
@@ -309,8 +313,9 @@ def save_shapes(var, hist, edges, args):
                                 if len(samples)!=2: continue
                                 if samples[0] not in variated_shapes.keys(): continue
                                 if samples[1] not in variated_shapes.keys(): continue
-                                variation_up = np.divide(variated_shapes[samples[0]],variated_shapes[samples[1]])
-                                variation_down = np.divide(variated_shapes[samples[1]],variated_shapes[samples[0]])
+                                ratio = np.divide(variated_shapes[samples[0]],variated_shapes[samples[1]])
+                                variation_up = np.power(ratio, smp_var_alpha[smp_var_name])
+                                variation_down = np.power(ratio, -smp_var_alpha[smp_var_name])
                                 variations_by_group[gr] = {}
                                 variations_by_group[gr][smp_var_name] = [variation_up, variation_down]
 
