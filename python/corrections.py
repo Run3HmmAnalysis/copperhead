@@ -293,14 +293,31 @@ def btag_weights(lookup, systs, jets, weights, bjet_sel_mask, numevents):
     btag_wgt[btag_wgt<0.01] = 1.
 
     btag_syst = {}
+    flavors = {
+        0: ["jes","hf","lfstats1","lfstats2"],
+        1: ["jes","hf","lfstats1","lfstats2"],
+        2: ["jes","hf","lfstats1","lfstats2"],
+        3: ["jes","hf","lfstats1","lfstats2"],
+        4: ["cferr1","cferr2"],
+        5: ["jes","lf","hfstats1","hfstats2"],
+        21: ["jes","hf","lfstats1","lfstats2"],
+    }
+    
     for sys in systs:
-        btag_syst[sys] = [np.ones(numevents, dtype=float),np.ones(numevents, dtype=float)]
-        btag_syst[sys][0][(jets_.counts>0)] = lookup('up_'+sys, jets_[jets_.counts>0].hadronFlavour,\
-                                              abs(jets_[jets_.counts>0].eta), jet_pt_,\
-                                              jets_[jets_.counts>0].btagDeepB, True).prod()
-        btag_syst[sys][1][(jets_.counts>0)] = lookup('down_'+sys, jets_[jets_.counts>0].hadronFlavour,\
-                                              abs(jets_[jets_.counts>0].eta), jet_pt_,\
-                                              jets_[jets_.counts>0].btagDeepB, True).prod()
+        njets = len(jets_.flatten())
+        btag_syst[sys] = [np.ones(njets, dtype=float),np.ones(njets, dtype=float)]
+        for f, f_syst in flavors.items():
+            if sys in f_syst:
+                btag_mask = (abs(jets_.hadronFlavour)==f).flatten()
+                btag_syst[sys][0][btag_mask] = lookup('up_'+sys, jets_.hadronFlavour.flatten()[btag_mask],\
+                                                      abs(jets_.eta.flatten())[btag_mask], jets_.pt.flatten()[btag_mask],\
+                                                      jets_.btagDeepB.flatten()[btag_mask], True)
+                btag_syst[sys][1][btag_mask] = lookup('down_'+sys, jets_.hadronFlavour.flatten()[btag_mask],\
+                                                      abs(jets_.eta.flatten())[btag_mask], jets_.pt.flatten()[btag_mask],\
+                                                      jets_.btagDeepB.flatten()[btag_mask], True)
+
+        btag_syst[sys][0] = awkward.JaggedArray.fromcounts(jets_.counts, btag_syst[sys][0]).prod()
+        btag_syst[sys][1] = awkward.JaggedArray.fromcounts(jets_.counts, btag_syst[sys][1]).prod()
     
     sum_before = weights.df['nominal'][bjet_sel_mask].sum()
     sum_after = weights.df['nominal'][bjet_sel_mask].multiply(btag_wgt[bjet_sel_mask], axis=0).sum()

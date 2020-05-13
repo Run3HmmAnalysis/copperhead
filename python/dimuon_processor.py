@@ -1080,7 +1080,7 @@ class DimuonProcessor(processor.ProcessorABC):
         # Btag weight
         btag_wgt = np.ones(numevents)
         if is_mc:
-            self.btag_systs = []
+#            self.btag_systs = []
             btag_wgt, btag_syst = btag_weights(self.btag_lookup, self.btag_systs, jets, weights, bjet_sel_mask, numevents)
             weights.add_weight('btag_wgt', btag_wgt)
             for name,bs in btag_syst.items():
