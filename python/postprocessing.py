@@ -110,7 +110,6 @@ def to_pandas(args):
 #        if ('wgt_' not in var) and (var not in [v.name for v in args['vars_to_plot']]): continue
         if (v!='nominal') and ('wgt_' in var) and ('nominal' not in var): continue
         if (('vbf' not in s) or ('dy' in s)) and ('THU' in var): continue
-        if 'btag' in var: continue
         
         done = False
         for d in decorrelate:
@@ -233,7 +232,8 @@ def get_hists(df, var, args, bins=[]):
                         edges = hist[loc(s), loc(r), loc(c), loc(v), loc('value'), :].to_numpy()[1]
                         contents = {}
                         contents.update({f'bin{i}':[values[i]] for i in range(nbins)})
-                        contents.update({f'sumw2_{i}':[sumw2[i]] for i in range(nbins)})
+                        contents.update({f'sumw2_0': 0.}) # add a dummy bin b/c sumw2 indices are shifted w.r.t bin indices
+                        contents.update({f'sumw2_{i+1}':[sumw2[i]] for i in range(nbins)})
                         contents.update({'s':[s],'r':[r],'c':[c], 'v':[v], 'w':[w],\
                                          'var':[var.name], 'integral':integral})
                         contents['g'] = grouping[s] if s in grouping.keys() else f"_{s}"
@@ -332,9 +332,10 @@ def save_shapes(var, hist, edges, args):
                             name = f'{r_names[r]}_{args["year"]}_{g}_{c}_{vwname}'
                             th1 = from_numpy([histo, edges])
                             th1._fName = name
-                            th1._fSumw2 = np.array(sumw2)
+                            th1._fSumw2 = sumw2
                             th1._fTsumw2 = np.array(sumw2).sum()
-                            th1._fTsumwx2 = np.array(sumw2 * centers).sum()
+                            th1._fTsumwx2 = np.array(sumw2[1:] * centers).sum()
+#                            print(th1.__dict__)
                             if vwname=='nominal':
                                 out_file[f'{g}_{c}'] = th1
                             else:
@@ -344,13 +345,13 @@ def save_shapes(var, hist, edges, args):
                                     for variname,variations in var_items.items():
                                         for iud, ud in enumerate(['Up','Down']):
                                             histo_ud = histo*variations[iud]
-                                            sumw2_ud = sumw2*variations[iud]
+                                            sumw2_ud = np.array([0]+list(sumw2[1:]*variations[iud]))
                                             name = f'{r_names[r]}_{args["year"]}_{g}_{c}_{variname}{ud}'
                                             th1 = from_numpy([histo_ud, edges])
                                             th1._fName = name
                                             th1._fSumw2 = np.array(sumw2_ud)
                                             th1._fTsumw2 = np.array(sumw2_ud).sum()
-                                            th1._fTsumwx2 = np.array(sumw2_ud * centers).sum()
+                                            th1._fTsumwx2 = np.array(sumw2_ud[1:] * centers).sum()
                                             if vwname=='nominal':
                                                 out_file[f'{g}_{c}_{variname}{ud}'] = th1
 
@@ -358,7 +359,7 @@ def save_shapes(var, hist, edges, args):
             th1_data._fName = 'data_obs'
             th1_data._fSumw2 = np.array(data_obs_sumw2)
             th1_data._fTsumw2 = np.array(data_obs_sumw2).sum()
-            th1_data._fTsumwx2 = np.array(data_obs_sumw2 * centers).sum()
+            th1_data._fTsumwx2 = np.array(data_obs_sumw2[1:] * centers).sum()
             out_file['data_obs'] = th1_data
             out_file.close()
 
@@ -506,7 +507,7 @@ def make_datacards(var, hist, args):
             datacard.write("---------------\n")
             datacard.write(systematics)
             datacard.write(f"XSecAndNormDY_01j  rateParam {bin_name} DY_vbf_01j 1 [0.2,5] \n")
-#            datacard.write(f"{bin_name} autoMCStats 0 1 1\n")
+            datacard.write(f"{bin_name} autoMCStats 0 1 1\n")
             datacard.close()
             print(f'Saved datacard to {datacard_name}')
     return
@@ -565,14 +566,14 @@ def plot(var, hists, edges, args, r='', save=True, show=False, plotsize=12, comp
     
     ret_nominal = get_shapes_for_option(hist,'nominal','wgt_nominal')
     data       = ret_nominal['data']
-    data_sumw2 = ret_nominal['data_sumw2']
+    data_sumw2 = ret_nominal['data_sumw2'][1:]
     vbf        = ret_nominal['vbf']
-    vbf_sumw2  = ret_nominal['vbf_sumw2']
+    vbf_sumw2  = ret_nominal['vbf_sumw2'][1:]
     ggh        = ret_nominal['ggh']
-    ggh_sumw2  = ret_nominal['ggh_sumw2']
+    ggh_sumw2  = ret_nominal['ggh_sumw2'][1:]
     bkg_df     = ret_nominal['bkg_df']
     bkg_total  = ret_nominal['bkg_total']
-    bkg_sumw2  = ret_nominal['bkg_sumw2']
+    bkg_sumw2  = ret_nominal['bkg_sumw2'][1:].values
     
     if len(bkg_df.values)>1:
         bkg = np.stack(bkg_df[bin_columns].values)
