@@ -7,7 +7,6 @@ import coffea
 from coffea import util
 import glob
 from config.parameters import training_features
-from config.datasets import grouping
 import boost_histogram as bh
 from boost_histogram import loc
 import numpy as np
@@ -15,6 +14,45 @@ import uproot
 from uproot_methods.classes.TH1 import from_numpy
 import matplotlib.pyplot as plt
 import mplhep as hep
+
+grouping = {
+    'data_A': 'Data',
+    'data_B': 'Data',
+    'data_C': 'Data',
+    'data_D': 'Data',
+    'data_E': 'Data',
+    'data_F': 'Data',
+    'data_G': 'Data',
+    'data_H': 'Data',
+    'dy_0j': 'DY',
+    'dy_1j': 'DY',
+    'dy_2j': 'DY',
+    'dy_m105_160_amc': 'DY_nofilter',
+    'dy_m105_160_vbf_amc': 'DY_filter',
+    'ewk_lljj_mll50_mjj120': 'EWK',
+    #'ewk_lljj_mll105_160': 'EWK',
+    'ewk_lljj_mll105_160_ptj0': 'EWK',
+    'ttjets_dl': 'TT+ST',
+    'ttjets_sl': 'TT+ST',
+    'ttw': 'TT+ST',
+    'ttz': 'TT+ST',
+    'st_tw_top': 'TT+ST',
+    'st_tw_antitop': 'TT+ST',
+    'ww_2l2nu': 'VV',
+    'wz_2l2q': 'VV',
+    'wz_1l1nu2q': 'VV',
+    'wz_3lnu': 'VV',
+    'www': 'VVV',
+    'wwz': 'VVV',
+    'wzz': 'VVV',
+    'zzz': 'VVV',
+    'ggh_amcPS': 'ggH',
+#    'ggh_powhegPS': 'ggH',
+#    'vbf_amcPS': 'VBF',
+#    'vbf_powhegPS': 'VBF',
+    'vbf_powheg_dipole': 'VBF',
+#    'vbf_powheg_herwig': 'VBF',
+}
 
 def worker(args):
     modules = args['modules']
@@ -101,7 +139,7 @@ def to_pandas(args):
     v = args['v']
     suff = f'_{c}_{r}'
     decorrelate = ['LHEFac', 'LHERen']
-    groups = ['DY', 'EWK', 'TT+ST', 'VV', 'ggH', 'VBF']
+    groups = ['DY_nofilter', 'DY_filter', 'EWK', 'TT+ST', 'VV', 'ggH', 'VBF']
     columns = [c.replace(suff, '') for c in list(proc_out.keys()) if suff in c]
     df = pd.DataFrame()
     len_ = len(proc_out[f'dimuon_mass_{c}_{r}'].value) if f'dimuon_mass_{c}_{r}' in proc_out.keys() else 0
@@ -365,21 +403,27 @@ def save_shapes(var, hist, edges, args):
 
 rate_syst_lookup = {
     '2016':{
-        'XsecAndNormDY_vbf_01j':1.12189,
+        'XsecAndNormDY_vbf_2j':1.12189,
+        'XsecAndNormDY_nofilter_vbf_2j':1.12189,
+        'XsecAndNormDY_filter_vbf_2j':1.12189,
         'XsecAndNormEWK_vbf':1.06217,
         'XsecAndNormTT+ST_vbf':1.18261,
         'XsecAndNormVV_vbf':1.0609,
         'XsecAndNormggH_vbf': 1.36133,
         },
     '2017':{
-        'XsecAndNormDY_vbf_01j':1.12452,
+        'XsecAndNormDY_vbf_2j':1.12452,
+        'XsecAndNormDY_nofilter_vbf_2j':1.12452,
+        'XsecAndNormDY_filter_vbf_2j':1.12452,
         'XsecAndNormEWK_vbf': 1.05513,
         'XsecAndNormTT+ST_vbf': 1.18402,
         'XsecAndNormVV_vbf':1.05734,
         'XsecAndNormggH_vbf':1.36667,
         },
     '2018':{
-        'XsecAndNormDY_vbf_01j': 1.12152,
+        'XsecAndNormDY_vbf_2j': 1.12152,
+        'XsecAndNormDY_nofilter_vbf_2j': 1.12152,
+        'XsecAndNormDY_filter_vbf_2j': 1.12152,
         'XsecAndNormEWK_vbf':1.05851,
         'XsecAndNormTT+ST_vbf':1.18592,
         'XsecAndNormVV_vbf':1.05734,
@@ -506,7 +550,9 @@ def make_datacards(var, hist, args):
             datacard.write(mc_yields)
             datacard.write("---------------\n")
             datacard.write(systematics)
-            datacard.write(f"XSecAndNormDY_01j  rateParam {bin_name} DY_vbf_01j 1 [0.2,5] \n")
+           # datacard.write(f"XSecAndNormDY_01j  rateParam {bin_name} DY_vbf_01j 1 [0.2,5] \n")
+            datacard.write(f"XSecAndNormDY_01j  rateParam {bin_name} DY_nofilter_vbf_01j 1 [0.2,5] \n")
+            datacard.write(f"XSecAndNormDY_01j  rateParam {bin_name} DY_filter_vbf_01j 1 [0.2,5] \n")
             datacard.write(f"{bin_name} autoMCStats 0 1 1\n")
             datacard.close()
             print(f'Saved datacard to {datacard_name}')
@@ -537,7 +583,7 @@ def plot(var, hists, edges, args, r='', save=True, show=False, plotsize=12, comp
     sumw2_columns = [c for c in hist.columns if 'sumw2' in c]
     
     def get_shapes_for_option(hist_,v,w):
-        bkg_groups = ['DY','DY_VBF', 'EWK', 'TT+ST', 'VV']
+        bkg_groups = ['DY', 'DY_nofilter','DY_filter', 'EWK', 'TT+ST', 'VV']
         hist_nominal = hist_[(hist_.w=='wgt_nominal')&(hist_.v=='nominal')]
         hist = hist_[(hist_.w==w)&(hist_.v==v)]
         
