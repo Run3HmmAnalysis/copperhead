@@ -65,9 +65,9 @@ def worker(args):
     hists = {}
     edges = {}
     dnn_bins = {
-        '2016':[0, 0.079, 0.347, 0.578, 0.785, 0.977, 1.158, 1.329, 1.489, 1.636, 1.774, 1.924, 2.002],
-        '2017':[0, 0.079, 0.347, 0.578, 0.785, 0.977, 1.158, 1.329, 1.489, 1.636, 1.774, 1.924, 2.002],
-        '2018':[0, 0.079, 0.347, 0.578, 0.785, 0.977, 1.158, 1.329, 1.489, 1.636, 1.774, 1.924, 2.002]
+        '2016':[0, 0.078, 0.318, 0.539, 0.744, 0.936, 1.12, 1.296, 1.464, 1.621, 1.776, 1.927, 2.015],
+        '2017':[0, 0.025, 0.369, 0.648, 0.867, 1.049, 1.214, 1.364, 1.508, 1.645, 1.778, 1.907, 2.025, 2.116],
+        '2018':[0, 0.005, 0.094, 0.203, 0.316, 0.423, 0.521, 0.615, 0.705, 0.792, 0.879, 0.968, 1.056, 1.147, 1.239, 1.33, 1.423, 1.516, 1.603, 1.67, 1.706]
     }
     if 'get_hists' in modules:
         for var in args['vars_to_plot']:
@@ -159,6 +159,7 @@ def to_pandas(args):
                 else: continue
                 vname = var.replace(suff,'')
                 for g in groups:
+                    if '2018' in args['year']: grouping.update({'vbf_powhegPS':'VBF'})
                     if s not in grouping.keys():continue
                     df[f'{vname}_{g}{suff}']=proc_out[f'{var}_{c}_{r}'].value if grouping[s]==g\
                                                                                 else proc_out[f'wgt_nominal_{c}_{r}'].value
@@ -166,7 +167,10 @@ def to_pandas(args):
         
         if not done:
             try:
-                df[var] = proc_out[f'{var}_{c}_{r}'].value
+                if len(proc_out[f'{var}_{c}_{r}'].value)>0:
+                    df[var] = proc_out[f'{var}_{c}_{r}'].value
+                else:
+                    df[var] = proc_out[f'wgt_nominal_{c}_{r}'].value if 'wgt_' in var else np.zeros(len_, dtype=float)
             except:
                 df[var] = proc_out[f'wgt_nominal_{c}_{r}'].value if 'wgt_' in var else np.zeros(len_, dtype=float)
             
@@ -348,6 +352,10 @@ def save_shapes(var, hist, edges, args):
                         variations_by_group = {}
                         for smp_var_name, smp_var_items in sample_variations.items():
                             for gr, samples in smp_var_items.items():
+                                if ('2018' in args['year']) and ('Signal' in smp_var_name): 
+                                    variations_by_group[gr] = {}
+                                    variations_by_group[gr][smp_var_name] = [[],[]]
+                                    continue #temporary
                                 if len(samples)!=2: continue
                                 if samples[0] not in variated_shapes.keys(): continue
                                 if samples[1] not in variated_shapes.keys(): continue
@@ -368,6 +376,8 @@ def save_shapes(var, hist, edges, args):
                             histo[np.isnan(histo)] = 0
                             sumw2[np.isnan(sumw2)] = 0
                             name = f'{r_names[r]}_{args["year"]}_{g}_{c}_{vwname}'
+#                            if ('btag_hfstats2' in vwname) and ('ggH' in g):
+#                                print(vwname,histo)
                             th1 = from_numpy([histo, edges])
                             th1._fName = name
                             th1._fSumw2 = sumw2
@@ -382,6 +392,7 @@ def save_shapes(var, hist, edges, args):
                                 if (groupname==g)&(vwname=='nominal'):
                                     for variname,variations in var_items.items():
                                         for iud, ud in enumerate(['Up','Down']):
+                                            if len(variations[iud])==0: variations[iud]=np.ones(len(histo))
                                             histo_ud = histo*variations[iud]
                                             sumw2_ud = np.array([0]+list(sumw2[1:]*variations[iud]))
                                             name = f'{r_names[r]}_{args["year"]}_{g}_{c}_{variname}{ud}'
@@ -403,31 +414,31 @@ def save_shapes(var, hist, edges, args):
 
 rate_syst_lookup = {
     '2016':{
-        'XsecAndNormDY_vbf_2j':1.12189,
-        'XsecAndNormDY_nofilter_vbf_2j':1.12189,
-        'XsecAndNormDY_filter_vbf_2j':1.12189,
-        'XsecAndNormEWK_vbf':1.06217,
-        'XsecAndNormTT+ST_vbf':1.18261,
-        'XsecAndNormVV_vbf':1.0609,
-        'XsecAndNormggH_vbf': 1.36133,
+        'XsecAndNorm2016DY_vbf_2j':1.12189,
+        'XsecAndNorm2016DY_nofilter_vbf_2j':1.12189,
+        'XsecAndNorm2016DY_filter_vbf_2j':1.12189,
+        'XsecAndNorm2016EWK_vbf':1.06217,
+        'XsecAndNorm2016TT+ST_vbf':1.18261,
+        'XsecAndNorm2016VV_vbf':1.0609,
+        'XsecAndNorm2016ggH_vbf': 1.36133,
         },
     '2017':{
-        'XsecAndNormDY_vbf_2j':1.12452,
-        'XsecAndNormDY_nofilter_vbf_2j':1.12452,
-        'XsecAndNormDY_filter_vbf_2j':1.12452,
-        'XsecAndNormEWK_vbf': 1.05513,
-        'XsecAndNormTT+ST_vbf': 1.18402,
-        'XsecAndNormVV_vbf':1.05734,
-        'XsecAndNormggH_vbf':1.36667,
+        'XsecAndNorm2017DY_vbf_2j':1.12452,
+        'XsecAndNorm2017DY_nofilter_vbf_2j':1.12452,
+        'XsecAndNorm2017DY_filter_vbf_2j':1.12452,
+        'XsecAndNorm2017EWK_vbf': 1.05513,
+        'XsecAndNorm2017TT+ST_vbf': 1.18402,
+        'XsecAndNorm2017VV_vbf':1.05734,
+        'XsecAndNorm2017ggH_vbf':1.36667,
         },
     '2018':{
-        'XsecAndNormDY_vbf_2j': 1.12152,
-        'XsecAndNormDY_nofilter_vbf_2j': 1.12152,
-        'XsecAndNormDY_filter_vbf_2j': 1.12152,
-        'XsecAndNormEWK_vbf':1.05851,
-        'XsecAndNormTT+ST_vbf':1.18592,
-        'XsecAndNormVV_vbf':1.05734,
-        'XsecAndNormggH_vbf': 1.39295,
+        'XsecAndNorm2018DY_vbf_2j': 1.12152,
+        'XsecAndNorm2018DY_nofilter_vbf_2j': 1.12152,
+        'XsecAndNorm2018DY_filter_vbf_2j': 1.12152,
+        'XsecAndNorm2018EWK_vbf':1.05851,
+        'XsecAndNorm2018TT+ST_vbf':1.18592,
+        'XsecAndNorm2018VV_vbf':1.05734,
+        'XsecAndNorm2018ggH_vbf': 1.39295,
         },
 }            
             
@@ -530,11 +541,12 @@ def get_numbers(hist, bin_name, args):
             
 def make_datacards(var, hist, args):
     r_names = {'h-peak':'SR','h-sidebands':'SB'}
+    year = args["year"]
     hist = hist[var.name]
     for cgroup, cc in args['channel_groups'].items():
         for r in args['regions']:    
-            bin_name = f'{r_names[r]}_{args["year"]}'
-            datacard_name = f'combine_new/{args["year"]}_{args["label"]}/datacard_{cgroup}_{r}.txt'
+            bin_name = f'{r_names[r]}_{year}'
+            datacard_name = f'combine_new/{year}_{args["label"]}/datacard_{cgroup}_{r}.txt'
             shapes_file = f'shapes_{cgroup}_{r}.root'
             datacard = open(datacard_name, 'w')
             datacard.write(f"imax 1\n") # will combine the datacards later
@@ -543,7 +555,7 @@ def make_datacards(var, hist, args):
             datacard.write("---------------\n")
             datacard.write(f"shapes * {bin_name} {shapes_file} $PROCESS $PROCESS_$SYSTEMATIC\n")
             datacard.write("---------------\n")
-            bin_name = f'{r_names[r]}_{args["year"]}'
+            bin_name = f'{r_names[r]}_{year}'
             ret = data_yields, mc_yields, systematics = get_numbers(hist[(hist.c.isin(cc)) & (hist.r==r)], bin_name, args)
             datacard.write(data_yields)
             datacard.write("---------------\n")
@@ -551,8 +563,8 @@ def make_datacards(var, hist, args):
             datacard.write("---------------\n")
             datacard.write(systematics)
            # datacard.write(f"XSecAndNormDY_01j  rateParam {bin_name} DY_vbf_01j 1 [0.2,5] \n")
-            datacard.write(f"XSecAndNormDY_01j  rateParam {bin_name} DY_nofilter_vbf_01j 1 [0.2,5] \n")
-            datacard.write(f"XSecAndNormDY_01j  rateParam {bin_name} DY_filter_vbf_01j 1 [0.2,5] \n")
+            datacard.write(f"XSecAndNorm{year}DY_01j  rateParam {bin_name} DY_nofilter_vbf_01j 1 [0.2,5] \n")
+            datacard.write(f"XSecAndNorm{year}DY_01j  rateParam {bin_name} DY_filter_vbf_01j 1 [0.2,5] \n")
             datacard.write(f"{bin_name} autoMCStats 0 1 1\n")
             datacard.close()
             print(f'Saved datacard to {datacard_name}')
