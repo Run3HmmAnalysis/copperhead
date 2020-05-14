@@ -340,7 +340,9 @@ def save_shapes(var, hist, edges, args):
                         data_obs = hist[hist.s.isin(data_names)&(hist.r==r)&(hist.c.isin(cc))]                        
                         data_obs_hist = data_obs[bin_columns].sum(axis=0).values
                         data_obs_sumw2 = data_obs[sumw2_columns].sum(axis=0).values
-                    for c in cc:                   
+                    for c in cc:
+                        nom_hist = hist[~hist.s.isin(data_names)&(hist.v=='nominal')&(hist.w=='wgt_nominal')&\
+                                                   (hist.r==r)&(hist.c==c)]
                         mc_hist = hist[~hist.s.isin(data_names)&(hist.v==v)&(hist.w==w)&\
                                                    (hist.r==r)&(hist.c==c)]
 
@@ -371,6 +373,13 @@ def save_shapes(var, hist, edges, args):
                             histo = np.array(mc_hist[mc_hist.g==g][bin_columns].values[0], dtype=float)
                             if len(histo)==0: continue
                             sumw2 = np.array(mc_hist[mc_hist.g==g][sumw2_columns].values[0], dtype=float)
+                            
+                            if ('LHE' in w) or ('qgl' in w):
+                                histo_nom = np.array(nom_hist[nom_hist.g==g][bin_columns].values[0], dtype=float)
+                                normalization = histo_nom.sum()/histo.sum()
+                                histo = histo*normalization
+                                sumw2 = sumw2*normalization
+                            
                             histo[np.isinf(histo)] = 0
                             sumw2[np.isinf(sumw2)] = 0
                             histo[np.isnan(histo)] = 0
