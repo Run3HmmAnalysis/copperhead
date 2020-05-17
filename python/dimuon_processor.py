@@ -49,7 +49,7 @@ def get_jec_unc(name, jet_pt, jet_eta, jecunc):
 class DimuonProcessor(processor.ProcessorABC):
     def __init__(self, samp_info, evaluate_dnn=False,\
                  do_timer=False, save_unbin=True, do_lheweights=False,\
-                 do_jecunc=False, do_pdf=True, auto_pu=True, debug=False): 
+                 do_jecunc=False, do_jerunc=False, do_pdf=True, auto_pu=True, debug=False): 
         from config.parameters import parameters
         from config.variables import variables
         if not samp_info:
@@ -62,7 +62,7 @@ class DimuonProcessor(processor.ProcessorABC):
         self.mass_window = [76, 150]
         self.save_unbin = save_unbin
         self.do_jecunc = do_jecunc
-        self.do_jerunc = True
+        self.do_jerunc = do_jerunc
         self.do_pdf = do_pdf
         self.evaluate_dnn = evaluate_dnn
         self.do_lheweights = do_lheweights
@@ -624,15 +624,13 @@ class DimuonProcessor(processor.ProcessorABC):
                             self.Jet_transformer_data[run].transform(jets, forceStochastic=False) 
 
         if is_mc and self.do_jerunc:
-            self.Jet_transformer_JER.transform(jets, forceStochastic=False)
             jet_pt_jec = jets.pt
+            self.Jet_transformer_JER.transform(jets, forceStochastic=False)
             jet_pt_jec_jer = jets.pt
-            jer_down = 1
-            jerSF = (jet_pt_jec_jer-jets.ptGenJet) / \
+            jer_sf = (jet_pt_jec_jer-jets.ptGenJet) / \
                     (jet_pt_jec-jets.ptGenJet+(jet_pt_jec==jets.ptGenJet)*(jet_pt_jec_jer-jet_pt_jec))
-            jerDownSF = ((jet_pt_jec*jer_down)-jets.ptGenJet)/(jet_pt_jec-jets.ptGenJet+(jet_pt_jec==jets.ptGenJet)*10.)
-            jet_pt_jerDown = jets.ptGenJet + (jet_pt_jec - jets.ptGenJet)*(jerDownSF/jerSF)
-                    
+            jer_down_sf = (jets.pt_jer_down-jets.ptGenJet)/(jet_pt_jec-jets.ptGenJet+(jet_pt_jec==jets.ptGenJet)*10.)
+            jet_pt_jer_down = jets.ptGenJet + (jet_pt_jec - jets.ptGenJet)*(jer_down_sf/jer_sf)
             jer_categories = {
                 'jer1' : (abs(jets.eta)<1.93),
                 'jer2' : (abs(jets.eta)>1.93)&(abs(jets.eta)<2.5),
@@ -648,13 +646,13 @@ class DimuonProcessor(processor.ProcessorABC):
                 jet_pt_down = jets.pt
                                                 
                 jet_pt_up[jer_cut] = jet_pt_jec_jer[jer_cut]
-                jet_pt_down[jer_cut] = jet_pt_jerDown[jer_cut]
+                jet_pt_down[jer_cut] = jet_pt_jer_down[jer_cut]
                 jets.add_attributes(**{pt_name_up: jet_pt_up, pt_name_down: jet_pt_down})
                 jet_variation_names += [f"{jer_unc_name}_up", f"{jer_unc_name}_down"]
                             
         jets.add_attributes(**{'pt_nominal': jets.pt})
         jets = jets[jets.pt.argsort()]  
-#        print(jets.columns)
+
         if self.timer:
             self.timer.add_checkpoint("Applied JEC (if enabled)")
 
