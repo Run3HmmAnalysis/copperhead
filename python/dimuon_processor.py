@@ -709,7 +709,7 @@ class DimuonProcessor(processor.ProcessorABC):
             muTrig, muTrig_up, muTrig_down = musf_evaluator(self.musf_lookup, self.year, numevents, muons)
             weights.add_weight_with_variations('muID', muID, muID_up, muID_down)
             weights.add_weight_with_variations('muIso', muIso, muIso_up, muIso_down)           
-            weights.add_weight_with_variations('muTrig', muTrig, muTrig_up, muTrig_down)
+#            weights.add_weight_with_variations('muTrig', muTrig, muTrig_up, muTrig_down)
 
             lhefactor = 2. if ('dy_m105_160_amc' in dataset) and (('2017' in self.year) or ('2018' in self.year)) else 1.
             nLHEScaleWeight = df.LHEScaleWeight.counts
