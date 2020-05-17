@@ -143,11 +143,19 @@ def musf_evaluator(lookups, year, numevents, muons):
     muTrig_up[denom_up!=0] = ( (1 - (1. - muTrig_data - muTrigerr_data).prod())[denom_up!=0] / denom_up[denom_up!=0] )
     muTrig_down[denom_dn!=0] = ( (1 - (1. - muTrig_data + muTrigerr_data).prod())[denom_dn!=0] / denom_dn[denom_dn!=0] )
 
-    muSF = (muID*muIso).prod()*muTrig
-    muSF_up = ((muID + muIDerr) * (muIso + muIsoerr) * muTrig_up).prod()
-    muSF_down = ((muID - muIDerr) * (muIso - muIsoerr) * muTrig_down).prod()
-    return muSF, muSF_up, muSF_down
-
+#    muSF = (muID*muIso).prod()*muTrig
+#    muSF_up = ((muID + muIDerr) * (muIso + muIsoerr) * muTrig_up).prod()
+#    muSF_down = ((muID - muIDerr) * (muIso - muIsoerr) * muTrig_down).prod()
+#    return muSF, muSF_up, muSF_down
+    
+    muID_up = (muID+muIDerr).prod()
+    muID_down = (muID-muIDerr).prod()
+    muIso_up = (muIso+muIsoerr).prod()
+    muIso_down = (muIso-muIsoerr).prod()
+    muID = muID.prod()
+    muIso = muIso.prod()
+    
+    return muID, muID_up, muID_down, muIso, muIso_up, muIso_down, muTrig, muTrig_up, muTrig_down
 
 def pu_lookup(parameters, mode='nom', auto=[]):
     if mode=='nom':
