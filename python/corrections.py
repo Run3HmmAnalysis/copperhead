@@ -6,7 +6,7 @@ import numba
 import copy 
 
 from coffea.lookup_tools import extractor, dense_lookup, txt_converters, rochester_lookup
-
+from coffea.util import load
 
 class NNLOPS_Evaluator(object):
     def __init__(self, input_path):
@@ -170,6 +170,7 @@ def pu_lookup(parameters, mode='nom', auto=[]):
     
     nbins = len(pu_hist_data)
     edges = [[i for i in range(nbins)]]
+#   pu_hist_mc = load("data/pileup/pisa_lookup_2018.coffea")(range(102))
     if len(auto)==0:
         pu_hist_mc = uproot.open(parameters['pu_file_mc'])['pu_mc']
     else:
@@ -243,7 +244,7 @@ def fsr_evaluator(muons_offsets, fsr_offsets, muons_pt, muons_pt_raw, muons_eta,
             #relative FSR index in the event
             fsr_idx_relative = muons_fsrIndex[imu]
 
-            if (fsr_idx_relative >= 0) and (abs(muons_eta[imu]<2.4)):
+            if (fsr_idx_relative >= 0):
                 #absolute index in the full FSR vector for all events
                 ifsr = fsr_offsets[iev] + fsr_idx_relative
                 mu_kin = {"pt": muons_pt[imu], "eta": muons_eta[imu], "phi": muons_phi[imu], "mass": muons_mass[imu]}
@@ -255,12 +256,6 @@ def fsr_evaluator(muons_offsets, fsr_offsets, muons_pt, muons_pt_raw, muons_eta,
                 if abs(fsr_eta[ifsr])>2.4: continue
                 
                 has_fsr[imu] = True
-                # dR between muon and photon
-                deta = muons_eta[imu] - fsr_eta[ifsr]
-                dphi = np.mod(muons_phi[imu] - fsr_phi[ifsr] + np.pi, 2*np.pi) - np.pi
-                dr = np.sqrt(deta**2 + dphi**2)
-
-                update_iso = dr<0.4
                     
                 #compute and set corrected momentum
                 px_total = 0
@@ -279,14 +274,15 @@ def fsr_evaluator(muons_offsets, fsr_offsets, muons_pt, muons_pt_raw, muons_eta,
                 out_pt = np.sqrt(px_total**2 + py_total**2)
                 out_eta = np.arcsinh(pz_total / out_pt)
                 out_phi = np.arctan2(py_total, px_total)
-
+                out_mass = np.sqrt(e_total**2 - px_total**2 - py_total**2 - pz_total**2)
+                
                 #reference: https://gitlab.cern.ch/uhh-cmssw/fsr-photon-recovery/tree/master
-                if update_iso:
-                    muons_iso[imu] = (muons_iso[imu]*muons_pt[imu] - fsr_pt[ifsr])/out_pt
+                muons_iso[imu] = (muons_iso[imu]*muons_pt[imu] - fsr_pt[ifsr])/out_pt
                 
                 muons_pt[imu] = out_pt
                 muons_eta[imu] = out_eta
                 muons_phi[imu] = out_phi
+                muons_mass[imu] = out_mass
 
     return  muons_pt, muons_eta, muons_phi, muons_mass, muons_iso, has_fsr
     
@@ -403,7 +399,7 @@ def qgl_weights(jet, isHerwig):
 def geofit_evaluator(muons_pt, muons_eta, muons_dxybs, muons_charge, year, mask):
     pt_cor = np.zeros(len(muons_pt.flatten()), dtype=float)
     d0_BS_charge_full = np.multiply(muons_dxybs.flatten(),muons_charge.flatten()) 
-    passes_mask = (~mask) & (np.abs(d0_BS_charge_full)<999999.)
+    passes_mask = mask & (np.abs(d0_BS_charge_full)<999999.)
     d0_BS_charge = d0_BS_charge_full[passes_mask]
     pt = muons_pt.flatten()[passes_mask]
     eta = muons_eta.flatten()[passes_mask]
