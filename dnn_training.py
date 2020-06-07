@@ -14,9 +14,11 @@ def extract_unbinned_data(path, chunked, prefix, classes, channels, regions, to_
             print(f"Adding {s}")
             if chunked:
                 proc_outs = []
-                paths = glob.glob(f"{path}/{prefix}{s}_?.coffea")
+                paths = glob.glob(f"{path}/unbinned/{prefix}{s}_?.coffea")
                 for p in paths:
+                    print(p)
                     proc_outs.append(util.load(p))
+
             else:
                 proc_outs = [util.load(f"{path}/{prefix}{s}.coffea")]
             for ip, proc_out in enumerate(proc_outs):
@@ -25,16 +27,18 @@ def extract_unbinned_data(path, chunked, prefix, classes, channels, regions, to_
                         lbl = f'{c}_channel_{s}_{r}_{ip}'
                         dfs[lbl] = pd.DataFrame(columns=variables+['class','class_idx'])
                         for v in variables:
+#                            print(v, proc_out[f'{v}_{c}_{r}'].value)
                             try:
-                                dfs[lbl][v] = proc_out[f'{v}_unbin_{s}_c_{c}_r_{r}'].value
+                                dfs[lbl][v] = proc_out[f'{v}_{c}_{r}'].value
                             except:
 #                                 print("ignoring: ", s,r,c,v)
-                                continue
+                                 continue
+
+                        dfs[lbl]['event_weight'] = proc_out[f'wgt_nominal_{c}_{r}'].value
                         dfs[lbl]['to_plot'] = 1 if (s in to_plot) else 0
                         dfs[lbl]['class'] = cls
                         dfs[lbl]['class_idx'] = cls_idx
-#                        print(lbl, dfs[lbl].shape)
-    #                     dfs[lbl] = dfs[lbl].iloc[0:3000]
+                        print(dfs[lbl])
         cls_idx += 1
     return dfs
 
@@ -66,16 +70,17 @@ import pandas as pd
 from sklearn.model_selection import train_test_split
 from config.parameters import training_features
 
-year = '2016'
-load_path = f'/depot/cms/hmm/coffea/all_{year}_mar17/unbinned/'    
-    
+year = '2018'
+load_path = f'/depot/cms/hmm/coffea/all_{year}_may11/'
+#load_path = '/home/dkondra/all_2016_apr20/'
+
 classes = inputs_binary_m125
 label = year
 
 # TODO: parallelize loading
 
 # df_dict = extract_unbinned_data(load_path, True, '', classes, ['vbf'], ['h-sidebands', 'h-peak'], to_plot)
-df_dict = extract_unbinned_data(load_path, True, '', classes, ['vbf'], ['h-peak'], to_plot)
+df_dict = extract_unbinned_data(load_path, True, '', classes, ['vbf', 'vbf_01j','vbf_2j'], ['h-peak'], to_plot)
 df = pd.DataFrame()
 df = pd.concat(df_dict)
 df = df.sample(frac=1)
@@ -101,9 +106,10 @@ x_train, x_test = scale_data(training_features, label)
 x_train[other_columns] = df_train[other_columns]
 x_test[other_columns] = df_test[other_columns]
 
-from keras.models import Model
-from keras.layers import Dense, Activation, Input, Dropout, Concatenate, Lambda, BatchNormalization
-from keras import backend as K
+
+from tensorflow.keras.models import Model
+from tensorflow.keras.layers import Dense, Activation, Input, Dropout, Concatenate, Lambda, BatchNormalization
+from tensorflow.keras import backend as K
 
 # load model
 input_dim = len(training_features)
