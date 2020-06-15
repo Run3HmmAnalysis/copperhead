@@ -958,15 +958,10 @@ class DimuonProcessor(processor.ProcessorABC):
         # Jet PU ID
         jet_puid_opt = self.parameters["jet_puid"]
         puId = jets.puId17 if self.year=="2017" else jets.puId
-#        jet_puid_wps = {
-#            "loose": ( puId >=4 ) | ( jets[pt_name] > 50 ),
-#            "medium": ( puId >=6 ) | ( jets[pt_name] > 50 ),
-#            "tight": ( puId >=7 ) | ( jets[pt_name] > 50 ),
-#        }
         jet_puid_wps = {
-            "loose": ( puId >=4 ) | ( jets['ptRaw'] > 50 ),
-            "medium": ( puId >=6 ) | ( jets['ptRaw'] > 50 ),
-            "tight": ( puId >=7 ) | ( jets['ptRaw'] > 50 ),
+            "loose": ( puId >=4 ) | ( jets[pt_name] > 50 ),
+            "medium": ( puId >=6 ) | ( jets[pt_name] > 50 ),
+            "tight": ( puId >=7 ) | ( jets[pt_name] > 50 ),
         }
 
         if jet_puid_opt in ["loose", "medium", "tight"]:
