@@ -108,7 +108,7 @@ def postprocess(args, parallelize=True):
             if s!='vbf_powhegPS': continue
             variations = ['nominal']
         for v in variations:
-            proc_outs = glob.glob(f"{path}/unbinned/{s}_?.coffea") if v=='nominal' else glob.glob(f"{path}/{v}/{s}_?.coffea")
+            proc_outs = glob.glob(f"{path}/nominal/{s}.coffea") if v=='nominal' else glob.glob(f"{path}/{v}/{s}.coffea")
             for proc_path in proc_outs:
                 for c in args['channels']:
                     for r in args['regions']:

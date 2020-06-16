@@ -65,7 +65,7 @@ elif args.rebin:
 else:
     modules =  ['to_pandas',  'get_hists']        
 
-syst_variations = [os.path.basename(x) for x in glob.glob(f'/depot/cms/hmm/coffea/all_{args.year}_{args.label}/*') \
+syst_variations = [os.path.basename(x) for x in glob.glob(f'/depot/cms/hmm/coffea/{args.year}_{args.label}/*') \
        if ('binned' not in x) and ('unbinned' not in x) ]
 
 
@@ -73,7 +73,7 @@ postproc_args = {
     'modules': modules,
     'year': args.year,
     'label': args.label,
-    'in_path': f'/depot/cms/hmm/coffea/all_{args.year}_{args.label}/',
+    'in_path': f'/depot/cms/hmm/coffea/{args.year}_{args.label}/',
     'syst_variations': ['nominal']+syst_variations,
     'out_path': 'plots_new/',
     'samples':samples,
