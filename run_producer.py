@@ -29,8 +29,8 @@ args = parser.parse_args()
 sample_sources = [
     'data',
     'main_mc',
+    'signal',
     'other_mc',
-    'more_signal',
 ]
 
 iterative = args.iterative
@@ -75,7 +75,7 @@ smp['other_mc'] = [
     'zz',
 ]
 
-smp['more_signal'] = [
+smp['signal'] = [
     'ggh_amcPS',
     'vbf_amcPS',
     'vbf_powhegPS',
@@ -101,10 +101,7 @@ if __name__ == "__main__":
     if args.debug:
         samp_info.load(samples, parallelize_outer=1, parallelize_inner=1)
     else:
-        if 'data' in sample_sources:
-            samp_info.load(samples, parallelize_outer=1, parallelize_inner=46)
-        else:
-            samp_info.load(samples, parallelize_outer=13, parallelize_inner=3)
+        samp_info.load(samples, parallelize_outer=13, parallelize_inner=3)
 
     samp_info.compute_lumi_weights()
     
@@ -127,7 +124,7 @@ if __name__ == "__main__":
     else:
         distributed = pytest.importorskip("distributed", minversion="1.28.1")
         distributed.config['distributed']['worker']['memory']['terminate'] = False
-        client = distributed.Client('128.211.149.133:40945')
+        client = distributed.Client('128.211.149.133:39776')
 
         
     tstart = time.time()
