@@ -18,7 +18,6 @@ import pytest
 import dask
 from dask_jobqueue import SLURMCluster
 
-
 parser = argparse.ArgumentParser()
 parser.add_argument("-y", "--year", dest="year", default=2016, action='store')
 parser.add_argument("-l", "--label", dest="label", default="apr23", action='store')
@@ -27,59 +26,44 @@ parser.add_argument("-i", "--iterative", action='store_true')
 parser.add_argument("-loc", "--local", action='store_true')
 args = parser.parse_args()
 
-
 sample_sources = [
-#    'data',
-#    'main_mc',
-#    'other_mc',
+    'data',
+    'main_mc',
+    'other_mc',
     'more_signal',
 ]
 
 iterative = args.iterative
 
 pt_variations = ['nominal']
-pt_variations += ['Absolute']#,'Absolute2016']
-#pt_variations += ['BBEC1','BBEC12016']
-#pt_variations += ['EC2', 'EC22016']
-#pt_variations += ['FlavorQCD']
-#pt_variations += ['HF','HF2016']
-#pt_variations += ['RelativeBal', 'RelativeSample2016']
-#pt_variations += ['jer1','jer2','jer3','jer4','jer5','jer6']
-
-all_pt_variations = []
-for ptvar in pt_variations:
-    if ptvar=='nominal':
-        all_pt_variations += ['nominal']
-    else:
-        all_pt_variations += [f'{ptvar}_up']
-        all_pt_variations += [f'{ptvar}_down']
-        
-nchunks=1
-
-#if do_jecunc:
-#    nchunks = 10
-#    suff+= '_jecunc'
+pt_variations += ['Absolute','Absolute2016']
+pt_variations += ['BBEC1','BBEC12016']
+pt_variations += ['EC2', 'EC22016']
+pt_variations += ['FlavorQCD']
+pt_variations += ['HF','HF2016']
+pt_variations += ['RelativeBal', 'RelativeSample2016']
+pt_variations += ['jer1','jer2','jer3','jer4','jer5','jer6']
 
 smp = {}
 
 smp['data'] = [
     'data_A',
-#    'data_B',
-#    'data_C',
-#    'data_D',
-#    'data_E',
-#    'data_F',
-#    'data_G',
-#    'data_H',
+    'data_B',
+    'data_C',
+    'data_D',
+    'data_E',
+    'data_F',
+    'data_G',
+    'data_H',
 ]
 
 smp['main_mc'] = [
-#    'dy_m105_160_amc',
-#    'dy_m105_160_vbf_amc',
-#    'ewk_lljj_mll105_160', 
-#    'ewk_lljj_mll105_160_py',
-#    "ewk_lljj_mll105_160_ptj0",
-#    'ttjets_dl',
+    'dy_m105_160_amc',
+    'dy_m105_160_vbf_amc',
+    'ewk_lljj_mll105_160', 
+    'ewk_lljj_mll105_160_py',
+    "ewk_lljj_mll105_160_ptj0",
+    'ttjets_dl',
 ]
 
 smp['other_mc'] = [
@@ -92,27 +76,35 @@ smp['other_mc'] = [
 ]
 
 smp['more_signal'] = [
-#    'ggh_amcPS',
-#    'vbf_amcPS',
+    'ggh_amcPS',
+    'vbf_amcPS',
     'vbf_powhegPS',
-#    'vbf_powheg_herwig',
-#    'vbf_powheg_dipole'
+    'vbf_powheg_herwig',
+    'vbf_powheg_dipole'
 ]
 
 samples = []
 for sss in sample_sources:
     samples += smp[sss]
 
+all_pt_variations = []
+for ptvar in pt_variations:
+    if ptvar=='nominal':
+        all_pt_variations += ['nominal']
+    else:
+        all_pt_variations += [f'{ptvar}_up']
+        all_pt_variations += [f'{ptvar}_down']    
+    
 if __name__ == "__main__":
     samp_info = SamplesInfo(year=args.year, out_path=f'{args.year}_{args.label}', server='root://xrootd.rcac.purdue.edu/', datasets_from='purdue', debug=args.debug)
 
     if args.debug:
-        samp_info.load(samples, nchunks=1, parallelize_outer=1, parallelize_inner=1)
+        samp_info.load(samples, parallelize_outer=1, parallelize_inner=1)
     else:
         if 'data' in sample_sources:
-            samp_info.load(samples, nchunks=1, parallelize_outer=1, parallelize_inner=46)
+            samp_info.load(samples, parallelize_outer=1, parallelize_inner=46)
         else:
-            samp_info.load(samples, nchunks=nchunks, parallelize_outer=13, parallelize_inner=3)
+            samp_info.load(samples, parallelize_outer=13, parallelize_inner=3)
 
     samp_info.compute_lumi_weights()
     
