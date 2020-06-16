@@ -31,7 +31,8 @@ grouping = {
     'dy_m105_160_vbf_amc': 'DY_filter',
     'ewk_lljj_mll50_mjj120': 'EWK',
     #'ewk_lljj_mll105_160': 'EWK',
-    'ewk_lljj_mll105_160_ptj0': 'EWK',
+    #'ewk_lljj_mll105_160_ptj0': 'EWK',
+    'ewk_lljj_mll105_160_py': 'EWK',
     'ttjets_dl': 'TT+ST',
     'ttjets_sl': 'TT+ST',
     'ttw': 'TT+ST',
@@ -55,24 +56,27 @@ grouping = {
 }
 
 def worker(args):
+    print(f"Loading: {args['s']}, {args['c']}, {args['r']}, {args['v']}")
     modules = args['modules']
     if 'to_pandas' not in modules:
         print("Need to convert to Pandas DF first!")
         return
     df = to_pandas(args)
     if 'dnn_evaluation' in modules:
+        print(f"Evaluating DNN: {args['s']}, {args['c']}, {args['r']}, {args['v']}")
         df = dnn_evaluation(df, args)
     hists = {}
     edges = {}
     dnn_bins = {
-        '2016':[0, 0.078, 0.318, 0.539, 0.744, 0.936, 1.12, 1.296, 1.464, 1.621, 1.776, 1.927, 2.015],
+        '2016':[0, 0.087, 0.34, 0.577, 0.787, 0.977, 1.152, 1.316, 1.475, 1.636, 1.801, 1.984, 2.44],
         '2017':[0, 0.025, 0.369, 0.648, 0.867, 1.049, 1.214, 1.364, 1.508, 1.645, 1.778, 1.907, 2.025, 2.116],
-        '2018':[0, 0.005, 0.094, 0.203, 0.316, 0.423, 0.521, 0.615, 0.705, 0.792, 0.879, 0.968, 1.056, 1.147, 1.239, 1.33, 1.423, 1.516, 1.603, 1.67, 1.706]
+        '2018':[0, 0.005, 0.096, 0.216, 0.336, 0.45, 0.555, 0.652, 0.744, 0.834, 0.921, 1.007, 1.094, 1.184, 1.276, 1.374, 1.479, 1.591, 1.713, 1.859, 2.249]
     }
     if 'get_hists' in modules:
+        print(f"Histogramming: {args['s']}, {args['c']}, {args['r']}, {args['v']}")
         for var in args['vars_to_plot']:
             hists[var.name], edges[var.name] = get_hists(df, var, args, bins=dnn_bins[args['year']])
-            
+    print(f"Done: {args['s']}, {args['c']}, {args['r']}, {args['v']}")
     return df, hists, edges
 
 
@@ -82,8 +86,27 @@ def postprocess(args, parallelize=True):
     edges_dict = {}
     path = args['in_path']
     argsets = []
+    all_training_samples = []
+    classes_dict = {}
+    for cl, sm in args['training_samples'].items():
+        all_training_samples.extend(sm)
+        for smp in sm:
+            classes_dict[smp] = cl
+    args.update({'classes_dict':classes_dict})
+
+    if '2018' in args['year']: grouping.update({'vbf_powhegPS':'VBF'})
+    
     for s in args['samples']:
-        variations = ['nominal'] if 'data' in s else args['syst_variations']
+        if (args['do_jetsyst']) and (s in grouping.keys()) and (('dy' in s) or ('ewk' in s) or ('vbf' in s) or ('ggh' in s)):
+            variations = args['syst_variations']
+        else:
+            variations = ['nominal']
+        if args['train_dnn']:
+            if s not in all_training_samples: continue
+            variations = ['nominal']
+        if args['rebin_dnn']:
+            if s!='vbf_powhegPS': continue
+            variations = ['nominal']
         for v in variations:
             proc_outs = glob.glob(f"{path}/unbinned/{s}_?.coffea") if v=='nominal' else glob.glob(f"{path}/{v}/{s}_?.coffea")
             for proc_path in proc_outs:
@@ -92,6 +115,9 @@ def postprocess(args, parallelize=True):
                         argset = args.copy()
                         argset.update(**{'proc_path':proc_path,'s':s,'c':c,'r':r,'v':v})
                         argsets.append(argset)
+    if len(argsets)==0:
+        print("Nothing to load! Check the arguments.")
+        sys.exit(0)
 
     if parallelize:
         cpus = mp.cpu_count()-2
@@ -138,19 +164,32 @@ def to_pandas(args):
     s = args['s']
     v = args['v']
     suff = f'_{c}_{r}'
-    decorrelate = ['LHEFac', 'LHERen']
+
     groups = ['DY_nofilter', 'DY_filter', 'EWK', 'TT+ST', 'VV', 'ggH', 'VBF']
     columns = [c.replace(suff, '') for c in list(proc_out.keys()) if suff in c]
     df = pd.DataFrame()
+
     len_ = len(proc_out[f'dimuon_mass_{c}_{r}'].value) if f'dimuon_mass_{c}_{r}' in proc_out.keys() else 0
+
     for var in columns:
+        # if DNN training: get only relevant variables
+        if args['train_dnn'] and (var not in training_features+['event', 'wgt_nominal']): continue
+        # possibility to ignore weight variations
         if (not args['wgt_variations']) and ('wgt_' in var) and ('nominal' not in var): continue
-#        if ('wgt_' not in var) and (var not in [v.name for v in args['vars_to_plot']]): continue
+        # for JES/JER systematic variations do not consider weight variations
         if (v!='nominal') and ('wgt_' in var) and ('nominal' not in var): continue
-        if (('vbf' not in s) or ('dy' in s)) and ('THU' in var): continue
+        # Theory uncertainties only for VBF samples
+        if s in grouping.keys():
+            if (grouping[s]!='VBF') and ('THU' in var): continue
+        else:
+            if ('THU' in var): continue
         
         done = False
+        decorrelate = ['LHEFac', 'LHERen']
         for d in decorrelate:
+            # don't include LHE variations for VBF and VV
+            if s not in grouping.keys(): continue
+            if (grouping[s]=='VBF') or (grouping[s]=='VV'): continue
             if d in var:
                 if 'off' in var: continue
                 suff = ''
@@ -159,10 +198,11 @@ def to_pandas(args):
                 else: continue
                 vname = var.replace(suff,'')
                 for g in groups:
-                    if '2018' in args['year']: grouping.update({'vbf_powhegPS':'VBF'})
-                    if s not in grouping.keys():continue
-                    df[f'{vname}_{g}{suff}']=proc_out[f'{var}_{c}_{r}'].value if grouping[s]==g\
-                                                                                else proc_out[f'wgt_nominal_{c}_{r}'].value
+                    try:
+                        df[f'{vname}_{g}{suff}']=proc_out[f'{var}_{c}_{r}'].value if grouping[s]==g\
+                            else proc_out[f'wgt_nominal_{c}_{r}'].value
+                    except:
+                        df[f'{vname}_{g}{suff}'] = np.zeros(len_, dtype=float)
                     done = True
         
         if not done:
@@ -178,11 +218,96 @@ def to_pandas(args):
     df['r'] = r
     df['s'] = s
     df['v'] = v
-#    print(df[[k for k in df.columns if 'LHE' in k]])
+    if args['train_dnn']:
+        if s in args['classes_dict'].keys():
+            df['cls'] = args['classes_dict'][s]
+        else:
+            df['cls'] = ''
+
+#    if 'data' in s:
+#        with uproot.open('/depot/cms/hmm/coffea/pisa-jun12/data2018Snapshot.root') as f:
+#            events = f['Events']['event'].array()
+#            df = df[~df['event'].isin(events)]
+
     return df
 
+def dnn_training(df, args):
+    from tensorflow.keras.models import Model
+    from tensorflow.keras.layers import Dense, Activation, Input, Dropout, Concatenate, Lambda, BatchNormalization
+    from tensorflow.keras import backend as K
+
+    def scale_data(inputs, label):
+        x_mean = np.mean(x_train[inputs].values,axis=0)
+        x_std = np.std(x_train[inputs].values,axis=0)
+        training_data = (x_train[inputs]-x_mean)/x_std
+        validation_data = (x_val[inputs]-x_mean)/x_std
+        np.save(f"output/trained_models/scalers_{label}", [x_mean, x_std])
+        return training_data, validation_data
+
+    nfolds = 4
+    classes = df.cls.unique()
+    cls_idx_map = {cls:idx for idx,cls in enumerate(classes)}
+    df['cls_idx'] = df['cls'].map(cls_idx_map)
+
+    for i in range(nfolds):    
+        label = f"{args['year']}_{args['label']}_{i}"
+        
+        train_folds = [(i+f)%nfolds for f in [0,1]]
+        val_folds = [(i+f)%nfolds for f in [2]]
+        eval_folds = [(i+f)%nfolds for f in [3]]
+
+        print(f"Train classifier #{i+1} out of {nfolds}")
+        print(f"Training folds: {train_folds}")
+        print(f"Validation folds: {val_folds}")
+        print(f"Evaluation folds: {eval_folds}")
+        
+        train_filter = df.event.mod(nfolds).isin(train_folds)
+        val_filter = df.event.mod(nfolds).isin(val_folds)
+        eval_filter = df.event.mod(nfolds).isin(eval_folds)
+        
+        other_columns = ['event', 'wgt_nominal']
+        
+        df_train = df[train_filter]
+        df_val = df[val_filter]
+        
+        x_train = df_train[training_features]
+        y_train = df_train['cls_idx']
+        x_val = df_val[training_features]
+        y_val = df_val['cls_idx']
+
+        for icls, cls in enumerate(classes):
+            train_evts = len(y_train[y_train==icls])
+            print(f"{train_evts} training events in class {cls}")
+
+        # scale data
+        x_train, x_val = scale_data(training_features, label)
+        x_train[other_columns] = df_train[other_columns]
+        x_val[other_columns] = df_val[other_columns]
+
+        # load model
+        input_dim = len(training_features)
+        inputs = Input(shape=(input_dim,), name = label+'_input')
+        x = Dense(100, name = label+'_layer_1', activation='tanh')(inputs)
+        x = Dropout(0.2)(x)
+        x = BatchNormalization()(x)
+        x = Dense(100, name = label+'_layer_2', activation='tanh')(x)
+        x = Dropout(0.2)(x)
+        x = BatchNormalization()(x)
+        x = Dense(100, name = label+'_layer_3', activation='tanh')(x)
+        x = Dropout(0.2)(x)
+        x = BatchNormalization()(x)
+        outputs = Dense(1, name = label+'_output',  activation='sigmoid')(x)
+
+        model = Model(inputs=inputs, outputs=outputs)
+        model.compile(loss='binary_crossentropy', optimizer='adam', metrics=["accuracy"])
+        model.summary()
+
+        history = model.fit(x_train[training_features], y_train, epochs=2, batch_size=2048, verbose=1,
+                                            validation_data=(x_val[training_features], y_val), shuffle=True)
+
+        model.save(f"output/trained_models/test_{label}.h5")        
+
 def dnn_evaluation(df, args):
-    dnn_label = args['year']
     if df.shape[0]==0: return df
     import keras.backend as K
     import tensorflow as tf
@@ -194,17 +319,28 @@ def dnn_evaluation(df, args):
                         device_count = {'CPU': 1})
     tf.compat.v1.logging.set_verbosity(tf.compat.v1.logging.ERROR)
     sess = tf.compat.v1.Session(config=config)
-    scalers_path = f'output/trained_models/scalers_{dnn_label}.npy'
-    scalers = np.load(scalers_path)
-    model_path = f'output/trained_models/test_{dnn_label}_hw.h5'
+    df['dnn_score'] = 0
     with sess:
-        dnn_model = load_model(model_path)
-        df_eval = df[training_features]
-        if args['r']!='h-peak':
-            df_eval['dimuon_mass'] = 125.
-        df_eval = (df_eval[training_features]-scalers[0])/scalers[1]
-        prediction = dnn_model.predict(df_eval).ravel()
-        df['dnn_score'] = np.arctanh((prediction))
+        nfolds = 4
+        for i in range(nfolds):    
+            label = f"{args['year']}_{args['label']}_{i}"
+        
+            train_folds = [(i+f)%nfolds for f in [0,1]]
+            val_folds = [(i+f)%nfolds for f in [2]]
+            eval_folds = [(i+f)%nfolds for f in [3]]
+
+            eval_filter = df.event.mod(nfolds).isin(eval_folds)
+
+            scalers_path = f'output/trained_models/scalers_{label}.npy'
+            scalers = np.load(scalers_path)
+            model_path = f'output/trained_models/test_{label}.h5'
+            dnn_model = load_model(model_path)
+            df_i = df[eval_filter]
+            if args['r']!='h-peak':
+                df_i['dimuon_mass'] = 125.
+            df_i = (df_i[training_features]-scalers[0])/scalers[1]
+            prediction = np.array(dnn_model.predict(df_i)).ravel()
+            df.loc[eval_filter,'dnn_score'] = np.arctanh((prediction))
     return df
 
 def dnn_rebin(dfs, args):
@@ -229,7 +365,7 @@ def dnn_rebin(dfs, args):
                     boundaries.append(round(row['dnn_score'],3))
                     bin_sum = 0
             bnd[c][v] = sorted([0,round(max_dnn,3)]+boundaries)
-    print(bnd)
+    return bnd
                         
 
 def get_hists(df, var, args, bins=[]):
@@ -254,7 +390,7 @@ def get_hists(df, var, args, bins=[]):
             wgts = ['wgt_nominal']
         else:
             syst_variations = args['syst_variations']
-            wgts = [c for c in df.columns if ('wgt_' in c)]# and ('_off' not in c)]
+            wgts = [c for c in df.columns if ('wgt_' in c)]
         for w in wgts:
             hist = bh.Histogram(dataset_axis, region_axis, channel_axis, syst_axis, val_err_axis, var_axis)
             hist.fill(df.s.to_numpy(), df.r.to_numpy(), df.c.to_numpy(), df.v.to_numpy(), 'value',\
@@ -268,8 +404,8 @@ def get_hists(df, var, args, bins=[]):
                     for c in channels:
                         values = hist[loc(s), loc(r), loc(c), loc(v), loc('value'), :].to_numpy()[0]
                         sumw2 = hist[loc(s), loc(r), loc(c), loc(v), loc('sumw2'), :].to_numpy()[0]
-                        values[values<=0] = 0.000000000000001
-                        sumw2[values<=0] = 0.000000000000001
+                        values[values<0] = 0
+                        sumw2[values<0] = 0
                         integral = values.sum()
                         edges = hist[loc(s), loc(r), loc(c), loc(v), loc('value'), :].to_numpy()[1]
                         contents = {}
@@ -278,11 +414,26 @@ def get_hists(df, var, args, bins=[]):
                         contents.update({f'sumw2_{i+1}':[sumw2[i]] for i in range(nbins)})
                         contents.update({'s':[s],'r':[r],'c':[c], 'v':[v], 'w':[w],\
                                          'var':[var.name], 'integral':integral})
-                        contents['g'] = grouping[s] if s in grouping.keys() else f"_{s}"
+                        contents['g'] = grouping[s] if s in grouping.keys() else f"{s}"
                         row = pd.DataFrame(contents)
                         df_out = pd.concat([df_out, row], ignore_index=True)
     return df_out, edges
 
+def save_yields(var, hist, edges, args):
+    metadata = hist[var.name][['s','r','c','v','w', 'integral']]
+    yields = metadata.groupby(['s','r','c','v','w']).aggregate(np.sum)
+    yields.to_pickle(f"yields/yields_{args['year']}_{args['label']}.pkl")
+
+def load_yields(s,r,c,v,w,args):
+    yields = pd.read_pickle(f"yields/yields_{args['year']}_{args['label']}.pkl")
+    filter0 = yields.index.get_level_values('s') == s
+    filter1 = yields.index.get_level_values('r') == r
+    filter2 = yields.index.get_level_values('c') == c
+    filter3 = yields.index.get_level_values('v') == v
+    filter4 = yields.index.get_level_values('w') == w
+    ret = yields.iloc[filter0&filter1&filter2&filter3&filter4].values[0][0]
+    return ret
+    
 def save_shapes(var, hist, edges, args):   
     r_names = {'h-peak':'SR','h-sidebands':'SB'}
     def get_vwname(v,w):
@@ -385,14 +536,11 @@ def save_shapes(var, hist, edges, args):
                             histo[np.isnan(histo)] = 0
                             sumw2[np.isnan(sumw2)] = 0
                             name = f'{r_names[r]}_{args["year"]}_{g}_{c}_{vwname}'
-#                            if ('btag_hfstats2' in vwname) and ('ggH' in g):
-#                                print(vwname,histo)
                             th1 = from_numpy([histo, edges])
                             th1._fName = name
                             th1._fSumw2 = sumw2
                             th1._fTsumw2 = np.array(sumw2).sum()
                             th1._fTsumwx2 = np.array(sumw2[1:] * centers).sum()
-#                            print(th1.__dict__)
                             if vwname=='nominal':
                                 out_file[f'{g}_{c}'] = th1
                             else:
@@ -470,7 +618,7 @@ def get_numbers(hist, bin_name, args):
     
     systs = []
     shape_systs = [w.replace('_up','').replace('wgt_','') for w in hist.w.unique() if '_up' in w]
-    shape_systs.extend(['jes'+v.replace('_up','') for v in hist.v.unique() if '_up' in v])
+    shape_systs.extend([v.replace('_up','') for v in hist.v.unique() if '_up' in v])
     shape_systs.extend(list(sample_variations.keys()))
 #    lnn_systs = ['XsecAndNorm'+g+year for g in groups if 'Data' not in g]
 #    lnn_systs = []
@@ -504,7 +652,7 @@ def get_numbers(hist, bin_name, args):
                 counter = bkg_counter
             hist_g = hist[(hist.g==g)&(hist.c==c)]
             systs_g = [w.replace('_up','').replace('wgt_','') for w in hist_g.w.unique() if '_up' in w]
-            systs_g.extend(['jes'+v.replace('_up','') for v in hist_g.v.unique() if '_up' in v])
+            systs_g.extend([v.replace('_up','') for v in hist_g.v.unique() if '_up' in v])
             for smp_var_n, smp_var in sample_variations.items():
                 if g in smp_var.keys():
                     systs_g.append(smp_var_n)
@@ -535,7 +683,6 @@ def get_numbers(hist, bin_name, args):
     def to_string(df):
         string = ''
         for row in df.values:
-#            print(row)
             for i,item in enumerate(row):
                 ncols = 2 if item in ['bin','process','rate', 'observation'] else 1
                 row[i] = item+' '*(ncols*20-len(item))
@@ -591,10 +738,10 @@ def add_source(hist, group_name):
     except:
 #        print(group_name, "missing")
         return np.array([]), np.array([])
-        
+
 def plot(var, hists, edges, args, r='', save=True, show=False, plotsize=12, compare_with_pisa=False):    
     hist = hists[var.name]
-    print(hist)
+    #print(hist)
     if r!='':
         hist = hist[hist.r==r]
     year = args['year']
@@ -670,6 +817,7 @@ def plot(var, hists, edges, args, r='', save=True, show=False, plotsize=12, comp
     plt.rcParams.update({'font.size': 22})
     ratio_plot_size = 0.25
     data_opts = {'color': 'k', 'marker': '.', 'markersize':15}
+    data_opts_pisa = {'color': 'red', 'marker': '.', 'markersize':15}
     stack_fill_opts = {'alpha': 0.8, 'edgecolor':(0,0,0)}
     stat_err_opts = {'step': 'post', 'label': 'Stat. unc.', 'hatch': '//////',\
                         'facecolor': 'none', 'edgecolor': (0, 0, 0, .5), 'linewidth': 0}
@@ -687,11 +835,13 @@ def plot(var, hists, edges, args, r='', save=True, show=False, plotsize=12, comp
         err = coffea.hist.plot.poisson_interval(np.array(bkg_total), bkg_sumw2)
         ax_bkg.fill_between(x=edges, y1=np.r_[err[0, :], err[0, -1]], y2=np.r_[err[1, :], err[1, -1]], **stat_err_opts)
             
-        if compare_with_pisa:
-            r_opt = 'inclusive' if r=='' else r
-            pisa_hist = get_pisa_hist(var, r_opt, edges)
+    if compare_with_pisa:
+        r_opt = 'inclusive' if r=='' else r
+        pisa_hist, pisa_data_hist = get_pisa_hist(var, r_opt, edges)
+        if pisa_hist.sum():
             ax_pisa = hep.histplot(pisa_hist, edges, label='Pisa', histtype='step', **{'linewidth':3, 'color':'red'})
-
+        if pisa_data_hist.sum():
+            ax_pisa_data = hep.histplot(pisa_data_hist, edges, label='Pisa Data', histtype='errorbar', yerr=np.sqrt(pisa_data_hist), **data_opts_pisa)
         
     if ggh.sum():
         ax_ggh = hep.histplot(ggh, edges, label='ggH', histtype='step', **{'linewidth':3, 'color':'lime'})
@@ -706,6 +856,7 @@ def plot(var, hists, edges, args, r='', save=True, show=False, plotsize=12, comp
     max_var_down_name = ''
     for v in hist.v.unique():
         for w in hist.w.unique():
+            continue
             if ('nominal' in v) and ('nominal' in w): continue
             if ('off' in w): continue
             if ('wgt' not in w): continue
@@ -760,7 +911,8 @@ def plot(var, hists, edges, args, r='', save=True, show=False, plotsize=12, comp
             if ('nominal' not in v) and ('nominal' not in w): continue
             if ('nominal' in v) and ('nominal' in w): continue
             if ('off' in w): continue
-            if ('Flavor' not in v): continue
+            continue
+#            if ('Flavor' not in v): continue
             ret = get_shapes_for_option(hist,v,w)
             syst_ratio = np.zeros(len(bkg_total))
             syst_ratio[bkg_total!=0] = np.array(ret['bkg_total'].values[bkg_total!=0] / bkg_total[bkg_total!=0])
@@ -772,16 +924,21 @@ def plot(var, hists, edges, args, r='', save=True, show=False, plotsize=12, comp
     plt2.set_ylabel('Data/MC')
     lbl = plt2.get_xlabel()
     plt2.set_xlabel(f'{var.caption}')
-            
-    if compare_with_pisa:
-        r_opt = 'inclusive' if r=='' else r
-        pisa_hist = get_pisa_hist(var, r_opt, edges)
+
+    if compare_with_pisa and pisa_hist.sum():
         ratio = np.zeros(len(bkg_total))
         ratio[bkg_total!=0] = np.array(pisa_hist[bkg_total!=0] / bkg_total[bkg_total!=0])
-        ax = hep.histplot(ratio, edges, label='Pisa/Purdue', histtype='step', **{'linewidth':3, 'color':'red'})
+        ax = hep.histplot(ratio, edges, label='Pisa/Purdue MC', histtype='step', **{'linewidth':3, 'color':'red'})
         plt2.legend(prop={'size': 'small'})
         plt2.set_ylim([0.8,1.2])
-        
+
+    if compare_with_pisa and pisa_data_hist.sum():
+        ratio_data = np.zeros(len(bkg_total))
+        ratio_data[data!=0] = np.array(pisa_data_hist[data!=0] / data[data!=0])
+        ax = hep.histplot(ratio_data, edges, label='Pisa/Purdue Data', histtype='step', **{'linewidth':3, 'color':'blue'})
+        plt2.legend(prop={'size': 'small'})
+        plt2.set_ylim([0.8,1.2])
+
 
     if save:
         # Save plots
@@ -806,86 +963,73 @@ def plot(var, hists, edges, args, r='', save=True, show=False, plotsize=12, comp
         
 
 var_map_pisa = {
-#'mu1_pt':'Mu0_pt_GeoFitCorrection',
 'mu1_pt':'Mu0_pt',
 'mu1_eta':'Mu0_eta',
-#'mu2_pt':'Mu1_pt_GeoFitCorrection',
 'mu2_pt':'Mu1_pt',
 'mu2_eta':'Mu1_eta',
 'dimuon_pt':'Higgs_pt', 
 'dimuon_eta':'Higgs_eta',
-#'dimuon_mass':'Higgs_m',
-#'dimuon_mass':'Higgs_m_GF',
-'dimuon_mass':'Higgs_m_noGF',
+'dimuon_mass':'Higgs_m',
 'jet1_pt':'QJet0_pt_touse',
-#'jet1_pt':'QJet0_pt_nom',
 'jet1_phi':'QJet0_phi',
 'jet1_eta':'QJet0_eta',    
-'jet1_qgl':'QJet0_qgl',
 'jet2_pt':'QJet1_pt_touse',
-#'jet2_pt':'QJet1_pt_nom',
 'jet2_phi':'QJet1_phi',
 'jet2_eta':'QJet1_eta',    
-'jet2_qgl':'QJet1_qgl',
-'jj_dEta':'qqDeltaEta',
-'jj_dPhi':'qqDeltaPhi',
-'jj_pt':'qq_pt',
-'jj_mass':'Mqq',
-# b'mmjj_pt', b'mmjj_pt_log', b'mmjj_pz', b'mmjj_pz_logabs', b'CS_theta', b'CS_phi', b'NSoft5NewNoRapClean', b'SAHT2', b'nGenPart', b'GenPart_pdgId', b'GenPart_eta', b'GenPart_phi', b'GenPart_pt', b'nLHEPart', b'LHEPart_pt', b'LHEPart_eta', b'LHEPart_phi', b'LHEPart_pdgId', b'DeltaRelQQ', b'DeltaEtaQQSum', b'PhiHQ1', b'PhiHQ2', b'EtaHQ1', b'EtaHQ2', b'minEtaHQ', b'Rpt', b'theta2', b'NSoft5', b'NSoft5New', b'SAHT', b'Jet_pT30_central', b'Jet_pT30', b'event', b'DNN18Classifier', b'SBClassifier', b'DNN18Atan', b'year', b'genWeight', b'puWeight', b'btagWeight', b'btagEventWeight', b'muEffWeight', b'EWKreweight', b'PrefiringWeight', b'QGLweight', b'QJet1_partonFlavour', b'QJet0_partonFlavour'
+
 }
 
 def get_pisa_hist(var, r, edges):
     import uproot
     filenames = {
+        'data': '/depot/cms/hmm/coffea/pisa-jun12/data2018Snapshot.root',
         'dy_m105_160_amc':'/depot/cms/hmm/coffea/pisa/DY105_2018AMCPYSnapshot.root',
         'dy_m105_160_vbf_amc': '/depot/cms/hmm/coffea/pisa/DY105VBF_2018AMCPYSnapshot.root'
     }
     xsec = {
+        'data':1,
         'dy_m105_160_amc': 47.17, #
         'dy_m105_160_vbf_amc': 2.03 #
     }
     N = {
+        'data': 1,
         'dy_m105_160_amc': 6995355211.029654,
         'dy_m105_160_vbf_amc': 3146552884.4507833
     }
-    target_yields = { # as in datacards
-        'dy_m105_160_amc':1677.5,
-        'dy_m105_160_vbf_amc':1917.1,
-    }
     qgl_mean = {
+        'data': 1,
         'dy_m105_160_amc':  1.04859375342,
         'dy_m105_160_vbf_amc' :1.00809412662
     }
 
+
     lumi = 59970.
-    samples = ['dy_m105_160_amc', 'dy_m105_160_vbf_amc']
+#    samples = ['dy_m105_160_amc', 'dy_m105_160_vbf_amc']
+    samples = ['data']
     total_hist = np.array([])
+    data_hist = np.array([])
     for s in samples:
         with uproot.open(filenames[s]) as f:
             tree = f['Events']
-            mjj = tree['Mqq'].array()
-            deta_jj = tree['qqDeltaEta'].array()
-            mmm = tree['Higgs_m_GF'].array()
-            cut = {
-                'h-peak':(mmm>115)&(mmm<135)&(mjj>400)&(deta_jj>2.5),
-                'h-sidebands':(((mmm>110)&(mmm<115))|((mmm>135)&(mmm<150)))&(mjj>400)&(deta_jj>2.5),
-                'inclusive': (mjj>400)&(deta_jj>2.5)
-            }
-#            cut = {l:np.ones(len(mmm), dtype=bool) for l in ['h-peak','h-sidebans','inclusive']}
-            wgt = np.ones(len(mmm), dtype=float)
-            weights = ['genWeight', 'puWeight', 'btagEventWeight','muEffWeight', 'EWKreweight', 'PrefiringWeight', 'QGLweight']
-            for i,w in enumerate(weights):
-                wgt = wgt*tree[w].array()
-            wgt = wgt*xsec[s]*lumi / N[s] / qgl_mean[s] #tree['QGLweight'].array().mean()
+            wgt = np.ones(len(tree['event'].array()), dtype=float)
+            weights = ['genWeight', 'puWeight', 'btagEventWeight','muEffWeight', 'EWKreweight',\
+                       'PrefiringWeight', 'QGLweight']
+            if 'data' not in s:
+                for i,w in enumerate(weights):
+                    wgt = wgt*tree[w].array()
+                wgt = wgt*xsec[s]*lumi / N[s] / qgl_mean[s]
             hist = bh.Histogram(bh.axis.Variable(edges))
             var_arr = tree[var_map_pisa[var.name]].array()
-            hist.fill(var_arr[cut[r]], weight=wgt[cut[r]])
+            hist.fill(var_arr, weight=wgt)
+            if 'data' in s:
+                data_hist = hist.to_numpy()[0]
+                continue
             if len(total_hist)>0:
                 total_hist += hist.to_numpy()[0]
             else:
                 total_hist = hist.to_numpy()[0]
-            print(s, f'Yield: {hist.to_numpy()[0].sum()}, should be: {target_yields[s]}, ratio {hist.to_numpy()[0].sum()/target_yields[s]}')
-    print(total_hist.sum())
-    return total_hist
+
+    print(f'Pisa data yield ({var.name}):', data_hist.sum())
+    return total_hist, data_hist
 
 
