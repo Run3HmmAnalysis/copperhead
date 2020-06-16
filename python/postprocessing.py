@@ -302,7 +302,7 @@ def dnn_training(df, args):
         model.compile(loss='binary_crossentropy', optimizer='adam', metrics=["accuracy"])
         model.summary()
 
-        history = model.fit(x_train[training_features], y_train, epochs=2, batch_size=2048, verbose=1,
+        history = model.fit(x_train[training_features], y_train, epochs=100, batch_size=2048, verbose=1,
                                             validation_data=(x_val[training_features], y_val), shuffle=True)
 
         model.save(f"output/trained_models/test_{label}.h5")        
