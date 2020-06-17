@@ -33,15 +33,16 @@ sample_sources = [
     'other_mc',
 ]
 
-iterative = args.iterative
+year = args.year
 
-pt_variations = ['nominal']
-pt_variations += ['Absolute','Absolute2016']
-pt_variations += ['BBEC1','BBEC12016']
-pt_variations += ['EC2', 'EC22016']
+pt_variations = []
+#pt_variations += ['nominal']
+pt_variations += ['Absolute', f'Absolute{year}']
+pt_variations += ['BBEC1', f'BBEC1{year}']
+pt_variations += ['EC2', f'EC2{year}']
 pt_variations += ['FlavorQCD']
-pt_variations += ['HF','HF2016']
-pt_variations += ['RelativeBal', 'RelativeSample2016']
+pt_variations += ['HF',f'HF{year}']
+pt_variations += ['RelativeBal', f'RelativeSample{year}']
 pt_variations += ['jer1','jer2','jer3','jer4','jer5','jer6']
 
 smp = {}
@@ -101,14 +102,14 @@ if __name__ == "__main__":
     if args.debug:
         samp_info.load(samples, parallelize_outer=1, parallelize_inner=1)
     else:
-        samp_info.load(samples, parallelize_outer=13, parallelize_inner=3)
+        samp_info.load(samples, parallelize_outer=46, parallelize_inner=1)
 
     samp_info.compute_lumi_weights()
     
     if args.iterative:
         tstart = time.time() 
         output = processor.run_uproot_job(samp_info.full_fileset, 'Events',\
-                           DimuonProcessor(samp_info=samp_info, do_timer=True, pt_variations=pt_variations, debug=args.debug),\
+                                          DimuonProcessor(samp_info=samp_info, do_timer=True, pt_variations=['Absolute_up'], debug=args.debug),\
                                           iterative_executor, executor_args={'nano': True})
 
         elapsed = time.time() - tstart
@@ -124,7 +125,7 @@ if __name__ == "__main__":
     else:
         distributed = pytest.importorskip("distributed", minversion="1.28.1")
         distributed.config['distributed']['worker']['memory']['terminate'] = False
-        client = distributed.Client('128.211.149.133:39776')
+        client = distributed.Client('128.211.149.133:36202')
 
         
     tstart = time.time()
@@ -133,7 +134,7 @@ if __name__ == "__main__":
         print(f"Jet pT variation: {variation}")
         for label, fileset in samp_info.filesets.items():
             # Not producing variated samples for minor backgrounds
-            if (variation!='nominal') and not (('dy' in label) or ('ewk' in label) or ('vbf' in labe) or ('ggh' in label)):
+            if (variation!='nominal') and not (('dy' in label) or ('ewk' in label) or ('vbf' in label) or ('ggh' in label)):
                 continue
             print(f"Processing: {label}, {variation}")
             output = processor.run_uproot_job(fileset, 'Events',\

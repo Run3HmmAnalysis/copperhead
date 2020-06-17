@@ -111,19 +111,34 @@ class SamplesInfo(object):
             raise
                 
         self.nchunks = nchunks
+        
+        big_samples = [s for s in samples if ('data' in s) or ('dy' in s) or ('ewk' in s) or ('ttjets' in s)]
+        small_samples = [s for s in samples if s not in big_samples]
+        
+        results = []
+        for s in big_samples:
+            results.append(self.load_sample(s, parallelize_outer))
+            
+        pool = mp.Pool(parallelize_outer)
+        a = [pool.apply_async(self.load_sample, args=(s,)) for s in small_samples]
+        for process in a:
+            process.wait()
+            results.append(process.get())
+            pool.close()
 
-        if parallelize_outer>1:
-            pool = mp.Pool(parallelize_outer)
-            a = [pool.apply_async(self.load_sample, args=(s,)) for s in samples]
-            results = []
-            for process in a:
-                process.wait()
-                results.append(process.get())
-                pool.close()
-        else:
-            results=[]
-            for s in samples:
-                results.append(self.load_sample(s, parallelize_inner))
+#        if parallelize_outer>1:
+#            pool = mp.Pool(parallelize_outer)
+#            a = [pool.apply_async(self.load_sample, args=(s,)) for s in samples]
+#            results = []
+#            for process in a:
+#                process.wait()
+#                results.append(process.get())
+#                pool.close()
+#        else:
+#            results=[]
+#            for s in samples:
+#                results.append(self.load_sample(s, parallelize_inner))
+                
                 
         self.filesets_chunked = {}
         for res in results:
@@ -225,7 +240,7 @@ class SamplesInfo(object):
                 else:
                     sumGenWgts += ret['sumGenWgts']
                     nGenEvts += ret['nGenEvts']
-        else:   
+        else:
             for f in all_files:
                 if 'data' in sample:
                     tree = uproot.open(f)['Events']
