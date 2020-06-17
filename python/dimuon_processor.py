@@ -615,7 +615,7 @@ class DimuonProcessor(processor.ProcessorABC):
                 if self.do_jecunc:
                     for junc_name in self.jet_unc_names:
                         if junc_name not in self.parameters["jec_unc_to_consider"]: continue
-                        if (f"{junc_name}_up" not in self.pt_variations) or (f"{junc_name}_down" not in self.pt_variations): 
+                        if (f"{junc_name}_up" not in self.pt_variations) and (f"{junc_name}_down" not in self.pt_variations):
                             continue
                         jec_up_down = get_jec_unc(junc_name, jets.pt, jets.eta, self.JECuncertaintySources)
                         jec_corr_up, jec_corr_down = jec_up_down[:,:,0], jec_up_down[:,:,1]
@@ -650,7 +650,7 @@ class DimuonProcessor(processor.ProcessorABC):
                 'jer6' : (abs(jets.eta)>3.139)&(jets.pt>50),
             }
             for jer_unc_name, jer_cut in jer_categories.items():
-                if (f"{jer_unc_name}_up" not in self.pt_variations) or (f"{jer_unc_name}_down" not in self.pt_variations): 
+                if (f"{jer_unc_name}_up" not in self.pt_variations) and (f"{jer_unc_name}_down" not in self.pt_variations):
                     continue
                 pt_name_up = f"pt_{jer_unc_name}_up"
                 pt_name_down = f"pt_{jer_unc_name}_down"
