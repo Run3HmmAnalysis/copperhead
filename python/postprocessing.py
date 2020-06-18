@@ -29,10 +29,10 @@ grouping = {
     'dy_2j': 'DY',
     'dy_m105_160_amc': 'DY_nofilter',
     'dy_m105_160_vbf_amc': 'DY_filter',
-    'ewk_lljj_mll50_mjj120': 'EWK',
+    #'ewk_lljj_mll50_mjj120': 'EWK',
     #'ewk_lljj_mll105_160': 'EWK',
-    #'ewk_lljj_mll105_160_ptj0': 'EWK',
-    'ewk_lljj_mll105_160_py': 'EWK',
+    'ewk_lljj_mll105_160_ptj0': 'EWK',
+    #'ewk_lljj_mll105_160_py': 'EWK',
     'ttjets_dl': 'TT+ST',
     'ttjets_sl': 'TT+ST',
     'ttw': 'TT+ST',
@@ -69,7 +69,7 @@ def worker(args):
     edges = {}
     dnn_bins = {
         '2016':[0, 0.087, 0.34, 0.577, 0.787, 0.977, 1.152, 1.316, 1.475, 1.636, 1.801, 1.984, 2.44],
-        '2017':[0, 0.025, 0.369, 0.648, 0.867, 1.049, 1.214, 1.364, 1.508, 1.645, 1.778, 1.907, 2.025, 2.116],
+        '2017':[0, 0.061, 0.414, 0.694, 0.912, 1.093, 1.254, 1.402, 1.541, 1.672, 1.792, 1.906, 2.004, 2.102],
         '2018':[0, 0.005, 0.096, 0.216, 0.336, 0.45, 0.555, 0.652, 0.744, 0.834, 0.921, 1.007, 1.094, 1.184, 1.276, 1.374, 1.479, 1.591, 1.713, 1.859, 2.249]
     }
     if 'get_hists' in modules:
@@ -88,10 +88,11 @@ def postprocess(args, parallelize=True):
     argsets = []
     all_training_samples = []
     classes_dict = {}
-    for cl, sm in args['training_samples'].items():
-        all_training_samples.extend(sm)
-        for smp in sm:
-            classes_dict[smp] = cl
+    if 'training_samples' in args:
+        for cl, sm in args['training_samples'].items():
+            all_training_samples.extend(sm)
+            for smp in sm:
+                classes_dict[smp] = cl
     args.update({'classes_dict':classes_dict})
 
     if '2018' in args['year']: grouping.update({'vbf_powhegPS':'VBF'})
@@ -224,11 +225,9 @@ def to_pandas(args):
         else:
             df['cls'] = ''
 
-#    if 'data' in s:
-#        with uproot.open('/depot/cms/hmm/coffea/pisa-jun12/data2018Snapshot.root') as f:
-#            events = f['Events']['event'].array()
-#            df = df[~df['event'].isin(events)]
-
+    if ('extra_events' in args.keys()) and ('plot_extra' in args.keys()):
+        if ('data' in s) and (args['plot_extra']):
+            df = df[df['event'].isin(args['extra_events'])]
     return df
 
 def dnn_training(df, args):
@@ -943,18 +942,22 @@ def plot(var, hists, edges, args, r='', save=True, show=False, plotsize=12, comp
     if save:
         # Save plots
         out_path = args['out_path']
+        full_out_path = f"{out_path}/plots_{year}_{label}"
+        if 'plot_extra' in args.keys():
+            if args['plot_extra']:
+                full_out_path += '_extra'
         try:
             os.mkdir(out_path)
         except:
             pass
         try:
-            os.mkdir(f"{out_path}/plots_{year}_{label}")
+            os.mkdir(full_out_path)
         except:
             pass
         if r=='':
-            out_name = f"{out_path}/plots_{year}_{label}/{var.name}_inclusive.png"
+            out_name = f"{full_out_path}/{var.name}_inclusive.png"
         else:
-            out_name = f"{out_path}/plots_{year}_{label}/{var.name}_{r}.png"
+            out_name = f"{full_out_path}/{var.name}_{r}.png"
         print(f"Saving {out_name}")
         fig.savefig(out_name)
 
