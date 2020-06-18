@@ -660,9 +660,9 @@ class DimuonProcessor(processor.ProcessorABC):
                 jet_pt_down[jer_cut] = jet_pt_jer_down[jer_cut]
                 jets.add_attributes(**{pt_name_up: jet_pt_up, pt_name_down: jet_pt_down})
                 if (f"{jer_unc_name}_up" in self.pt_variations):
-                    jet_variation_names += [f"{junc_name}_up"]
+                    jet_variation_names += [f"{jer_unc_name}_up"]
                 if (f"{jer_unc_name}_down" in self.pt_variations):
-                    jet_variation_names += [f"{junc_name}_down"]
+                    jet_variation_names += [f"{jer_unc_name}_down"]
                             
         jets.add_attributes(**{'pt_nominal': jets.pt})
         jets = jets[jets.pt.argsort()]  
