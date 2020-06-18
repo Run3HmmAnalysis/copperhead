@@ -6,27 +6,12 @@ from config.variables import variables
 import matplotlib.pyplot as plt
 import boost_histogram as bh
 import mplhep as hep
+from python.postprocessing import var_map_pisa
 
 parser = argparse.ArgumentParser()
-parser.add_argument("-y", "--year", dest="year", default=2018, action='store')
+parser.add_argument("-y", "--year", dest="year", default='2018', action='store')
 parser.add_argument("-l", "--label", dest="label", default="jun16", action='store')
 args = parser.parse_args()
-
-var_map_pisa = {
-    'mu1_pt':'Mu0_pt',
-    'mu1_eta':'Mu0_eta',
-    'mu2_pt':'Mu1_pt',
-    'mu2_eta':'Mu1_eta',
-    'dimuon_pt':'Higgs_pt',
-    'dimuon_eta':'Higgs_eta',
-    'dimuon_mass':'Higgs_m',
-    'jet1_pt':'QJet0_pt_touse',
-    'jet1_phi':'QJet0_phi',
-    'jet1_eta':'QJet0_eta',
-    'jet2_pt':'QJet1_pt_touse',
-    'jet2_phi':'QJet1_phi',
-    'jet2_eta':'QJet1_eta',
-}
 
 try:
     os.mkdir(f"compare_with_pisa/plots_{args.year}_{args.label}_missing")
