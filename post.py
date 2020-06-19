@@ -99,15 +99,27 @@ all_training_samples = []
 for k,v in training_samples.items():
     all_training_samples.extend(v)
 
-if args.jetsyst:
-    if args.dnn_training or args.dnn_rebin:
-        print("Ignoring JEC/JER variations for DNN training and rebinning")
-        syst_variations = []
+    
+pt_variations = []
+pt_variations += ['nominal']
+pt_variations += ['Absolute', f'Absolute{args.year}']
+#pt_variations += ['BBEC1', f'BBEC1{args.year}']
+#pt_variations += ['EC2', f'EC2{args.year}']
+#pt_variations += ['FlavorQCD']
+#pt_variations += ['HF',f'HF{args.year}']
+#pt_variations += ['RelativeBal', f'RelativeSample{args.year}']
+#pt_variations += ['jer1','jer2','jer3','jer4','jer5','jer6']
+
+all_pt_variations = []
+for ptvar in pt_variations:
+    if ptvar=='nominal':
+        all_pt_variations += ['nominal']
     else:
-        syst_variations = [os.path.basename(x) for x in glob.glob(f'/depot/cms/hmm/coffea/{args.year}_{args.label}/*')\
-                           if ('nominal' not in x)]
-else:
-    syst_variations = []
+        all_pt_variations += [f'{ptvar}_up']
+        all_pt_variations += [f'{ptvar}_down'] 
+
+if (not args.jetsyst) or args.dnn_training or args.dnn_rebin:
+    all_pt_variations = ['nominal']
 
 # keeping correct order just for debug output
 def add_modules(modules, new_modules):
@@ -144,7 +156,7 @@ postproc_args = {
     'year': args.year,
     'label': args.label,
     'in_path': f'/depot/cms/hmm/coffea/{args.year}_{args.label}/',
-    'syst_variations': ['nominal']+syst_variations,
+    'syst_variations': all_pt_variations,
     'out_path': 'plots_new/',
     'samples':samples,
     'training_samples': training_samples,
@@ -164,34 +176,36 @@ tstart = time.time()
 
 if load_unbinned_data:
     print(f"Will run modules: {modules}")
-    print(f"Getting unbinned data (may take long)...")
-    dfs, hist_dfs, edges = postprocess(postproc_args, not args.iterative)
+    for ptvar in all_pt_variations:
+        postproc_args['syst_variations'] = [ptvar]
+        print(f"Processing pt variation: {ptvar}")
+        print(f"Getting unbinned data (may take long)...")
+        dfs, hist_dfs, edges = postprocess(postproc_args, not args.iterative)
 
-    if args.dnn_training:
-        print(f"Concatenating dataframes...")
-        df = pd.concat(dfs)
-        print("Starting DNN training...")
-        dnn_training(df, postproc_args)
-        print("DNN training complete!")
-        sys.exit()
+        if args.dnn_training:
+            print(f"Concatenating dataframes...")
+            df = pd.concat(dfs)
+            print("Starting DNN training...")
+            dnn_training(df, postproc_args)
+            print("DNN training complete!")
+            sys.exit()
 
-    if args.dnn_rebin:
-        print("Rebinning DNN...")
-        boundaries = dnn_rebin(dfs, postproc_args)
-        print(args.year, args.label, boundaries)
-        sys.exit()
+        if args.dnn_rebin:
+            print("Rebinning DNN...")
+            boundaries = dnn_rebin(dfs, postproc_args)
+            print(args.year, args.label, boundaries)
+            sys.exit()
     
-    hist = {}
-    for var, hists in hist_dfs.items():
-        print(f"Concatenating histograms: {var}")
-        hist[var] = pd.concat(hists, ignore_index=True)
+        hist = {}
+        for var, hists in hist_dfs.items():
+            print(f"Concatenating histograms: {var}")
+            hist[var] = pd.concat(hists, ignore_index=True)
 
-    #print(f"Saving yields...")
-    #save_yields(vars_to_plot['dimuon_mass'], hist, edges[myvar], postproc_args)
-    if args.dnn_evaluation:
-        print(f"Saving shapes: {myvar.name}")
-        save_shapes(myvar, hist, dnn_bins, postproc_args)
-
+        #print(f"Saving yields...")
+        #save_yields(vars_to_plot['dimuon_mass'], hist, edges[myvar], postproc_args)
+        if args.dnn_evaluation:
+            print(f"Saving shapes: {myvar.name}")
+            save_shapes(myvar, hist, dnn_bins, postproc_args)
 
 if args.datacards:
     print(f"Preparing ROOT files with shapes ({myvar.name})...")    
