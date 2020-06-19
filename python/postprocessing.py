@@ -443,7 +443,9 @@ def save_shapes(var, hist, edges, args):
             elif '_up' in v:
                 vwname = v.replace('_up', 'Up')
             elif '_down' in v:
-                vwname = v.replace('_down', 'Down')  
+                vwname = v.replace('_down', 'Down')
+            if 'jer' not in vwname: 
+                vwname = 'jes'+vwname
         return vwname  
     
     try:
@@ -679,7 +681,7 @@ def get_numbers(var, cc, r, bin_name, args):
                 data_yields.loc[0,'value'] = bin_name
                 data_yields.loc[1,'value'] = f'{rate}'
             else:
-                nominal_shape = f'{tdir}/{g}/{r}_{args["year"]}_{g}_{c}_nominal.npy'
+                nominal_shape = f'{tdir}/{g}/{r}_{args["year"]}_{g}_{c}.npy'
                 hist,_ = np.load(nominal_shape, allow_pickle=True)
                 rate = hist.sum()          
                 mc_yields.loc[0,gcname] = bin_name
