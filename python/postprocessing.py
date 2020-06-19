@@ -1,4 +1,8 @@
 import sys, os
+stderr = sys.stderr
+sys.stderr = open(os.devnull, 'w')
+import keras
+sys.stderr = stderr
 os.environ['TF_CPP_MIN_LOG_LEVEL']='2'
 import pandas as pd
 pd.options.mode.chained_assignment = None
@@ -14,6 +18,7 @@ import uproot
 from uproot_methods.classes.TH1 import from_numpy
 import matplotlib.pyplot as plt
 import mplhep as hep
+import tqdm
 
 grouping = {
     'data_A': 'Data',
@@ -29,10 +34,7 @@ grouping = {
     'dy_2j': 'DY',
     'dy_m105_160_amc': 'DY_nofilter',
     'dy_m105_160_vbf_amc': 'DY_filter',
-    #'ewk_lljj_mll50_mjj120': 'EWK',
-    #'ewk_lljj_mll105_160': 'EWK',
     'ewk_lljj_mll105_160_ptj0': 'EWK',
-    #'ewk_lljj_mll105_160_py': 'EWK',
     'ttjets_dl': 'TT+ST',
     'ttjets_sl': 'TT+ST',
     'ttw': 'TT+ST',
@@ -48,35 +50,21 @@ grouping = {
     'wzz': 'VVV',
     'zzz': 'VVV',
     'ggh_amcPS': 'ggH',
-#    'ggh_powhegPS': 'ggH',
-#    'vbf_amcPS': 'VBF',
-#    'vbf_powhegPS': 'VBF',
     'vbf_powheg_dipole': 'VBF',
-#    'vbf_powheg_herwig': 'VBF',
 }
 
 def worker(args):
-    print(f"Loading: {args['s']}, {args['c']}, {args['r']}, {args['v']}")
-    modules = args['modules']
-    if 'to_pandas' not in modules:
+    if 'to_pandas' not in args['modules']:
         print("Need to convert to Pandas DF first!")
         return
     df = to_pandas(args)
-    if 'dnn_evaluation' in modules:
-        print(f"Evaluating DNN: {args['s']}, {args['c']}, {args['r']}, {args['v']}")
+    if 'dnn_evaluation' in args['modules']:
         df = dnn_evaluation(df, args)
     hists = {}
     edges = {}
-    dnn_bins = {
-        '2016':[0, 0.087, 0.34, 0.577, 0.787, 0.977, 1.152, 1.316, 1.475, 1.636, 1.801, 1.984, 2.44],
-        '2017':[0, 0.061, 0.414, 0.694, 0.912, 1.093, 1.254, 1.402, 1.541, 1.672, 1.792, 1.906, 2.004, 2.102],
-        '2018':[0, 0.005, 0.096, 0.216, 0.336, 0.45, 0.555, 0.652, 0.744, 0.834, 0.921, 1.007, 1.094, 1.184, 1.276, 1.374, 1.479, 1.591, 1.713, 1.859, 2.249]
-    }
-    if 'get_hists' in modules:
-        print(f"Histogramming: {args['s']}, {args['c']}, {args['r']}, {args['v']}")
+    if 'get_hists' in args['modules']:
         for var in args['vars_to_plot']:
-            hists[var.name], edges[var.name] = get_hists(df, var, args, bins=dnn_bins[args['year']])
-    print(f"Done: {args['s']}, {args['c']}, {args['r']}, {args['v']}")
+            hists[var.name], edges[var.name] = get_hists(df, var, args, bins=args['dnn_bins'])
     return df, hists, edges
 
 
@@ -95,8 +83,6 @@ def postprocess(args, parallelize=True):
                 classes_dict[smp] = cl
     args.update({'classes_dict':classes_dict})
 
-    if '2018' in args['year']: grouping.update({'vbf_powhegPS':'VBF'})
-    
     for s in args['samples']:
         if (args['do_jetsyst']) and (s in grouping.keys()) and (('dy' in s) or ('ewk' in s) or ('vbf' in s) or ('ggh' in s)):
             variations = args['syst_variations']
@@ -122,9 +108,14 @@ def postprocess(args, parallelize=True):
 
     if parallelize:
         cpus = mp.cpu_count()-2
-        print(f'Using {cpus} CPUs')
+        print(f'Parallelizing over {cpus} CPUs')
+
+        pbar = tqdm.tqdm(total=len(argsets))
+        def update(*a):
+            pbar.update()
+
         pool = mp.Pool(cpus)
-        a = [pool.apply_async(worker, args=(argset,)) for argset in argsets]
+        a = [pool.apply_async(worker, args=(argset,), callback=update) for argset in argsets]
         results = []
         for process in a:
             process.wait()
@@ -190,6 +181,7 @@ def to_pandas(args):
         for d in decorrelate:
             # don't include LHE variations for VBF and VV
             if s not in grouping.keys(): continue
+            if 'data' in s: continue
             if (grouping[s]=='VBF') or (grouping[s]=='VV'): continue
             if d in var:
                 if 'off' in var: continue
@@ -203,7 +195,7 @@ def to_pandas(args):
                         df[f'{vname}_{g}{suff}']=proc_out[f'{var}_{c}_{r}'].value if grouping[s]==g\
                             else proc_out[f'wgt_nominal_{c}_{r}'].value
                     except:
-                        df[f'{vname}_{g}{suff}'] = np.zeros(len_, dtype=float)
+                        df[f'{vname}_{g}{suff}'] = proc_out[f'wgt_nominal_{c}_{r}'].value
                     done = True
         
         if not done:
@@ -432,13 +424,20 @@ def load_yields(s,r,c,v,w,args):
     filter4 = yields.index.get_level_values('w') == w
     ret = yields.iloc[filter0&filter1&filter2&filter3&filter4].values[0][0]
     return ret
-    
+
 def save_shapes(var, hist, edges, args):   
+    edges = np.array(edges)
+    tdir = f'/depot/cms/hmm/templates/{args["year"]}_{args["label"]}_{var.name}/'
+    try:
+        os.mkdir(tdir)
+    except:
+        pass
+    
     r_names = {'h-peak':'SR','h-sidebands':'SB'}
     def get_vwname(v,w):
         vwname = ''
         if 'nominal' in v:
-            if 'off' in w: return ()
+            if 'off' in w: return ''
             elif 'nominal' in w:
                 vwname = 'nominal'
             elif '_up' in w:
@@ -446,7 +445,7 @@ def save_shapes(var, hist, edges, args):
             elif '_down' in w:
                 vwname = w.replace('_down', 'Down').replace('wgt_', '')
         else:
-            if 'nominal' not in w: return ()
+            if 'nominal' not in w: return ''
             elif '_up' in v:
                 vwname = v.replace('_up', 'Up')
             elif '_down' in v:
@@ -468,7 +467,7 @@ def save_shapes(var, hist, edges, args):
         'SignalPartonShower': 1., 
         'EWKPartonShower': 0.2,
     }
-
+    decorrelate = ['LHEFac', 'LHERen']
     variated_shapes = {}
     
     hist = hist[var.name]
@@ -478,8 +477,6 @@ def save_shapes(var, hist, edges, args):
     data_names = [n for n in hist.s.unique() if 'data' in n]
     for cgroup,cc in args['channel_groups'].items():
         for r in args['regions']:
-            out_fn = f'combine_new/{args["year"]}_{args["label"]}/shapes_{cgroup}_{r}.root'
-            out_file = uproot.recreate(out_fn)
             data_obs_hist = np.zeros(len(bin_columns), dtype=float)
             data_obs_sumw2 = np.zeros(len(sumw2_columns), dtype=float)
             for v in hist.v.unique():
@@ -504,10 +501,6 @@ def save_shapes(var, hist, edges, args):
                         variations_by_group = {}
                         for smp_var_name, smp_var_items in sample_variations.items():
                             for gr, samples in smp_var_items.items():
-                                if ('2018' in args['year']) and ('Signal' in smp_var_name): 
-                                    variations_by_group[gr] = {}
-                                    variations_by_group[gr][smp_var_name] = [[],[]]
-                                    continue #temporary
                                 if len(samples)!=2: continue
                                 if samples[0] not in variated_shapes.keys(): continue
                                 if samples[1] not in variated_shapes.keys(): continue
@@ -520,6 +513,10 @@ def save_shapes(var, hist, edges, args):
                         mc_hist = mc_hist.groupby('g').aggregate(np.sum).reset_index() 
                         for g in mc_hist.g.unique():
                             if g not in grouping.values():continue
+                            decor_ok = True
+                            for d in decorrelate:
+                                if (d in vwname) and (g not in vwname): decor_ok = False
+                            if not decor_ok: continue
                             histo = np.array(mc_hist[mc_hist.g==g][bin_columns].values[0], dtype=float)
                             if len(histo)==0: continue
                             sumw2 = np.array(mc_hist[mc_hist.g==g][sumw2_columns].values[0], dtype=float)
@@ -534,16 +531,17 @@ def save_shapes(var, hist, edges, args):
                             sumw2[np.isinf(sumw2)] = 0
                             histo[np.isnan(histo)] = 0
                             sumw2[np.isnan(sumw2)] = 0
-                            name = f'{r_names[r]}_{args["year"]}_{g}_{c}_{vwname}'
-                            th1 = from_numpy([histo, edges])
-                            th1._fName = name
-                            th1._fSumw2 = sumw2
-                            th1._fTsumw2 = np.array(sumw2).sum()
-                            th1._fTsumwx2 = np.array(sumw2[1:] * centers).sum()
+
                             if vwname=='nominal':
-                                out_file[f'{g}_{c}'] = th1
+                                name = f'{r_names[r]}_{args["year"]}_{g}_{c}'
                             else:
-                                out_file[f'{g}_{c}_{vwname}'] = th1
+                                name = f'{r_names[r]}_{args["year"]}_{g}_{c}_{vwname}'
+
+                            try:
+                                os.mkdir(f'{tdir}/{g}')
+                            except:
+                                pass
+                            np.save(f'{tdir}/{g}/{name}', [histo,sumw2])
                             for groupname, var_items in variations_by_group.items():
                                 if (groupname==g)&(vwname=='nominal'):
                                     for variname,variations in var_items.items():
@@ -552,20 +550,46 @@ def save_shapes(var, hist, edges, args):
                                             histo_ud = histo*variations[iud]
                                             sumw2_ud = np.array([0]+list(sumw2[1:]*variations[iud]))
                                             name = f'{r_names[r]}_{args["year"]}_{g}_{c}_{variname}{ud}'
-                                            th1 = from_numpy([histo_ud, edges])
-                                            th1._fName = name
-                                            th1._fSumw2 = np.array(sumw2_ud)
-                                            th1._fTsumw2 = np.array(sumw2_ud).sum()
-                                            th1._fTsumwx2 = np.array(sumw2_ud[1:] * centers).sum()
-                                            if vwname=='nominal':
-                                                out_file[f'{g}_{c}_{variname}{ud}'] = th1
+                                            np.save(f'{tdir}/{g}/{name}', [histo_ud,sumw2_ud])
 
-            th1_data = from_numpy([data_obs_hist, edges])
+            try:
+                os.mkdir(f'{tdir}/Data/')
+            except:
+                pass  
+            name = f'{r_names[r]}_{args["year"]}_data_obs'
+            np.save(f'{tdir}/Data/{name}', [data_obs_hist,data_obs_sumw2])
+
+def prepare_root_files(var, edges, args):
+    edges = np.array(edges)
+    tdir = f'/depot/cms/hmm/templates/{args["year"]}_{args["label"]}_{var.name}/'
+    regions = ['SB','SR']
+    centers = (edges[:-1] + edges[1:]) / 2.0
+    try:
+        os.mkdir(f'combine_new/{args["year"]}_{args["label"]}')
+    except:
+        pass
+    for cgroup,cc in args['channel_groups'].items():
+        for r in regions:
+            out_fn = f'combine_new/{args["year"]}_{args["label"]}/shapes_{cgroup}_{r}.root'
+            out_file = uproot.recreate(out_fn)
+            data_hist, data_sumw2 = np.load(f'{tdir}/Data/{r}_{args["year"]}_data_obs.npy',allow_pickle=True)
+            th1_data = from_numpy([data_hist, edges])
             th1_data._fName = 'data_obs'
-            th1_data._fSumw2 = np.array(data_obs_sumw2)
-            th1_data._fTsumw2 = np.array(data_obs_sumw2).sum()
-            th1_data._fTsumwx2 = np.array(data_obs_sumw2[1:] * centers).sum()
+            th1_data._fSumw2 = np.array(data_sumw2)
+            th1_data._fTsumw2 = np.array(data_sumw2).sum()
+            th1_data._fTsumwx2 = np.array(data_sumw2[1:] * centers).sum()
             out_file['data_obs'] = th1_data
+            mc_templates = glob.glob(f'{tdir}/*/{r}_*.npy')
+            for path in mc_templates:
+                if 'Data' in path: continue
+                hist, sumw2 = np.load(path, allow_pickle=True)
+                name = os.path.basename(path).replace('.npy','')
+                th1 = from_numpy([hist, edges])
+                th1._fName = name.replace(f'{r}_{args["year"]}_','')
+                th1._fSumw2 = np.array(sumw2)
+                th1._fTsumw2 = np.array(sumw2).sum()
+                th1._fTsumwx2 = np.array(sumw2[1:] * centers).sum()
+                out_file[name.replace(f'{r}_{args["year"]}_','')] = th1
             out_file.close()
 
 rate_syst_lookup = {
@@ -597,13 +621,18 @@ rate_syst_lookup = {
         'XsecAndNorm2018ggH_vbf': 1.39295,
         },
 }            
-            
-def get_numbers(hist, bin_name, args):
-    groups = {}
-    for g in hist.g.unique():
-        groups[g] = []
-        for c in hist[hist.g==g].c.unique():
-            groups[g].append(c)
+
+def get_numbers(var, cc, r, bin_name, args):
+    groups = {'Data': ['vbf'],
+              'DY_nofilter':['vbf_01j','vbf_2j'],
+              'DY_filter':['vbf_01j','vbf_2j'],
+              'EWK':['vbf'],
+              'TT+ST':['vbf'],
+              'VV':['vbf'],
+              'ggH':['vbf'],
+              'VBF':['vbf']
+             }
+    regions = ['SB', 'SR']
     year = args['year']
     floating_norm = {'DY':['vbf_01j']}
     sig_groups = ['ggH', 'VBF']
@@ -614,21 +643,21 @@ def get_numbers(hist, bin_name, args):
 
     sig_counter = 0
     bkg_counter = 0
-    
+    tdir = f'/depot/cms/hmm/templates/{args["year"]}_{args["label"]}_{var.name}/'
+    shape_systs_by_group = {}
+    for g, cc in groups.items():
+        shape_systs_by_group[g] = [os.path.basename(path).replace('.npy','') for path in glob.glob(f'{tdir}/{g}/{r}_*.npy')]
+        for c in cc:
+            shape_systs_by_group[g] = [path for path in shape_systs_by_group[g] if (path!=f'{r}_{args["year"]}_{g}_{c}') and ('nominal' not in path)]
+            shape_systs_by_group[g] = [path.replace(f'{r}_{args["year"]}_{g}_{c}_','').replace('Up','').replace('Down','') for path in shape_systs_by_group[g]]
+        shape_systs_by_group[g] = np.unique(shape_systs_by_group[g])
+
+    shape_systs = []
+    for shs in shape_systs_by_group.values():
+        shape_systs.extend(shs)
+    shape_systs = np.unique(shape_systs)
     systs = []
-    shape_systs = [w.replace('_up','').replace('wgt_','') for w in hist.w.unique() if '_up' in w]
-    shape_systs.extend([v.replace('_up','') for v in hist.v.unique() if '_up' in v])
-    shape_systs.extend(list(sample_variations.keys()))
-#    lnn_systs = ['XsecAndNorm'+g+year for g in groups if 'Data' not in g]
-#    lnn_systs = []
-#    for g,cc in groups.items():
-#        for c in cc:
-#            if 'Data' in g: continue
-#            gcname = f'{g}_{c}'
-#            lnn_systs.append('XsecAndNorm'+gcname+year)
-#    lnn_systs.append('lumi')
     systs.extend(shape_systs)
-#    systs.extend(lnn_systs)
 
     data_yields = pd.DataFrame()
     data_yields['index'] = ['bin','observation']
@@ -649,18 +678,16 @@ def get_numbers(hist, bin_name, args):
             elif 'Data'not in g:
                 bkg_counter += 1
                 counter = bkg_counter
-            hist_g = hist[(hist.g==g)&(hist.c==c)]
-            systs_g = [w.replace('_up','').replace('wgt_','') for w in hist_g.w.unique() if '_up' in w]
-            systs_g.extend([v.replace('_up','') for v in hist_g.v.unique() if '_up' in v])
-            for smp_var_n, smp_var in sample_variations.items():
-                if g in smp_var.keys():
-                    systs_g.append(smp_var_n)
-            hist_g = hist_g[(hist_g.v=='nominal')&(hist_g.w=='wgt_nominal')].groupby('g').aggregate(np.sum).reset_index()
-            rate = hist_g.integral.values[0]
             if g=='Data':
+                data = f'{tdir}/Data/{r}_{args["year"]}_data_obs.npy'
+                hist,_ = np.load(data, allow_pickle=True)
+                rate = hist.sum()          
                 data_yields.loc[0,'value'] = bin_name
                 data_yields.loc[1,'value'] = f'{rate}'
             else:
+                nominal_shape = f'{tdir}/{g}/{r}_{args["year"]}_{g}_{c}_nominal.npy'
+                hist,_ = np.load(nominal_shape, allow_pickle=True)
+                rate = hist.sum()          
                 mc_yields.loc[0,gcname] = bin_name
                 mc_yields.loc[1,gcname] = gcname
                 mc_yields.loc[2,gcname] = f'{counter}'
@@ -668,17 +695,15 @@ def get_numbers(hist, bin_name, args):
                 for syst in shape_systs:
                     systematics.loc[syst,'type'] = 'shape'
                     if sum([gname in syst for gname in groups.keys()]):
-                        systematics.loc[syst,gcname] = '1.0' if (g in syst) and (syst in systs_g) else '-'   
+                        systematics.loc[syst,gcname] = '1.0' if (g in syst) and (syst in shape_systs_by_group[g]) else '-'   
                     else:
-                        systematics.loc[syst,gcname] = '1.0' if syst in systs_g else '-'
+                        systematics.loc[syst,gcname] = '1.0' if syst in shape_systs_by_group[g] else '-'
                 for syst in rate_syst_lookup[year].keys():
                     systematics.loc[syst,'type'] = 'lnN'
                     if gcname in syst:
                         val = rate_syst_lookup[year][syst]
                     else: val = '-'
                     systematics.loc[syst,gcname] = f'{val}'
-                        
-    
     def to_string(df):
         string = ''
         for row in df.values:
@@ -691,27 +716,22 @@ def get_numbers(hist, bin_name, args):
     print(mc_yields) 
     print(systematics)
     return to_string(data_yields), to_string(mc_yields), to_string(systematics.reset_index())
-    
-        
             
-def make_datacards(var, hist, args):
-    r_names = {'h-peak':'SR','h-sidebands':'SB'}
+def make_datacards(var, args):
     year = args["year"]
-    hist = hist[var.name]
     for cgroup, cc in args['channel_groups'].items():
-        for r in args['regions']:    
-            bin_name = f'{r_names[r]}_{year}'
+        for r in ['SB', 'SR']:
+            bin_name = f'{r}_{year}'
             datacard_name = f'combine_new/{year}_{args["label"]}/datacard_{cgroup}_{r}.txt'
             shapes_file = f'shapes_{cgroup}_{r}.root'
             datacard = open(datacard_name, 'w')
-            datacard.write(f"imax 1\n") # will combine the datacards later
+            datacard.write(f"imax 1\n")
             datacard.write(f"jmax *\n")
             datacard.write(f"kmax *\n")
             datacard.write("---------------\n")
             datacard.write(f"shapes * {bin_name} {shapes_file} $PROCESS $PROCESS_$SYSTEMATIC\n")
             datacard.write("---------------\n")
-            bin_name = f'{r_names[r]}_{year}'
-            ret = data_yields, mc_yields, systematics = get_numbers(hist[(hist.c.isin(cc)) & (hist.r==r)], bin_name, args)
+            data_yields, mc_yields, systematics = get_numbers(var, cc, r, bin_name, args)
             datacard.write(data_yields)
             datacard.write("---------------\n")
             datacard.write(mc_yields)
@@ -797,7 +817,7 @@ def plot(var, hists, edges, args, r='', save=True, show=False, plotsize=12, comp
     bkg_labels = bkg_df.g
     
     # Report yields
-    if not show:
+    if not show and var.name=='dimuon_mass':
         print("="*50)
         if r=='':
             print(f"{var.name}: Inclusive yields:")
@@ -861,7 +881,7 @@ def plot(var, hists, edges, args, r='', save=True, show=False, plotsize=12, comp
             if ('wgt' not in w): continue
             ret = get_shapes_for_option(hist,v,w)
             if ret['bkg_total'].sum():
-                ax_vbf = hep.histplot(ret['bkg_total'].values, edges, histtype='step', **{'linewidth':3})
+                #ax_vbf = hep.histplot(ret['bkg_total'].values, edges, histtype='step', **{'linewidth':3})
                 if (ret['bkg_total'].values.sum() > max_variation_up):
                     max_variation_up = ret['bkg_total'].values.sum()
                     max_var_up_name = f'{v},{w}'
@@ -874,8 +894,8 @@ def plot(var, hists, edges, args, r='', save=True, show=False, plotsize=12, comp
             if ret['vbf'].sum():
                 ax_vbf = hep.histplot(ret['vbf'], edges, histtype='step', **{'linewidth':3})
     
-    print(f"Max. variation up: {max_var_up_name}")
-    print(f"Max. variation down: {max_var_down_name}")
+    #print(f"Max. variation up: {max_var_up_name}")
+    #print(f"Max. variation down: {max_var_down_name}")
     
     lbl = hep.cms.cmslabel(ax=plt1, data=True, paper=False, year=year)
     
