@@ -250,7 +250,7 @@ class SamplesInfo(object):
                     lumi_list += LumiList(tree.array('run')[lumi_filter], tree.array('luminosityBlock')[lumi_filter])
                 else:
                     tree = uproot.open(f)['Runs']
-                    if 'NanoAODv6' in self.paths[sample]:
+                    if ('NanoAODv6' in self.paths[sample]) or ('NANOV10' in self.paths[sample]):
                         sumGenWgts += tree.array('genEventSumw_')[0]
                         nGenEvts += tree.array('genEventCount_')[0]
                     else:
@@ -292,7 +292,7 @@ class SamplesInfo(object):
         from coffea.lumi_tools import LumiData, LumiList
         ret = {}
         tree = uproot.open(f)['Runs']
-        if 'NanoAODv6' in f:
+        if ('NanoAODv6' in f) or ('NANOV10' in f):
             ret['sumGenWgts'] = tree.array('genEventSumw_')[0]
             ret['nGenEvts'] = tree.array('genEventCount_')[0]
         else:
