@@ -84,15 +84,9 @@ def postprocess(args, parallelize=True):
     args.update({'classes_dict':classes_dict})
 
     for s in args['samples']:
-        if (args['do_jetsyst']) and (s in grouping.keys()) and (('dy' in s) or ('ewk' in s) or ('vbf' in s) or ('ggh' in s)):
+        if (s in grouping.keys()) and (('dy' in s) or ('ewk' in s) or ('vbf' in s) or ('ggh' in s)):
             variations = args['syst_variations']
         else:
-            variations = ['nominal']
-        if args['train_dnn']:
-            if s not in all_training_samples: continue
-            variations = ['nominal']
-        if args['rebin_dnn']:
-            if s!='vbf_powhegPS': continue
             variations = ['nominal']
         for v in variations:
             proc_outs = glob.glob(f"{path}/nominal/{s}.coffea") if v=='nominal' else glob.glob(f"{path}/{v}/{s}.coffea")
@@ -165,7 +159,7 @@ def to_pandas(args):
 
     for var in columns:
         # if DNN training: get only relevant variables
-        if args['train_dnn'] and (var not in training_features+['event', 'wgt_nominal']): continue
+        if args['training'] and (var not in training_features+['event', 'wgt_nominal']): continue
         # possibility to ignore weight variations
         if (not args['wgt_variations']) and ('wgt_' in var) and ('nominal' not in var): continue
         # for JES/JER systematic variations do not consider weight variations
@@ -211,7 +205,7 @@ def to_pandas(args):
     df['r'] = r
     df['s'] = s
     df['v'] = v
-    if args['train_dnn']:
+    if args['training']:
         if s in args['classes_dict'].keys():
             df['cls'] = args['classes_dict'][s]
         else:

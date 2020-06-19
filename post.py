@@ -99,6 +99,16 @@ all_training_samples = []
 for k,v in training_samples.items():
     all_training_samples.extend(v)
 
+if args.jetsyst:
+    if args.dnn_training or args.dnn_rebin:
+        print("Ignoring JEC/JER variations for DNN training and rebinning")
+        syst_variations = []
+    else:
+        syst_variations = [os.path.basename(x) for x in glob.glob(f'/depot/cms/hmm/coffea/{args.year}_{args.label}/*')\
+                           if ('nominal' not in x)]
+else:
+    syst_variations = []
+
 # keeping correct order just for debug output
 def add_modules(modules, new_modules):
     for m in new_modules:
@@ -128,7 +138,6 @@ if args.plot:
     modules = add_modules(modules,['to_pandas',  'get_hists'])
     options += ['plot']
 
-syst_variations = [os.path.basename(x) for x in glob.glob(f'/depot/cms/hmm/coffea/{args.year}_{args.label}/*') if ('nominal' not in x)]
 
 postproc_args = {
     'modules': modules,
@@ -144,8 +153,7 @@ postproc_args = {
     'regions': ['h-peak', 'h-sidebands'],
     'vars_to_plot': list(vars_to_plot.values()),
     'wgt_variations': True,
-    'train_dnn': args.dnn_training,
-    'rebin_dnn': args.dnn_rebin,
+    'training': args.dnn_training,
     'do_jetsyst': args.jetsyst,
     'dnn_bins': dnn_bins
 }

@@ -36,8 +36,8 @@ postproc_args = {
     'vars_to_plot': list(vars_to_plot.values()),
     'wgt_variations': False,
     'do_jetsyst': False,
-    'train_dnn':False,
-    'rebin_dnn':False,
+    'training': False,
+    'dnn_bins': [],
 }
 
 import uproot, coffea
