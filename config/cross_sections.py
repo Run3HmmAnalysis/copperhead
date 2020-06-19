@@ -35,12 +35,12 @@ cross_sections = {
     "wzz": 0.05565,
     "zzz": 0.01398,
     
-    "ggh_powheg": 0.010571, 
-    "ggh_powhegPS": 0.010571,
-    "ggh_amcPS": 0.010571,
-    "ggh_amcPS_TuneCP5down": 0.010571,
-    "ggh_amcPS_TuneCP5up": 0.010571,
-    "ggh_amc": 0.010571,
+    "ggh_powheg": 0.01057, 
+    "ggh_powhegPS": 0.01057,
+    "ggh_amcPS": 0.01057,
+    "ggh_amcPS_TuneCP5down": 0.01057,
+    "ggh_amcPS_TuneCP5up": 0.01057,
+    "ggh_amc": 0.01057,
     
     "vbf": 0.0008210722,
     "vbf_sync": 0.0008210722,
