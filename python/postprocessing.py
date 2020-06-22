@@ -800,12 +800,12 @@ def plot(var, hists, edges, args, r='', save=True, blind=True, show=False, plots
     ret_nominal = get_shapes_for_option(hist,'nominal','wgt_nominal')
     data       = ret_nominal['data']
     data_sumw2 = ret_nominal['data_sumw2'][1:]
-    
+
     if blind and var.name=='dnn_score':
         data = data[:-blind_bins]
         data_sumw2 = data_sumw2[:-blind_bins]
         edges_data = edges_data[:-blind_bins]
-    
+
     vbf        = ret_nominal['vbf']
     vbf_sumw2  = ret_nominal['vbf_sumw2'][1:]
     ggh        = ret_nominal['ggh']
@@ -919,13 +919,6 @@ def plot(var, hists, edges, args, r='', save=True, blind=True, show=False, plots
     if (data.sum()*bkg_total.sum()) and (not blind or var.name!='dimuon_mass'):
         ratios = np.zeros(len(data))
         yerr = np.zeros(len(data))
-        if blind and var.name=='dnn_score':
-            bkg_total = bkg_total[:-blind_bins]
-            bkg_sumw2 = bkg_sumw2[:-blind_bins]
-        ratios[bkg_total!=0] = np.array(data[bkg_total!=0] / bkg_total[bkg_total!=0])
-        yerr[bkg_total!=0] = np.sqrt(data[bkg_total!=0])/bkg_total[bkg_total!=0]
-        edges_ratio = edges_data if blind else edges
-        ax_ratio = hep.histplot(ratios, edges_ratio, histtype='errorbar', yerr=yerr,**data_opts)
         unity = np.ones_like(bkg_total)
         zero = np.zeros_like(bkg_total)
         bkg_total[bkg_total==0] = 1e-20
@@ -933,7 +926,15 @@ def plot(var, hists, edges, args, r='', save=True, blind=True, show=False, plots
         vbf[vbf==0] = 1e-20
         bkg_unc = coffea.hist.plot.poisson_interval(unity, bkg_sumw2 / bkg_total**2)
         denom_unc = bkg_unc
-        ax_ratio.fill_between(edges_ratio,np.r_[denom_unc[0],denom_unc[0, -1]],np.r_[denom_unc[1], denom_unc[1, -1]], **ratio_err_opts)
+
+        if blind and var.name=='dnn_score':
+            bkg_total = bkg_total[:-blind_bins]
+
+        ratios[bkg_total!=0] = np.array(data[bkg_total!=0] / bkg_total[bkg_total!=0])
+        yerr[bkg_total!=0] = np.sqrt(data[bkg_total!=0])/bkg_total[bkg_total!=0]
+        edges_ratio = edges_data if blind else edges
+        ax_ratio = hep.histplot(ratios, edges_ratio, histtype='errorbar', yerr=yerr,**data_opts)
+        ax_ratio.fill_between(edges,np.r_[denom_unc[0],denom_unc[0, -1]],np.r_[denom_unc[1], denom_unc[1, -1]], **ratio_err_opts)
 
     for v in hist.v.unique():
         for w in hist.w.unique():
