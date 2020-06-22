@@ -754,9 +754,13 @@ def add_source(hist, group_name):
 #        print(group_name, "missing")
         return np.array([]), np.array([])
 
-def plot(var, hists, edges, args, r='', save=True, show=False, plotsize=12, compare_with_pisa=False):    
+def plot(var, hists, edges, args, r='', save=True, blind=True, show=False, plotsize=12, compare_with_pisa=False):    
     hist = hists[var.name]
-    #print(hist)
+    edges_data = edges
+    blind_bins = 5
+    if r=='h-sidebands':
+        blind = False
+
     if r!='':
         hist = hist[hist.r==r]
     year = args['year']
@@ -796,6 +800,12 @@ def plot(var, hists, edges, args, r='', save=True, show=False, plotsize=12, comp
     ret_nominal = get_shapes_for_option(hist,'nominal','wgt_nominal')
     data       = ret_nominal['data']
     data_sumw2 = ret_nominal['data_sumw2'][1:]
+    
+    if blind and var.name=='dnn_score':
+        data = data[:-blind_bins]
+        data_sumw2 = data_sumw2[:-blind_bins]
+        edges_data = edges_data[:-blind_bins]
+    
     vbf        = ret_nominal['vbf']
     vbf_sumw2  = ret_nominal['vbf_sumw2'][1:]
     ggh        = ret_nominal['ggh']
@@ -862,8 +872,8 @@ def plot(var, hists, edges, args, r='', save=True, show=False, plotsize=12, comp
         ax_ggh = hep.histplot(ggh, edges, label='ggH', histtype='step', **{'linewidth':3, 'color':'lime'})
     if vbf.sum():
         ax_vbf = hep.histplot(vbf, edges, label='VBF', histtype='step', **{'linewidth':3, 'color':'aqua'})
-    if data.sum():
-        ax_data = hep.histplot(data, edges, label='Data', histtype='errorbar', yerr=np.sqrt(data), **data_opts)
+    if data.sum() and (not blind or var.name!='dimuon_mass'):
+        ax_data = hep.histplot(data, edges_data, label='Data', histtype='errorbar', yerr=np.sqrt(data), **data_opts)
     
     max_variation_up = bkg_total.sum()
     max_variation_down = bkg_total.sum()
@@ -906,12 +916,16 @@ def plot(var, hists, edges, args, r='', save=True, show=False, plotsize=12, comp
     # Bottom panel: Data/MC ratio plot
     plt2 = fig.add_subplot(gs[1], sharex=plt1)
     
-    if (data.sum()*bkg_total.sum()):
+    if (data.sum()*bkg_total.sum()) and (not blind or var.name!='dimuon_mass'):
         ratios = np.zeros(len(data))
         yerr = np.zeros(len(data))
+        if blind and var.name=='dnn_score':
+            bkg_total = bkg_total[:-blind_bins]
+            bkg_sumw2 = bkg_sumw2[:-blind_bins]
         ratios[bkg_total!=0] = np.array(data[bkg_total!=0] / bkg_total[bkg_total!=0])
         yerr[bkg_total!=0] = np.sqrt(data[bkg_total!=0])/bkg_total[bkg_total!=0]
-        ax_ratio = hep.histplot(ratios, edges, histtype='errorbar', yerr=yerr,**data_opts)
+        edges_ratio = edges_data if blind else edges
+        ax_ratio = hep.histplot(ratios, edges_ratio, histtype='errorbar', yerr=yerr,**data_opts)
         unity = np.ones_like(bkg_total)
         zero = np.zeros_like(bkg_total)
         bkg_total[bkg_total==0] = 1e-20
@@ -919,7 +933,7 @@ def plot(var, hists, edges, args, r='', save=True, show=False, plotsize=12, comp
         vbf[vbf==0] = 1e-20
         bkg_unc = coffea.hist.plot.poisson_interval(unity, bkg_sumw2 / bkg_total**2)
         denom_unc = bkg_unc
-        ax_ratio.fill_between(edges,np.r_[denom_unc[0],denom_unc[0, -1]],np.r_[denom_unc[1], denom_unc[1, -1]], **ratio_err_opts)
+        ax_ratio.fill_between(edges_ratio,np.r_[denom_unc[0],denom_unc[0, -1]],np.r_[denom_unc[1], denom_unc[1, -1]], **ratio_err_opts)
 
     for v in hist.v.unique():
         for w in hist.w.unique():
