@@ -53,6 +53,39 @@ grouping = {
     'vbf_powheg_dipole': 'VBF',
 }
 
+rate_syst_lookup = {
+    '2016':{
+        'XsecAndNorm2016DY2j':{'DY_nofilter_vbf_2j':1.1291, 'DY_filter_vbf_2j':1.12144},
+        'XsecAndNorm2016EWK':{'EWK_vbf':1.06131},
+        'XsecAndNorm2016TT+ST':{'TT+ST_vbf':1.182},
+        'XsecAndNorm2016VV':{'VV_vbf':1.13203},
+        'XsecAndNorm2016ggH': {'ggH_vbf':1.34126},
+        },
+    '2017':{
+        'XsecAndNorm2017DY2j':{'DY_nofilter_vbf_2j':1.13020, 'DY_filter_vbf_2j':1.12409},
+        'XsecAndNorm2017EWK':{'EWK_vbf':1.05415},
+        'XsecAndNorm2017TT+ST':{'TT+ST_vbf':1.18406},
+        'XsecAndNorm2017VV':{'VV_vbf':1.05653},
+        'XsecAndNorm2017ggH': {'ggH_vbf':1.37449},
+        },
+    '2018':{
+        'XsecAndNorm2018DY2j':{'DY_nofilter_vbf_2j':1.12320, 'DY_filter_vbf_2j':1.12077},
+        'XsecAndNorm2018EWK':{'EWK_vbf':1.05779},
+        'XsecAndNorm2018TT+ST':{'TT+ST_vbf':1.18582},
+        'XsecAndNorm2018VV':{'VV_vbf':1.05615},
+        'XsecAndNorm2018ggH': {'ggH_vbf':1.38921},        
+        },
+}
+
+decorrelation_scheme = {
+    'LHERen': {'DY':['DY_filter', 'DY_nofilter'], 'EWK':['EWK'], 'ggH':['ggH'], 'TT+ST':['TT+ST']},
+    'LHEFac': {'DY':['DY_filter', 'DY_nofilter'], 'EWK':['EWK'], 'ggH':['ggH'], 'TT+ST':['TT+ST']},
+    'qgl_wgt': {'DY':['DY_filter', 'DY_nofilter'], 'EWK':['EWK'], 'Hmm':['ggH', 'VBF'], 'TT+ST':['TT+ST'], 'VV':['VV']},
+    'pdf_2rms': {'DY':['DY_filter', 'DY_nofilter'], 'ggH':['ggH'], 'VBF':['VBF']},
+}
+
+shape_only = ['LHE', 'qgl']
+
 def worker(args):
     if 'to_pandas' not in args['modules']:
         print("Need to convert to Pandas DF first!")
@@ -170,28 +203,26 @@ def to_pandas(args):
         else:
             if ('THU' in var): continue
         
+        
         done = False
-        decorrelate = ['LHEFac', 'LHERen']
-        for d in decorrelate:
-            # don't include LHE variations for VBF and VV
+        for syst, decorr in decorrelation_scheme.items():
             if s not in grouping.keys(): continue
             if 'data' in s: continue
-            if (grouping[s]=='VBF') or (grouping[s]=='VV'): continue
-            if d in var:
+            if syst in var:
                 if 'off' in var: continue
                 suff = ''
                 if '_up' in var: suff = '_up'
                 elif '_down' in var: suff = '_down'
                 else: continue
                 vname = var.replace(suff,'')
-                for g in groups:
+                for dec_group, proc_groups in decorr.items():
                     try:
-                        df[f'{vname}_{g}{suff}']=proc_out[f'{var}_{c}_{r}'].value if grouping[s]==g\
+                        df[f'{vname}_{dec_group}{suff}']=proc_out[f'{var}_{c}_{r}'].value if grouping[s] in proc_groups\
                             else proc_out[f'wgt_nominal_{c}_{r}'].value
                     except:
-                        df[f'{vname}_{g}{suff}'] = proc_out[f'wgt_nominal_{c}_{r}'].value
+                        df[f'{vname}_{dec_group}{suff}'] = proc_out[f'wgt_nominal_{c}_{r}'].value
                     done = True
-        
+
         if not done:
             try:
                 if len(proc_out[f'{var}_{c}_{r}'].value)>0:
@@ -435,9 +466,9 @@ def save_shapes(var, hist, edges, args):
             elif 'nominal' in w:
                 vwname = 'nominal'
             elif '_up' in w:
-                vwname = w.replace('_up', 'Up').replace('wgt_', '')
+                vwname = w.replace('_up', 'Up')
             elif '_down' in w:
-                vwname = w.replace('_down', 'Down').replace('wgt_', '')
+                vwname = w.replace('_down', 'Down')
         else:
             if 'nominal' not in w: return ''
             elif '_up' in v:
@@ -446,6 +477,8 @@ def save_shapes(var, hist, edges, args):
                 vwname = v.replace('_down', 'Down')
             if 'jer' not in vwname: 
                 vwname = 'jes'+vwname
+        if vwname.startswith('wgt_'):
+            vwname = vwname[4:]
         return vwname  
     
     try:
@@ -463,7 +496,6 @@ def save_shapes(var, hist, edges, args):
         'SignalPartonShower': 1., 
         'EWKPartonShower': 0.2,
     }
-    decorrelate = ['LHEFac', 'LHERen']
     variated_shapes = {}
     
     hist = hist[var.name]
@@ -510,14 +542,17 @@ def save_shapes(var, hist, edges, args):
                         for g in mc_hist.g.unique():
                             if g not in grouping.values():continue
                             decor_ok = True
-                            for d in decorrelate:
-                                if (d in vwname) and (g not in vwname): decor_ok = False
+                            for dec_syst, decorr in decorrelation_scheme.items():
+                                if dec_syst in vwname:
+                                    for dec_group, proc_groups in decorr.items():
+                                        if (dec_group in vwname) and (g not in proc_groups): decor_ok = False
+
                             if not decor_ok: continue
                             histo = np.array(mc_hist[mc_hist.g==g][bin_columns].values[0], dtype=float)
                             if len(histo)==0: continue
                             sumw2 = np.array(mc_hist[mc_hist.g==g][sumw2_columns].values[0], dtype=float)
                             
-                            if ('LHE' in w) or ('qgl' in w):
+                            if sum([sh in w for sh in shape_only]):
                                 histo_nom = np.array(nom_hist[nom_hist.g==g][bin_columns].values[0], dtype=float)
                                 normalization = histo_nom.sum()/histo.sum()
                                 histo = histo*normalization
@@ -586,37 +621,7 @@ def prepare_root_files(var, edges, args):
                 th1._fTsumw2 = np.array(sumw2).sum()
                 th1._fTsumwx2 = np.array(sumw2[1:] * centers).sum()
                 out_file[name.replace(f'{r}_{args["year"]}_','')] = th1
-            out_file.close()
-
-rate_syst_lookup = {
-    '2016':{
-        'XsecAndNorm2016DY_vbf_2j':1.12189,
-        'XsecAndNorm2016DY_nofilter_vbf_2j':1.12189,
-        'XsecAndNorm2016DY_filter_vbf_2j':1.12189,
-        'XsecAndNorm2016EWK_vbf':1.06217,
-        'XsecAndNorm2016TT+ST_vbf':1.18261,
-        'XsecAndNorm2016VV_vbf':1.0609,
-        'XsecAndNorm2016ggH_vbf': 1.36133,
-        },
-    '2017':{
-        'XsecAndNorm2017DY_vbf_2j':1.12452,
-        'XsecAndNorm2017DY_nofilter_vbf_2j':1.12452,
-        'XsecAndNorm2017DY_filter_vbf_2j':1.12452,
-        'XsecAndNorm2017EWK_vbf': 1.05513,
-        'XsecAndNorm2017TT+ST_vbf': 1.18402,
-        'XsecAndNorm2017VV_vbf':1.05734,
-        'XsecAndNorm2017ggH_vbf':1.36667,
-        },
-    '2018':{
-        'XsecAndNorm2018DY_vbf_2j': 1.12152,
-        'XsecAndNorm2018DY_nofilter_vbf_2j': 1.12152,
-        'XsecAndNorm2018DY_filter_vbf_2j': 1.12152,
-        'XsecAndNorm2018EWK_vbf':1.05851,
-        'XsecAndNorm2018TT+ST_vbf':1.18592,
-        'XsecAndNorm2018VV_vbf':1.05734,
-        'XsecAndNorm2018ggH_vbf': 1.39295,
-        },
-}            
+            out_file.close()          
 
 def get_numbers(var, cc, r, bin_name, args):
     groups = {'Data': ['vbf'],
@@ -690,16 +695,23 @@ def get_numbers(var, cc, r, bin_name, args):
                 mc_yields.loc[3,gcname] = f'{rate}'
                 for syst in shape_systs:
                     systematics.loc[syst,'type'] = 'shape'
-                    if sum([gname in syst for gname in groups.keys()]):
-                        systematics.loc[syst,gcname] = '1.0' if (g in syst) and (syst in shape_systs_by_group[g]) else '-'   
+                    if sum([dec_syst in syst for dec_syst in decorrelation_scheme.keys()]):
+                        for dec_syst, decorr in decorrelation_scheme.items():
+                            if (dec_syst in syst):
+                                for dec_group, proc_groups in decorr.items():
+                                    if dec_group in syst:
+                                        systematics.loc[syst,gcname] = '1.0' if (g in proc_groups) and\
+                                            (syst in shape_systs_by_group[g]) else '-' 
+#                    if sum([gname in syst for gname in groups.keys()]):
+#                        systematics.loc[syst,gcname] = '1.0' if (g in syst) and (syst in shape_systs_by_group[g]) else '-'   
                     else:
                         systematics.loc[syst,gcname] = '1.0' if syst in shape_systs_by_group[g] else '-'
-                for syst in rate_syst_lookup[year].keys():
-                    systematics.loc[syst,'type'] = 'lnN'
-                    if gcname in syst:
-                        val = rate_syst_lookup[year][syst]
+                for rate_syst, rate_syst_grouping in rate_syst_lookup[year].items():
+                    systematics.loc[rate_syst,'type'] = 'lnN'
+                    if gcname in rate_syst_grouping.keys():
+                        val = rate_syst_grouping[gcname]
                     else: val = '-'
-                    systematics.loc[syst,gcname] = f'{val}'
+                    systematics.loc[rate_syst,gcname] = f'{val}'
     def to_string(df):
         string = ''
         for row in df.values:
