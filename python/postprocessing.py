@@ -777,7 +777,6 @@ def plot(var, hists, edges, args, r='', save=True, blind=True, show=False, plots
         hist = hist[hist.r==r]
     year = args['year']
     label = args['label']
-#    bkg_groups = ['DY','DY_VBF', 'EWK', 'TT+ST', 'VV']
     bin_columns = [c for c in hist.columns if 'bin' in c]
     sumw2_columns = [c for c in hist.columns if 'sumw2' in c]
     
@@ -793,6 +792,7 @@ def plot(var, hists, edges, args, r='', save=True, blind=True, show=False, plots
         bin_columns = [c for c in hist.columns if 'bin' in c]
         sumw2_columns = [c for c in hist.columns if 'sumw2' in c]
         bkg_df = hist[hist['g'].isin(bkg_groups)]
+        bkg_df.loc[bkg_df.g.isin(['DY_nofilter','DY_filter']),'g'] = 'DY'
         bkg_df.loc[:,'bkg_integral'] = bkg_df[bin_columns].sum(axis=1)
         bkg_df = bkg_df.groupby('g').aggregate(np.sum).reset_index()
         bkg_df = bkg_df.sort_values(by='bkg_integral').reset_index(drop=True)
