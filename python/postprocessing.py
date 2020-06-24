@@ -82,6 +82,7 @@ decorrelation_scheme = {
     'LHEFac': {'DY':['DY_filter', 'DY_nofilter'], 'EWK':['EWK'], 'ggH':['ggH'], 'TT+ST':['TT+ST']},
     'qgl_wgt': {'DY':['DY_filter', 'DY_nofilter'], 'EWK':['EWK'], 'Hmm':['ggH', 'VBF'], 'TT+ST':['TT+ST'], 'VV':['VV']},
     'pdf_2rms': {'DY':['DY_filter', 'DY_nofilter'], 'ggH':['ggH'], 'VBF':['VBF']},
+    'pdf_mcreplica': {'DY':['DY_filter', 'DY_nofilter'], 'ggH':['ggH'], 'VBF':['VBF']},
 }
 
 shape_only = ['LHE', 'qgl']
@@ -117,7 +118,7 @@ def postprocess(args, parallelize=True):
     args.update({'classes_dict':classes_dict})
 
     for s in args['samples']:
-        if (s in grouping.keys()) and (('dy' in s) or ('ewk' in s) or ('vbf' in s) or ('ggh' in s)):
+        if (s in grouping.keys()) and (('dy' in s) or ('ewk' in s) or ('vbf' in s) or ('ggh' in s) or ('ttjets_dl' in s)):
             variations = args['syst_variations']
         else:
             variations = ['nominal']
@@ -189,7 +190,7 @@ def to_pandas(args):
     df = pd.DataFrame()
 
     len_ = len(proc_out[f'dimuon_mass_{c}_{r}'].value) if f'dimuon_mass_{c}_{r}' in proc_out.keys() else 0
-
+    
     for var in columns:
         # if DNN training: get only relevant variables
         if args['training'] and (var not in training_features+['event', 'wgt_nominal']): continue
@@ -407,6 +408,19 @@ def get_hists(df, var, args, bins=[]):
         else:
             syst_variations = args['syst_variations']
             wgts = [c for c in df.columns if ('wgt_' in c)]
+        
+        mcreplicas = [c for c in df.columns if ('mcreplica' in c)]
+        if len(mcreplicas)>0:
+            wgts = [wgt for wgt in wgts if ('pdf_2rms' not in wgt)]
+        if len(mcreplicas)>0 and ('wgt_nominal' in df.columns) and (s in grouping.keys()):
+            decor = decorrelation_scheme['pdf_mcreplica']
+            for decor_group, proc_groups in decor.items():
+                for imcr, mcr in enumerate(mcreplicas):
+                    wgts += [f'pdf_mcreplica{imcr}_{decor_group}']
+                    if grouping[s] in proc_groups:
+                        df.loc[:,f'pdf_mcreplica{imcr}_{decor_group}'] = np.multiply(df.wgt_nominal,df[mcr])
+                    else:
+                        df.loc[:,f'pdf_mcreplica{imcr}_{decor_group}'] = df.wgt_nominal
         for w in wgts:
             hist = bh.Histogram(dataset_axis, region_axis, channel_axis, syst_axis, val_err_axis, var_axis)
             hist.fill(df.s.to_numpy(), df.r.to_numpy(), df.c.to_numpy(), df.v.to_numpy(), 'value',\
@@ -433,6 +447,33 @@ def get_hists(df, var, args, bins=[]):
                         contents['g'] = grouping[s] if s in grouping.keys() else f"{s}"
                         row = pd.DataFrame(contents)
                         df_out = pd.concat([df_out, row], ignore_index=True)
+        bin_names = [n for n in df_out.columns if 'bin' in n]
+        sumw2_names = [n for n in df_out.columns if 'sumw2' in n]
+        pdf_names = [n for n in df_out.w.unique() if ("mcreplica" in n) and (decor_group in n)]
+        for decor_group, proc_groups in decorrelation_scheme['pdf_mcreplica'].items():
+            if len(pdf_names)==0: continue
+            for r in regions:
+                for c in channels:
+                    rms = df_out.loc[df_out.w.isin(pdf_names)&(df_out.v=='nominal')&(df_out.r==r)&(df_out.c==c), bin_names].std().values
+                    nom = df_out[(df_out.w=='wgt_nominal')&(df_out.v=='nominal')&(df_out.r==r)&(df_out.c==c)]
+                    nom_bins = nom[bin_names].values[0]
+                    nom_sumw2 = nom[sumw2_names].values[0]
+                    row_up = {}
+                    row_up.update({f'bin{i}':[nom_bins[i]+rms[i]] for i in range(nbins)})
+                    row_up.update({f'sumw2_{i}':[nom_sumw2[i]] for i in range(nbins+1)})
+                    row_up.update({f'sumw2_{i+1}':[sumw2[i]] for i in range(nbins)})
+                    row_up.update({'s':[s],'r':[r],'c':[c], 'v':['nominal'], 'w':[f'pdf_mcreplica_{decor_group}_up'],\
+                                     'var':[var.name], 'integral':(nom_bins.sum()+rms.sum())})
+                    row_up['g'] = grouping[s] if s in grouping.keys() else f"{s}"
+                    row_down = {}
+                    row_down.update({f'bin{i}':[nom_bins[i]-rms[i]] for i in range(nbins)})
+                    row_down.update({f'sumw2_{i}':[nom_sumw2[i]] for i in range(nbins+1)})
+                    row_down.update({f'sumw2_{i+1}':[sumw2[i]] for i in range(nbins)})
+                    row_down.update({'s':[s],'r':[r],'c':[c], 'v':['nominal'], 'w':[f'pdf_mcreplica_{decor_group}_down'],\
+                                     'var':[var.name], 'integral':(nom_bins.sum()-rms.sum())})
+                    row_down['g'] = grouping[s] if s in grouping.keys() else f"{s}"
+                    df_out = pd.concat([df_out, pd.DataFrame(row_up), pd.DataFrame(row_down)],ignore_index=True)
+                    df_out = df_out[~(df_out.w.isin(mcreplicas)&(df_out.v=='nominal')&(df_out.r==r)&(df_out.c==c))]
     return df_out, edges
 
 def save_yields(var, hist, edges, args):
@@ -490,12 +531,18 @@ def save_shapes(var, hist, edges, args):
                   'ewk_lljj_mll105_160_ptj0','ewk_lljj_mll105_160','ewk_lljj_mll105_160_py']
     sample_variations = {
         'SignalPartonShower': {'VBF': ['vbf_powhegPS','vbf_powheg_herwig']}, 
-        'EWKPartonShower': {'EWK': ['ewk_lljj_mll105_160','ewk_lljj_mll105_160_py']}, 
+#        'EWKPartonShower': {'EWK': ['ewk_lljj_mll105_160','ewk_lljj_mll105_160_py']}, 
     }
     smp_var_alpha ={
         'SignalPartonShower': 1., 
-        'EWKPartonShower': 0.2,
+#        'EWKPartonShower': 0.2,
     }
+    
+    smp_var_shape_only ={
+        'SignalPartonShower': False, 
+#        'EWKPartonShower': True,
+    }
+    
     variated_shapes = {}
     
     hist = hist[var.name]
@@ -528,13 +575,23 @@ def save_shapes(var, hist, edges, args):
                                 variated_shapes[s] = np.array(mc_hist[mc_hist.s==s][bin_columns].values[0], dtype=float)
                         variations_by_group = {}
                         for smp_var_name, smp_var_items in sample_variations.items():
+                            if vwname!='nominal': continue
+                            if c!='vbf':continue
                             for gr, samples in smp_var_items.items():
                                 if len(samples)!=2: continue
                                 if samples[0] not in variated_shapes.keys(): continue
                                 if samples[1] not in variated_shapes.keys(): continue
-                                ratio = np.divide(variated_shapes[samples[0]],variated_shapes[samples[1]])
+                                ratio = np.ones(len(variated_shapes[samples[0]]), dtype=float)
+                                mask = variated_shapes[samples[1]]!=0
+                                ratio[mask] = np.divide(variated_shapes[samples[0]][mask],variated_shapes[samples[1]][mask])
                                 variation_up = np.power(ratio, smp_var_alpha[smp_var_name])
                                 variation_down = np.power(ratio, -smp_var_alpha[smp_var_name])
+                                if smp_var_shape_only[smp_var_name]:
+                                    histo_nom = np.array(nom_hist[nom_hist.g==gr][bin_columns].values[0], dtype=float)
+                                    norm_up = histo_nom.sum()/variation_up.sum()
+                                    norm_down = histo_nom.sum()/variation_down.sum()
+                                    variation_up = variation_up*norm_up
+                                    variation_down = variation_down*norm_down
                                 variations_by_group[gr] = {}
                                 variations_by_group[gr][smp_var_name] = [variation_up, variation_down]
 
@@ -614,6 +671,8 @@ def prepare_root_files(var, edges, args):
             for path in mc_templates:
                 if 'Data' in path: continue
                 hist, sumw2 = np.load(path, allow_pickle=True)
+                if ('replica' in path) and ('ggH' in path):
+                    print(path, hist, sumw2)
                 name = os.path.basename(path).replace('.npy','')
                 th1 = from_numpy([hist, edges])
                 th1._fName = name.replace(f'{r}_{args["year"]}_','')
@@ -659,7 +718,6 @@ def get_numbers(var, cc, r, bin_name, args):
     shape_systs = np.unique(shape_systs)
     systs = []
     systs.extend(shape_systs)
-
     data_yields = pd.DataFrame()
     data_yields['index'] = ['bin','observation']
     
@@ -700,8 +758,12 @@ def get_numbers(var, cc, r, bin_name, args):
                             if (dec_syst in syst):
                                 for dec_group, proc_groups in decorr.items():
                                     if dec_group in syst:
-                                        systematics.loc[syst,gcname] = '1.0' if (g in proc_groups) and\
-                                            (syst in shape_systs_by_group[g]) else '-' 
+                                        if (g in proc_groups) and (syst in shape_systs_by_group[g]):
+                                            systematics.loc[syst,gcname] = '1.0'
+                                        else:
+                                            systematics.loc[syst,gcname] = '-'
+#                                    else:
+#                                        systematics.loc[syst,gcname] = '-'
 #                    if sum([gname in syst for gname in groups.keys()]):
 #                        systematics.loc[syst,gcname] = '1.0' if (g in syst) and (syst in shape_systs_by_group[g]) else '-'   
                     else:
@@ -717,10 +779,12 @@ def get_numbers(var, cc, r, bin_name, args):
         for row in df.values:
             for i,item in enumerate(row):
                 ncols = 2 if item in ['bin','process','rate', 'observation'] else 1
+#                print(item)
                 row[i] = item+' '*(ncols*20-len(item))
             string += ' '.join(row)
             string += '\n'
         return string
+    print(data_yields) 
     print(mc_yields) 
     print(systematics)
     return to_string(data_yields), to_string(mc_yields), to_string(systematics.reset_index())

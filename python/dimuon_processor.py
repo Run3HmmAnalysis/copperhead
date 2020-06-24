@@ -98,6 +98,10 @@ class DimuonProcessor(processor.ProcessorABC):
             variables.append(Variable(f"wgt_{wgt}_down", f"wgt_{wgt}_down", 1, 0, 1))
             variables.append(Variable(f"wgt_{wgt}_off", f"wgt_{wgt}_off", 1, 0, 1))
 
+        if ('2016' in self.year) and self.do_pdf:
+            for i in range(100):
+                variables.append(Variable(f"pdf_mcreplica{i}", f"pdf_mcreplica{i}", 1, 0, 1))
+            
 #        if self.evaluate_dnn:
 #            variables.append(Variable(f"dnn_score_nominal", f"dnn_score_nominal", 12, 0, self.parameters["dnn_max"]))
 #            if self.do_jecunc:
@@ -751,16 +755,6 @@ class DimuonProcessor(processor.ProcessorABC):
         if self.timer:
             self.timer.add_checkpoint("Computed event weights")
 
-        #---------------------------------------------------------------#        
-        # PDF variations
-        #---------------------------------------------------------------#         
-
-        if self.do_pdf and is_mc and self.year!='2016':
-            pdf_rms = np.zeros(numevents, dtype=float)
-            if ("dy" in dataset or "ewk" in dataset or "ggh" in dataset or "vbf" in dataset):
-                pdf_wgts = df.LHEPdfWeight[:,0:self.parameters["n_pdf_variations"]]
-                weights.add_only_variations("pdf_2rms", (1+2*pdf_wgts.std()), (1-2*pdf_wgts.std()))           
-                    
         #---------------------------------------------------------------#
         # Calculate getJetMass
         #---------------------------------------------------------------#
@@ -797,7 +791,7 @@ class DimuonProcessor(processor.ProcessorABC):
         two_jets = ret_jec_loop['nominal']['two_jets']
         category = ret_jec_loop['nominal']['category']
 
-        #weights.effect_on_normalization(mask&two_jets&vbf_cut&mass)
+        weights.effect_on_normalization((category=='vbf'))
 
         evnum = 609528637
         try:
@@ -808,7 +802,24 @@ class DimuonProcessor(processor.ProcessorABC):
         except:
             pass
 
-        
+        #---------------------------------------------------------------#        
+        # PDF variations
+        #---------------------------------------------------------------#         
+
+        if self.do_pdf and is_mc:
+            pdf_rms = np.zeros(numevents, dtype=float)
+            if ("dy" in dataset or "ewk" in dataset or "ggh" in dataset or "vbf" in dataset):
+                pdf_wgts = df.LHEPdfWeight[:,0:self.parameters["n_pdf_variations"]]
+                if '2016' in self.year:
+                    max_replicas = 0
+                    if 'dy' in dataset: max_replicas = 100
+                    elif 'ewk' in dataset: max_replicas = 33
+                    else: max_replicas = 100
+                    for i in range(max_replicas):
+                        ret_jec_loop['nominal']['variable_map'][f"pdf_mcreplica{i}"] = pdf_wgts[:,i]
+                else:
+                    weights.add_only_variations("pdf_2rms", (1+2*pdf_wgts.std()), (1-2*pdf_wgts.std()))           
+                    
         #---------------------------------------------------------------#        
         # Fill outputs
         #---------------------------------------------------------------#                        
@@ -824,7 +835,7 @@ class DimuonProcessor(processor.ProcessorABC):
                 for wgt in weights.df.columns:
                     var_map[f'wgt_{wgt}'] = weights.get_weight(wgt)                
                 for v in var_map:
-                    if (v not in self.vars_unbin) and ('wgt_' not in v): continue
+                    if (v not in self.vars_unbin) and ('wgt_' not in v) and ('mcreplica' not in v): continue
                     for cname in self.channels:
                         ccut = (categ==cname)
                         for rname, rcut in regions.items():
