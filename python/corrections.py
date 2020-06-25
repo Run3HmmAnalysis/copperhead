@@ -22,7 +22,7 @@ class NNLOPS_Evaluator(object):
         njets = np.array(njets)
 
         result[njets==0] = np.interp(np.minimum(hig_pt[njets==0],125.), self.ratio_0jet[mode]._fX, self.ratio_0jet[mode]._fY)
-        result[njets==1] = np.interp(np.minimum(hig_pt[njets==1],652.), self.ratio_1jet[mode]._fX, self.ratio_1jet[mode]._fY)
+        result[njets==1] = np.interp(np.minimum(hig_pt[njets==1],625.), self.ratio_1jet[mode]._fX, self.ratio_1jet[mode]._fY)
         result[njets==2] = np.interp(np.minimum(hig_pt[njets==2],800.), self.ratio_2jet[mode]._fX, self.ratio_2jet[mode]._fY)
         result[njets >2] = np.interp(np.minimum(hig_pt[njets >2],925.), self.ratio_3jet[mode]._fX, self.ratio_3jet[mode]._fY)
 
