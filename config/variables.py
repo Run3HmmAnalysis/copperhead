@@ -49,6 +49,18 @@ variables.append(Variable("jet2_puid", "jet2 PUID", 8, 0, 8))
 variables.append(Variable("mmj2_dEta", r"$\Delta\eta (\mu\mu, jet2)$", 50, 0, 10))
 variables.append(Variable("mmj2_dPhi", r"$\Delta\phi (\mu\mu, jet2)$", 50, 0, 4))
 
+variables.append(Variable('jet1_has_matched_muon', 'jet1_has_matched_muon', 4, -1, 3))
+variables.append(Variable('jet2_has_matched_muon', 'jet2_has_matched_muon', 4, -1, 3))
+variables.append(Variable('jet1_matched_muon_dr', 'jet1_matched_muon_dr', 50, 0, 0.8))
+variables.append(Variable('jet2_matched_muon_dr', 'jet2_matched_muon_dr', 50, 0, 0.8))
+
+variables.append(Variable('jet1_matched_muon_pt', 'jet1_matched_muon_pt', 50, 0, 200))
+variables.append(Variable('jet2_matched_muon_pt', 'jet2_matched_muon_pt', 50, 0, 200))
+variables.append(Variable('jet1_matched_muon_iso', 'jet1_matched_muon_iso', 100, 0, 5))
+variables.append(Variable('jet2_matched_muon_iso', 'jet2_matched_muon_iso', 100, 0, 5))
+variables.append(Variable('jet1_matched_muon_id', 'jet1_matched_muon_id', 4, -1, 3))
+variables.append(Variable('jet2_matched_muon_id', 'jet2_matched_muon_id', 4, -1, 3))
+
 variables.append(Variable("mmj_min_dEta", r"$min. \Delta\eta (\mu\mu, j)$", 50, 0, 10))
 variables.append(Variable("mmj_min_dPhi", r"$min. \Delta\phi (\mu\mu, j)$", 50, 0, 3.3))
 
@@ -75,10 +87,11 @@ variables.append(Variable("htsoft2", "htsoft2", 30, 0, 60))
 variables.append(Variable("htsoft5", "htsoft5", 30, 0, 60))
 
 variables.append(Variable("npv", "npv", 50, 0, 50))
+variables.append(Variable("nTrueInt", "nTrueInt", 50, 0, 50))
 variables.append(Variable("met", r"$E_{T}^{miss.}$ [GeV]", 50, 0, 200))
 
-variables.append(Variable("dnn_score", r"DNN score", 50, 0, 1))
+variables.append(Variable("dnn_score", r"DNN score", 50, 0, 2.1))
 variables.append(Variable("btag_wgt", r"b-tag weight", 50, 0, 2))
 
-variables.append(Variable("event", "event", 1, 0, 1))
+variables.append(Variable("event", "event", 100, 0, 10000000))
 variables.append(Variable("run", "run", 1, 0, 1))
