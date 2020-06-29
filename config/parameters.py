@@ -394,7 +394,7 @@ parameters.update({
 })
 
 parameters["n_pdf_variations"] = {
-    '2016': 103,
+    '2016': 100,
     '2017': 33,
     '2018': 33
 }
