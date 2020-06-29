@@ -35,6 +35,7 @@ grouping = {
     'dy_m105_160_amc': 'DY_nofilter',
     'dy_m105_160_vbf_amc': 'DY_filter',
     'ewk_lljj_mll105_160_ptj0': 'EWK',
+#    'ewk_lljj_mll105_160_py_dipole': 'EWK_Pythia',
     'ttjets_dl': 'TT+ST',
     'ttjets_sl': 'TT+ST',
     'ttw': 'TT+ST',
@@ -118,7 +119,7 @@ def postprocess(args, parallelize=True):
     args.update({'classes_dict':classes_dict})
 
     for s in args['samples']:
-        if (s in grouping.keys()) and (('dy' in s) or ('ewk' in s) or ('vbf' in s) or ('ggh' in s) or ('ttjets_dl' in s)):
+        if (s in grouping.keys()) and (('dy' in s) or ('ewk' in s) or ('vbf' in s) or ('ggh' in s)):
             variations = args['syst_variations']
         else:
             variations = ['nominal']
@@ -209,6 +210,8 @@ def to_pandas(args):
         for syst, decorr in decorrelation_scheme.items():
             if s not in grouping.keys(): continue
             if 'data' in s: continue
+            if ('2016' in args['year']) and ('pdf_2rms' in var): continue
+            if ('2016' not in args['year']) and ('pdf_mcreplica' in var): continue
             if syst in var:
                 if 'off' in var: continue
                 suff = ''
@@ -223,6 +226,10 @@ def to_pandas(args):
                     except:
                         df[f'{vname}_{dec_group}{suff}'] = proc_out[f'wgt_nominal_{c}_{r}'].value
                     done = True
+                    
+#        if ('ggh' in s) and ('wgt_nominal' in var):
+#            df[var] = proc_out[f'wgt_nnlops_off_{c}_{r}'].value
+#            done = True
 
         if not done:
             try:
@@ -409,6 +416,7 @@ def get_hists(df, var, args, bins=[]):
             syst_variations = args['syst_variations']
             wgts = [c for c in df.columns if ('wgt_' in c)]
         
+#        mcreplicas = []
         mcreplicas = [c for c in df.columns if ('mcreplica' in c)]
         if len(mcreplicas)>0:
             wgts = [wgt for wgt in wgts if ('pdf_2rms' not in wgt)]
@@ -447,9 +455,11 @@ def get_hists(df, var, args, bins=[]):
                         contents['g'] = grouping[s] if s in grouping.keys() else f"{s}"
                         row = pd.DataFrame(contents)
                         df_out = pd.concat([df_out, row], ignore_index=True)
+        if df_out.shape[0]==0:
+            return df_out, edges
         bin_names = [n for n in df_out.columns if 'bin' in n]
         sumw2_names = [n for n in df_out.columns if 'sumw2' in n]
-        pdf_names = [n for n in df_out.w.unique() if ("mcreplica" in n) and (decor_group in n)]
+        pdf_names = [n for n in df_out.w.unique() if ("mcreplica" in n)]
         for decor_group, proc_groups in decorrelation_scheme['pdf_mcreplica'].items():
             if len(pdf_names)==0: continue
             for r in regions:
@@ -520,6 +530,8 @@ def save_shapes(var, hist, edges, args):
                 vwname = 'jes'+vwname
         if vwname.startswith('wgt_'):
             vwname = vwname[4:]
+        if ('jes' not in vwname) or ('btag' in vwname):
+            vwname = vwname.replace('Up',f'{args["year"]}Up').replace('Down',f'{args["year"]}Down')
         return vwname  
     
     try:
@@ -528,19 +540,14 @@ def save_shapes(var, hist, edges, args):
         pass
     
     to_variate = ['vbf_amcPS', 'vbf_powhegPS', 'vbf_powheg_herwig','vbf_powheg_dipole',\
-                  'ewk_lljj_mll105_160_ptj0','ewk_lljj_mll105_160','ewk_lljj_mll105_160_py']
+                  'ewk_lljj_mll105_160_ptj0','ewk_lljj_mll105_160','ewk_lljj_mll105_160_py','ewk_lljj_mll105_160_py_dipole']
     sample_variations = {
-        'SignalPartonShower': {'VBF': ['vbf_powhegPS','vbf_powheg_herwig']}, 
-#        'EWKPartonShower': {'EWK': ['ewk_lljj_mll105_160','ewk_lljj_mll105_160_py']}, 
+        'SignalPartonShower': {'VBF': ['vbf_powheg_dipole','vbf_powheg_herwig']}, 
+        'EWKPartonShower': {'EWK': ['ewk_lljj_mll105_160_ptj0','ewk_lljj_mll105_160_py_dipole']}, 
     }
-    smp_var_alpha ={
-        'SignalPartonShower': 1., 
-#        'EWKPartonShower': 0.2,
-    }
-    
     smp_var_shape_only ={
         'SignalPartonShower': False, 
-#        'EWKPartonShower': True,
+        'EWKPartonShower': False,
     }
     
     variated_shapes = {}
@@ -558,6 +565,8 @@ def save_shapes(var, hist, edges, args):
                 for w in hist.w.unique():
                     vwname = get_vwname(v,w)
                     if vwname == '': continue
+                    if ('2016' in args['year']) and ('pdf_2rms' in vwname): continue
+                    if ('2016' not in args['year']) and ('pdf_mcreplica' in vwname): continue
                     if vwname == 'nominal':
                         data_obs = hist[hist.s.isin(data_names)&(hist.r==r)&(hist.c.isin(cc))]                        
                         data_obs_hist = data_obs[bin_columns].sum(axis=0).values
@@ -581,11 +590,10 @@ def save_shapes(var, hist, edges, args):
                                 if len(samples)!=2: continue
                                 if samples[0] not in variated_shapes.keys(): continue
                                 if samples[1] not in variated_shapes.keys(): continue
-                                ratio = np.ones(len(variated_shapes[samples[0]]), dtype=float)
-                                mask = variated_shapes[samples[1]]!=0
-                                ratio[mask] = np.divide(variated_shapes[samples[0]][mask],variated_shapes[samples[1]][mask])
-                                variation_up = np.power(ratio, smp_var_alpha[smp_var_name])
-                                variation_down = np.power(ratio, -smp_var_alpha[smp_var_name])
+                                variation_up = variated_shapes[samples[0]] -\
+                                        (variated_shapes[samples[0]] - variated_shapes[samples[1]])
+                                variation_down = variated_shapes[samples[0]] +\
+                                        (variated_shapes[samples[0]] - variated_shapes[samples[1]])
                                 if smp_var_shape_only[smp_var_name]:
                                     histo_nom = np.array(nom_hist[nom_hist.g==gr][bin_columns].values[0], dtype=float)
                                     norm_up = histo_nom.sum()/variation_up.sum()
@@ -635,7 +643,8 @@ def save_shapes(var, hist, edges, args):
                                     for variname,variations in var_items.items():
                                         for iud, ud in enumerate(['Up','Down']):
                                             if len(variations[iud])==0: variations[iud]=np.ones(len(histo))
-                                            histo_ud = histo*variations[iud]
+#                                            histo_ud = histo*variations[iud]
+                                            histo_ud = variations[iud]
                                             sumw2_ud = np.array([0]+list(sumw2[1:]*variations[iud]))
                                             name = f'{r_names[r]}_{args["year"]}_{g}_{c}_{variname}{ud}'
                                             np.save(f'{tdir}/{g}/{name}', [histo_ud,sumw2_ud])
@@ -670,9 +679,8 @@ def prepare_root_files(var, edges, args):
             mc_templates = glob.glob(f'{tdir}/*/{r}_*.npy')
             for path in mc_templates:
                 if 'Data' in path: continue
+                if 'data_obs' in path: continue
                 hist, sumw2 = np.load(path, allow_pickle=True)
-                if ('replica' in path) and ('ggH' in path):
-                    print(path, hist, sumw2)
                 name = os.path.basename(path).replace('.npy','')
                 th1 = from_numpy([hist, edges])
                 th1._fName = name.replace(f'{r}_{args["year"]}_','')
@@ -716,6 +724,8 @@ def get_numbers(var, cc, r, bin_name, args):
     for shs in shape_systs_by_group.values():
         shape_systs.extend(shs)
     shape_systs = np.unique(shape_systs)
+    shape_systs = [sh for sh in shape_systs if 'data_obs' not in sh]
+
     systs = []
     systs.extend(shape_systs)
     data_yields = pd.DataFrame()
@@ -809,9 +819,10 @@ def make_datacards(var, args):
             datacard.write(mc_yields)
             datacard.write("---------------\n")
             datacard.write(systematics)
-           # datacard.write(f"XSecAndNormDY_01j  rateParam {bin_name} DY_vbf_01j 1 [0.2,5] \n")
             datacard.write(f"XSecAndNorm{year}DY_01j  rateParam {bin_name} DY_nofilter_vbf_01j 1 [0.2,5] \n")
             datacard.write(f"XSecAndNorm{year}DY_01j  rateParam {bin_name} DY_filter_vbf_01j 1 [0.2,5] \n")
+#            datacard.write(f"XSecAndNorm{year}DY_2j  rateParam {bin_name} DY_nofilter_vbf_2j 1 [0.2,5] \n")
+#            datacard.write(f"XSecAndNorm{year}DY_2j  rateParam {bin_name} DY_filter_vbf_2j 1 [0.2,5] \n")
             datacard.write(f"{bin_name} autoMCStats 0 1 1\n")
             datacard.close()
             print(f'Saved datacard to {datacard_name}')
@@ -851,6 +862,8 @@ def plot(var, hists, edges, args, r='', save=True, blind=True, show=False, plots
         
         vbf, vbf_sumw2 = add_source(hist, 'VBF')
         ggh, ggh_sumw2 = add_source(hist, 'ggH')
+#        ewk, ewk_sumw2 = add_source(hist, 'EWK')
+#        ewk_py, ewk_py_sumw2 = add_source(hist, 'EWK_Pythia')
         data, data_sumw2 = add_source(hist_nominal, 'Data')    
 
         bin_columns = [c for c in hist.columns if 'bin' in c]
@@ -869,6 +882,10 @@ def plot(var, hists, edges, args, r='', save=True, blind=True, show=False, plots
                 'vbf_sumw2':  vbf_sumw2,
                 'ggh':        ggh, 
                 'ggh_sumw2':  ggh_sumw2,
+#                'ewk':        ewk, 
+#                'ewk_sumw2': ewk_sumw2,
+#                'ewk_py':        ewk_py, 
+#                'ewk_py_sumw2': ewk_py_sumw2,
                 'bkg_df':     bkg_df,
                 'bkg_total':  bkg_total, 
                 'bkg_sumw2':  bkg_sumw2 }
@@ -886,6 +903,12 @@ def plot(var, hists, edges, args, r='', save=True, blind=True, show=False, plots
     vbf_sumw2  = ret_nominal['vbf_sumw2'][1:]
     ggh        = ret_nominal['ggh']
     ggh_sumw2  = ret_nominal['ggh_sumw2'][1:]
+    
+#    ewk        = ret_nominal['ewk']
+#    ewk_sumw2  = ret_nominal['ewk_sumw2'][1:]
+#    ewk_py        = ret_nominal['ewk_py']
+#    ewk_py_sumw2  = ret_nominal['ewk_py_sumw2'][1:]
+
     bkg_df     = ret_nominal['bkg_df']
     bkg_total  = ret_nominal['bkg_total']
     bkg_sumw2  = ret_nominal['bkg_sumw2'][1:].values
@@ -943,7 +966,13 @@ def plot(var, hists, edges, args, r='', save=True, blind=True, show=False, plots
             ax_pisa = hep.histplot(pisa_hist, edges, label='Pisa', histtype='step', **{'linewidth':3, 'color':'red'})
         if pisa_data_hist.sum():
             ax_pisa_data = hep.histplot(pisa_data_hist, edges, label='Pisa Data', histtype='errorbar', yerr=np.sqrt(pisa_data_hist), **data_opts_pisa)
-        
+
+#    if ewk.sum():
+#        ax_ewk = hep.histplot(ewk, edges, label='EWK MG', histtype='step', **{'linewidth':3, 'color':'red'})
+#    if ewk_py.sum():
+#        ax_ewk_py = hep.histplot(ewk_py, edges, label='EWK Pythia', histtype='step', **{'linewidth':3, 'color':'blue'})
+
+
     if ggh.sum():
         ax_ggh = hep.histplot(ggh, edges, label='ggH', histtype='step', **{'linewidth':3, 'color':'lime'})
     if vbf.sum():
