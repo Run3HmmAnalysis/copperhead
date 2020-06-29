@@ -41,6 +41,7 @@ class Weights(object):
         if len(mask)==0:
             mask = np.ones(self.df.shape[0], dtype=int)
         for var in self.variations:
+            if f'{var}_off' not in self.df.columns: continue
             wgt_off = self.df[f'{var}_off'][mask].to_numpy().sum()
             wgt_on = self.df['nominal'][mask].to_numpy().sum()
             effect = (wgt_on - wgt_off)/wgt_on*100
