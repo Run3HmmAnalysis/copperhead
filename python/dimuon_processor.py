@@ -658,8 +658,8 @@ class DimuonProcessor(processor.ProcessorABC):
                     continue
                 pt_name_up = f"pt_{jer_unc_name}_up"
                 pt_name_down = f"pt_{jer_unc_name}_down"
-                jet_pt_up = jets.pt
-                jet_pt_down = jets.pt                               
+                jet_pt_up = jet_pt_jec
+                jet_pt_down = jet_pt_jec                               
                 jet_pt_up[jer_cut] = jet_pt_jec_jer[jer_cut]
                 jet_pt_down[jer_cut] = jet_pt_jer_down[jer_cut]
                 jets.add_attributes(**{pt_name_up: jet_pt_up, pt_name_down: jet_pt_down})
@@ -725,7 +725,7 @@ class DimuonProcessor(processor.ProcessorABC):
             weights.add_weight_with_variations('muIso', muIso, muIso_up, muIso_down)           
 #            weights.add_weight_with_variations('muTrig', muTrig, muTrig_up, muTrig_down)
 
-            if self.do_lheweights:
+            if self.do_lheweights and ('nominal' in self.pt_variations):
                 lhefactor = 2. if ('dy_m105_160_amc' in dataset) and (('2017' in self.year) or ('2018' in self.year)) else 1.
                 nLHEScaleWeight = df.LHEScaleWeight.counts
 
@@ -744,7 +744,7 @@ class DimuonProcessor(processor.ProcessorABC):
                 lhe_fac_down[nLHEScaleWeight>30] = df.LHEScaleWeight[nLHEScaleWeight>30][:,15]*lhefactor
                 weights.add_only_variations('LHEFac', lhe_fac_up, lhe_fac_down)
 
-            if ('vbf' in dataset) and ('dy' not in dataset):
+            if ('vbf' in dataset) and ('dy' not in dataset) and ('nominal' in self.pt_variations):
                 for i, name in enumerate(self.sths_names):
                     wgt_up = vbf_uncert_stage_1_1(i, df.HTXS.stage1_1_fine_cat_pTjet30GeV, 1.,\
                                                   self.stxs_acc_lookups, self.powheg_xsec_lookup)
@@ -806,7 +806,7 @@ class DimuonProcessor(processor.ProcessorABC):
         # PDF variations
         #---------------------------------------------------------------#         
 
-        if self.do_pdf and is_mc:
+        if self.do_pdf and is_mc and ('nominal' in self.pt_variations):
             pdf_rms = np.zeros(numevents, dtype=float)
             if ("dy" in dataset or "ewk" in dataset or "ggh" in dataset or "vbf" in dataset):
                 pdf_wgts = df.LHEPdfWeight[:,0:self.parameters["n_pdf_variations"]]
