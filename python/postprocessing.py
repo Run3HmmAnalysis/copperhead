@@ -56,25 +56,25 @@ grouping = {
 
 rate_syst_lookup = {
     '2016':{
-        'XsecAndNorm2016DY2j':{'DY_nofilter_vbf_2j':1.1291, 'DY_filter_vbf_2j':1.12144},
-        'XsecAndNorm2016EWK':{'EWK_vbf':1.06131},
-        'XsecAndNorm2016TT+ST':{'TT+ST_vbf':1.182},
-        'XsecAndNorm2016VV':{'VV_vbf':1.13203},
-        'XsecAndNorm2016ggH': {'ggH_vbf':1.34126},
+        'XsecAndNorm2016DYJ2':{'DYJ2_nofilter':1.1291, 'DYJ2_filter':1.12144},
+        'XsecAndNorm2016EWK':{'EWK':1.06131},
+        'XsecAndNorm2016TT+ST':{'TT+ST':1.182},
+        'XsecAndNorm2016VV':{'VV':1.13203},
+        'XsecAndNorm2016ggH': {'ggH_hmm':1.38206},
         },
     '2017':{
-        'XsecAndNorm2017DY2j':{'DY_nofilter_vbf_2j':1.13020, 'DY_filter_vbf_2j':1.12409},
-        'XsecAndNorm2017EWK':{'EWK_vbf':1.05415},
-        'XsecAndNorm2017TT+ST':{'TT+ST_vbf':1.18406},
-        'XsecAndNorm2017VV':{'VV_vbf':1.05653},
-        'XsecAndNorm2017ggH': {'ggH_vbf':1.37449},
+        'XsecAndNorm2017DYJ2':{'DYJ2_nofilter':1.13020, 'DYJ2_filter':1.12409},
+        'XsecAndNorm2017EWK':{'EWK':1.05415},
+        'XsecAndNorm2017TT+ST':{'TT+ST':1.18406},
+        'XsecAndNorm2017VV':{'VV':1.05653},
+        'XsecAndNorm2017ggH': {'ggH_hmm':1.37126},
         },
     '2018':{
-        'XsecAndNorm2018DY2j':{'DY_nofilter_vbf_2j':1.12320, 'DY_filter_vbf_2j':1.12077},
-        'XsecAndNorm2018EWK':{'EWK_vbf':1.05779},
-        'XsecAndNorm2018TT+ST':{'TT+ST_vbf':1.18582},
-        'XsecAndNorm2018VV':{'VV_vbf':1.05615},
-        'XsecAndNorm2018ggH': {'ggH_vbf':1.38921},        
+        'XsecAndNorm2018DYJ2':{'DYJ2_nofilter':1.12320, 'DYJ2_filter':1.12077},
+        'XsecAndNorm2018EWK':{'EWK':1.05779},
+        'XsecAndNorm2018TT+ST':{'TT+ST':1.18582},
+        'XsecAndNorm2018VV':{'VV':1.05615},
+        'XsecAndNorm2018ggH': {'ggH_hmm':1.38313},        
         },
 }
 
@@ -343,6 +343,8 @@ def dnn_evaluation(df, args):
                         device_count = {'CPU': 1})
     tf.compat.v1.logging.set_verbosity(tf.compat.v1.logging.ERROR)
     sess = tf.compat.v1.Session(config=config)
+    if args['do_massscan']:
+        mass_shift = args['mass']-125.0
     df['dnn_score'] = 0
     with sess:
         nfolds = 4
@@ -362,6 +364,9 @@ def dnn_evaluation(df, args):
             df_i = df[eval_filter]
             if args['r']!='h-peak':
                 df_i['dimuon_mass'] = 125.
+            if args['do_massscan']:
+                df_i['dimuon_mass'] = df_i['dimuon_mass']+mass_shift
+
             df_i = (df_i[training_features]-scalers[0])/scalers[1]
             prediction = np.array(dnn_model.predict(df_i)).ravel()
             df.loc[eval_filter,'dnn_score'] = np.arctanh((prediction))
@@ -369,7 +374,7 @@ def dnn_evaluation(df, args):
 
 def dnn_rebin(dfs, args):
     df = pd.concat(dfs)
-    df = df[(df.s=='vbf_powhegPS')&(df.r=='h-peak')]
+    df = df[(df.s=='vbf_powheg_dipole')&(df.r=='h-peak')]
     cols = ['c','r','v','s', 'wgt_nominal','dnn_score']
     df = df[cols]
     df = df.sort_values(by=['dnn_score'], ascending=False)
@@ -377,18 +382,39 @@ def dnn_rebin(dfs, args):
     for c in df.c.unique():
         bnd[c] = {}
         for v in df.v.unique():
+            df_ = df[(df.c==c)&(df.v==v)]
             bin_sum = 0
+            bin_number = 0
             boundaries = []
+            y0 = 0.6
+            bw0 = 0
+            Y = df_['wgt_nominal'].sum()
+#            increment = 2*(Y-y0*N)/(N*(N+1))
             counter = 0
             max_dnn = 2
-            for idx, row in df[(df.c==c)&(df.v==v)].iterrows():
+            for idx, row in df_.iterrows():
                 if counter==0: max_dnn = row['dnn_score']
-                counter+=1
                 bin_sum += row['wgt_nominal']
-                if bin_sum>=0.6:
-                    boundaries.append(round(row['dnn_score'],3))
+                counter+=1
+                if bin_sum>=y0:
+                    y = round(row['dnn_score'],3)
+                    boundaries.append(y)
                     bin_sum = 0
-            bnd[c][v] = sorted([0,round(max_dnn,3)]+boundaries)
+                    if bin_number==0:
+                        b0 = y
+                    bin_number+=1
+                    break
+            max_dnn = df_.iloc[0,:]['dnn_score']
+            N=13
+            bw = max_dnn-b0
+            increment = 2*(max_dnn-bw*N)/(N*(N-1))
+            b = b0
+            for i in range(1,N-1):
+                b = b-bw-i*increment
+                boundaries.append(round(b,3))
+
+#            bnd[c][v] = sorted([0,round(max_dnn,3)]+boundaries)
+            bnd[c][v] = sorted([0, max_dnn]+boundaries)
     return bnd
                         
 
@@ -416,8 +442,8 @@ def get_hists(df, var, args, bins=[]):
             syst_variations = args['syst_variations']
             wgts = [c for c in df.columns if ('wgt_' in c)]
         
-#        mcreplicas = []
         mcreplicas = [c for c in df.columns if ('mcreplica' in c)]
+#        mcreplicas = []
         if len(mcreplicas)>0:
             wgts = [wgt for wgt in wgts if ('pdf_2rms' not in wgt)]
         if len(mcreplicas)>0 and ('wgt_nominal' in df.columns) and (s in grouping.keys()):
@@ -503,7 +529,14 @@ def load_yields(s,r,c,v,w,args):
 
 def save_shapes(var, hist, edges, args):   
     edges = np.array(edges)
-    tdir = f'/depot/cms/hmm/templates/{args["year"]}_{args["label"]}_{var.name}/'
+    tdir = f'/depot/cms/hmm/templates/{args["year"]}_{args["label"]}_{var.name}'
+    if args['do_massscan']:
+        mass_point = f'{args["mass"]}'.replace('.','')
+        tdir = tdir.replace('templates','/templates/massScan/')+f'{mass_point}'
+        try:
+            os.mkdir('/depot/cms/hmm/templates/massScan/')
+        except:
+            pass
     try:
         os.mkdir(tdir)
     except:
@@ -658,16 +691,36 @@ def save_shapes(var, hist, edges, args):
 
 def prepare_root_files(var, edges, args):
     edges = np.array(edges)
-    tdir = f'/depot/cms/hmm/templates/{args["year"]}_{args["label"]}_{var.name}/'
+    tdir = f'/depot/cms/hmm/templates/{args["year"]}_{args["label"]}_{var.name}'
+    if args['do_massscan']:
+        tdir_nominal = tdir
+        mass_point = f'{args["mass"]}'.replace('.','')
+        tdir = tdir.replace('templates','/templates/massScan/')+f'{mass_point}'
+        try:
+            os.mkdir(f'combine_new/massScan/')
+        except:
+            pass
+        try:
+            os.mkdir(f'combine_new/massScan/{mass_point}')
+        except:
+            pass
+        try:
+            os.mkdir(f'combine_new/massScan/{mass_point}/{args["year"]}_{args["label"]}/')
+        except:
+            pass
+    else:
+        try:
+            os.mkdir(f'combine_new/{args["year"]}_{args["label"]}')
+        except:
+            pass
     regions = ['SB','SR']
     centers = (edges[:-1] + edges[1:]) / 2.0
-    try:
-        os.mkdir(f'combine_new/{args["year"]}_{args["label"]}')
-    except:
-        pass
+
     for cgroup,cc in args['channel_groups'].items():
         for r in regions:
             out_fn = f'combine_new/{args["year"]}_{args["label"]}/shapes_{cgroup}_{r}.root'
+            if args['do_massscan']:
+                out_fn = f'combine_new/massScan/{mass_point}/{args["year"]}_{args["label"]}/shapes_{cgroup}_{r}.root'
             out_file = uproot.recreate(out_fn)
             data_hist, data_sumw2 = np.load(f'{tdir}/Data/{r}_{args["year"]}_data_obs.npy',allow_pickle=True)
             th1_data = from_numpy([data_hist, edges])
@@ -676,12 +729,32 @@ def prepare_root_files(var, edges, args):
             th1_data._fTsumw2 = np.array(data_sumw2).sum()
             th1_data._fTsumwx2 = np.array(data_sumw2[1:] * centers).sum()
             out_file['data_obs'] = th1_data
-            mc_templates = glob.glob(f'{tdir}/*/{r}_*.npy')
+#            mc_templates = glob.glob(f'{tdir}/*/{r}_*.npy')
+            bkg = ['DY_filter','DY_nofilter','EWK','TT+ST','VV']
+            sig = ['VBF','ggH']
+            mc_templates = []
+            for group in sig:
+                mc_templates += glob.glob(f'{tdir}/{group}/{r}_*.npy')
+            for group in bkg:
+                if args['do_massscan']:
+                    mc_templates += glob.glob(f'{tdir_nominal}/{group}/{r}_*.npy')
+                else:
+                    mc_templates += glob.glob(f'{tdir}/{group}/{r}_*.npy')
+
             for path in mc_templates:
                 if 'Data' in path: continue
                 if 'data_obs' in path: continue
                 hist, sumw2 = np.load(path, allow_pickle=True)
                 name = os.path.basename(path).replace('.npy','')
+                name = name.replace('DY_filter_vbf_2j', 'DYJ2_filter')
+                name = name.replace('DY_nofilter_vbf_2j', 'DYJ2_nofilter')
+                name = name.replace('DY_filter_vbf_01j', 'DYJ01_filter')
+                name = name.replace('DY_nofilter_vbf_01j', 'DYJ01_nofilter')
+                name = name.replace('EWK_vbf','EWK')
+                name = name.replace('TT+ST_vbf','TT+ST')
+                name = name.replace('VV_vbf','VV')
+                name = name.replace('VBF_vbf','qqH_hmm')
+                name = name.replace('ggH_vbf','ggH_hmm')
                 th1 = from_numpy([hist, edges])
                 th1._fName = name.replace(f'{r}_{args["year"]}_','')
                 th1._fSumw2 = np.array(sumw2)
@@ -711,10 +784,21 @@ def get_numbers(var, cc, r, bin_name, args):
 
     sig_counter = 0
     bkg_counter = 0
-    tdir = f'/depot/cms/hmm/templates/{args["year"]}_{args["label"]}_{var.name}/'
+    tdir = f'/depot/cms/hmm/templates/{args["year"]}_{args["label"]}_{var.name}'
+    if args['do_massscan']:
+        tdir_nominal = tdir
+        mass_point = f'{args["mass"]}'.replace('.','')
+        tdir = tdir.replace('templates','/templates/massScan/')+f'{mass_point}'
+        
+    bkg = ['DY_filter','DY_nofilter','EWK','TT+ST','VV']
+    sig = ['VBF','ggH']
+        
     shape_systs_by_group = {}
     for g, cc in groups.items():
         shape_systs_by_group[g] = [os.path.basename(path).replace('.npy','') for path in glob.glob(f'{tdir}/{g}/{r}_*.npy')]
+        if args['do_massscan']:
+            if g in bkg:
+                shape_systs_by_group[g] = [os.path.basename(path).replace('.npy','') for path in glob.glob(f'{tdir_nominal}/{g}/{r}_*.npy')]
         for c in cc:
             shape_systs_by_group[g] = [path for path in shape_systs_by_group[g] if (path!=f'{r}_{args["year"]}_{g}_{c}') and ('nominal' not in path)]
             shape_systs_by_group[g] = [path.replace(f'{r}_{args["year"]}_{g}_{c}_','').replace('Up','').replace('Down','') for path in shape_systs_by_group[g]]
@@ -726,6 +810,9 @@ def get_numbers(var, cc, r, bin_name, args):
     shape_systs = np.unique(shape_systs)
     shape_systs = [sh for sh in shape_systs if 'data_obs' not in sh]
 
+    if args['do_massscan']:
+        shape_systs = [sh for sh in shape_systs if (('jer' not in sh) and (('jes' not in sh) or ('btag' in sh)))]
+        
     systs = []
     systs.extend(shape_systs)
     data_yields = pd.DataFrame()
@@ -739,7 +826,17 @@ def get_numbers(var, cc, r, bin_name, args):
     for g,cc in groups.items():
         if g not in grouping.values(): continue
         for c in cc:
-            gcname = f'{g}_{c}'
+#            gcname = f'{g}_{c}'
+            gcname = g
+            if (g=='VBF'):
+                gcname='qqH_hmm'
+            if (g=='ggH'):
+                gcname='ggH_hmm'
+            if ('01j' in c):
+                gcname = gcname.replace('DY','DYJ01')
+            if ('2j' in c):
+                gcname = gcname.replace('DY','DYJ2')
+
             counter = 0
             if g in sig_groups:
                 sig_counter += 1
@@ -755,6 +852,9 @@ def get_numbers(var, cc, r, bin_name, args):
                 data_yields.loc[1,'value'] = f'{rate}'
             else:
                 nominal_shape = f'{tdir}/{g}/{r}_{args["year"]}_{g}_{c}.npy'
+                if g in bkg and args['do_massscan']:
+                    nominal_shape = f'{tdir_nominal}/{g}/{r}_{args["year"]}_{g}_{c}.npy'
+
                 hist,_ = np.load(nominal_shape, allow_pickle=True)
                 rate = hist.sum()          
                 mc_yields.loc[0,gcname] = bin_name
@@ -803,8 +903,11 @@ def make_datacards(var, args):
     year = args["year"]
     for cgroup, cc in args['channel_groups'].items():
         for r in ['SB', 'SR']:
-            bin_name = f'{r}_{year}'
+            bin_name = f'{cgroup}_{r}_{year}'
             datacard_name = f'combine_new/{year}_{args["label"]}/datacard_{cgroup}_{r}.txt'
+            if args['do_massscan']:
+                mass_point = f'{args["mass"]}'.replace('.','')
+                datacard_name = f'combine_new/massScan/{mass_point}/{args["year"]}_{args["label"]}/datacard_{cgroup}_{r}.txt'
             shapes_file = f'shapes_{cgroup}_{r}.root'
             datacard = open(datacard_name, 'w')
             datacard.write(f"imax 1\n")
@@ -819,8 +922,10 @@ def make_datacards(var, args):
             datacard.write(mc_yields)
             datacard.write("---------------\n")
             datacard.write(systematics)
-            datacard.write(f"XSecAndNorm{year}DY_01j  rateParam {bin_name} DY_nofilter_vbf_01j 1 [0.2,5] \n")
-            datacard.write(f"XSecAndNorm{year}DY_01j  rateParam {bin_name} DY_filter_vbf_01j 1 [0.2,5] \n")
+            datacard.write(f"XSecAndNorm{year}DYJ01  rateParam {bin_name} DYJ01_nofilter 1 [0.2,5] \n")
+            datacard.write(f"XSecAndNorm{year}DYJ01  rateParam {bin_name} DYJ01_filter 1 [0.2,5] \n")
+#            datacard.write(f"XSecAndNorm{year}DY_01j  rateParam {bin_name} DY_nofilter_vbf_01j 1 [0.2,5] \n")
+#            datacard.write(f"XSecAndNorm{year}DY_01j  rateParam {bin_name} DY_filter_vbf_01j 1 [0.2,5] \n")
 #            datacard.write(f"XSecAndNorm{year}DY_2j  rateParam {bin_name} DY_nofilter_vbf_2j 1 [0.2,5] \n")
 #            datacard.write(f"XSecAndNorm{year}DY_2j  rateParam {bin_name} DY_filter_vbf_2j 1 [0.2,5] \n")
             datacard.write(f"{bin_name} autoMCStats 0 1 1\n")
@@ -935,7 +1040,7 @@ def plot(var, hists, edges, args, r='', save=True, blind=True, show=False, plots
         print('VBF', vbf.sum())
         print('ggH', ggh.sum())
         print("-"*50)
-    
+        
     # Make plot
     fig = plt.figure()
     plt.rcParams.update({'font.size': 22})
