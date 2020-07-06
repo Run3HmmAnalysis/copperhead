@@ -22,6 +22,7 @@ from python.weights import Weights
 from python.corrections import musf_lookup, musf_evaluator, pu_lookup, pu_evaluator, NNLOPS_Evaluator, roccor_evaluator
 from python.corrections import qgl_weights, puid_weights, btag_weights, geofit_evaluator, fsr_evaluator
 from python.stxs_uncert import vbf_uncert_stage_1_1, stxs_lookups
+from python.mass_resolution import mass_resolution_purdue, mass_resolution_pisa
 
 import gc
     
@@ -155,6 +156,7 @@ class DimuonProcessor(processor.ProcessorABC):
         self.extractor = extractor()
         self.extractor.add_weight_sets([f"* * {zpt_filename}"])
         self.extractor.add_weight_sets([f"* * {puid_filename}"])
+        self.extractor.add_weight_sets([f"* * data/mass_res_pisa/muonresolution.root"])
         
         for mode in ["Data", "MC"]:
             label = f"res_calib_{mode}_{self.year}"
@@ -486,22 +488,16 @@ class DimuonProcessor(processor.ProcessorABC):
                                                                                  mu1[two_muons].phi.flatten(),\
                                                                                  mu2[two_muons].phi.flatten())
 
-            dpt1 = (mu1[two_muons].ptErr*dimuon_variables['dimuon_mass'][two_muons]) / (2*mu1[two_muons].pt)
-            dpt2 = (mu2[two_muons].ptErr*dimuon_variables['dimuon_mass'][two_muons]) / (2*mu2[two_muons].pt)
-        
-            if is_mc:
-                label = f"res_calib_MC_{self.year}"
-            else:
-                label = f"res_calib_Data_{self.year}"
-            
-            calibration = np.array(self.evaluator[label](mu1[two_muons].pt.flatten(),\
-                                                     abs(mu1[two_muons].eta.flatten()),\
-                                                     abs(mu2[two_muons].eta.flatten())))
-        
-            dimuon_variables['dimuon_mass_res'][two_muons] = (np.sqrt(dpt1 * dpt1 + dpt2 * dpt2) * calibration).flatten()
-            dimuon_variables['dimuon_mass_res_rel'][two_muons] = (dimuon_variables['dimuon_mass_res'][two_muons] /\
-                                                              dimuon_variables['dimuon_mass'][two_muons]).flatten()
-        
+#            dimuon_variables['dimuon_mass_res'][two_muons] = mass_resolution_purdue(is_mc,self.evaluator,mu1,mu2,\
+#                                                                                    dimuon_variables['dimuon_mass'],\
+#                                                                                    two_muons, self.year)
+#            dimuon_variables['dimuon_mass_res_rel'][two_muons] = (dimuon_variables['dimuon_mass_res'][two_muons] /\
+#                                                              dimuon_variables['dimuon_mass'][two_muons]).flatten()
+
+
+            dimuon_variables['dimuon_mass_res_rel'][two_muons] = mass_resolution_pisa(self.extractor, mu1, mu2, two_muons)
+            dimuon_variables['dimuon_mass_res'][two_muons] = dimuon_variables['dimuon_mass_res_rel'][two_muons]*\
+                                                                dimuon_variables['dimuon_mass'][two_muons]
             
             mu1_px = mu1.pt*np.cos(mu1.phi)
             mu1_py = mu1.pt*np.sin(mu1.phi)
