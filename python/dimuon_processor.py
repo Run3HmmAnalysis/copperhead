@@ -15,7 +15,7 @@ import sys
 import pandas as pd
 import copy
 
-from python.utils import p4_sum, p4_sum_alt, delta_r
+from python.utils import p4_sum, p4_sum_alt, delta_r, rapidity
 from python.timer import Timer
 from python.samples_info import SamplesInfo
 from python.weights import Weights
@@ -468,7 +468,7 @@ class DimuonProcessor(processor.ProcessorABC):
             two_muons = muons.counts==2
         
             dimuon_variable_names = ['dimuon_mass', 'dimuon_mass_res', 'dimuon_mass_res_rel', 'dimuon_pt', 'dimuon_eta',\
-                                 'dimuon_phi', 'dimuon_dEta', 'dimuon_dPhi', 'dimuon_dR', 'dimuon_cosThetaCS']
+                                 'dimuon_phi', 'dimuon_dEta', 'dimuon_dPhi', 'dimuon_dR', 'dimuon_cosThetaCS', 'dimuon_rap']
             dimuon_variables = {}
             for n in dimuon_variable_names:
                 dimuon_variables[n] = np.zeros(numevents)
@@ -476,7 +476,8 @@ class DimuonProcessor(processor.ProcessorABC):
             dimuon_variables['dimuon_pt'][two_muons],\
             dimuon_variables['dimuon_eta'][two_muons],\
             dimuon_variables['dimuon_phi'][two_muons],\
-            dimuon_variables['dimuon_mass'][two_muons] = p4_sum(mu1[two_muons], mu2[two_muons])
+            dimuon_variables['dimuon_mass'][two_muons],\
+            dimuon_variables['dimuon_rap'][two_muons] = p4_sum(mu1[two_muons], mu2[two_muons])
 
             dimuon_variables['dimuon_dEta'][two_muons],\
             dimuon_variables['dimuon_dPhi'][two_muons],\
@@ -702,16 +703,19 @@ class DimuonProcessor(processor.ProcessorABC):
             if ('ggh' in dataset):
                 nnlops = NNLOPS_Evaluator('data/NNLOPS_reweight.root')
                 nnlopsw = np.ones(numevents, dtype=float)
+                nnlopsw_new = np.ones(numevents, dtype=float)
                 gen_njets = df.GenJet[df.GenJet.pt>30.].counts
                 gen_higgs = df.GenPart[(df.GenPart.pdgId == 25)&(df.GenPart.status == 62)]
                 has_higgs = gen_higgs.counts>0
                 gen_hpt = np.zeros(numevents, dtype=float)
                 gen_hpt[has_higgs] = gen_higgs[has_higgs].pt[:,0]
                 if 'amc' in dataset:
-                    nnlopsw[has_higgs] = nnlops.evaluate(gen_hpt[has_higgs], gen_njets[has_higgs], "mcatnlo")
+#                    nnlopsw[has_higgs] = nnlops.evaluate(gen_hpt[has_higgs], gen_njets[has_higgs], "mcatnlo")
+                    nnlopsw_new = nnlops.evaluate(df.HTXS.Higgs_pt, df.HTXS.njets30, "mcatnlo")
                 elif 'powheg' in dataset:
-                    nnlopsw[has_higgs] = nnlops.evaluate(gen_hpt[has_higgs], gen_njets[has_higgs], "powheg")
-                weights.add_weight('nnlops', nnlopsw)
+#                    nnlopsw[has_higgs] = nnlops.evaluate(gen_hpt[has_higgs], gen_njets[has_higgs], "powheg")
+                    nnlopsw_new = nnlops.evaluate(df.HTXS.Higgs_pt, df.HTXS.njets30, "powheg")
+                weights.add_weight('nnlops', nnlopsw_new)
 
 #            if 'dy' in dataset:
 #                zpt_weight = np.ones(numevents, dtype=float)
@@ -771,7 +775,7 @@ class DimuonProcessor(processor.ProcessorABC):
             has_two_jets = gjets.counts>1
             gjet1 = gjets[has_two_jets,0]
             gjet2 = gjets[has_two_jets,1]
-            _,_,_, genJetMass[has_two_jets] = p4_sum(gjet1,gjet2)
+            _,_,_, genJetMass[has_two_jets],_ = p4_sum(gjet1,gjet2)
 
         #---------------------------------------------------------------#        
         # Loop over JEC variations and fill jet variables
@@ -793,9 +797,10 @@ class DimuonProcessor(processor.ProcessorABC):
 
         weights.effect_on_normalization((category=='vbf'))
 
-        evnum = 609528637
+#        print(df.event[(category=='vbf')&(ret_jec_loop['nominal']['variable_map']['dimuon_mass']>115)&(ret_jec_loop['nominal']['variable_map']['dimuon_mass']<135)])
+        evnum = 286624665
         try:
-            print(weights.wgts.loc[evnum,:])
+#            print(weights.wgts.loc[evnum,:])
 #            print(weights.wgts.mean())
             for vname, var in variable_map.items():
                 print(vname, var[df.event==evnum])
@@ -888,7 +893,7 @@ class DimuonProcessor(processor.ProcessorABC):
         for n in mmj_variable_names:
             mmj_variables[n] = np.full(numevents, -999.)
 
-        mmjj_variable_names = ['mmjj_pt', 'mmjj_eta', 'mmjj_phi', 'mmjj_mass', 'rpt', 'zeppenfeld']
+        mmjj_variable_names = ['mmjj_pt', 'mmjj_eta', 'mmjj_phi', 'mmjj_mass', 'rpt', 'zeppenfeld','ll_zstar_log']
         mmjj_variables = {}
         for n in mmjj_variable_names:
             mmjj_variables[n] = np.full(numevents, -999.)
@@ -1018,7 +1023,7 @@ class DimuonProcessor(processor.ProcessorABC):
         dijet_variables['jj_pt'][two_jets],\
         dijet_variables['jj_eta'][two_jets],\
         dijet_variables['jj_phi'][two_jets],\
-        dijet_variables['jj_mass'][two_jets] = p4_sum(jet1[two_jets], jet2[two_jets])
+        dijet_variables['jj_mass'][two_jets],_ = p4_sum(jet1[two_jets], jet2[two_jets])
         dijet_variables['jj_dEta'][two_jets] = abs(jet1_variables['jet1_eta'][two_jets]-jet2_variables['jet2_eta'][two_jets])
         dijet_variables['jj_dPhi'][two_jets] = abs(jet1[two_jets].p4.delta_phi(jet2[two_jets].p4))
 
@@ -1042,7 +1047,15 @@ class DimuonProcessor(processor.ProcessorABC):
                                                     (muon_variables['dimuon_pt'][two_muons&two_jets] + \
                                                     jet1_variables['jet1_pt'][two_muons&two_jets] + \
                                                      jet2_variables['jet2_pt'][two_muons&two_jets])
+        ll_ystar = np.full(numevents, -999.)
+        ll_zstar = np.full(numevents, -999.)
+        jet1_rap = rapidity(jet1)[two_muons&two_jets]
+        jet2_rap = rapidity(jet2)[two_muons&two_jets]
+        ll_ystar[two_muons&two_jets] = muon_variables['dimuon_rap'][two_muons&two_jets] - (jet1_rap+jet2_rap)/2
+        ll_zstar[two_muons&two_jets] = abs(ll_ystar[two_muons&two_jets] /(jet1_rap-jet2_rap))
+        mmjj_variables['ll_zstar_log'][two_muons&two_jets] = np.log(ll_zstar[two_muons&two_jets])
 
+        
         mmj_variables['mmj1_dEta'][two_muons&one_jet],\
         mmj_variables['mmj1_dPhi'][two_muons&one_jet],\
         mmj_variables['mmj1_dR'][two_muons&one_jet] = delta_r(muon_variables['dimuon_eta'][two_muons&one_jet].flatten(),\
@@ -1061,7 +1074,7 @@ class DimuonProcessor(processor.ProcessorABC):
                                                  mmj_variables['mmj2_dEta'],\
                                                  (mmj_variables['mmj1_dEta'] < mmj_variables['mmj2_dEta']))
         
-        mmj_variables['mmj_min_dEta'] = np.where(mmj_variables['mmj1_dPhi'],\
+        mmj_variables['mmj_min_dPhi'] = np.where(mmj_variables['mmj1_dPhi'],\
                                                  mmj_variables['mmj2_dPhi'],\
                                                  (mmj_variables['mmj1_dPhi'] < mmj_variables['mmj2_dPhi']))
 
@@ -1077,10 +1090,10 @@ class DimuonProcessor(processor.ProcessorABC):
         softjets = JaggedCandidateArray.candidatesfromcounts(df.SoftActivityJet.counts, **sjarrays)
         
         softjet_variables['nsoftjets2'],\
-        softjet_variables['htsoft2'] = self.get_softjet_vars(2, df, muons, softjets, jet1, jet2, one_jet, two_jets)
+        softjet_variables['htsoft2'] = self.get_softjet_vars(df, softjets, 2, muons, mu1, mu2, jets, jet1, jet2, two_muons, one_jet, two_jets)
         
         softjet_variables['nsoftjets5'],\
-        softjet_variables['htsoft5'] = self.get_softjet_vars(5, df, muons, softjets, jet1, jet2, one_jet, two_jets)
+        softjet_variables['htsoft5'] = self.get_softjet_vars(df, softjets, 5, muons, mu1, mu2, jets, jet1, jet2, two_muons, one_jet, two_jets)
 
         if self.timer:
             self.timer.add_checkpoint("Calculated SA variables")
@@ -1166,67 +1179,53 @@ class DimuonProcessor(processor.ProcessorABC):
                }
 
 
-    def get_softjet_vars(self, cutoff, df, muons, softjets, jet1, jet2, one_jet, two_jets):
+    def get_softjet_vars(self, df, softjets, cutoff, muons, mu1, mu2, jets, jet1, jet2, two_muons, one_jet, two_jets):
         nsoftjets = df[f'SoftActivityJetNjets{cutoff}']
         htsoft = df[f'SoftActivityJetHT{cutoff}']
-        muons = muons[:, 0:2]
-        # Events with 0 selected jets: clear soft jets from muons
-        no_jets = ~one_jet
-        sj_mm0 = softjets[no_jets].cross(muons[no_jets], nested=True)
-        _,_,dr_mm0 = delta_r(sj_mm0.i0.eta, sj_mm0.i1.eta, sj_mm0.i0.phi, sj_mm0.i1.phi)
-        bad_sj_mm0 = (dr_mm0*dr_mm0 < self.parameters["softjet_dr2"])
-        bad_sj0 = (bad_sj_mm0.any()).all()
+        mask = two_muons
+        mask1j = two_muons&one_jet
+        mask2j = two_muons&two_jets
 
-        sj_sel0 = np.zeros(df.shape[0], dtype=bool)
-        sj_sel0[no_jets] = ((softjets.pt[no_jets]>cutoff) & bad_sj0).any()
-        nsoftjets[sj_sel0] = nsoftjets[sj_sel0] - softjets[sj_sel0].counts
-        htsoft[sj_sel0] = htsoft[sj_sel0] - softjets.pt[sj_sel0].sum()
-
-        # Events with exactly 1 selected jet: clear soft jets from muons and the jet
-        only_one_jet = one_jet & (~two_jets)
-
-        sj_mm1 = softjets[only_one_jet].cross(muons[only_one_jet], nested=True)
-        _,_,dr_mm1 = delta_r(sj_mm1.i0.eta, sj_mm1.i1.eta, sj_mm1.i0.phi, sj_mm1.i1.phi)
-        bad_sj_mm1 = (dr_mm1*dr_mm1 < self.parameters["softjet_dr2"])
-
-        sj_j1_1 = softjets[only_one_jet].cross(jet1[only_one_jet], nested=True)
-        _,_,dr_j1_1 = delta_r(sj_j1_1.i0.eta, sj_j1_1.i1.eta, sj_j1_1.i0.phi, sj_j1_1.i1.phi)
-        bad_sj_j1_1 = (dr_j1_1*dr_j1_1 < self.parameters["softjet_dr2"])
-
-        bad_sj1 = (bad_sj_mm1.any() | bad_sj_j1_1).all()
-
-        sj_sel1 = np.zeros(df.shape[0], dtype=bool)
-        sj_sel1[only_one_jet] = ((softjets.pt[only_one_jet]>cutoff) & bad_sj1).any()
-        nsoftjets[sj_sel1] = nsoftjets[sj_sel1] - softjets[sj_sel1].counts
-        htsoft[sj_sel1] = htsoft[sj_sel1] - softjets.pt[sj_sel1].sum()
-
-        # Events with two selected jets: clear soft jets from muons and selected jets
+        sj_j = softjets.cross(jets,nested=True)
+        sj_mu = softjets.cross(muons,nested=True)
         
-        sj_mm2 = softjets[two_jets].cross(muons[two_jets], nested=True)
-        _,_,dr_mm2 = delta_r(sj_mm2.i0.eta, sj_mm2.i1.eta, sj_mm2.i0.phi, sj_mm2.i1.phi)
-        bad_sj_mm2 = (dr_mm2*dr_mm2 < self.parameters["softjet_dr2"])
-
-        sj_j1_2 = softjets[two_jets].cross(jet1[two_jets], nested=True)
-        _,_,dr_j1_2 = delta_r(sj_j1_2.i0.eta, sj_j1_2.i1.eta, sj_j1_2.i0.phi, sj_j1_2.i1.phi)
-        bad_sj_j1_2 = (dr_j1_2*dr_j1_2 < self.parameters["softjet_dr2"])
-
-        sj_j2 = softjets[two_jets].cross(jet2[two_jets], nested=True)
-        _,_,dr_j2 = delta_r(sj_j2.i0.eta, sj_j2.i1.eta, sj_j2.i0.phi, sj_j2.i1.phi)
-        bad_sj_j2 = (dr_j2*dr_j2 < self.parameters["softjet_dr2"])
-
-        bad_sj = (bad_sj_mm2.any() | bad_sj_j1_2 | bad_sj_j2).all()
-
-        eta_sj_j1 = (sj_j1_2.i0.eta > sj_j1_2.i1.eta).all()
-        eta_sj_j2 = (sj_j2.i0.eta > sj_j2.i1.eta).all()
-        eta_j1j2 = (sj_j1_2.i1.eta > sj_j2.i1.eta).all()
-
-        eta_sel = ( (eta_sj_j1 | ~eta_sj_j2) & eta_j1j2 ) | ( (~eta_sj_j1 | eta_sj_j2) & ~eta_j1j2 )
-
-        sj_sel2 = np.zeros(df.shape[0], dtype=bool)
-        sj_sel2[two_jets] = (((softjets.pt[two_jets]>cutoff) | eta_sel) & bad_sj).any()
-        nsoftjets[sj_sel2] = nsoftjets[sj_sel2] - softjets[sj_sel2].counts
-        htsoft[sj_sel2] = htsoft[sj_sel2] - softjets.pt[sj_sel2].sum()
+        _,_,dr_sj_j = delta_r(sj_j.i0.eta, sj_j.i1.eta, sj_j.i0.phi, sj_j.i1.phi)
+        _,_,dr_sj_mu = delta_r(sj_mu.i0.eta, sj_mu.i1.eta, sj_mu.i0.phi, sj_mu.i1.phi)
         
+        closest_jet = sj_j[(dr_sj_j==dr_sj_j.min())&(dr_sj_j<0.4)]
+        closest_mu = sj_mu[(dr_sj_mu==dr_sj_mu.min())&(dr_sj_mu<0.4)]
+        
+        sj_j1 = closest_jet.cross(jet1,nested=True)
+        sj_j2 = closest_jet.cross(jet2,nested=True)
+        sj_mu1 = closest_mu.cross(mu1,nested=True)
+        sj_mu2 = closest_mu.cross(mu2,nested=True)
+       
+        _,_,dr_sj_j1 = delta_r(sj_j1.i0.eta, sj_j1.i1.eta, sj_j1.i0.phi, sj_j1.i1.phi)
+        _,_,dr_sj_j2 = delta_r(sj_j2.i0.eta, sj_j2.i1.eta, sj_j2.i0.phi, sj_j2.i1.phi)
+        _,_,dr_sj_mu1 = delta_r(sj_mu1.i0.eta, sj_mu1.i1.eta, sj_mu1.i0.phi, sj_mu1.i1.phi)
+        _,_,dr_sj_mu2 = delta_r(sj_mu2.i0.eta, sj_mu2.i1.eta, sj_mu2.i0.phi, sj_mu2.i1.phi)
+        
+        j1match = (dr_sj_j1<0.4).any().any()
+        j2match = (dr_sj_j2<0.4).any().any()
+        mumatch = ((dr_sj_mu1<0.4).any().any()|(dr_sj_mu2<0.4).any().any())
+        
+        eta1cut1 = (sj_j1.i0.eta>sj_j1.i1.eta).any().any()
+        eta2cut1 = (sj_j2.i0.eta>sj_j2.i1.eta).any().any()
+        outer = (eta1cut1[mask2j])&(eta2cut1[mask2j])
+        eta1cut2 = (sj_j1.i0.eta<sj_j1.i1.eta).any().any()
+        eta2cut2 = (sj_j2.i0.eta<sj_j2.i1.eta).any().any()
+        inner = (eta1cut2[mask2j])&(eta2cut2[mask2j])
+                
+        nsoftjets[mask] = df[f'SoftActivityJetNjets{cutoff}'][mask]-\
+                            (mumatch[mask] & (df.SoftActivityJet.pt>cutoff)[mask]).sum().sum()
+        nsoftjets[mask1j] = df[f'SoftActivityJetNjets{cutoff}'][mask1j]-\
+                            ((mumatch[mask1j]|j1match[mask1j]) & (df.SoftActivityJet.pt>cutoff)[mask1j]).sum()
+        nsoftjets[mask2j] = df[f'SoftActivityJetNjets{cutoff}'][mask2j]-\
+                        ((mumatch[mask2j]|j1match[mask2j]|j2match[mask2j])&(df.SoftActivityJet.pt>cutoff)[mask2j]).sum()
+        saj_filter = (mumatch[mask2j]|j1match[mask2j]|j2match[mask2j]|outer|inner)
+        footprintSAJ = df.SoftActivityJet[mask2j][saj_filter]
+        if footprintSAJ.shape[0]>0:
+            htsoft[mask2j] = df[f'SoftActivityJetHT{cutoff}'][mask2j]-(footprintSAJ.pt*(footprintSAJ.pt>cutoff)).sum()  
         return nsoftjets, htsoft
   
     def postprocess(self, accumulator):
