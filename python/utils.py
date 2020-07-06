@@ -22,7 +22,16 @@ def p4_sum(obj1, obj2):
     eta = np.arcsinh(pz / pt)
     phi = np.arctan2(py, px)
     mass = np.sqrt(e**2 - px**2 - py**2 - pz**2)
-    return pt, eta, phi, mass
+    rap = 0.5*np.log((e+pz) / (e-pz))
+    return pt, eta, phi, mass, rap
+
+def rapidity(obj):
+    px = obj.pt*np.cos(obj.phi)
+    py = obj.pt*np.sin(obj.phi)
+    pz = obj.pt*np.sinh(obj.eta)
+    e  = np.sqrt(px**2 + py**2 + pz**2 + obj.mass**2)
+    rap = 0.5*np.log((e+pz) / (e-pz))
+    return rap
 
 def p4_sum_alt(obj1_pt, obj1_eta, obj1_phi, obj1_mass, obj2_pt, obj2_eta, obj2_phi, obj2_mass):
     assert(len(obj1_pt)==len(obj2_pt))
