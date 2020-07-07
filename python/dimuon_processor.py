@@ -15,7 +15,7 @@ import sys
 import pandas as pd
 import copy
 
-from python.utils import p4_sum, p4_sum_alt, delta_r, rapidity
+from python.utils import p4_sum, p4_sum_alt, delta_r, rapidity, cs_variables
 from python.timer import Timer
 from python.samples_info import SamplesInfo
 from python.weights import Weights
@@ -469,8 +469,10 @@ class DimuonProcessor(processor.ProcessorABC):
         
             two_muons = muons.counts==2
         
-            dimuon_variable_names = ['dimuon_mass', 'dimuon_mass_res', 'dimuon_mass_res_rel', 'dimuon_pt', 'dimuon_eta',\
-                                 'dimuon_phi', 'dimuon_dEta', 'dimuon_dPhi', 'dimuon_dR', 'dimuon_cosThetaCS', 'dimuon_rap']
+            dimuon_variable_names = ['dimuon_mass', 'dimuon_mass_res', 'dimuon_mass_res_rel', 'dimuon_ebe_mass_res',\
+                                     'dimuon_ebe_mass_res_rel', 'dimuon_pt', 'dimuon_eta', 'dimuon_phi', 'dimuon_dEta',\
+                                     'dimuon_dPhi', 'dimuon_dR', 'dimuon_rap',\
+                                     'dimuon_theta_cs','dimuon_phi_cs']
             dimuon_variables = {}
             for n in dimuon_variable_names:
                 dimuon_variables[n] = np.zeros(numevents)
@@ -488,31 +490,19 @@ class DimuonProcessor(processor.ProcessorABC):
                                                                                  mu1[two_muons].phi.flatten(),\
                                                                                  mu2[two_muons].phi.flatten())
 
-#            dimuon_variables['dimuon_mass_res'][two_muons] = mass_resolution_purdue(is_mc,self.evaluator,mu1,mu2,\
-#                                                                                    dimuon_variables['dimuon_mass'],\
-#                                                                                    two_muons, self.year)
-#            dimuon_variables['dimuon_mass_res_rel'][two_muons] = (dimuon_variables['dimuon_mass_res'][two_muons] /\
-#                                                              dimuon_variables['dimuon_mass'][two_muons]).flatten()
+            dimuon_variables['dimuon_ebe_mass_res'][two_muons] = mass_resolution_purdue(is_mc,self.evaluator,mu1,mu2,\
+                                                                                    dimuon_variables['dimuon_mass'],\
+                                                                                    two_muons, self.year)
+            dimuon_variables['dimuon_ebe_mass_res_rel'][two_muons] = (dimuon_variables['dimuon_mass_res'][two_muons] /\
+                                                              dimuon_variables['dimuon_mass'][two_muons]).flatten()
 
 
             dimuon_variables['dimuon_mass_res_rel'][two_muons] = mass_resolution_pisa(self.extractor, mu1, mu2, two_muons)
             dimuon_variables['dimuon_mass_res'][two_muons] = dimuon_variables['dimuon_mass_res_rel'][two_muons]*\
                                                                 dimuon_variables['dimuon_mass'][two_muons]
             
-            mu1_px = mu1.pt*np.cos(mu1.phi)
-            mu1_py = mu1.pt*np.sin(mu1.phi)
-            mu1_pz = mu1.pt*np.sinh(mu1.eta)
-            mu1_e  = np.sqrt(mu1_px**2 + mu1_py**2 + mu1_pz**2 + mu1.mass**2)
-            mu2_px = mu2.pt*np.cos(mu2.phi)
-            mu2_py = mu2.pt*np.sin(mu2.phi)
-            mu2_pz = mu2.pt*np.sinh(mu2.eta)
-            mu2_e  = np.sqrt(mu2_px**2 + mu2_py**2 + mu2_pz**2 + mu2.mass**2)
-        
-            dimuon_variables['dimuon_cosThetaCS'][two_muons] =\
-                2*( mu1_pz[two_muons]*mu2_e[two_muons] - mu1_e[two_muons]*mu2_pz[two_muons] ) / \
-                  ( dimuon_variables['dimuon_mass'][two_muons]*\
-                   np.sqrt(dimuon_variables['dimuon_mass'][two_muons]*dimuon_variables['dimuon_mass'][two_muons] +\
-                           dimuon_variables['dimuon_pt'][two_muons]*dimuon_variables['dimuon_pt'][two_muons]) )
+            dimuon_variables['dimuon_theta_cs'][two_muons],\
+            dimuon_variables['dimuon_phi_cs'][two_muons] = cs_variables(mu1,mu2,two_muons)
 
             mu1_variables['mu1_pt'][two_muons] = mu1[two_muons].pt.flatten()
             mu1_variables['mu1_eta'][two_muons] = mu1[two_muons].eta.flatten()
@@ -794,7 +784,7 @@ class DimuonProcessor(processor.ProcessorABC):
         weights.effect_on_normalization((category=='vbf'))
 
 #        print(df.event[(category=='vbf')&(ret_jec_loop['nominal']['variable_map']['dimuon_mass']>115)&(ret_jec_loop['nominal']['variable_map']['dimuon_mass']<135)])
-        evnum = 286624665
+        evnum = 425742024
         try:
 #            print(weights.wgts.loc[evnum,:])
 #            print(weights.wgts.mean())

@@ -9,15 +9,22 @@ class Variable(object):
 variables = []
 
 variables.append(Variable("dimuon_mass", r"$m_{\mu\mu}$ [GeV]", 50, 110, 150))
-variables.append(Variable("dimuon_mass_res", r"$\Delta M_{\mu\mu}$ [GeV]", 50, 0, 4))
-variables.append(Variable("dimuon_mass_res_rel", r"$\Delta M_{\mu\mu} / M_{\mu\mu}$ [GeV]", 50, 0, 0.04))
+variables.append(Variable("dimuon_mass_res", r"$\Delta M_{\mu\mu}$ [GeV]", 50, 0, 10))
+variables.append(Variable("dimuon_mass_res_rel", r"$\Delta M_{\mu\mu} / M_{\mu\mu}$ [GeV]", 50, 0, 0.1))
+variables.append(Variable("dimuon_ebe_mass_res", r"$\Delta M_{\mu\mu}$ [GeV]", 50, 0, 4))
+variables.append(Variable("dimuon_ebe_mass_res_rel", r"$\Delta M_{\mu\mu} / M_{\mu\mu}$ [GeV]", 50, 0, 0.04))
+
 variables.append(Variable("dimuon_pt", r"$p_{T}(\mu\mu)$ [GeV]", 50, 0, 200))
 variables.append(Variable("dimuon_eta", r"$\eta (\mu\mu)$", 50, -5, 5))
 variables.append(Variable("dimuon_phi", r"$\phi (\mu\mu)$", 50, -3.2, 3.2))
 variables.append(Variable("dimuon_dEta", r"$\Delta\eta (\mu\mu)$", 50, 0, 10))
 variables.append(Variable("dimuon_dPhi", r"$\Delta\phi (\mu\mu)$", 50, 0, 4))
 variables.append(Variable("dimuon_dR", r"$\Delta R (\mu\mu)$", 50, 0, 4))
-variables.append(Variable("dimuon_cosThetaCS", r"$\cos\theta_{CS}$", 50, 0, 1))
+#variables.append(Variable("dimuon_cosThetaCS", r"$\cos\theta_{CS}$", 50, 0, 1))
+variables.append(Variable("dimuon_cos_theta_cs", r"$\cos\theta_{CS}$", 50, 0, 1))
+variables.append(Variable("dimuon_phi_cs", r"$\phi_{CS}$", 50, 0, 6.5))
+
+
 
 variables.append(Variable("mu1_pt", r"$p_{T}(\mu_{1})$ [GeV]", 40, 20, 200))
 variables.append(Variable("mu1_pt_over_mass", r"$p_{T}(\mu_{1})/M_{\mu\mu}$ [GeV]", 50, 0, 2))
@@ -75,6 +82,7 @@ variables.append(Variable("mmjj_mass", r"$M(\mu\mu jj)$ [GeV]", 50, 0, 1200))
 variables.append(Variable("mmjj_pt", r"$p_{T}(\mu\mu jj)$ [GeV]", 50, 0, 150))
 variables.append(Variable("mmjj_eta", r"$\eta (\mu\mu jj)$", 50, -7, 7))
 variables.append(Variable("mmjj_phi", r"$\phi (\mu\mu jj)$", 50, -3.2, 3.2))
+variables.append(Variable("ll_zstar_log", r"ll_zstar_log", 50, -10, 10))
 
 variables.append(Variable("zeppenfeld", r"zeppenfeld", 50, -5, 5))
 variables.append(Variable("rpt", r"$R_{p_T}$", 50, 0, 1))
