@@ -472,7 +472,7 @@ class DimuonProcessor(processor.ProcessorABC):
             dimuon_variable_names = ['dimuon_mass', 'dimuon_mass_res', 'dimuon_mass_res_rel', 'dimuon_ebe_mass_res',\
                                      'dimuon_ebe_mass_res_rel', 'dimuon_pt', 'dimuon_eta', 'dimuon_phi', 'dimuon_dEta',\
                                      'dimuon_dPhi', 'dimuon_dR', 'dimuon_rap',\
-                                     'dimuon_theta_cs','dimuon_phi_cs']
+                                     'dimuon_cos_theta_cs','dimuon_phi_cs']
             dimuon_variables = {}
             for n in dimuon_variable_names:
                 dimuon_variables[n] = np.zeros(numevents)
@@ -501,7 +501,7 @@ class DimuonProcessor(processor.ProcessorABC):
             dimuon_variables['dimuon_mass_res'][two_muons] = dimuon_variables['dimuon_mass_res_rel'][two_muons]*\
                                                                 dimuon_variables['dimuon_mass'][two_muons]
             
-            dimuon_variables['dimuon_theta_cs'][two_muons],\
+            dimuon_variables['dimuon_cos_theta_cs'][two_muons],\
             dimuon_variables['dimuon_phi_cs'][two_muons] = cs_variables(mu1,mu2,two_muons)
 
             mu1_variables['mu1_pt'][two_muons] = mu1[two_muons].pt.flatten()
