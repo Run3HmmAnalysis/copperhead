@@ -799,7 +799,7 @@ class DimuonProcessor(processor.ProcessorABC):
 
         if self.do_pdf and is_mc and ('nominal' in self.pt_variations):
             pdf_rms = np.zeros(numevents, dtype=float)
-            if ("dy" in dataset or "ewk" in dataset or "ggh" in dataset or "vbf" in dataset):
+            if ("dy" in dataset or "ewk" in dataset or "ggh" in dataset or "vbf" in dataset) and ('mg' not in dataset):
                 pdf_wgts = df.LHEPdfWeight[:,0:self.parameters["n_pdf_variations"]]
                 if '2016' in self.year:
                     max_replicas = 0
