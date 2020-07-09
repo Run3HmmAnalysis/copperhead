@@ -72,7 +72,7 @@ datasets = {
         "dy_2j": "/store/group/local/hmm/nanoAODv6_private/FSRmyNanoProdMc2017_NANOV4b/DYJetsToLL_2J_TuneCP5_13TeV-amcatnloFXFX-pythia8/",
         "dy_m105_160_amc": "/store/group/local/hmm/nanoAODv6_private/FSRmyNanoProdMc2017_NANOV4i/DYJetsToLL_M-105To160_TuneCP5_PSweights_13TeV-amcatnloFXFX-pythia8/",
         "dy_m105_160_vbf_amc": "/store/group/local/hmm/nanoAODv6_private/FSRmyNanoProdMc2017_NANOV4b/DYJetsToLL_M-105To160_VBFFilter_TuneCP5_PSweights_13TeV-amcatnloFXFX-pythia8/",
-        "dy_m105_160_mg": "",
+        "dy_m105_160_mg": "/store/group/local/hmm/nanoAODv6_private/FSRmyNanoProdMc2017_NANOV4h/DYJetsToLL_M-105To160_TuneCP5_PSweights_13TeV-madgraphMLM-pythia8/",
         "dy_m105_160_vbf_mg": "/store/group/local/hmm/nanoAODv6_private/FSRmyNanoProdMc2017_NANOV4b/DYJetsToLL_M-105To160_VBFFilter_TuneCP5_13TeV-madgraphMLM-pythia8/",
         
         "ttjets_dl": "/store/group/local/hmm/nanoAODv6_private/FSRmyNanoProdMc2017_NANOV4a/TTTo2L2Nu_TuneCP5_PSweights_13TeV-powheg-pythia8/",
