@@ -10,7 +10,6 @@ import multiprocessing as mp
 import coffea
 from coffea import util
 import glob
-from config.parameters import training_features
 import boost_histogram as bh
 from boost_histogram import loc
 import numpy as np
@@ -19,6 +18,22 @@ from uproot_methods.classes.TH1 import from_numpy
 import matplotlib.pyplot as plt
 import mplhep as hep
 import tqdm
+
+training_features_ = ['dimuon_mass', 'dimuon_pt', 'dimuon_eta', 'dimuon_dEta', 'dimuon_dPhi', 'dimuon_dR',\
+                     'jj_mass', 'jj_eta', 'jj_phi', 'jj_pt', 'jj_dEta',\
+                     'mmjj_mass', 'mmjj_eta', 'mmjj_phi','zeppenfeld',\
+                     'jet1_pt', 'jet1_eta', 'jet1_qgl', 'jet2_pt', 'jet2_eta', 'jet2_qgl',\
+                     'dimuon_cosThetaCS',\
+                     'dimuon_mass_res_rel', 'mmj1_dEta', 'mmj1_dPhi', 'mmj2_dEta', 'mmj2_dPhi',\
+                     'htsoft5',
+                    ]
+
+# Pisa variables
+training_features = ['dimuon_mass', 'dimuon_pt', 'dimuon_pt_log', 'dimuon_eta', 'dimuon_mass_res', 'dimuon_mass_res_rel',\
+                     'dimuon_cos_theta_cs', 'dimuon_phi_cs',
+                     'jet1_pt', 'jet1_eta', 'jet1_phi', 'jet1_qgl', 'jet2_pt', 'jet2_eta', 'jet2_phi', 'jet2_qgl',\
+                     'jj_mass', 'jj_mass_log', 'jj_dEta', 'rpt', 'll_zstar_log', 'mmj_min_dEta', 'nsoftjets5', 'htsoft2'
+                    ]
 
 grouping = {
     'data_A': 'Data',
@@ -108,6 +123,11 @@ def postprocess(args, parallelize=True):
     hist_dfs = {}
     edges_dict = {}
     path = args['in_path']
+    if args['year'] == '':
+        print('Loading samples for ALL years')
+        years = ['2016','2017','2018']
+    else:
+        years = [args['year']]
     argsets = []
     all_training_samples = []
     classes_dict = {}
@@ -117,20 +137,20 @@ def postprocess(args, parallelize=True):
             for smp in sm:
                 classes_dict[smp] = cl
     args.update({'classes_dict':classes_dict})
-
-    for s in args['samples']:
-        if (s in grouping.keys()) and (('dy' in s) or ('ewk' in s) or ('vbf' in s) or ('ggh' in s)):
-            variations = args['syst_variations']
-        else:
-            variations = ['nominal']
-        for v in variations:
-            proc_outs = glob.glob(f"{path}/nominal/{s}.coffea") if v=='nominal' else glob.glob(f"{path}/{v}/{s}.coffea")
-            for proc_path in proc_outs:
-                for c in args['channels']:
-                    for r in args['regions']:
-                        argset = args.copy()
-                        argset.update(**{'proc_path':proc_path,'s':s,'c':c,'r':r,'v':v})
-                        argsets.append(argset)
+    for year in years:
+        for s in args['samples']:
+            if (s in grouping.keys()) and (('dy' in s) or ('ewk' in s) or ('vbf' in s) or ('ggh' in s)):
+                variations = args['syst_variations']
+            else:
+                variations = ['nominal']
+            for v in variations:
+                proc_outs = glob.glob(f"{path}/{year}_{args['label']}/{v}/{s}.coffea")
+                for proc_path in proc_outs:
+                    for c in args['channels']:
+                        for r in args['regions']:
+                            argset = args.copy()
+                            argset.update(**{'proc_path':proc_path,'s':s,'c':c,'r':r,'v':v,'y':year})
+                            argsets.append(argset)
     if len(argsets)==0:
         print("Nothing to load! Check the arguments.")
         sys.exit(0)
@@ -184,6 +204,7 @@ def to_pandas(args):
     r = args['r']
     s = args['s']
     v = args['v']
+    year = args['y']
     suff = f'_{c}_{r}'
 
     groups = ['DY_nofilter', 'DY_filter', 'EWK', 'TT+ST', 'VV', 'ggH', 'VBF']
@@ -210,8 +231,8 @@ def to_pandas(args):
         for syst, decorr in decorrelation_scheme.items():
             if s not in grouping.keys(): continue
             if 'data' in s: continue
-            if ('2016' in args['year']) and ('pdf_2rms' in var): continue
-            if ('2016' not in args['year']) and ('pdf_mcreplica' in var): continue
+            if ('2016' in year) and ('pdf_2rms' in var): continue
+            if ('2016' not in year) and ('pdf_mcreplica' in var): continue
             if syst in var:
                 if 'off' in var: continue
                 suff = ''
@@ -244,6 +265,7 @@ def to_pandas(args):
     df['r'] = r
     df['s'] = s
     df['v'] = v
+    df['year'] = int(year)
     if args['training']:
         if s in args['classes_dict'].keys():
             df['cls'] = args['classes_dict'][s]
@@ -255,6 +277,17 @@ def to_pandas(args):
             df = df[df['event'].isin(args['extra_events'])]
     return df
 
+def prepare_features(df, args, add_year=False):
+    global training_features
+    df['dimuon_pt_log'] = np.log(df['dimuon_pt'])
+    df['jj_mass_log'] = np.log(df['jj_mass'])
+    if add_year and ('year' not in training_features):
+        training_features+=['year']
+    for trf in training_features:
+        if trf not in df.columns:
+            print(f'Variable {trf} not found in training dataframe!')
+    return df
+    
 def dnn_training(df, args):
     from tensorflow.keras.models import Model
     from tensorflow.keras.layers import Dense, Activation, Input, Dropout, Concatenate, Lambda, BatchNormalization
@@ -271,10 +304,15 @@ def dnn_training(df, args):
     nfolds = 4
     classes = df.cls.unique()
     cls_idx_map = {cls:idx for idx,cls in enumerate(classes)}
+    add_year = (args['year']=='')
+    df = prepare_features(df, args, add_year)
     df['cls_idx'] = df['cls'].map(cls_idx_map)
-
-    for i in range(nfolds):    
-        label = f"{args['year']}_{args['label']}_{i}"
+    print("Training features: ", training_features)
+    for i in range(nfolds):
+        if args['year']=='':
+            label = f"allyears_{args['label']}_{i}"
+        else:
+            label = f"{args['year']}_{args['label']}_{i}"
         
         train_folds = [(i+f)%nfolds for f in [0,1]]
         val_folds = [(i+f)%nfolds for f in [2]]
@@ -284,7 +322,8 @@ def dnn_training(df, args):
         print(f"Training folds: {train_folds}")
         print(f"Validation folds: {val_folds}")
         print(f"Evaluation folds: {eval_folds}")
-        
+        print(f"Samples used: ",df.s.unique())
+
         train_filter = df.event.mod(nfolds).isin(train_folds)
         val_filter = df.event.mod(nfolds).isin(val_folds)
         eval_filter = df.event.mod(nfolds).isin(eval_folds)
@@ -299,10 +338,17 @@ def dnn_training(df, args):
         x_val = df_val[training_features]
         y_val = df_val['cls_idx']
 
+        df_train['cls_avg_wgt'] = 1.0
+        df_val['cls_avg_wgt'] = 1.0
         for icls, cls in enumerate(classes):
             train_evts = len(y_train[y_train==icls])
+            df_train.loc[y_train==icls,'cls_avg_wgt'] = df_train.loc[y_train==icls,'wgt_nominal'].values.mean()
+            df_val.loc[y_val==icls,'cls_avg_wgt'] = df_val.loc[y_val==icls,'wgt_nominal'].values.mean()
             print(f"{train_evts} training events in class {cls}")
 
+        df_train['training_wgt'] = df_train['wgt_nominal']/df_train['cls_avg_wgt']
+        df_val['training_wgt'] = df_val['wgt_nominal']/df_val['cls_avg_wgt']
+        
         # scale data
         x_train, x_val = scale_data(training_features, label)
         x_train[other_columns] = df_train[other_columns]
@@ -326,9 +372,11 @@ def dnn_training(df, args):
         model.compile(loss='binary_crossentropy', optimizer='adam', metrics=["accuracy"])
         model.summary()
 
-        history = model.fit(x_train[training_features], y_train, epochs=100, batch_size=2048, verbose=1,
-                                            validation_data=(x_val[training_features], y_val), shuffle=True)
+        history = model.fit(x_train[training_features], y_train, epochs=100, batch_size=1024,\
+                            sample_weight=df_train['training_wgt'].values, verbose=1,\
+                            validation_data=(x_val[training_features], y_val, df_val['training_wgt'].values), shuffle=True)
 
+        util.save(history.history, f"output/trained_models/history_{label}.coffea")
         model.save(f"output/trained_models/test_{label}.h5")        
 
 def dnn_evaluation(df, args):
@@ -345,12 +393,17 @@ def dnn_evaluation(df, args):
     sess = tf.compat.v1.Session(config=config)
     if args['do_massscan']:
         mass_shift = args['mass']-125.0
+    add_year = args['evaluate_allyears_dnn']
+    df = prepare_features(df, args, add_year)
     df['dnn_score'] = 0
     with sess:
         nfolds = 4
-        for i in range(nfolds):    
-            label = f"{args['year']}_{args['label']}_{i}"
-        
+        for i in range(nfolds):
+            if args['evaluate_allyears_dnn']:
+                label = f"allyears_{args['label']}_{i}"
+            else:
+                label = f"{args['year']}_{args['label']}_{i}"
+
             train_folds = [(i+f)%nfolds for f in [0,1]]
             val_folds = [(i+f)%nfolds for f in [2]]
             eval_folds = [(i+f)%nfolds for f in [3]]
@@ -373,50 +426,35 @@ def dnn_evaluation(df, args):
     return df
 
 def dnn_rebin(dfs, args):
+    # Synchronize per-bin VBF yields with Pisa datacards
     df = pd.concat(dfs)
     df = df[(df.s=='vbf_powheg_dipole')&(df.r=='h-peak')]
     cols = ['c','r','v','s', 'wgt_nominal','dnn_score']
     df = df[cols]
     df = df.sort_values(by=['dnn_score'], ascending=False)
     bnd = {}
+    target_yields = {
+        '2016':[0.39578,0.502294,0.511532,0.521428,0.529324,0.542333,0.550233,0.562859,0.572253,0.582248,0.588619,0.596933,0.606919],
+        '2017':[0.460468,0.559333,0.578999,0.578019,0.580368,0.585521,0.576521,0.597367,0.593959,0.59949,0.595802,0.596376,0.57163],
+        '2018':  [0.351225,1.31698,1.25503,1.18703,1.12262,1.06208,0.995618,0.935661,0.86732,0.80752,0.73571,0.670533,0.608029]
+    }
     for c in df.c.unique():
         bnd[c] = {}
         for v in df.v.unique():
-            df_ = df[(df.c==c)&(df.v==v)]
             bin_sum = 0
-            bin_number = 0
             boundaries = []
-            y0 = 0.6
-            bw0 = 0
-            Y = df_['wgt_nominal'].sum()
-#            increment = 2*(Y-y0*N)/(N*(N+1))
-            counter = 0
+            idx_left = 0
+            idx_right = len(target_yields[args['year']])-1
             max_dnn = 2
-            for idx, row in df_.iterrows():
-                if counter==0: max_dnn = row['dnn_score']
+            for idx, row in df[(df.c==c)&(df.v==v)].iterrows():
                 bin_sum += row['wgt_nominal']
-                counter+=1
-                if bin_sum>=y0:
-                    y = round(row['dnn_score'],3)
-                    boundaries.append(y)
+                if bin_sum>=target_yields[args['year']][idx_right]:
+                    boundaries.append(round(row['dnn_score'],3))
                     bin_sum = 0
-                    if bin_number==0:
-                        b0 = y
-                    bin_number+=1
-                    break
-            max_dnn = df_.iloc[0,:]['dnn_score']
-            N=13
-            bw = max_dnn-b0
-            increment = 2*(max_dnn-bw*N)/(N*(N-1))
-            b = b0
-            for i in range(1,N-1):
-                b = b-bw-i*increment
-                boundaries.append(round(b,3))
-
-#            bnd[c][v] = sorted([0,round(max_dnn,3)]+boundaries)
-            bnd[c][v] = sorted([0, max_dnn]+boundaries)
+                    idx_left+=1
+                    idx_right-=1
+            bnd[c][v] = sorted([0,2.8]+boundaries)
     return bnd
-                        
 
 def get_hists(df, var, args, bins=[]):
     dataset_axis = bh.axis.StrCategory(df.s.unique())
@@ -443,7 +481,7 @@ def get_hists(df, var, args, bins=[]):
             wgts = [c for c in df.columns if ('wgt_' in c)]
         
         mcreplicas = [c for c in df.columns if ('mcreplica' in c)]
-#        mcreplicas = []
+        mcreplicas = []
         if len(mcreplicas)>0:
             wgts = [wgt for wgt in wgts if ('pdf_2rms' not in wgt)]
         if len(mcreplicas)>0 and ('wgt_nominal' in df.columns) and (s in grouping.keys()):
@@ -722,7 +760,10 @@ def prepare_root_files(var, edges, args):
             if args['do_massscan']:
                 out_fn = f'combine_new/massScan/{mass_point}/{args["year"]}_{args["label"]}/shapes_{cgroup}_{r}.root'
             out_file = uproot.recreate(out_fn)
-            data_hist, data_sumw2 = np.load(f'{tdir}/Data/{r}_{args["year"]}_data_obs.npy',allow_pickle=True)
+            if args['do_massscan']:
+                data_hist, data_sumw2 = np.load(f'{tdir_nominal}/Data/{r}_{args["year"]}_data_obs.npy',allow_pickle=True)
+            else:
+                data_hist, data_sumw2 = np.load(f'{tdir}/Data/{r}_{args["year"]}_data_obs.npy',allow_pickle=True)
             th1_data = from_numpy([data_hist, edges])
             th1_data._fName = 'data_obs'
             th1_data._fSumw2 = np.array(data_sumw2)
@@ -996,6 +1037,7 @@ def plot(var, hists, edges, args, r='', save=True, blind=True, show=False, plots
                 'bkg_sumw2':  bkg_sumw2 }
     
     ret_nominal = get_shapes_for_option(hist,'nominal','wgt_nominal')
+    ret_nnlops_off = get_shapes_for_option(hist,'nominal','wgt_nnlops_off')
     data       = ret_nominal['data']
     data_sumw2 = ret_nominal['data_sumw2'][1:]
 
@@ -1008,6 +1050,10 @@ def plot(var, hists, edges, args, r='', save=True, blind=True, show=False, plots
     vbf_sumw2  = ret_nominal['vbf_sumw2'][1:]
     ggh        = ret_nominal['ggh']
     ggh_sumw2  = ret_nominal['ggh_sumw2'][1:]
+    
+    ggh_nnlops_off = ret_nnlops_off['ggh']
+    ggh_sumw2_nnlops_off  = ret_nnlops_off['ggh_sumw2'][1:]
+
     
 #    ewk        = ret_nominal['ewk']
 #    ewk_sumw2  = ret_nominal['ewk_sumw2'][1:]
@@ -1080,9 +1126,13 @@ def plot(var, hists, edges, args, r='', save=True, blind=True, show=False, plots
 
     if ggh.sum():
         ax_ggh = hep.histplot(ggh, edges, label='ggH', histtype='step', **{'linewidth':3, 'color':'lime'})
+    #if ggh_nnlops_off.sum():
+    #    ax_ggh = hep.histplot(ggh_nnlops_off, edges, label='ggH NNLOPS off', histtype='step', **{'linewidth':3, 'color':'violet'})
+
+
     if vbf.sum():
         ax_vbf = hep.histplot(vbf, edges, label='VBF', histtype='step', **{'linewidth':3, 'color':'aqua'})
-    if data.sum() and (not blind or var.name!='dimuon_mass'):
+    if data.sum():
         ax_data = hep.histplot(data, edges_data, label='Data', histtype='errorbar', yerr=np.sqrt(data), **data_opts)
     
     max_variation_up = bkg_total.sum()

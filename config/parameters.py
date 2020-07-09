@@ -1,14 +1,3 @@
-training_features = ['dimuon_mass', 'dimuon_pt', 'dimuon_eta', 'dimuon_dEta', 'dimuon_dPhi', 'dimuon_dR',\
-                     'jj_mass', 'jj_eta', 'jj_phi', 'jj_pt', 'jj_dEta',\
-                     'mmjj_mass', 'mmjj_eta', 'mmjj_phi','zeppenfeld',\
-                     'jet1_pt', 'jet1_eta', 'jet1_qgl', 'jet2_pt', 'jet2_eta', 'jet2_qgl',\
-                     'dimuon_cosThetaCS',\
-                     'dimuon_mass_res_rel', 'mmj1_dEta', 'mmj1_dPhi', 'mmj2_dEta', 'mmj2_dPhi',\
-                     'htsoft5',
-                    ]
-
-
-
 def for_all_years(value):
     out = {k:value for k in ["2016", "2017", "2018"]}
     return out

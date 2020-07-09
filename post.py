@@ -7,8 +7,8 @@ from config.datasets import datasets
 import pandas as pd
 
 parser = argparse.ArgumentParser()
-parser.add_argument("-y", "--year", dest="year", default=2016, action='store')
-parser.add_argument("-l", "--label", dest="label", default="apr23", action='store')
+parser.add_argument("-y", "--year", dest="year", default='', action='store')
+parser.add_argument("-l", "--label", dest="label", default="jun16", action='store')
 parser.add_argument("-t", "--dnn_training", action='store_true')
 parser.add_argument("-r", "--dnn_rebin", action='store_true')
 parser.add_argument("-dnn", "--dnn_evaluation", action='store_true')
@@ -25,6 +25,10 @@ if int(args.dnn_training)+int(args.dnn_rebin)+int(args.dnn_evaluation)+int(args.
     print("-dnn --dnn_evaluation")
     print("-dc --datacards")
     print("-p --plot")
+    sys.exit()
+
+if (args.year=='') and not args.dnn_training:
+    print("Year must be specified! Merging data from different years is only allowed for DNN training.")
     sys.exit()
 
 if args.dnn_training and (args.dnn_evaluation or args.datacards or args.plot):
@@ -47,21 +51,47 @@ if args.plot and (args.dnn_training or args.dnn_rebin or args.datacards):
     print("Can't combine 'datacards' option with 'training', 'rebin' or 'datacards'!")
     sys.exit()
 
-#to_plot = ['dimuon_mass', 'dimuon_pt', 'mu1_pt', 'jet1_pt', 'jet1_eta', 'jet2_pt', 'jet2_eta', 'dnn_score']
-to_plot = ['dimuon_mass', 'dnn_score']
+to_plot = ['dimuon_mass', 'dimuon_pt', 'mu1_pt', 'jet1_pt', 'jet1_eta', 'jet2_pt', 'jet2_eta', 'dnn_score']
+#to_plot = ['dimuon_mass', 'dnn_score']
 
 vars_to_plot = {v.name:v for v in variables if v.name in to_plot}
 #vars_to_plot = {v.name:v for v in variables}
 
 myvar = [v for v in variables if v.name == 'dnn_score'][0] # variable for templates and datacards
 
-dnn_bins_all = {
-    '2016':[0, 0.087, 0.34, 0.577, 0.787, 0.977, 1.152, 1.316, 1.475, 1.636, 1.801, 1.984, 2.44],
-    '2017':[0, 0.061, 0.414, 0.694, 0.912, 1.093, 1.254, 1.402, 1.541, 1.672, 1.792, 1.906, 2.004, 2.102],
-    '2018':[0, 0.005, 0.096, 0.216, 0.336, 0.45, 0.555, 0.652, 0.744, 0.834, 0.921, 1.007, 1.094, 1.184, 1.276, 1.374, 1.479, 1.591, 1.713, 1.859, 2.249]
-    }
-dnn_bins = dnn_bins_all[args.year]
+# old
+#dnn_bins_all = {
+#    '2016': [0, 0.188, 0.371, 0.548, 0.718, 0.883, 1.043, 1.196, 1.343, 1.485, 1.62, 1.75, 1.874, 2.3],
+#    '2017': [0, 0.23, 0.449, 0.657, 0.853, 1.038, 1.211, 1.373, 1.523, 1.662, 1.789, 1.905, 2.01, 2.3],
+#    '2018': [0, 0.22, 0.43, 0.63, 0.82, 0.999, 1.168, 1.327, 1.476, 1.614, 1.742, 1.86, 1.968, 2.3]
+#    }
 
+# old variables, new binning
+dnn_bins_all_ = {
+    '2016': [0, 0.152, 0.368, 0.571, 0.759, 0.932, 1.096, 1.25, 1.396, 1.534, 1.661, 1.775, 1.873, 2.3],
+    '2017': [0, 0.295, 0.593, 0.83, 1.017, 1.181, 1.329, 1.464, 1.593, 1.712, 1.824, 1.926, 2.012, 2.3],
+    '2018': [0, 0.065, 0.447, 0.735, 0.958, 1.147, 1.318, 1.473, 1.614, 1.736, 1.837, 1.915, 1.967, 2.3]
+    }
+
+# new variables, new binning
+dnn_bins_all_ = {
+    '2016': [0, 0.172, 0.405, 0.613, 0.8, 0.973, 1.138, 1.29, 1.434, 1.573, 1.704, 1.818, 1.919, 2.3],
+    '2017': [0, 0.312, 0.622, 0.86, 1.051, 1.219, 1.373, 1.514, 1.649, 1.774, 1.888, 1.989, 2.086, 2.3],
+    '2018': [0, 0.064, 0.425, 0.705, 0.928, 1.12, 1.291, 1.445, 1.588, 1.717, 1.831, 1.916, 1.964, 2.3]
+    }
+
+# new variables, new binning, DNN trained with mix of all years, using event weights and input samples sync w/ Pisa
+dnn_bins_all = {
+    '2016': [0, 0.301, 0.675, 0.974, 1.224, 1.45, 1.657, 1.846, 2.022, 2.187, 2.335, 2.438, 2.502, 2.8],
+    '2017': [0, 0.333, 0.706, 1.006, 1.257, 1.482,1.685, 1.868, 2.043, 2.204, 2.349, 2.443, 2.505, 2.8],
+    '2018': [0, 0.108, 0.7,   1.104, 1.416, 1.67, 1.879, 2.059, 2.219, 2.35,  2.435, 2.483, 2.513, 2.8]
+    }
+
+dnn_bins = dnn_bins_all[args.year] if args.year else []
+
+samples_ = [
+    'ggh_amcPS'
+]
 samples = [
     'data_A',
     'data_B',
@@ -76,6 +106,7 @@ samples = [
     'ewk_lljj_mll105_160_ptj0',
     'ewk_lljj_mll105_160',
     'ewk_lljj_mll105_160_py',
+    'ewk_lljj_mll105_160_py_dipole',
     'ttjets_dl',
     'ttjets_sl',
     'ttz',
@@ -92,23 +123,22 @@ samples = [
 ]
 
 training_samples = {
-    'background': ['dy_m105_160_amc', 'dy_m105_160_vbf_amc', 'ewk_lljj_mll105_160_ptj0'],#, 'ttjets_dl'],
-    'signal': ['ggh_amcPS','vbf_powhegPS', 'vbf_powheg_herwig'],
+    'background': ['dy_m105_160_mg', 'dy_m105_160_vbf_mg', 'ewk_lljj_mll105_160_ptj0', 'ttjets_dl', 'ttjets_sl'],
+    'signal': ['vbf_powhegPS'],
 }
 all_training_samples = []
 for k,v in training_samples.items():
     all_training_samples.extend(v)
-
     
 pt_variations = []
 pt_variations += ['nominal']
 pt_variations += ['Absolute', f'Absolute{args.year}']
-#pt_variations += ['BBEC1', f'BBEC1{args.year}']
-#pt_variations += ['EC2', f'EC2{args.year}']
-#pt_variations += ['FlavorQCD']
-#pt_variations += ['HF',f'HF{args.year}']
-#pt_variations += ['RelativeBal', f'RelativeSample{args.year}']
-#pt_variations += ['jer1','jer2','jer3','jer4','jer5','jer6']
+pt_variations += ['BBEC1', f'BBEC1{args.year}']
+pt_variations += ['EC2', f'EC2{args.year}']
+pt_variations += ['FlavorQCD']
+pt_variations += ['HF',f'HF{args.year}']
+pt_variations += ['RelativeBal', f'RelativeSample{args.year}']
+pt_variations += ['jer1','jer2','jer3','jer4','jer5','jer6']
 
 all_pt_variations = []
 for ptvar in pt_variations:
@@ -136,7 +166,7 @@ if args.dnn_training:
     options += ['dnn_training']
 if args.dnn_rebin:
     modules = add_modules(modules,['to_pandas', 'dnn_evaluation'])
-    if not args.dnn_training: samples = ['vbf_powhegPS']
+    if not args.dnn_training: samples = ['vbf_powheg_dipole', 'ggh_amcPS']
     options += ['dnn_rebin']
 if args.dnn_evaluation:
     modules = add_modules(modules,['to_pandas', 'dnn_evaluation', 'get_hists'])
@@ -155,7 +185,8 @@ postproc_args = {
     'modules': modules,
     'year': args.year,
     'label': args.label,
-    'in_path': f'/depot/cms/hmm/coffea/{args.year}_{args.label}/',
+    'in_path': f'/depot/cms/hmm/coffea/',
+    'evaluate_allyears_dnn': True,
     'syst_variations': all_pt_variations,
     'out_path': 'plots_new/',
     'samples':samples,
@@ -167,7 +198,9 @@ postproc_args = {
     'wgt_variations': True,
     'training': args.dnn_training,
     'do_jetsyst': args.jetsyst,
-    'dnn_bins': dnn_bins
+    'dnn_bins': dnn_bins,
+    'do_massscan': False,
+    'mass': 125.0,
 }
 
 print(f"Start!")
@@ -179,7 +212,7 @@ if load_unbinned_data:
     for ptvar in all_pt_variations:
         postproc_args['syst_variations'] = [ptvar]
         print(f"Processing pt variation: {ptvar}")
-        print(f"Getting unbinned data (may take long)...")
+        print(f"Getting unbinned data...")
         dfs, hist_dfs, edges = postprocess(postproc_args, not args.iterative)
 
         if args.dnn_training:
@@ -197,6 +230,7 @@ if load_unbinned_data:
             sys.exit()
     
         hist = {}
+#        print(hist_dfs)
         for var, hists in hist_dfs.items():
             print(f"Concatenating histograms: {var}")
             hist[var] = pd.concat(hists, ignore_index=True)
@@ -216,6 +250,7 @@ if args.datacards:
 if args.plot:
     for vname, var in vars_to_plot.items():
         print(f"Plotting: {vname}")
+        plot(var, hist, edges[vname], postproc_args)
         for r in postproc_args['regions']:
             plot(var, hist, edges[vname], postproc_args, r)
 
