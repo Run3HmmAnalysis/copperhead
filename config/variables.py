@@ -98,6 +98,7 @@ variables.append(Variable("npv", "npv", 50, 0, 50))
 variables.append(Variable("nTrueInt", "nTrueInt", 50, 0, 50))
 variables.append(Variable("met", r"$E_{T}^{miss.}$ [GeV]", 50, 0, 200))
 
+variables.append(Variable("bdt_score", r"BDT score", 50, 0, 2.1))
 variables.append(Variable("dnn_score", r"DNN score", 50, 0, 2.1))
 variables.append(Variable("btag_wgt", r"b-tag weight", 50, 0, 2))
 

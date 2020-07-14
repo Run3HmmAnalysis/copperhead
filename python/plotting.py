@@ -337,6 +337,8 @@ class Plotter(object):
         plt1.set_xlabel('')
         if 'dnn_score' in var:
             plt1.set_xlim(0, parameters["dnn_max"][year])
+        if 'bdt_score' in var:
+            plt1.set_xlim(0, parameters["dnn_max"][year])
         elif 'dimuon_mass' not in var:
             plt1.set_xlim(variable.xmin, variable.xmax)
         plt1.tick_params(axis='x', labelbottom=False)
