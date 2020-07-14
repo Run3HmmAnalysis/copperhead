@@ -645,8 +645,8 @@ class DimuonProcessor(processor.ProcessorABC):
                     continue
                 pt_name_up = f"pt_{jer_unc_name}_up"
                 pt_name_down = f"pt_{jer_unc_name}_down"
-                jet_pt_up = jet_pt_jec
-                jet_pt_down = jet_pt_jec                               
+                jet_pt_up = copy.deepcopy(jet_pt_jec)
+                jet_pt_down = copy.deepcopy(jet_pt_jec)
                 jet_pt_up[jer_cut] = jet_pt_jec_jer[jer_cut]
                 jet_pt_down[jer_cut] = jet_pt_jer_down[jer_cut]
                 jets.add_attributes(**{pt_name_up: jet_pt_up, pt_name_down: jet_pt_down})
