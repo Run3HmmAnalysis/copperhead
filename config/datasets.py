@@ -45,10 +45,11 @@ datasets = {
         "ewk_lljj_mll105_160_ptj0": "/store/group/local/hmm/FSRNANO2016MCV8g_06May2020/EWK_LLJJ_MLL_105-160_SM_5f_LO_TuneEEC5_13TeV-madgraph-herwigpp_corrected/",
 
         "ewk_lljj_mll105_160_py_dipole": "/store/group/local/hmm/FSRNANO2016MCV8i/EWK_LLJJ_MLL_105-160_TuneCP5_13TeV-madgraph-pythia_dipole/",        
-        
+
+        "ggh_amc": "",
         "ggh_amcPS": "/store/group/local/hmm/FSRNANO2016MCV8c/GluGluHToMuMu_M125_TuneCP5_PSweights_13TeV_amcatnloFXFX_pythia8/",
         "ggh_powhegPS": "/store/group/local/hmm/FSRNANO2016MCV8a_06May2020/GluGluHToMuMu_M-125_TuneCP5_PSweights_13TeV_powheg_pythia8/",
-        
+        "vbf_powheg":"/store/group/local/hmm/FSRNANO2016MCV8a_06May2020/VBF_HToMuMu_M125_13TeV_powheg_pythia8/",
         "vbf_powhegPS" : "/store/group/local/hmm/FSRNANO2016MCV8a_06May2020/VBFHToMuMu_M-125_TuneCP5_PSweights_13TeV_powheg_pythia8/",
         "vbf_powheg_herwig" : "/store/group/local/hmm/FSRNANO2016MCV8h_06May2020/VBFHToMuMu_M-125_TuneCP5_13TeV-powheg-herwigpp/",
         "vbf_powheg_dipole" : "/store/group/local/hmm/FSRNANO2016MCV8h_06May2020/VBFHToMuMu_M-125_TuneCP5_13TeV-powheg-pythia_dipole/",
@@ -108,10 +109,12 @@ datasets = {
         "ewk_lljj_mll105_160_py": "/store/group/local/hmm/nanoAODv6_private/FSRmyNanoProdMc2017_NANOV4a/EWK_LLJJ_MLL-50_MJJ-120_TuneCP5_PSweights_13TeV-madgraph-pythia8/",        
         "ewk_lljj_mll105_160_ptj0" : "/store/group/local/hmm/FSRmyNanoProdMc2017_NANOV8g_06May2020/EWK_LLJJ_MLL_105-160_SM_5f_LO_TuneCH3_13TeV-madgraph-herwig7_corrected/",        
 
-        "ewk_lljj_mll105_160_py_dipole": "/store/group/local/hmm/FSRmyNanoProdMc2017_NANOV8i/EWK_LLJJ_MLL_105-160_TuneCP5_13TeV-madgraph-pythia_dipole/",         
-        
-        "ggh_amcPS": "/store/group/local/hmm/FSRmyNanoProdMc2017_NANOV8a//GluGluHToMuMu_M125_TuneCP5_PSweights_13TeV_amcatnloFXFX_pythia8/",
+        "ewk_lljj_mll105_160_py_dipole": "/store/group/local/hmm/FSRmyNanoProdMc2017_NANOV8i/EWK_LLJJ_MLL_105-160_TuneCP5_13TeV-madgraph-pythia_dipole/",
+
+        "ggh_amc": "/store/group/local/hmm/FSRmyNanoProdMc2017_NANOV8a/GluGluHToMuMu_M125_13TeV_amcatnloFXFX_pythia8/",
+        "ggh_amcPS": "/store/group/local/hmm/FSRmyNanoProdMc2017_NANOV8a/GluGluHToMuMu_M125_TuneCP5_PSweights_13TeV_amcatnloFXFX_pythia8/",
         "ggh_powhegPS": "/store/group/local/hmm/FSRmyNanoProdMc2017_NANOV8a//GluGluHToMuMu_M-125_TuneCP5_PSweights_13TeV_powheg_pythia8/",
+        "vbf_powheg": "",
         "vbf_powhegPS": "/store/group/local/hmm/FSRmyNanoProdMc2017_NANOV8a/VBFHToMuMu_M-125_TuneCP5_PSweights_13TeV_powheg_pythia8/",
         "vbf_powheg_herwig":"/store/group/local/hmm/FSRmyNanoProdMc2017_NANOV8h_06May2020/VBFHToMuMu_M-125_TuneCP5_13TeV-powheg-herwig7_fixed/",
         "vbf_powheg_dipole":"/store/group/local/hmm/FSRmyNanoProdMc2017_NANOV8h_06May2020/VBFHToMuMu_M-125_TuneCP5_13TeV-powheg-pythia_dipole/",
@@ -165,10 +168,11 @@ datasets = {
         "ewk_lljj_mll105_160_ptj0": "/store/group/local/hmm/FSRnano18MC_NANOV10b/EWK_LLJJ_MLL_105-160_SM_5f_LO_TuneCH3_13TeV-madgraph-herwig7_corrected/",
 
         "ewk_lljj_mll105_160_py_dipole": "/store/group/local/hmm/FSRnano18MC_NANOV10c/EWK_LLJJ_MLL_105-160_TuneCP5_13TeV-madgraph-pythia_dipole/",        
-        
+
+        "ggh_amc": "",
         "ggh_amcPS": "/store/group/local/hmm/FSRnano18MC_NANOV10b/GluGluHToMuMu_M125_TuneCP5_PSweights_13TeV_amcatnloFXFX_pythia8//",
         "ggh_powhegPS": "/store/group/local/hmm/FSRnano18MC_NANOV10b/GluGluHToMuMu_M-125_TuneCP5_PSweights_13TeV_powheg_pythia8/",
-        
+        "vbf_powheg":"",
         "vbf_powhegPS": "/store/group/local/hmm/FSRnano18MC_NANOV10b/VBFHToMuMu_M-125_TuneCP5_PSweights_13TeV_powheg_pythia8/",
         "vbf_powheg_herwig": "/store/group/local/hmm/FSRnano18MC_NANOV10b/VBFHToMuMu_M-125_TuneCP5_13TeV-powheg-herwig7/",
         "vbf_powheg_dipole": "/store/group/local/hmm/FSRnano18MC_NANOV10b/VBFHToMuMu_M-125_TuneCP5_13TeV-powheg-pythia_dipole_fixed/",
