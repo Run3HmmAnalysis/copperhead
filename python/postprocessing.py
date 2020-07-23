@@ -19,6 +19,8 @@ from uproot_methods.classes.TH1 import from_numpy
 import matplotlib.pyplot as plt
 import mplhep as hep
 import tqdm
+from sklearn.metrics import roc_curve
+from math import sqrt
 
 training_features_ = ['dimuon_mass', 'dimuon_pt', 'dimuon_eta', 'dimuon_dEta', 'dimuon_dPhi', 'dimuon_dR',\
                      'jj_mass', 'jj_eta', 'jj_phi', 'jj_pt', 'jj_dEta',\
@@ -62,6 +64,7 @@ grouping = {
     'wz_2l2q': 'VV',
     'wz_1l1nu2q': 'VV',
     'wz_3lnu': 'VV',
+    'zz': 'VV',
     'www': 'VVV',
     'wwz': 'VVV',
     'wzz': 'VVV',
@@ -69,6 +72,8 @@ grouping = {
     'ggh_amcPS': 'ggH',
     'vbf_powheg_dipole': 'VBF',
 }
+
+signal = {'vbf_powhegPS','vbf_powheg_herwig','vbf_powheg_dipole', 'ggh_amcPS',}
 
 rate_syst_lookup = {
     '2016':{
@@ -248,10 +253,6 @@ def to_pandas(args):
                     except:
                         df[f'{vname}_{dec_group}{suff}'] = proc_out[f'wgt_nominal_{c}_{r}'].value
                     done = True
-                    
-#        if ('ggh' in s) and ('wgt_nominal' in var):
-#            df[var] = proc_out[f'wgt_nnlops_off_{c}_{r}'].value
-#            done = True
 
         if not done:
             try:
@@ -272,7 +273,11 @@ def to_pandas(args):
             df['cls'] = args['classes_dict'][s]
         else:
             df['cls'] = ''
-
+    else:
+        if s in signal:
+            df['cls'] = 'signal'
+        else:
+            df['cls'] = 'background'
     if ('extra_events' in args.keys()) and ('plot_extra' in args.keys()):
         if ('data' in s) and (args['plot_extra']):
             df = df[df['event'].isin(args['extra_events'])]
@@ -292,17 +297,17 @@ def prepare_features(df, args, add_year=False):
             print(f'Variable {trf} not found in training dataframe!')
     return df, features
     
-def dnn_training(df, args):
+def dnn_training(df, args, model):
     from tensorflow.keras.models import Model
     from tensorflow.keras.layers import Dense, Activation, Input, Dropout, Concatenate, Lambda, BatchNormalization
     from tensorflow.keras import backend as K
 
-    def scale_data(inputs, model_id, label):
+    def scale_data(inputs, model, label):
         x_mean = np.mean(x_train[inputs].values,axis=0)
         x_std = np.std(x_train[inputs].values,axis=0)
         training_data = (x_train[inputs]-x_mean)/x_std
         validation_data = (x_val[inputs]-x_mean)/x_std
-        np.save(f"output/trained_models/{model_id}/scalers_{label}", [x_mean, x_std])
+        np.save(f"output/trained_models/{model}/scalers_{label}", [x_mean, x_std])
         return training_data, validation_data
 
     nfolds = 4
@@ -311,6 +316,12 @@ def dnn_training(df, args):
     add_year = (args['year']=='')
     df, features = prepare_features(df, args, add_year)
     df['cls_idx'] = df['cls'].map(cls_idx_map)
+    
+    try:
+        os.mkdir(f"output/trained_models/{model}/")
+    except:
+        pass
+    
     print("Training features: ", features)
     for i in range(nfolds):
         if args['year']=='':
@@ -362,50 +373,52 @@ def dnn_training(df, args):
 
         
         # scale data
-        x_train, x_val = scale_data(features, args['dnn_model'], label)
+        x_train, x_val = scale_data(features, model, label)
         x_train[other_columns] = df_train[other_columns]
         x_val[other_columns] = df_val[other_columns]
 
         # load model
         input_dim = len(features)
         inputs = Input(shape=(input_dim,), name = label+'_input')
-        x = Dense(100, name = label+'_layer_1', activation='tanh')(inputs)
+        x = Dense(128, name = label+'_layer_1', activation='tanh')(inputs)
         x = Dropout(0.2)(x)
         x = BatchNormalization()(x)
-        x = Dense(100, name = label+'_layer_2', activation='tanh')(x)
+        x = Dense(64, name = label+'_layer_2', activation='tanh')(x)
         x = Dropout(0.2)(x)
         x = BatchNormalization()(x)
-        x = Dense(100, name = label+'_layer_3', activation='tanh')(x)
+        x = Dense(32, name = label+'_layer_3', activation='tanh')(x)
         x = Dropout(0.2)(x)
         x = BatchNormalization()(x)
+#        x = Dense(8, name = label+'_layer_4', activation='tanh')(x)
+#        x = Dropout(0.2)(x)
+#        x = BatchNormalization()(x)
+#        x = Dense(8, name = label+'_layer_5', activation='tanh')(x)
+#        x = Dropout(0.2)(x)
+#        x = BatchNormalization()(x)
         outputs = Dense(1, name = label+'_output',  activation='sigmoid')(x)
 
-        model = Model(inputs=inputs, outputs=outputs)
-        model.compile(loss='binary_crossentropy', optimizer='adam', metrics=["accuracy"])
-        model.summary()
+        dnn = Model(inputs=inputs, outputs=outputs)
+        dnn.compile(loss='binary_crossentropy', optimizer='adam', metrics=["accuracy"])
+        dnn.summary()
 
-#        history = model.fit(x_train[features], y_train, epochs=100, batch_size=1024,\
+#        history = dnn.fit(x_train[features], y_train, epochs=100, batch_size=1024,\
 #                            sample_weight=df_train['training_wgt'].values, verbose=1,\
 #                            validation_data=(x_val[features], y_val, df_val['training_wgt'].values), shuffle=True)
-        history = model.fit(x_train[features], y_train, epochs=100, batch_size=1024, verbose=1,\
+        history = dnn.fit(x_train[features], y_train, epochs=100, batch_size=1024, verbose=1,\
                             validation_data=(x_val[features], y_val), shuffle=True)
 
-        try:
-            os.mkdir(f"output/trained_models/{args['dnn_model']}/")
-        except:
-            pass
-        util.save(history.history, f"output/trained_models/{args['dnn_model']}/history_{label}.coffea")
-        model.save(f"output/trained_models/{args['dnn_model']}/dnn_{label}.h5")        
+        util.save(history.history, f"output/trained_models/{model}/history_{label}.coffea")
+        dnn.save(f"output/trained_models/{model}/dnn_{label}.h5")        
 
 def evaluation(df, args):
     if df.shape[0]==0: return df
-    if args['dnn']:
-        df = dnn_evaluation(df, args)
-    if args['bdt']:
-        df = bdt_evaluation(df, args)
+    for model in args['dnn_models']:
+        df = dnn_evaluation(df, model, args)
+    for model in args['bdt_models']:
+        df = bdt_evaluation(df, model, args)
     return df
 
-def dnn_evaluation(df, args):
+def dnn_evaluation(df, model, args):
     import keras.backend as K
     import tensorflow as tf
     from tensorflow.keras.models import load_model
@@ -418,13 +431,14 @@ def dnn_evaluation(df, args):
     sess = tf.compat.v1.Session(config=config)
     if args['do_massscan']:
         mass_shift = args['mass']-125.0
-    add_year = args['evaluate_allyears_dnn']
-    df, features = prepare_features(df, args, add_year)
-    df['dnn_score'] = 0
+    allyears = ('allyears' in model)
+    df, features = prepare_features(df, args, allyears)
+    score_name = f'score_{model}'
+    df[score_name] = 0
     with sess:
         nfolds = 4
         for i in range(nfolds):
-            if args['evaluate_allyears_dnn']:
+            if allyears:
                 label = f"allyears_{args['label']}_{i}"
             else:
                 label = f"{args['year']}_{args['label']}_{i}"
@@ -435,9 +449,9 @@ def dnn_evaluation(df, args):
 
             eval_filter = df.event.mod(nfolds).isin(eval_folds)
 
-            scalers_path = f'output/trained_models/{args["dnn_model"]}/scalers_{label}.npy'
+            scalers_path = f'output/trained_models/{model}/scalers_{label}.npy'
             scalers = np.load(scalers_path)
-            model_path = f'output/trained_models/{args["dnn_model"]}/dnn_{label}.h5'
+            model_path = f'output/trained_models/{model}/dnn_{label}.h5'
             dnn_model = load_model(model_path)
             df_i = df[eval_filter]
             if args['r']!='h-peak':
@@ -447,20 +461,22 @@ def dnn_evaluation(df, args):
 
             df_i = (df_i[features]-scalers[0])/scalers[1]
             prediction = np.array(dnn_model.predict(df_i)).ravel()
-            df.loc[eval_filter,'dnn_score'] = np.arctanh((prediction))
+            df.loc[eval_filter, score_name] = np.arctanh((prediction))
     return df
 
-def bdt_evaluation(df, args):
+def bdt_evaluation(df, model, args):
     import xgboost as xgb
     import pickle
     if args['do_massscan']:
         mass_shift = args['mass']-125.0
-    add_year = args['evaluate_allyears_bdt']
-    df, features = prepare_features(df, args, add_year)
-    df['bdt_score'] = 0
+    allyears = ('allyears' in model)
+    df, features = prepare_features(df, args, allyears)
+    score_name = f'score_{model}'
+    df[score_name] = 0
+
     nfolds = 4
     for i in range(nfolds):
-        if args['evaluate_allyears_bdt']:
+        if allyears:
             label = f"allyears_{args['label']}_{i}"
         else:
             label = f"{args['year']}_{args['label']}_{i}"
@@ -471,9 +487,9 @@ def bdt_evaluation(df, args):
             
         eval_filter = df.event.mod(nfolds).isin(eval_folds)
             
-        scalers_path = f'output/trained_models/{args["bdt_model"]}/scalers_{label}.npy'
+        scalers_path = f'output/trained_models/{model}/scalers_{label}.npy'
         scalers = np.load(scalers_path)
-        model_path = f'output/trained_models/{args["bdt_model"]}/bdt_{label}.pkl'
+        model_path = f'output/trained_models/{model}/BDT_model_earlystop50_{label}.pkl'
         bdt_model = pickle.load(open(model_path, "rb"))
         df_i = df[eval_filter]
         if args['r']!='h-peak':
@@ -482,14 +498,18 @@ def bdt_evaluation(df, args):
             df_i['dimuon_mass'] = df_i['dimuon_mass']+mass_shift
         df_i = (df_i[features]-scalers[0])/scalers[1]
         prediction = np.array(bdt_model.predict_proba(df_i)[:, 1]).ravel()
-        df.loc[eval_filter,'bdt_score'] = np.arctanh((prediction))
+        df.loc[eval_filter, score_name] = np.arctanh((prediction))
     return df
 
-def rebin(df, args, var):
+def rebin(df, model, args):
+    print("Rebinning DNN/BDT...")
     # Synchronize per-bin VBF yields with Pisa datacards
     df = df[(df.s=='vbf_powheg_dipole')&(df.r=='h-peak')]
-    cols = ['c','r','v','s', 'wgt_nominal','dnn_score', 'bdt_score']
-    df = df[cols]
+    if args['year'] == '':
+        years = ['2016','2017','2018']
+    else:
+        years = [args['year']]
+    var = f'score_{model}'
     df = df.sort_values(by=[var], ascending=False)
     bnd = {}
     target_yields = {
@@ -497,34 +517,87 @@ def rebin(df, args, var):
         '2017':[0.460468,0.559333,0.578999,0.578019,0.580368,0.585521,0.576521,0.597367,0.593959,0.59949,0.595802,0.596376,0.57163],
         '2018':  [0.351225,1.31698,1.25503,1.18703,1.12262,1.06208,0.995618,0.935661,0.86732,0.80752,0.73571,0.670533,0.608029]
     }
-    for c in df.c.unique():
-        bnd[c] = {}
-        for v in df.v.unique():
-            bin_sum = 0
-            boundaries = []
-            idx_left = 0
-            idx_right = len(target_yields[args['year']])-1
-            max_dnn = 2
-            for idx, row in df[(df.c==c)&(df.v==v)].iterrows():
-                bin_sum += row['wgt_nominal']
-                if bin_sum>=target_yields[args['year']][idx_right]:
-                    boundaries.append(round(row[var],3))
-                    bin_sum = 0
-                    idx_left+=1
-                    idx_right-=1
-            bnd[c][v] = sorted([0,2.8]+boundaries)
+    for year in years:
+        bnd[year] = {}
+        for c in df.c.unique():
+            bnd[year][c] = {}
+            for v in df.v.unique():
+                bin_sum = 0
+                boundaries = []
+                idx_left = 0
+                idx_right = len(target_yields[year])-1
+                max_dnn = 2
+                for idx, row in df[(df.c==c)&(df.v==v)&(df.year==int(year))].iterrows():
+                    bin_sum += row['wgt_nominal']
+                    if bin_sum>=target_yields[year][idx_right]:
+                        boundaries.append(round(row[var],3))
+                        bin_sum = 0
+                        idx_left+=1
+                        idx_right-=1
+                bnd[year][c][v] = sorted([0,2.8]+boundaries)
+#    print(model, bnd)
     return bnd
 
-def overlap_study(df, args, mva_model, varname):
-    import matplotlib.pyplot as plt
-    import mplhep as hep
-    
-    if mva_model=='': return
-    
-    purdue_bins = args['mva_bins'][mva_model][args['year']]
-    df = df[((df.s=='vbf_powhegPS')|(df.s=='vbf_powheg'))&(df.r=='h-peak')]    
+def get_asimov_significance(df, model, args):
+    if args['year'] == '':
+        years = ['2016','2017','2018']
+    else:
+        years = [args['year']]
+    binning_all = rebin(df, model, args)
+    binning = {}
+    significance2 = 0
+    var = f'score_{model}'
+    for year in years:
+        binning = binning_all[year]['vbf']['nominal']
+        sig = df[(df.cls=='signal')&(df.r=='h-peak')&(df.year==int(year))]
+        bkg = df[(df.cls=='background')&(df.r=='h-peak')&(df.year==int(year))]
+        for ibin in range(len(binning)-1):
+            bin_lo = binning[ibin]
+            bin_hi = binning[ibin+1]
+            sig_yield = sig[(sig[var]>=bin_lo)&(sig[var]<bin_hi)]['wgt_nominal'].sum()
+            bkg_yield = bkg[(bkg[var]>=bin_lo)&(bkg[var]<bin_hi)]['wgt_nominal'].sum()
+            #print(f'{year} Bin {ibin}: s={sig_yield}, b={bkg_yield}, sigma={sig_yield/sqrt(sig_yield+bkg_yield)}')
+            significance2 += (sig_yield*sig_yield)/(sig_yield+bkg_yield)
+    print(f"Model {model}: significance = {sqrt(significance2)}")
+    return sqrt(significance2)
+
+def plot_rocs(df, args):
+    classes = df.cls.unique()
+    cls_idx_map = {cls:idx for idx,cls in enumerate(classes)}
+    df['cls_idx'] = df['cls'].map(cls_idx_map)
+    fig = plt.figure()
+    fig.set_size_inches(10,8)
+    plt.rcParams.update({'font.size': 15})    
+    for model in args['dnn_models']+args['bdt_models']:
+        var = f'score_{model}'
+        if var not in df.columns: continue
+        significance = round(get_asimov_significance(df, model, args),3)
+        roc = roc_curve(df['cls_idx'], df[var], sample_weight=df['wgt_nominal'])
+        plt.plot(roc[1], roc[0], label=f'{model} sign={significance}') # [0]: fpr, [1]: tpr, [2]: threshold
+#    plt.title()
+    plt.xlabel('Signal efficiency')
+    plt.ylabel('Bkg efficiency')
+    plt.legend(loc='best', fontsize=18)
+    plt.ylim(0.0001, 0.1)
+    plt.yscale("log")
+    plt.xlim(0, 0.3)
+    try:
+        os.mkdir('plots_new/roc_curves')
+    except:
+        pass
+    fig.savefig(f'plots_new/roc_curves/roc_{args["year"]}_{args["label"]}.png')
+
+
+
+def overlap_study(df, args, model):
+    purdue_bins = rebin(df, model, args)[args['year']]['vbf']['nominal']
+    varname = f'score_{model}'
+    if args['year']=='2016':
+        df = df[(df.s=='vbf_powheg_herwig')&(df.r=='h-peak')]    
+    else:
+        df = df[(df.s=='vbf_powheg')&(df.r=='h-peak')]    
     pisa_files = {
-        '2016': '/depot/cms/hmm/pisa/vbfHmm_2016POWPYSnapshot.root',
+        '2016': '/depot/cms/hmm/pisa/vbfHmm_2016POWHERWIGSnapshot.root',
         '2017': '/depot/cms/hmm/pisa/vbfHmm_2017POWPYSnapshot.root',
         '2018': '/depot/cms/hmm/pisa/vbfHmm_2018POWPYSnapshot.root',
     }
@@ -543,15 +616,14 @@ def overlap_study(df, args, mva_model, varname):
         pisa_dict = {'event': tree['event'].array(),'dnn_score': tree['DNN18Atan'].array()}
         pisa_df = pd.DataFrame(pisa_dict)
 
-
     if len(purdue_bins)!=len(pisa_bins[args['year']]):
         print("Inconsistent number of bins!")
         return
     overlap = np.intersect1d(df.event.values.astype(int), pisa_df.event.values.astype(int))
-    print(f'Total Purdue events: {df.shape[0]}')
-    print(f'Total Pisa events: {pisa_df.shape[0]}')
+#    print(f'Total Purdue events: {df.shape[0]}')
+#    print(f'Total Pisa events: {pisa_df.shape[0]}')
     percent = round(100*len(overlap)/pisa_df.shape[0], 2)
-    print(f'Common events: {len(overlap)} ({percent}%)')
+#    print(f'Common events: {len(overlap)} ({percent}%)')
     
     df = df.set_index('event')
     pisa_df = pisa_df.set_index('event')
@@ -597,19 +669,17 @@ def overlap_study(df, args, mva_model, varname):
         
         ax.set_xlabel('Purdue')
         ax.set_ylabel('Pisa')
-        fig.savefig(f'plots_new/plots_{args["year"]}_{args["label"]}/overlap_{mva_model}_{opt_name}.png')
-    
+        fig.savefig(f'plots_new/plots_{args["year"]}_{args["label"]}/overlap_{model}_{opt_name}.png')
+        
 def get_hists(df, var, args, mva_bins=[]):
-    if var.name=='dnn_score':
-        bins = mva_bins[args['dnn_model']][args['year']]
-    if var.name=='bdt_score':
-        bins = mva_bins[args['bdt_model']][args['year']]
+    if ('score' in var.name):
+        bins = mva_bins[var.name.replace('score_','')][args['year']]
     dataset_axis = bh.axis.StrCategory(df.s.unique())
     region_axis = bh.axis.StrCategory(df.r.unique())
     channel_axis = bh.axis.StrCategory(df.c.unique())
     syst_axis = bh.axis.StrCategory(df.v.unique())
     val_err_axis = bh.axis.StrCategory(['value', 'sumw2'])
-    if ((var.name=='dnn_score') or (var.name=='bdt_score')) and len(bins)>0:
+    if ('score' in var.name) and len(bins)>0:
         var_axis = bh.axis.Variable(bins)
         nbins = len(bins)-1
     else:
@@ -716,13 +786,11 @@ def load_yields(s,r,c,v,w,args):
     ret = yields.iloc[filter0&filter1&filter2&filter3&filter4].values[0][0]
     return ret
 
-def save_shapes(var, hist, args):
-    if var.name=='dnn_score':
-        edges = args['mva_bins'][args['dnn_model']][args['year']]
-    if var.name=='bdt_score':
-        edges = args['mva_bins'][args['bdt_model']][args['year']]
+def save_shapes(hist, model, args, mva_bins):
+    edges = mva_bins[model][args['year']]
     edges = np.array(edges)
-    tdir = f'/depot/cms/hmm/templates/{args["year"]}_{args["label"]}_{var.name}'
+    var = f'score_{model}'
+    tdir = f'/depot/cms/hmm/templates/{args["year"]}_{args["label"]}_{var}'
     if args['do_massscan']:
         mass_point = f'{args["mass"]}'.replace('.','')
         tdir = tdir.replace('templates','/templates/massScan/')+f'{mass_point}'
@@ -761,7 +829,7 @@ def save_shapes(var, hist, args):
         return vwname  
     
     try:
-        os.mkdir(f'combine_new/{args["year"]}_{args["label"]}')
+        os.mkdir(f'combine_new/{args["year"]}_{args["label"]}_{var}')
     except:
         pass
     
@@ -778,7 +846,7 @@ def save_shapes(var, hist, args):
     
     variated_shapes = {}
     
-    hist = hist[var.name]
+    hist = hist[var]
     centers = (edges[:-1] + edges[1:]) / 2.0
     bin_columns = [c for c in hist.columns if 'bin' in c]
     sumw2_columns = [c for c in hist.columns if 'sumw2' in c]
@@ -883,10 +951,8 @@ def save_shapes(var, hist, args):
             np.save(f'{tdir}/Data/{name}', [data_obs_hist,data_obs_sumw2])
 
 def prepare_root_files(var, args):
-    if var.name=='dnn_score':
-        edges = args['mva_bins'][args['dnn_model']][args['year']]
-    if var.name=='bdt_score':
-        edges = args['mva_bins'][args['bdt_model']][args['year']]
+    if ('score' in var.name):
+        edges = args['mva_bins'][var.name.replace('score_','')][args['year']]
     edges = np.array(edges)
     tdir = f'/depot/cms/hmm/templates/{args["year"]}_{args["label"]}_{var.name}'
     if args['do_massscan']:
@@ -930,7 +996,6 @@ def prepare_root_files(var, args):
             th1_data._fTsumw2 = np.array(data_sumw2).sum()
             th1_data._fTsumwx2 = np.array(data_sumw2[1:] * centers).sum()
             out_file['data_obs'] = th1_data
-#            mc_templates = glob.glob(f'{tdir}/*/{r}_*.npy')
             bkg = ['DY_filter','DY_nofilter','EWK','TT+ST','VV']
             sig = ['VBF','ggH']
             mc_templates = []
@@ -1105,7 +1170,7 @@ def make_datacards(var, args):
     for cgroup, cc in args['channel_groups'].items():
         for r in ['SB', 'SR']:
             bin_name = f'{cgroup}_{r}_{year}'
-            datacard_name = f'combine_new/{year}_{args["label"]}/datacard_{cgroup}_{r}.txt'
+            datacard_name = f'combine_new/{year}_{args["label"]}_{var.name}/datacard_{cgroup}_{r}.txt'
             if args['do_massscan']:
                 mass_point = f'{args["mass"]}'.replace('.','')
                 datacard_name = f'combine_new/massScan_{args["label"]}/{mass_point}/{args["year"]}_{args["label"]}_{var.name}/datacard_{cgroup}_{r}.txt'

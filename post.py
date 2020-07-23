@@ -1,8 +1,8 @@
 import time
 import os,sys,glob
 import argparse
-from python.postprocessing import postprocess, plot, save_yields, load_yields, save_shapes, make_datacards, rebin, dnn_training, prepare_root_files, overlap_study
-from config.variables import variables
+from python.postprocessing import postprocess, plot, save_yields, load_yields, save_shapes, make_datacards, rebin, dnn_training, prepare_root_files, overlap_study, plot_rocs
+from config.variables import variables, Variable
 from config.datasets import datasets
 import pandas as pd
 
@@ -11,40 +11,42 @@ parser.add_argument("-y", "--year", dest="year", default='', action='store')
 parser.add_argument("-l", "--label", dest="label", default="jun16", action='store')
 parser.add_argument("-t", "--dnn_training", action='store_true')
 parser.add_argument("-r", "--rebin", action='store_true')
-parser.add_argument("-dnn", "--dnn_evaluation", action='store_true')
-parser.add_argument("-bdt", "--bdt_evaluation", action='store_true')
+parser.add_argument("-dnn", "--dnn", action='store_true')
+parser.add_argument("-bdt", "--bdt", action='store_true')
 parser.add_argument("-dc", "--datacards", action='store_true')
 parser.add_argument("-p", "--plot", action='store_true')
+parser.add_argument("-roc", "--roc", action='store_true')
 parser.add_argument("-o", "--overlap", action='store_true')
 parser.add_argument("-js", "--jetsyst", action='store_true')
 parser.add_argument("-i", "--iterative", action='store_true')
 args = parser.parse_args()
 
-if int(args.dnn_training)+int(args.rebin)+int(args.dnn_evaluation)+int(args.bdt_evaluation)+\
-int(args.datacards)+int(args.plot)+int(args.overlap)==0:
+if int(args.dnn_training)+int(args.rebin)+int(args.dnn)+int(args.bdt)+\
+int(args.datacards)+int(args.plot)+int(args.overlap)+int(args.roc)==0:
     print("Please specify option(s) to run:")
     print("-t --dnn_training")
     print("-r --rebin")
-    print("-dnn --dnn_evaluation")
-    print("-bdt --bdt_evaluation")
+    print("-dnn --dnn")
+    print("-bdt --bdt")
     print("-dc --datacards")
     print("-p --plot")
     print("-o --overlap")
+    print("-roc --roc")
     sys.exit()
 
-if (args.year=='') and not args.dnn_training:
+if (args.year=='') and not args.dnn_training and not args.roc:
     print("Year must be specified! Merging data from different years is only allowed for DNN training.")
     sys.exit()
 
-if args.dnn_training and (args.dnn_evaluation or args.bdt_evaluation or args.datacards or args.plot or args.overlap):
+if args.dnn_training and (args.dnn or args.bdt or args.datacards or args.plot or args.overlap):
     print("Can't combine 'training' option with 'evaluation','datacards' or 'plot'!")
     sys.exit()
 
-if args.rebin and (args.dnn_evaluation or args.bdt_evaluation or args.datacards or args.plot or args.overlap):
+if args.rebin and (args.dnn or args.bdt or args.datacards or args.plot or args.overlap):
     print("Can't combine 'rebin' option with 'evaluation','datacards' or 'plot'!")
     sys.exit()
 
-if (args.dnn_evaluation or args.bdt_evaluation) and (args.dnn_training or args.rebin or args.overlap):
+if (args.dnn or args.bdt) and (args.dnn_training or args.rebin or args.overlap):
     print("Can't combine 'evaluation' option with 'training' or 'rebin'!")
     sys.exit()
 
@@ -56,21 +58,13 @@ if args.plot and (args.dnn_training or args.rebin or args.datacards or args.over
     print("Can't combine 'datacards' option with 'training', 'rebin' or 'datacards'!")
     sys.exit()
 
-if args.overlap and (args.dnn_evaluation or args.bdt_evaluation or args.dnn_training or args.rebin or args.datacards or args.plot):
+if args.overlap and (args.dnn or args.bdt or args.dnn_training or args.rebin or args.datacards or args.plot or args.roc):
     print("Can't combine overlap study with other options!")
     sys.exit()
 
-
-    
-#to_plot = ['dimuon_mass', 'dimuon_pt', 'mu1_pt', 'jet1_pt', 'jet1_eta', 'jet2_pt', 'jet2_eta', 'dnn_score']
-to_plot = ['dimuon_mass', 'dnn_score', 'bdt_score']
-
-vars_to_plot = {v.name:v for v in variables if v.name in to_plot}
-#vars_to_plot = {v.name:v for v in variables}
-
-dnn_score = [v for v in variables if (v.name == 'dnn_score')][0] # variable for templates and datacards
-bdt_score = [v for v in variables if (v.name == 'bdt_score')][0] # variable for templates and datacards
-vars_to_save = [dnn_score, bdt_score]
+if args.roc and (args.dnn or args.bdt or args.dnn_training or args.rebin or args.datacards or args.plot or args.overlap):
+    print("Can't combine ROC plotting with other options (will add support of that later)!")
+    sys.exit()    
 
 mva_bins = {
     'dnn_nominal':{
@@ -83,22 +77,86 @@ mva_bins = {
         '2017': [0, 0.335, 0.641, 0.879, 1.072, 1.238, 1.388, 1.527, 1.663, 1.782, 1.88,  1.957, 2.017, 2.3],
         '2018': [0, 0.075, 0.462, 0.75, 0.976, 1.171, 1.35, 1.513, 1.664, 1.794, 1.896, 1.969, 2.021, 2.3]
     },
+    'dnn_nominal_allyears500': {
+        '2016': [],
+        '2017': [0, 0.324, 0.627, 0.86, 1.047, 1.206, 1.352, 1.489, 1.628, 1.758, 1.868, 1.956, 2.039,2.3],
+        '2018': []
+    },   
+    'dnn_nominal_allyears_4layers': {
+        '2016': [0, 0.168, 0.391, 0.588, 0.765, 0.929, 1.079, 1.224, 1.372, 1.537, 1.722, 1.884, 1.962, 2.3],
+        '2017': [0, 0.319, 0.615, 0.841, 1.018, 1.17, 1.306, 1.438, 1.588, 1.748, 1.873, 1.937, 1.974, 2.3],
+        '2018': [0, 0.069, 0.446, 0.724, 0.934, 1.112, 1.27, 1.421, 1.581, 1.748, 1.88, 1.942, 1.976, 2.3]
+    },
+    'dnn_allyears_64_128_64': {
+        '2016': [],
+        '2017': [0, 0.313, 0.608, 0.836, 1.021, 1.181, 1.327, 1.46, 1.589, 1.705, 1.807, 1.9, 1.996,2.3],
+        '2018': []
+    },
+    'dnn_allyears_64_128_128_64': {
+        '2016': [],
+        '2017': [0, 0.293, 0.592, 0.83, 1.019, 1.18, 1.328, 1.466, 1.609, 1.747, 1.864, 1.954, 2.009, 2.3],
+        '2018': []
+    },
+    'dnn_allyears_128_64_32':{
+        '2016': [0, 0.16, 0.374, 0.569, 0.75, 0.918, 1.079, 1.23, 1.373, 1.514, 1.651, 1.784, 1.923, 2.8],
+        '2017': [0, 0.307, 0.604, 0.832, 1.014, 1.169, 1.31, 1.44, 1.567, 1.686, 1.795, 1.902, 2.009, 2.8],
+        '2018': [0, 0.07, 0.432, 0.71, 0.926, 1.114, 1.28, 1.428, 1.564, 1.686, 1.798, 1.9, 2.0, 2.8]
+    },
     'bdt_jul15_earlystop50':{
-        '2016': [0, 0.54, 0.544, 0.547, 0.549, 0.551, 0.553, 0.555, 0.557, 0.558, 0.56, 0.562, 0.564, 2.8],
-        '2017': [],
-        '2018': [],
+        '2016': [0, 0.284, 0.575, 0.804, 1.0, 1.17, 1.328, 1.477, 1.623, 1.774, 1.93, 2.097, 2.29, 2.8],
+        '2017': [0, 0.414, 0.747, 0.991, 1.182, 1.349, 1.499, 1.637, 1.777, 1.917, 2.062, 2.216, 2.392, 2.8],
+        '2018': [0, 0.129, 0.627, 0.953, 1.195, 1.393, 1.565, 1.725, 1.875, 2.02, 2.164, 2.308, 2.471, 2.8],
     }
 }
+dnn_model_to_train = 'dnn_allyears_200_100_50'
+dnn_models = [
+#    'dnn_nominal_allyears',
+#    'dnn_nominal_allyears500',
+#    'dnn_nominal_allyears_4layers',
+#    'dnn_allyears_64_128_64',
+#    'dnn_allyears_64_128_128_64',
+#    'dnn_allyears_32_64_32',
+#    'dnn_allyears_32_64_64_32',
+#    'dnn_allyears_32_64_32_16',
+#    'dnn_allyears_32_64_32_16_8',
+#    'dnn_allyears_64_32_16',
+#    'dnn_allyears_64_32_16_8',
+#    'dnn_allyears_32_16_8',
+#    'dnn_allyears_100_50_25',
+#    'dnn_allyears_64_16_4',
+#    'dnn_allyears_64_48_32',
+    'dnn_allyears_128_64_32',
+#    'dnn_allyears_200_100_50',    
+#    'dnn_nominal_allyears_4layers',
+#    'dnn_nominal_allyears_5layers',
+#    'dnn_nominal_allyears_6layers',
+#    'dnn_nominal_allyears_7layers',
+#    'dnn_nominal_allyears_8layers',
+#    'dnn_nominal_allyears_9layers',
+#    'dnn_nominal_allyears_10layers'
+]
 
-dnn_model = ''
-bdt_model = ''
+bdt_models = []
+#bdt_models = ['bdt_jul15_earlystop50']
 
-dnn_model = 'dnn_nominal_allyears'
-#bdt_model = 'bdt_jul15_earlystop50'
+#to_plot = ['dimuon_mass', 'dimuon_pt', 'mu1_pt', 'jet1_pt', 'jet1_eta', 'jet2_pt', 'jet2_eta', 'dnn_score']
+to_plot = ['dimuon_mass']
+vars_to_save = []
+
+if args.plot:
+    vars_to_plot = {v.name:v for v in variables if v.name in to_plot}
+    #vars_to_plot = {v.name:v for v in variables}
+else:
+    vars_to_plot = {}
+
+for model in dnn_models+bdt_models:
+    name = f'score_{model}'
+    vars_to_plot.update({name:Variable(name, name, 50, 0, 5)})
+    vars_to_save.append(vars_to_plot[name])
 
 samples_ = [
-    'ttjets_dl',
-    'ttjets_sl',
+    'ewk_lljj_mll105_160_ptj0',
+    'vbf_powhegPS',
 ]
 samples = [
     'data_A',
@@ -130,6 +188,23 @@ samples = [
     'vbf_powheg_dipole'
 ]
 
+samples_for_roc = [
+    'dy_m105_160_amc',
+    'dy_m105_160_vbf_amc',
+    'ewk_lljj_mll105_160_ptj0',
+    'ttjets_dl',
+    'ttjets_sl',
+    'ttz',
+    'ttw',
+    'st_tw_top','st_tw_antitop',
+    'ww_2l2nu',
+    'wz_2l2q',
+    'wz_3lnu',
+    'zz',
+    'ggh_amcPS',
+    'vbf_powheg_dipole'
+]
+
 training_samples = {
     'background': ['dy_m105_160_amc', 'dy_m105_160_vbf_amc', 'ewk_lljj_mll105_160_ptj0'],
     'signal': ['vbf_powhegPS','vbf_powheg_herwig', 'ggh_amcPS'],
@@ -157,7 +232,7 @@ for ptvar in pt_variations:
         all_pt_variations += [f'{ptvar}_up']
         all_pt_variations += [f'{ptvar}_down'] 
 
-if (not args.jetsyst) or args.dnn_training or args.rebin or args.overlap:
+if (not args.jetsyst) or args.dnn_training or args.rebin or args.overlap or args.roc:
     all_pt_variations = ['nominal']
 
 # keeping correct order just for debug output
@@ -179,36 +254,38 @@ if args.rebin:
     options += ['rebin']
 if args.overlap:
     modules = add_modules(modules,['to_pandas', 'evaluation'])
-    samples = ['vbf_powhegPS','vbf_powheg']
+    samples = ['vbf_powhegPS','vbf_powheg','vbf_powheg_herwig','vbf_powheg_dipole']
     options += ['dnn_overlap']
-if args.dnn_evaluation or args.bdt_evaluation:
+if args.roc:
+    modules = add_modules(modules,['to_pandas', 'evaluation'])
+    samples = samples_for_roc
+    options += ['dnn_roc']  
+if args.dnn:
+    if len(dnn_models)==0:
+        print("List of DNN models is empty!")
+        sys.exit()
     modules = add_modules(modules,['to_pandas', 'evaluation', 'get_hists'])
     options += ['evaluation']
-    if not args.plot:
-        vars_to_plot = {}
-        if args.dnn_evaluation:
-            vars_to_plot.update({v.name:v for v in variables if v.name in ['dnn_score']})
-        if args.bdt_evaluation:
-            vars_to_plot.update({v.name:v for v in variables if v.name in ['bdt_score']})
+if args.bdt:
+    if len(bdt_models)==0:
+        print("List of BDT models is empty!")
+        sys.exit()
+    modules = add_modules(modules,['to_pandas', 'evaluation', 'get_hists'])
+    options += ['evaluation']
 if args.datacards:
     options += ['datacards']
-    if not args.dnn_evaluation: load_unbinned_data = False
+    if not (args.dnn or args.bdt): load_unbinned_data = False
 if args.plot:
     modules = add_modules(modules,['to_pandas',  'get_hists'])
     options += ['plot']
-
 
 postproc_args = {
     'modules': modules,
     'year': args.year,
     'label': args.label,
     'in_path': f'/depot/cms/hmm/coffea/',
-    'dnn': (args.dnn_evaluation or args.rebin or (args.overlap and dnn_model!='')),
-    'dnn_model': dnn_model,
-    'evaluate_allyears_dnn': ('allyears' in dnn_model),
-    'bdt': (args.bdt_evaluation or args.rebin or (args.overlap and bdt_model!='')),
-    'bdt_model': bdt_model,
-    'evaluate_allyears_bdt': ('allyears' in bdt_model),
+    'dnn_models': dnn_models,
+    'bdt_models': bdt_models,
     'syst_variations': all_pt_variations,
     'out_path': 'plots_new/',
     'samples':samples,
@@ -243,27 +320,30 @@ if load_unbinned_data:
             print(f"Concatenating dataframes...")
             df = pd.concat(dfs)
             print("Starting DNN training...")
-            dnn_training(df, postproc_args)
+            dnn_training(df, postproc_args, dnn_model_to_train)
             print("DNN training complete!")
             sys.exit()
 
         if args.rebin:
-            print("Rebinning DNN/BDT...")
             df = pd.concat(dfs)
-            boundaries = rebin(df, postproc_args, 'dnn_score')
-            print(args.year, args.label, dnn_model, boundaries)
-            boundaries = rebin(df, postproc_args, 'bdt_score')
-            print(args.year, args.label, bdt_model, boundaries)            
+            for model in dnn_models+bdt_models:
+                boundaries = rebin(df, model, postproc_args)
+                print(model, boundaries)
             sys.exit()
 
         if args.overlap:
             print("Studying overlap with Pisa...")
             df = pd.concat(dfs)
-            overlap_study(df, postproc_args, dnn_model, 'dnn_score')
-            overlap_study(df, postproc_args, bdt_model, 'bdt_score')
+            for model in dnn_models+bdt_models:
+                overlap_study(df, postproc_args, model)
+            sys.exit()
+        
+        if args.roc:
+            print("Plotting ROC curves...")
+            df = pd.concat(dfs)
+            plot_rocs(df, postproc_args)
             sys.exit()
 
-#        print(hist_dfs)
         for var, hists in hist_dfs.items():
             print(f"Concatenating histograms: {var}")
             if var not in hist.keys():
@@ -271,13 +351,10 @@ if load_unbinned_data:
             else:
                 hist[var] = pd.concat(hists+[hist[var]], ignore_index=True)
 
-        if args.dnn_evaluation and not args.plot:
-            print(f"Saving shapes: {dnn_score.name}")
-            save_shapes(dnn_score, hist, postproc_args)
-        if args.bdt_evaluation and not args.plot:
-            print(f"Saving shapes: {bdt_score.name}")
-            save_shapes(bdt_score, hist, postproc_args)
-
+        if (args.dnn or args.bdt) and not args.plot:
+            for model in dnn_models+bdt_models:
+                print(f"Saving shapes: {model}")
+                save_shapes(hist, model, postproc_args, mva_bins)
 
             
 if args.datacards:
