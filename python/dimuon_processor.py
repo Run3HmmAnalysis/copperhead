@@ -533,7 +533,10 @@ class DimuonProcessor(processor.ProcessorABC):
         if is_mc:
             gjj = df.Jet.cross(df.GenJet, nested=True)
             _,_,deltar_gjj = delta_r(gjj.i0.eta, gjj.i1.eta, gjj.i0.phi, gjj.i1.phi)
-            df.Jet['matched_genjet'] = gjj[(deltar_gjj==deltar_gjj.min())&(deltar_gjj<0.4)].i1
+            matched_jets = gjj[(deltar_gjj==deltar_gjj.min())&(deltar_gjj<0.4)].i1
+            matched_jets_flat = matched_jets.flatten()[matched_jets.flatten().counts>0,0]
+            matched_jets_new = awkward.JaggedArray.fromcounts((matched_jets.flatten().counts>0).astype(int), matched_jets_flat)
+            df.Jet['matched_genjet'] = awkward.JaggedArray.fromcounts(matched_jets.counts,matched_jets_new)
 
         if self.timer:
             self.timer.add_checkpoint("Prepared jets")
@@ -545,7 +548,7 @@ class DimuonProcessor(processor.ProcessorABC):
         self.do_jec = False
         if ('data' in dataset) and ('2018' in self.year):
             self.do_jec = True
-        jet_variation_names = ['nominal']
+        jet_variation_names = ['nominal'] if ('nominal' in self.pt_variations) else []
         
         if self.do_jec or self.do_jecunc: 
             if is_mc:
@@ -734,15 +737,17 @@ class DimuonProcessor(processor.ProcessorABC):
         if self.timer:
             self.timer.add_checkpoint("Completed JEC loop")
             
-        variable_map = ret_jec_loop['nominal']['variable_map']
-        weights = ret_jec_loop['nominal']['weights']
-        two_jets = ret_jec_loop['nominal']['two_jets']
-        category = ret_jec_loop['nominal']['category']
+        #variable_map = ret_jec_loop['nominal']['variable_map']
+        #weights = ret_jec_loop['nominal']['weights']
+        #two_jets = ret_jec_loop['nominal']['two_jets']
+        #category = ret_jec_loop['nominal']['category']
 
-        if 'dy' in dataset:
-            weights.effect_on_normalization((category=='vbf_01j')|(category=='vbf_2j'))
-        else:
-            weights.effect_on_normalization((category=='vbf'))
+        if ('nominal' in self.pt_variations):
+            category = ret_jec_loop['nominal']['category']
+            if 'dy' in dataset:
+                weights.effect_on_normalization((category=='vbf_01j')|(category=='vbf_2j'))
+            else:
+                weights.effect_on_normalization((category=='vbf'))
 
         #print(df.event[(category=='vbf_2j')&(ret_jec_loop['nominal']['variable_map']['dimuon_mass']>115)&(ret_jec_loop['nominal']['variable_map']['dimuon_mass']<135)])
         #evnum = 425742024
@@ -779,14 +784,13 @@ class DimuonProcessor(processor.ProcessorABC):
         # Fill outputs
         #---------------------------------------------------------------#                        
 
-        regions = get_regions(variable_map['dimuon_mass'])            
-
         if self.save_unbin:
             for jec_var in jet_variation_names:
                 if jec_var not in self.pt_variations: continue
                 var_map = ret_jec_loop[jec_var]['variable_map']
                 categ = ret_jec_loop[jec_var]['category']
                 weights = ret_jec_loop[jec_var]['weights']
+                regions = get_regions(var_map['dimuon_mass']) 
                 for wgt in weights.df.columns:
                     var_map[f'wgt_{wgt}'] = weights.get_weight(wgt)                
                 for v in var_map:
@@ -1043,7 +1047,7 @@ class DimuonProcessor(processor.ProcessorABC):
         leading_jet_pt = np.zeros(numevents, dtype=bool)
         leading_jet_pt[df.Jet.counts>0] = (df.Jet.pt[df.Jet.counts>0][:,0]>35.)
         vbf_cut = (dijet_variables['jj_mass']>400)&(dijet_variables['jj_dEta']>2.5)&leading_jet_pt
-        
+
         #---------------------------------------------------------------#        
         # Calculate btag SF and apply btag veto
         #---------------------------------------------------------------#
@@ -1052,8 +1056,8 @@ class DimuonProcessor(processor.ProcessorABC):
         # Btag weight
         btag_wgt = np.ones(numevents)
         if is_mc:
-#            self.btag_systs = []
-            btag_wgt, btag_syst = btag_weights(self.btag_lookup, self.btag_systs, df.Jet, weights, bjet_sel_mask, numevents)
+            systs = self.btag_systs if 'nominal' in variation else []
+            btag_wgt, btag_syst = btag_weights(self.btag_lookup, systs, df.Jet, weights, bjet_sel_mask, numevents)
             weights.add_weight('btag_wgt', btag_wgt)
             for name,bs in btag_syst.items():
                 up = bs[0]
@@ -1068,7 +1072,7 @@ class DimuonProcessor(processor.ProcessorABC):
         mass = (muon_variables['dimuon_mass']>115) & (muon_variables['dimuon_mass']<135)
         
         if self.timer:
-            self.timer.add_checkpoint("Applied b-jet SF")
+            self.timer.add_checkpoint("Applied b-jet SF and b-tag veto")
 
         #---------------------------------------------------------------#        
         # Define categories
