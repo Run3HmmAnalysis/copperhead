@@ -20,18 +20,16 @@ class NNLOPS_Evaluator(object):
         result = np.ones(len(hig_pt), dtype=float)
         hig_pt = np.array(hig_pt)
         njets = np.array(njets)
-
         result[njets==0] = np.interp(np.minimum(hig_pt[njets==0],125.), self.ratio_0jet[mode]._fX, self.ratio_0jet[mode]._fY)
         result[njets==1] = np.interp(np.minimum(hig_pt[njets==1],625.), self.ratio_1jet[mode]._fX, self.ratio_1jet[mode]._fY)
         result[njets==2] = np.interp(np.minimum(hig_pt[njets==2],800.), self.ratio_2jet[mode]._fX, self.ratio_2jet[mode]._fY)
         result[njets >2] = np.interp(np.minimum(hig_pt[njets >2],925.), self.ratio_3jet[mode]._fX, self.ratio_3jet[mode]._fY)
-
         return result
     
 def roccor_evaluator(rochester, is_mc, muons):
     import awkward
     import numpy as np
-    muons = muons.compact()
+    #muons = muons.compact()
     corrections = muons.pt.ones_like()  
     
     if is_mc:
@@ -375,10 +373,8 @@ def puid_weights(evaluator, year, jets, pt_name, jet_puid_opt, jet_puid, numeven
 
 
 def qgl_weights(jet, isHerwig):
-    jet = jet.flatten()
-    weights = np.ones(len(jet.qgl), dtype=float)
-    
-    wgt_mask = (jet.partonFlavour!=0) & (abs(jet['__fast_eta'])<2) & (jet.qgl>0)
+    weights = np.ones(len(jet.qgl), dtype=float)    
+    wgt_mask = (jet.partonFlavour!=0) & (abs(jet.eta)<2) & (jet.qgl>0)
     light = wgt_mask & (abs(jet.partonFlavour)<4)
     gluon = wgt_mask & (jet.partonFlavour==21)
   

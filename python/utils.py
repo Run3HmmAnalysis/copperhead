@@ -7,12 +7,17 @@ def p4_sum(obj1, obj2):
     py = np.zeros(obj1.shape[0])
     pz = np.zeros(obj1.shape[0])
     e = np.zeros(obj1.shape[0])
-    
     for obj in [obj1, obj2]:
-        px_ = obj.pt*np.cos(obj.phi)
-        py_ = obj.pt*np.sin(obj.phi)
-        pz_ = obj.pt*np.sinh(obj.eta)
-        e_  = np.sqrt(px_**2 + py_**2 + pz_**2 + obj.mass**2)
+        try:
+            px_ = obj.pt*np.cos(obj.phi)
+            py_ = obj.pt*np.sin(obj.phi)
+            pz_ = obj.pt*np.sinh(obj.eta)
+            e_  = np.sqrt(px_**2 + py_**2 + pz_**2 + obj.mass**2)
+        except:
+            px_ = obj['__fast_pt']*np.cos(obj['__fast_phi'])
+            py_ = obj['__fast_pt']*np.sin(obj['__fast_phi'])
+            pz_ = obj['__fast_pt']*np.sinh(obj['__fast_eta'])
+            e_  = np.sqrt(px_**2 + py_**2 + pz_**2 + obj['__fast_mass']**2)
         px = px + px_
         py = py + py_
         pz = pz + pz_
@@ -26,10 +31,16 @@ def p4_sum(obj1, obj2):
     return pt, eta, phi, mass, rap
 
 def rapidity(obj):
-    px = obj.pt*np.cos(obj.phi)
-    py = obj.pt*np.sin(obj.phi)
-    pz = obj.pt*np.sinh(obj.eta)
-    e  = np.sqrt(px**2 + py**2 + pz**2 + obj.mass**2)
+    try:
+        px = obj.pt*np.cos(obj.phi)
+        py = obj.pt*np.sin(obj.phi)
+        pz = obj.pt*np.sinh(obj.eta)
+        e  = np.sqrt(px**2 + py**2 + pz**2 + obj.mass**2)
+    except:
+        px = obj['__fast_pt']*np.cos(obj['__fast_phi'])
+        py = obj['__fast_pt']*np.sin(obj['__fast_phi'])
+        pz = obj['__fast_pt']*np.sinh(obj['__fast_eta'])
+        e  = np.sqrt(px**2 + py**2 + pz**2 + obj['__fast_mass']**2)
     rap = 0.5*np.log((e+pz) / (e-pz))
     return rap
 
