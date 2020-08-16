@@ -430,3 +430,18 @@ def geofit_evaluator(muons_pt, muons_eta, muons_dxybs, muons_charge, year, mask)
         pt_cor_mask[cuts[eta_i]] = factors[year][eta_i]*d0_BS_charge[cuts[eta_i]]*pt[cuts[eta_i]]*pt[cuts[eta_i]]/10000.0
     pt_cor[passes_mask] = pt_cor_mask
     return (muons_pt.flatten() - pt_cor)
+
+def get_jec_unc(name, jet_pt, jet_eta, jecunc):
+    idx_func = jecunc.levels.index(name)
+    jec_unc_func = jecunc._funcs[idx_func]
+    function_signature = jecunc._funcs[idx_func].signature
+    counts = jet_pt.counts
+    args = {
+        "JetPt": np.array(jet_pt.flatten()),
+        "JetEta": np.array(jet_eta.flatten())
+    }
+    func_args = tuple([args[s] for s in function_signature])
+    jec_unc_vec = jec_unc_func(*func_args)
+    return awkward.JaggedArray.fromcounts(counts, jec_unc_vec)
+
+

@@ -19,31 +19,30 @@ import dask
 from dask_jobqueue import SLURMCluster
 
 parser = argparse.ArgumentParser()
-parser.add_argument("-y", "--year", dest="year", default=2016, action='store')
-parser.add_argument("-l", "--label", dest="label", default="apr23", action='store')
-parser.add_argument("-d", "--debug", action='store_true')
-parser.add_argument("-i", "--iterative", action='store_true')
-parser.add_argument("-loc", "--local", action='store_true')
+parser.add_argument("-y", "--year", dest="year", default=2016, action='store') # specify 2016, 2017 or 2018
+parser.add_argument("-l", "--label", dest="label", default="apr23", action='store') # unique label for processing run
+parser.add_argument("-d", "--debug", action='store_true') # load only 1 file per dataset
+
+# By default, a SLURM cluster will be created and jobs will be parallelized
+# Alternative options:
+parser.add_argument("-i", "--iterative", action='store_true') # run iteratively on 1 CPU
+parser.add_argument("-loc", "--local", action='store_true') # create local Dask workers
+
 args = parser.parse_args()
 
+
+#################### User settings: ####################
+
+server = 'root://xrootd.rcac.purdue.edu/'
+global_out_path = '/depot/cms/hmm/coffea/'
+slulrm_address_ip = '128.211.149.140:46157'
+
 sample_sources = [
-    'data',
-    'main_mc',
+#    'data',
+#    'main_mc',
     'signal',
-    'other_mc',
+#    'other_mc',
 ]
-
-year = args.year
-
-pt_variations = []
-#pt_variations += ['nominal']
-pt_variations += ['Absolute', f'Absolute{year}']
-pt_variations += ['BBEC1', f'BBEC1{year}']
-pt_variations += ['EC2', f'EC2{year}']
-pt_variations += ['FlavorQCD']
-pt_variations += ['HF',f'HF{year}']
-pt_variations += ['RelativeBal', f'RelativeSample{year}']
-pt_variations += ['jer1','jer2','jer3','jer4','jer5','jer6']
 
 smp = {}
 
@@ -61,9 +60,9 @@ smp['data'] = [
 smp['main_mc'] = [
     'dy_m105_160_amc',
     'dy_m105_160_vbf_amc',
-    'ewk_lljj_mll105_160', 
     'ewk_lljj_mll105_160_py',
     "ewk_lljj_mll105_160_ptj0",
+    'ewk_lljj_mll105_160_py_dipole',
     'ttjets_dl',
 ]
 
@@ -78,11 +77,30 @@ smp['other_mc'] = [
 
 smp['signal'] = [
     'ggh_amcPS',
-    'vbf_amcPS',
-    'vbf_powhegPS',
-    'vbf_powheg_herwig',
-    'vbf_powheg_dipole'
+#    'vbf_powhegPS',
+#    'vbf_powheg_herwig',
+#    'vbf_powheg_dipole'
 ]
+
+
+# Each JES/JER systematic variation (can be up/down) will run 
+# approximately as long as the 'nominal' option.
+# Therefore, processing all variations takes ~35 times longer than only 'nominal'
+
+pt_variations = []
+pt_variations += ['nominal']
+#pt_variations += ['Absolute', f'Absolute{args.year}']
+#pt_variations += [f'Absolute{args.year}']
+#pt_variations += ['BBEC1', f'BBEC1{args.year}']
+#pt_variations += ['EC2', f'EC2{args.year}']
+#pt_variations += ['FlavorQCD']
+#pt_variations += ['HF',f'HF{args.year}']
+#pt_variations += ['RelativeBal', f'RelativeSample{args.year}']
+#pt_variations += ['jer1','jer2', 'jer3','jer4','jer5','jer6']
+
+############################################################
+
+
 
 samples = []
 for sss in sample_sources:
@@ -97,7 +115,7 @@ for ptvar in pt_variations:
         all_pt_variations += [f'{ptvar}_down']    
     
 if __name__ == "__main__":
-    samp_info = SamplesInfo(year=args.year, out_path=f'{args.year}_{args.label}', server='root://xrootd.rcac.purdue.edu/', datasets_from='purdue', debug=args.debug)
+    samp_info = SamplesInfo(year=args.year, out_path=f'{args.year}_{args.label}', server=server, datasets_from='purdue', debug=args.debug)
 
     if args.debug:
         samp_info.load(samples, parallelize_outer=1, parallelize_inner=1)
@@ -109,7 +127,12 @@ if __name__ == "__main__":
     if args.iterative:
         tstart = time.time() 
         output = processor.run_uproot_job(samp_info.full_fileset, 'Events',\
-                                          DimuonProcessor(samp_info=samp_info, do_timer=True, pt_variations=['Absolute_up'], debug=args.debug),\
+                                          DimuonProcessor(samp_info=samp_info, do_timer=True, pt_variations=[
+                                            'nominal',
+#                                              'Absolute_up',
+#                                            'jer1_up',
+#                                            'jer1_down'
+                                          ], debug=args.debug),\
                                           iterative_executor, executor_args={'nano': True})
 
         elapsed = time.time() - tstart
@@ -125,7 +148,7 @@ if __name__ == "__main__":
     else:
         distributed = pytest.importorskip("distributed", minversion="1.28.1")
         distributed.config['distributed']['worker']['memory']['terminate'] = False
-        client = distributed.Client('128.211.149.133:36202')
+        client = distributed.Client(slurm_address_ip)
 
         
     tstart = time.time()
@@ -134,14 +157,14 @@ if __name__ == "__main__":
         print(f"Jet pT variation: {variation}")
         for label, fileset in samp_info.filesets.items():
             # Not producing variated samples for minor backgrounds
-            if (variation!='nominal') and not (('dy' in label) or ('ewk' in label) or ('vbf' in label) or ('ggh' in label)):
+            if (variation!='nominal') and not (('dy' in label) or ('ewk' in label) or ('vbf' in label) or ('ggh' in label) or ('ttjets_dl' in label)) or ('mg' in label):
                 continue
             print(f"Processing: {label}, {variation}")
             output = processor.run_uproot_job(fileset, 'Events',\
                                               DimuonProcessor(samp_info=samp_info, pt_variations=[variation]),\
                                               dask_executor, executor_args={'nano': True, 'client': client})
 
-            out_dir = f"/depot/cms/hmm/coffea/{samp_info.out_path}/"
+            out_dir = f"{global_out_path}/{samp_info.out_path}/"
 
             try:
                 os.mkdir(out_dir)

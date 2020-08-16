@@ -1,7 +1,17 @@
+import time
+import json
+import subprocess
+import glob, tqdm
+import numpy as np
+import multiprocessing as mp
+
+import uproot
 from coffea.lumi_tools import LumiData, LumiList, LumiMask
 
+from config.parameters import parameters
+from config.cross_sections import cross_sections
+
 def read_via_xrootd(server, path):
-    import subprocess
     command = f"xrdfs {server} ls -R {path} | grep '.root'"
     proc = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
     result = proc.stdout.readlines()
@@ -19,16 +29,15 @@ class SamplesInfo(object):
         self.at_purdue = at_purdue
         self.debug = debug
 
-        from config.parameters import parameters
         self.parameters = {k:v[self.year] for k,v in parameters.items()}
         
         if example:
             datasets = example_datasets
-            from config.datasets import lumi_data, all_dy, all_ewk
+            from config.datasets import lumi_data
         elif 'purdue' in datasets_from:
-            from config.datasets import datasets, lumi_data, all_dy, all_ewk
+            from config.datasets import datasets, lumi_data
         elif 'pisa' in datasets_from:
-            from config.datasets_pisa import datasets, lumi_data, all_dy, all_ewk
+            from config.datasets_pisa import datasets, lumi_data
 
         self.server = server
 
@@ -49,7 +58,6 @@ class SamplesInfo(object):
         print('Default lumi: ', self.lumi)  
         self.data_entries = 0
 
-#        self.lumi_mask = LumiMask(self.parameters['lumimask'])
         self.lumi_list = LumiList()
     
         self.samples = []
@@ -63,48 +71,11 @@ class SamplesInfo(object):
         self.regions = ['z-peak', 'h-sidebands', 'h-peak']
         #self.channels = ['ggh_01j', 'ggh_2j', 'vbf']
         self.channels = ['vbf','vbf_01j','vbf_2j']
-        
-        #--- Select samples for which unbinned data will be saved ---#
-        self.signal_samples = ['ggh_amcPS', 'vbf_amcPS']
-        self.additional_signal = ['ggh_powheg', 'ggh_powhegPS', 'vbf_powheg', 'vbf_powhegPS', 'vbf_powheg_herwig']
-        self.main_bkg_samples = ['dy_m105_160_amc', 'dy_m105_160_vbf_amc',\
-                                 'ttjets_dl', 'ewk_lljj_mll105_160', "ewk_lljj_mll105_160_ptj0"]
-        self.datasets_to_save_unbin = self.signal_samples + self.additional_signal + self.main_bkg_samples
-
-        #--- Take overlapping samples and assign them to different regions ---#
-
-        self.overlapping_samples = all_dy[self.year] + all_ewk[self.year]
-        self.specific_samples = {
-                'z-peak': {
-                    'ggh_01j' : ["dy_0j", "dy_1j", "dy_2j", 'ewk_lljj_mll50_mjj120'],
-                    'ggh_2j' : ["dy_0j", "dy_1j", "dy_2j", 'ewk_lljj_mll50_mjj120'],
-                    'vbf' : ["dy_0j", "dy_1j", "dy_2j", 'ewk_lljj_mll50_mjj120'],
-                    'vbf_01j' : ["dy_0j", "dy_1j", "dy_2j", 'ewk_lljj_mll50_mjj120'],
-                    'vbf_2j' : ["dy_0j", "dy_1j", "dy_2j", 'ewk_lljj_mll50_mjj120']
-                },
-                'h-sidebands': {
-                    'ggh_01j' : ['dy_m105_160_amc', 'ewk_lljj_mll105_160','ewk_lljj_mll105_160_ptj0'],
-                    'ggh_2j' : ['dy_m105_160_amc', 'ewk_lljj_mll105_160','ewk_lljj_mll105_160_ptj0'],
-                    'vbf' : ['dy_m105_160_amc', 'dy_m105_160_vbf_amc', 'ewk_lljj_mll105_160','ewk_lljj_mll105_160_ptj0'],
-                    'vbf_01j' : ['dy_m105_160_amc', 'dy_m105_160_vbf_amc', 'ewk_lljj_mll105_160','ewk_lljj_mll105_160_ptj0'],
-                    'vbf_2j' : ['dy_m105_160_amc', 'dy_m105_160_vbf_amc', 'ewk_lljj_mll105_160','ewk_lljj_mll105_160_ptj0'],
-                },
-                'h-peak': {
-                    'ggh_01j' : ['dy_m105_160_amc', 'ewk_lljj_mll105_160','ewk_lljj_mll105_160_ptj0'],
-                    'ggh_2j' : ['dy_m105_160_amc', 'ewk_lljj_mll105_160','ewk_lljj_mll105_160_ptj0'],
-                    'vbf' : ['dy_m105_160_amc','dy_m105_160_vbf_amc', 'ewk_lljj_mll105_160','ewk_lljj_mll105_160_ptj0'],
-                    'vbf_01j' : ['dy_m105_160_amc','dy_m105_160_vbf_amc', 'ewk_lljj_mll105_160','ewk_lljj_mll105_160_ptj0'],
-                    'vbf_2j' : ['dy_m105_160_amc','dy_m105_160_vbf_amc', 'ewk_lljj_mll105_160','ewk_lljj_mll105_160_ptj0'],
-                }
-            }
 
         self.lumi_weights = {}
 
 
     def load(self, samples, nchunks=1, parallelize_outer=1, parallelize_inner=1):
-        import multiprocessing as mp
-        import time
-        import numpy as np
         t0 = time.time()
         if (parallelize_outer*parallelize_inner)>(mp.cpu_count()-1):
             print(f"Trying to create too many workers ({parallelize_outer*parallelize_inner})! Max allowed: {mp.cpu_count()-1}.")
@@ -173,9 +144,7 @@ class SamplesInfo(object):
             prc = round(self.data_entries/data_entries_total*100, 2)
             print(f"This is ~ {prc}% of {self.year} data.")
             lumi_data = LumiData(f"data/lumimasks/lumi{self.year}.csv")
- #           print(self.lumi_list.array)
 
-#            self.lumi = lumi_data.get_lumi(self.lumi_list)
             print(f"Integrated luminosity: {self.lumi}/pb")
             print()
         if self.missing_samples:
@@ -187,13 +156,9 @@ class SamplesInfo(object):
 
         self.data_samples = [s for s in self.samples if 'data' in s]
         self.mc_samples = [s for s in self.samples if not ('data' in s)]
-        self.datasets_to_save_unbin += self.data_samples
 
 
     def load_sample(self, sample, parallelize=1):
-        import glob, tqdm
-        import uproot
-        import multiprocessing as mp
         print("Loading", sample)
 
         if sample not in self.paths:
@@ -212,9 +177,6 @@ class SamplesInfo(object):
         else:
             all_files = [server+f for f in glob.glob(self.paths[sample]+'/**/**/*.root')]
 
-#        if 'ttjets_sl' in sample:
-#            all_files = all_files[0:10]
-            
         if self.debug:
             all_files = [all_files[0]]
 #            all_files = [all_files[31]]
@@ -267,9 +229,6 @@ class SamplesInfo(object):
                 'data_entries':data_entries, 'lumi_list':lumi_list, 'is_missing':False}
 
     def get_data(self, f):
-        import uproot
-        from coffea.lumi_tools import LumiData, LumiList
-        import numpy as np
         ret = {}
         file = uproot.open(f)
         tree = file['Events']
@@ -280,7 +239,6 @@ class SamplesInfo(object):
         lumis = bl.array("luminosityBlock")
         lumi_mask = LumiMask(self.parameters['lumimask'])
         lumi_filter = lumi_mask(runs, lumis)
-        #print("Lumi filter eff.: ",lumi_filter.mean())
         if len(runs[lumi_filter])>0:
             ret['lumi_list'] = LumiList(runs[lumi_filter], lumis[lumi_filter])
         else:
@@ -288,8 +246,6 @@ class SamplesInfo(object):
         return ret
 
     def get_mc(self, f):
-        import uproot
-        from coffea.lumi_tools import LumiData, LumiList
         ret = {}
         tree = uproot.open(f)['Runs']
         if ('NanoAODv6' in f) or ('NANOV10' in f):
@@ -302,8 +258,6 @@ class SamplesInfo(object):
 
     
     def compute_lumi_weights(self):
-        from config.cross_sections import cross_sections
-        import json
         self.lumi_weights = {'data':1}
         for sample in self.mc_samples:
             N = self.metadata[sample]['sumGenWgts']
