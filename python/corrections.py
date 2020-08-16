@@ -27,11 +27,6 @@ class NNLOPS_Evaluator(object):
         return result
     
 def roccor_evaluator(rochester, is_mc, muons):
-    import awkward
-    import numpy as np
-    #muons = muons.compact()
-    corrections = muons.pt.ones_like()  
-    
     if is_mc:
         mc_rand = np.random.rand(*muons.pt.flatten().shape)
         mc_rand = awkward.JaggedArray.fromoffsets(muons.pt.offsets, mc_rand)
