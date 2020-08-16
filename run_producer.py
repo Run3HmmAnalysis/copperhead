@@ -2,14 +2,12 @@ import time
 import os, sys
 import argparse
 import socket
-import gc
 
 import coffea
 print("Coffea version: ", coffea.__version__)
 from coffea import util
 import coffea.processor as processor
-from coffea.processor.executor import dask_executor
-from coffea.processor.executor import iterative_executor
+from coffea.processor.executor import dask_executor, iterative_executor
 
 from python.dimuon_processor import DimuonProcessor
 from python.samples_info import SamplesInfo
@@ -38,10 +36,10 @@ global_out_path = '/depot/cms/hmm/coffea/'
 slulrm_address_ip = '128.211.149.140:46157'
 
 sample_sources = [
-#    'data',
-#    'main_mc',
+    'data',
+    'main_mc',
     'signal',
-#    'other_mc',
+    'other_mc',
 ]
 
 smp = {}
@@ -77,15 +75,15 @@ smp['other_mc'] = [
 
 smp['signal'] = [
     'ggh_amcPS',
-#    'vbf_powhegPS',
-#    'vbf_powheg_herwig',
-#    'vbf_powheg_dipole'
+    'vbf_powhegPS',
+    'vbf_powheg_herwig',
+    'vbf_powheg_dipole'
 ]
 
 
 # Each JES/JER systematic variation (can be up/down) will run 
 # approximately as long as the 'nominal' option.
-# Therefore, processing all variations takes ~35 times longer than only 'nominal'
+# Therefore, processing all variations takes ~35 times longer than only 'nominal'.
 
 pt_variations = []
 pt_variations += ['nominal']
@@ -126,13 +124,10 @@ if __name__ == "__main__":
     
     if args.iterative:
         tstart = time.time() 
-        output = processor.run_uproot_job(samp_info.full_fileset, 'Events',\
-                                          DimuonProcessor(samp_info=samp_info, do_timer=True, pt_variations=[
-                                            'nominal',
-#                                              'Absolute_up',
-#                                            'jer1_up',
-#                                            'jer1_down'
-                                          ], debug=args.debug),\
+        for variation in all_pt_variations:
+            print(f"Jet pT variation: {variation}")
+            output = processor.run_uproot_job(samp_info.full_fileset, 'Events',\
+                                          DimuonProcessor(samp_info=samp_info, do_timer=True, pt_variations=[variation], debug=args.debug),\
                                           iterative_executor, executor_args={'nano': True})
 
         elapsed = time.time() - tstart
@@ -184,7 +179,6 @@ if __name__ == "__main__":
             print(f"Saved output to {out_dir}")
             
             del output
-            gc.collect()
             
     elapsed = time.time() - tstart
     print(f"Total time: {elapsed} s")

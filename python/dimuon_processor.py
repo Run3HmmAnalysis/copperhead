@@ -1,3 +1,11 @@
+import os, sys
+import copy
+
+import awkward, uproot
+import numpy as np
+#np.set_printoptions(threshold=sys.maxsize)
+import pandas as pd
+
 from coffea import hist, util
 from coffea.analysis_objects import JaggedCandidateArray
 import coffea.processor as processor
@@ -5,15 +13,6 @@ from coffea.lookup_tools import extractor, dense_lookup, txt_converters, rochest
 from coffea.jetmet_tools import FactorizedJetCorrector, JetCorrectionUncertainty, JetTransformer, JetResolution, JetResolutionScaleFactor
 from coffea.btag_tools import BTagScaleFactor
 from coffea.lumi_tools import LumiMask
-
-import awkward
-from awkward import JaggedArray
-import uproot
-import numpy as np
-import sys
-#np.set_printoptions(threshold=sys.maxsize)
-import pandas as pd
-import copy
 
 from python.utils import p4_sum, p4_sum_alt, delta_r, rapidity, cs_variables
 from python.timer import Timer
@@ -683,16 +682,23 @@ class DimuonProcessor(processor.ProcessorABC):
         if self.timer:
             self.timer.add_checkpoint("Completed JEC loop")
 
+
+        #---------------------------------------------------------------#
+        # Print debug info
+        #---------------------------------------------------------------#
+
         if ('nominal' in self.pt_variations):
+            continue
             category = ret_jec_loop['nominal']['category']
             if 'dy' in dataset:
                 weights.effect_on_normalization((category=='vbf_01j')|(category=='vbf_2j'))
             else:
                 weights.effect_on_normalization((category=='vbf'))
 
-        #print(df.event[(category=='vbf_2j')&(ret_jec_loop['nominal']['variable_map']['dimuon_mass']>115)&(ret_jec_loop['nominal']['variable_map']['dimuon_mass']<135)])
-        #evnum = 425742024
-        evnum = 266670 # 2016 dy VBF, file #0
+#        print(df.event[(category=='vbf')&(ret_jec_loop['nominal']['variable_map']['dimuon_mass']>115)&(ret_jec_loop['nominal']['variable_map']['dimuon_mass']<135)])
+#        evnum = 425742024
+#        evnum = 266670 # 2016 dy VBF, file #0
+        evnum = 293 # 2016 ggH
         try:
             pass
 #            print(weights.df)
