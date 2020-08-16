@@ -58,7 +58,9 @@ def roccor_evaluator(rochester, is_mc, muons):
     else:
         corrections = rochester.kScaleDT(muons.charge, muons.pt, muons.eta, muons.phi)
         errors = rochester.kScaleDTerror(muons.charge, muons.pt, muons.eta, muons.phi)
-    return corrections.flatten(), errors
+    corrections_jagged = awkward.JaggedArray.fromcounts(muons.counts, corrections.flatten())
+    errors_jagged = awkward.JaggedArray.fromcounts(muons.counts, errors.flatten())
+    return corrections_jagged, errors_jagged
     
 def musf_lookup(parameters):
     mu_id_vals = 0
@@ -231,7 +233,7 @@ def pu_evaluator(lookup, numevents, ntrueint):
 
 # https://github.com/jpata/hepaccelerate-cms/blob/f5965648f8a7861cb9856d0b5dd34a53ed42c027/tests/hmm/hmumu_utils.py#L1396
 @numba.njit(parallel=True)
-def fsr_evaluator(muons_offsets, fsr_offsets, muons_pt, muons_pt_raw, muons_eta, muons_phi,\
+def fsr_evaluator(muons_offsets, fsr_offsets, muons_pt, muons_eta, muons_phi,\
                           muons_mass, muons_iso, muons_fsrIndex,
                             fsr_pt, fsr_eta, fsr_phi, fsr_iso, fsr_drEt2, has_fsr): 
     for iev in numba.prange(len(muons_offsets) - 1):

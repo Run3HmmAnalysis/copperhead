@@ -255,11 +255,11 @@ class DimuonProcessor(processor.ProcessorABC):
 
         roch_corr, roch_err = roccor_evaluator(self.roccor_lookup, is_mc, df.Muon)
         
-        muons_pt_roch = df.Muon.pt.flatten()*roch_corr
-#        muons_pt_scale_up = df.Muon.pt+df.Muon.pt*roch_err
-#        muons_pt_scale_down = df.Muon.pt-df.Muon.pt*roch_err
-        df.Muon['pt'] = awkward.JaggedArray.fromcounts(df.Muon.counts, muons_pt_roch)# Rochester should be still applied
-        muons_pts = {'nominal': df.Muon.pt}#, 'scale_up':muons_pt_scale_up, 'scale_down':muons_pt_scale_down   ,}
+        df.Muon['pt'] = df.Muon.pt*roch_corr
+#        df.Muon['pt_scale_up'] = df.Muon.pt+df.Muon.pt*roch_err
+#        df.Muon['pt_scale_down'] = df.Muon.pt-df.Muon.pt*roch_err
+        muons_pts = {'nominal': df.Muon.pt}#, 'scale_up':df.Muon.pt_scale_up, 'scale_down':df.Muon.pt_scale_down}
+
         if True: # reserved for loop over muon pT variations
 #        for
             fsr_offsets = awkward.JaggedArray.counts2offsets(df.FsrPhoton.counts)
@@ -273,7 +273,7 @@ class DimuonProcessor(processor.ProcessorABC):
 
             pt_fsr, eta_fsr, phi_fsr, mass_fsr, iso_fsr, has_fsr =\
             fsr_evaluator(muons_offsets, fsr_offsets,\
-                        np.array(df.Muon.pt.flatten(), dtype=float), np.array(muons_pt_roch, dtype=float),\
+                        np.array(df.Muon.pt.flatten(), dtype=float),\
                         np.array(df.Muon.eta.flatten(),dtype=float), np.array(df.Muon.phi.flatten(), dtype=float),\
                         np.array(df.Muon.mass.flatten(),dtype=float),np.array(df.Muon.pfRelIso04_all.flatten(), dtype=float),\
                         np.array(df.Muon.fsrPhotonIdx.flatten(), dtype=int), fsr_pt, fsr_eta, fsr_phi, fsr_iso, fsr_drEt2,\
@@ -687,18 +687,18 @@ class DimuonProcessor(processor.ProcessorABC):
         # Print debug info
         #---------------------------------------------------------------#
 
-        if ('nominal' in self.pt_variations):
-            continue
-            category = ret_jec_loop['nominal']['category']
-            if 'dy' in dataset:
-                weights.effect_on_normalization((category=='vbf_01j')|(category=='vbf_2j'))
-            else:
-                weights.effect_on_normalization((category=='vbf'))
+#        if ('nominal' in self.pt_variations):
+#            category = ret_jec_loop['nominal']['category']
+#            if 'dy' in dataset:
+#                weights.effect_on_normalization((category=='vbf_01j')|(category=='vbf_2j'))
+#            else:
+#                weights.effect_on_normalization((category=='vbf'))
 
 #        print(df.event[(category=='vbf')&(ret_jec_loop['nominal']['variable_map']['dimuon_mass']>115)&(ret_jec_loop['nominal']['variable_map']['dimuon_mass']<135)])
-#        evnum = 425742024
+
 #        evnum = 266670 # 2016 dy VBF, file #0
         evnum = 293 # 2016 ggH
+
         try:
             pass
 #            print(weights.df)
