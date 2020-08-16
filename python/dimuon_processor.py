@@ -29,7 +29,7 @@ from config.variables import variables, Variable
 class DimuonProcessor(processor.ProcessorABC):
     def __init__(self, samp_info,\
                  do_timer=False, save_unbin=True,\
-                 do_jecunc=False, do_jerunc=False, do_pdf=True, auto_pu=True, debug=False, pt_variations=['nominal']): 
+                 do_jecunc=False, do_jerunc=False, do_pdf=True, do_btag_syst=True, auto_pu=True, debug=False, pt_variations=['nominal']): 
         if not samp_info:
             print("Samples info missing!")
             return
@@ -40,6 +40,7 @@ class DimuonProcessor(processor.ProcessorABC):
         self.save_unbin = save_unbin
         self.pt_variations = pt_variations
         self.do_pdf = do_pdf
+        self.do_btag_syst = do_btag_syst
         self.parameters = {k:v[self.year] for k,v in parameters.items()}
 
         self.timer = Timer('global') if do_timer else None
@@ -55,9 +56,13 @@ class DimuonProcessor(processor.ProcessorABC):
         variated_weights = ['pu_wgt', 'muID', 'muIso', 'muTrig', 'l1prefiring_wgt', 'qgl_wgt', 'LHEFac', 'LHERen', 'pdf_2rms']
         self.sths_names = ["Yield","PTH200","Mjj60","Mjj120","Mjj350","Mjj700","Mjj1000","Mjj1500","PTH25","JET01"]
         variated_weights.extend(["THU_VBF_"+name for name in self.sths_names])
-        self.btag_systs = ["jes", "lf", "hfstats1", "hfstats2","cferr1", "cferr2","hf", "lfstats1", "lfstats2"]
-        variated_weights.extend(["btag_wgt_"+name for name in self.btag_systs])
-        
+
+        if self.do_btag_syst:
+            self.btag_systs = ["jes", "lf", "hfstats1", "hfstats2","cferr1", "cferr2","hf", "lfstats1", "lfstats2"]
+            variated_weights.extend(["btag_wgt_"+name for name in self.btag_systs])
+        else:
+            self.btag_systs = []
+
         for wgt in weights_:
             if 'nominal' in wgt:
                 variables.append(Variable("wgt_nominal", "wgt_nominal", 1, 0, 1))

@@ -312,14 +312,13 @@ def btag_weights(lookup, systs, jets, weights, bjet_sel_mask, numevents):
         btag_syst[sys] = [np.ones(njets, dtype=float),np.ones(njets, dtype=float)]
         for f, f_syst in flavors.items():
             if sys in f_syst:
-                btag_mask = (abs(jets_.hadronFlavour)==f).flatten()
-                btag_syst[sys][0][btag_mask] = lookup('up_'+sys, jets_.hadronFlavour.flatten()[btag_mask],\
-                                                      abs(jets_.eta.flatten())[btag_mask], jets_.pt.flatten()[btag_mask],\
-                                                      jets_.btagDeepB.flatten()[btag_mask], True)
-                btag_syst[sys][1][btag_mask] = lookup('down_'+sys, jets_.hadronFlavour.flatten()[btag_mask],\
-                                                      abs(jets_.eta.flatten())[btag_mask], jets_.pt.flatten()[btag_mask],\
-                                                      jets_.btagDeepB.flatten()[btag_mask], True)
-
+                btag_mask = abs(jets_.hadronFlavour)==f
+                btag_syst[sys][0][btag_mask.flatten()] = lookup('up_'+sys, jets_.hadronFlavour[btag_mask],\
+                                                      abs(jets_.eta)[btag_mask], jets_.pt[btag_mask],\
+                                                      jets_.btagDeepB[btag_mask], True).flatten()
+                btag_syst[sys][1][btag_mask.flatten()] = lookup('down_'+sys, jets_.hadronFlavour[btag_mask],\
+                                                      abs(jets_.eta)[btag_mask], jets_.pt[btag_mask],\
+                                                      jets_.btagDeepB[btag_mask], True).flatten()
         btag_syst[sys][0] = awkward.JaggedArray.fromcounts(jets_.counts, btag_syst[sys][0]).prod()
         btag_syst[sys][1] = awkward.JaggedArray.fromcounts(jets_.counts, btag_syst[sys][1]).prod()
     
