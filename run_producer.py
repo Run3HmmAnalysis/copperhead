@@ -33,7 +33,8 @@ args = parser.parse_args()
 
 server = 'root://xrootd.rcac.purdue.edu/'
 global_out_path = '/depot/cms/hmm/coffea/'
-slurm_cluster_ip = '128.211.149.140:46157'
+slurm_cluster_ip = '128.211.149.140:33725'
+chunksize = 100000
 
 # B-tag systematics significantly slow down 'nominal' processing 
 # and they are only needed at the very last stage of the analysis.
@@ -134,7 +135,7 @@ if __name__ == "__main__":
             output = processor.run_uproot_job(samp_info.full_fileset, 'Events',\
                                               DimuonProcessor(samp_info=samp_info, do_timer=True, pt_variations=[variation],\
                                                               debug=args.debug, do_btag_syst=do_btag_syst),\
-                                          iterative_executor, executor_args={'nano': True})
+                                              iterative_executor, executor_args={'nano': True}, chunksize=chunksize)
 
         elapsed = time.time() - tstart
         print(f"Total time: {elapsed} s")
@@ -163,7 +164,7 @@ if __name__ == "__main__":
             print(f"Processing: {label}, {variation}")
             output = processor.run_uproot_job(fileset, 'Events',\
                                               DimuonProcessor(samp_info=samp_info, pt_variations=[variation], do_btag_syst=do_btag_syst),\
-                                              dask_executor, executor_args={'nano': True, 'client': client})
+                                              dask_executor, executor_args={'nano': True, 'client': client}, chunksize=chunksize)
 
             out_dir = f"{global_out_path}/{samp_info.out_path}/"
 
