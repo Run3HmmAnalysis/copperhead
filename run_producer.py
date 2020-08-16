@@ -33,7 +33,7 @@ args = parser.parse_args()
 
 server = 'root://xrootd.rcac.purdue.edu/'
 global_out_path = '/depot/cms/hmm/coffea/'
-slulrm_address_ip = '128.211.149.140:46157'
+slurm_cluster_ip = '128.211.149.140:46157'
 
 # B-tag systematics significantly slow down 'nominal' processing 
 # and they are only needed at the very last stage of the analysis.
@@ -149,7 +149,7 @@ if __name__ == "__main__":
     else:
         distributed = pytest.importorskip("distributed", minversion="1.28.1")
         distributed.config['distributed']['worker']['memory']['terminate'] = False
-        client = distributed.Client(slurm_address_ip)
+        client = distributed.Client(slurm_cluster_ip)
 
         
     tstart = time.time()
