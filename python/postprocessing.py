@@ -50,8 +50,10 @@ grouping = {
     'dy_0j': 'DY',
     'dy_1j': 'DY',
     'dy_2j': 'DY',
-    'dy_m105_160_amc': 'DY_nofilter',
-    'dy_m105_160_vbf_amc': 'DY_filter',
+#    'dy_m105_160_amc': 'DY_nofilter',
+#    'dy_m105_160_vbf_amc': 'DY_filter',
+    'dy_m105_160_amc': 'DY',
+    'dy_m105_160_vbf_amc': 'DY',
     'ewk_lljj_mll105_160_ptj0': 'EWK',
 #    'ewk_lljj_mll105_160_py_dipole': 'EWK_Pythia',
     'ttjets_dl': 'TT+ST',
@@ -77,34 +79,71 @@ signal = {'vbf_powhegPS','vbf_powheg_herwig','vbf_powheg_dipole', 'ggh_amcPS',}
 
 rate_syst_lookup = {
     '2016':{
-        'XsecAndNorm2016DYJ2':{'DYJ2_nofilter':1.1291, 'DYJ2_filter':1.12144},
+#        'XsecAndNorm2016DYJ2':{'DYJ2_nofilter':1.1291, 'DYJ2_filter':1.12144},
+        'XsecAndNorm2016DYJ2':{'DYJ2':1.1291},
         'XsecAndNorm2016EWK':{'EWK':1.06131},
-        'XsecAndNorm2016TT+ST':{'TT+ST':1.182},
-        'XsecAndNorm2016VV':{'VV':1.13203},
-        'XsecAndNorm2016ggH': {'ggH_hmm':1.38206},
+        'XsecAndNormTT+ST':{'TT+ST':1.182},
+        'XsecAndNormVV':{'VV':1.13203},
+        'XsecAndNormggH': {'ggH_hmm':1.38206},
         },
     '2017':{
-        'XsecAndNorm2017DYJ2':{'DYJ2_nofilter':1.13020, 'DYJ2_filter':1.12409},
+#        'XsecAndNorm2017DYJ2':{'DYJ2_nofilter':1.13020, 'DYJ2_filter':1.12409},
+        'XsecAndNorm2017DYJ2':{'DYJ2':1.13020},
         'XsecAndNorm2017EWK':{'EWK':1.05415},
-        'XsecAndNorm2017TT+ST':{'TT+ST':1.18406},
-        'XsecAndNorm2017VV':{'VV':1.05653},
-        'XsecAndNorm2017ggH': {'ggH_hmm':1.37126},
+        'XsecAndNormTT+ST':{'TT+ST':1.18406},
+        'XsecAndNormVV':{'VV':1.05653},
+        'XsecAndNormggH': {'ggH_hmm':1.37126},
         },
     '2018':{
-        'XsecAndNorm2018DYJ2':{'DYJ2_nofilter':1.12320, 'DYJ2_filter':1.12077},
+#        'XsecAndNorm2018DYJ2':{'DYJ2_nofilter':1.12320, 'DYJ2_filter':1.12077},
+        'XsecAndNorm2018DYJ2':{'DYJ2':1.12320},
         'XsecAndNorm2018EWK':{'EWK':1.05779},
-        'XsecAndNorm2018TT+ST':{'TT+ST':1.18582},
-        'XsecAndNorm2018VV':{'VV':1.05615},
-        'XsecAndNorm2018ggH': {'ggH_hmm':1.38313},        
+        'XsecAndNormTT+ST':{'TT+ST':1.18582},
+        'XsecAndNormVV':{'VV':1.05615},
+        'XsecAndNormggH': {'ggH_hmm':1.38313},        
         },
 }
 
+#https://twiki.cern.ch/twiki/bin/view/CMS/TWikiLUM
+lumi_syst = {
+    '2016':{
+        'uncor':2.2,
+        'xyfac':0.9,
+        'len': 0.0,
+        'bb': 0.4,
+        'beta': 0.5,
+        'calib': 0.0,
+        'ghost': 0.4,
+    },
+    '2017':{
+        'uncor':2.0,
+        'xyfac':0.8,
+        'len': 0.3,
+        'bb': 0.4,
+        'beta': 0.5,
+        'calib': 0.3,
+        'ghost': 0.1,
+    },
+    '2018':{
+        'uncor':1.5,
+        'xyfac':2.0,
+        'len': 0.2,
+        'bb': 0.0,
+        'beta': 0.0,
+        'calib': 0.2,
+        'ghost': 0.0,
+    },
+}
+
 decorrelation_scheme = {
-    'LHERen': {'DY':['DY_filter', 'DY_nofilter'], 'EWK':['EWK'], 'ggH':['ggH'], 'TT+ST':['TT+ST']},
-    'LHEFac': {'DY':['DY_filter', 'DY_nofilter'], 'EWK':['EWK'], 'ggH':['ggH'], 'TT+ST':['TT+ST']},
-    'qgl_wgt': {'DY':['DY_filter', 'DY_nofilter'], 'EWK':['EWK'], 'Hmm':['ggH', 'VBF'], 'TT+ST':['TT+ST'], 'VV':['VV']},
-    'pdf_2rms': {'DY':['DY_filter', 'DY_nofilter'], 'ggH':['ggH'], 'VBF':['VBF']},
-    'pdf_mcreplica': {'DY':['DY_filter', 'DY_nofilter'], 'ggH':['ggH'], 'VBF':['VBF']},
+    'LHERen': {'DY':['DY'], 'EWK':['EWK'], 'ggH':['ggH'], 'TT+ST':['TT+ST']},
+    'LHEFac': {'DY':['DY'], 'EWK':['EWK'], 'ggH':['ggH'], 'TT+ST':['TT+ST']},
+    'pdf_2rms': {'DY':['DY'], 'ggH':['ggH'], 'VBF':['VBF']},
+    'pdf_mcreplica': {'DY':['DY'], 'ggH':['ggH'], 'VBF':['VBF']},
+#    'LHERen': {'DY':['DY_filter', 'DY_nofilter'], 'EWK':['EWK'], 'ggH':['ggH'], 'TT+ST':['TT+ST']},
+#    'LHEFac': {'DY':['DY_filter', 'DY_nofilter'], 'EWK':['EWK'], 'ggH':['ggH'], 'TT+ST':['TT+ST']},
+#    'pdf_2rms': {'DY':['DY_filter', 'DY_nofilter'], 'ggH':['ggH'], 'VBF':['VBF']},
+#    'pdf_mcreplica': {'DY':['DY_filter', 'DY_nofilter'], 'ggH':['ggH'], 'VBF':['VBF']},
 }
 
 shape_only = ['LHE', 'qgl']
@@ -145,12 +184,11 @@ def postprocess(args, parallelize=True):
     args.update({'classes_dict':classes_dict})
     for year in years:
         for s in args['samples']:
-            if (s in grouping.keys()) and (('dy' in s) or ('ewk' in s) or ('vbf' in s) or ('ggh' in s)):
-                variations = args['syst_variations']
-            else:
-                variations = ['nominal']
+            variations = args['syst_variations']
             for v in variations:
                 proc_outs = glob.glob(f"{path}/{year}_{args['label']}/{v}/{s}.coffea")
+                if len(proc_outs) == 0:
+                    proc_outs = glob.glob(f"{path}/{year}_{args['label']}/nominal/{s}.coffea")
                 for proc_path in proc_outs:
                     for c in args['channels']:
                         for r in args['regions']:
@@ -213,7 +251,8 @@ def to_pandas(args):
     year = args['y']
     suff = f'_{c}_{r}'
 
-    groups = ['DY_nofilter', 'DY_filter', 'EWK', 'TT+ST', 'VV', 'ggH', 'VBF']
+#    groups = ['DY_nofilter', 'DY_filter', 'EWK', 'TT+ST', 'VV', 'ggH', 'VBF']
+    groups = ['DY', 'EWK', 'TT+ST', 'VV', 'ggH', 'VBF']
     columns = [c.replace(suff, '') for c in list(proc_out.keys()) if suff in c]
     df = pd.DataFrame()
 
@@ -497,7 +536,8 @@ def bdt_evaluation(df, model, args):
         if args['do_massscan']:
             df_i['dimuon_mass'] = df_i['dimuon_mass']+mass_shift
         df_i = (df_i[features]-scalers[0])/scalers[1]
-        prediction = np.array(bdt_model.predict_proba(df_i)[:, 1]).ravel()
+        #prediction = np.array(bdt_model.predict_proba(df_i)[:, 1]).ravel()
+        prediction = np.array(bdt_model.predict_proba(df_i.values)[:, 1]).ravel()
         df.loc[eval_filter, score_name] = np.arctanh((prediction))
     return df
 
@@ -526,7 +566,6 @@ def rebin(df, model, args):
                 boundaries = []
                 idx_left = 0
                 idx_right = len(target_yields[year])-1
-                max_dnn = 2
                 for idx, row in df[(df.c==c)&(df.v==v)&(df.year==int(year))].iterrows():
                     bin_sum += row['wgt_nominal']
                     if bin_sum>=target_yields[year][idx_right]:
@@ -534,7 +573,7 @@ def rebin(df, model, args):
                         bin_sum = 0
                         idx_left+=1
                         idx_right-=1
-                bnd[year][c][v] = sorted([0,2.8]+boundaries)
+                bnd[year][c][v] = sorted([0,5.0]+boundaries)
 #    print(model, bnd)
     return bnd
 
@@ -547,6 +586,7 @@ def get_asimov_significance(df, model, args):
     binning = {}
     significance2 = 0
     var = f'score_{model}'
+    print(df[var].max())
     for year in years:
         binning = binning_all[year]['vbf']['nominal']
         sig = df[(df.cls=='signal')&(df.r=='h-peak')&(df.year==int(year))]
@@ -574,7 +614,6 @@ def plot_rocs(df, args):
         significance = round(get_asimov_significance(df, model, args),3)
         roc = roc_curve(df['cls_idx'], df[var], sample_weight=df['wgt_nominal'])
         plt.plot(roc[1], roc[0], label=f'{model} sign={significance}') # [0]: fpr, [1]: tpr, [2]: threshold
-#    plt.title()
     plt.xlabel('Signal efficiency')
     plt.ylabel('Bkg efficiency')
     plt.legend(loc='best', fontsize=18)
@@ -595,7 +634,7 @@ def overlap_study(df, args, model):
     if args['year']=='2016':
         df = df[(df.s=='vbf_powheg_herwig')&(df.r=='h-peak')]    
     else:
-        df = df[(df.s=='vbf_powheg')&(df.r=='h-peak')]    
+        df = df[(df.s=='vbf_powhegPS')&(df.r=='h-peak')]    
     pisa_files = {
         '2016': '/depot/cms/hmm/pisa/vbfHmm_2016POWHERWIGSnapshot.root',
         '2017': '/depot/cms/hmm/pisa/vbfHmm_2017POWPYSnapshot.root',
@@ -624,7 +663,6 @@ def overlap_study(df, args, model):
 #    print(f'Total Pisa events: {pisa_df.shape[0]}')
     percent = round(100*len(overlap)/pisa_df.shape[0], 2)
 #    print(f'Common events: {len(overlap)} ({percent}%)')
-    
     df = df.set_index('event')
     pisa_df = pisa_df.set_index('event')
     df_combined = pd.DataFrame(index=overlap)
@@ -644,7 +682,6 @@ def overlap_study(df, args, model):
     }
 
     df_combined['weight'] = 1.
-    
     for opt_name, binning in options.items():    
         for i in range(len(purdue_bins)-1):
             ibin = (df_combined.pisa_score>=pisa_bins[args['year']][i])&(df_combined.pisa_score<pisa_bins[args['year']][i+1])
@@ -824,12 +861,12 @@ def save_shapes(hist, model, args, mva_bins):
                 vwname = 'jes'+vwname
         if vwname.startswith('wgt_'):
             vwname = vwname[4:]
-        if ('jes' not in vwname) or ('btag' in vwname):
+        if ('jes' not in vwname) and ('btag' not in vwname) and ('THU' not in vwname) and ('qgl' not in vwname) and ('LHE' not in vwname):
             vwname = vwname.replace('Up',f'{args["year"]}Up').replace('Down',f'{args["year"]}Down')
         return vwname  
     
     try:
-        os.mkdir(f'combine_new/{args["year"]}_{args["label"]}_{var}')
+        os.mkdir(f'combine/{args["year"]}_{args["label"]}_{var}')
     except:
         pass
     
@@ -907,16 +944,16 @@ def save_shapes(hist, model, args, mva_bins):
                                         if (dec_group in vwname) and (g not in proc_groups): decor_ok = False
 
                             if not decor_ok: continue
-                            histo = np.array(mc_hist[mc_hist.g==g][bin_columns].values[0], dtype=float)
+                            histo = np.array(mc_hist[mc_hist.g==g][bin_columns].values.sum(axis=0), dtype=float)
                             if len(histo)==0: continue
-                            sumw2 = np.array(mc_hist[mc_hist.g==g][sumw2_columns].values[0], dtype=float)
+                            sumw2 = np.array(mc_hist[mc_hist.g==g][sumw2_columns].values.sum(axis=0), dtype=float)
                             
                             if sum([sh in w for sh in shape_only]):
-                                histo_nom = np.array(nom_hist[nom_hist.g==g][bin_columns].values[0], dtype=float)
+                                histo_nom = np.array(nom_hist[nom_hist.g==g][bin_columns].values.sum(axis=0), dtype=float)
                                 normalization = histo_nom.sum()/histo.sum()
                                 histo = histo*normalization
                                 sumw2 = sumw2*normalization
-                            
+
                             histo[np.isinf(histo)] = 0
                             sumw2[np.isinf(sumw2)] = 0
                             histo[np.isnan(histo)] = 0
@@ -932,6 +969,8 @@ def save_shapes(hist, model, args, mva_bins):
                             except:
                                 pass
                             np.save(f'{tdir}/{g}/{name}', [histo,sumw2])
+                            if (('nominal' in vwname) or ('LHE' in vwname)) and ('2j' in c):
+                                print(vwname, c, g, r, sum(histo))
                             for groupname, var_items in variations_by_group.items():
                                 if (groupname==g)&(vwname=='nominal'):
                                     for variname,variations in var_items.items():
@@ -960,20 +999,20 @@ def prepare_root_files(var, args):
         mass_point = f'{args["mass"]}'.replace('.','')
         tdir = tdir.replace('templates','/templates/massScan/')+f'{mass_point}'
         try:
-            os.mkdir(f'combine_new/massScan_{args["label"]}/')
+            os.mkdir(f'combine/massScan_{args["label"]}/')
         except:
             pass
         try:
-            os.mkdir(f'combine_new/massScan_{args["label"]}/{mass_point}')
+            os.mkdir(f'combine/massScan_{args["label"]}/{mass_point}')
         except:
             pass
         try:
-            os.mkdir(f'combine_new/massScan_{args["label"]}/{mass_point}/{args["year"]}_{args["label"]}_{var.name}/')
+            os.mkdir(f'combine/massScan_{args["label"]}/{mass_point}/{args["year"]}_{args["label"]}_{var.name}/')
         except:
             pass
     else:
         try:
-            os.mkdir(f'combine_new/{args["year"]}_{args["label"]}_{var.name}')
+            os.mkdir(f'combine/{args["year"]}_{args["label"]}_{var.name}')
         except:
             pass
     regions = ['SB','SR']
@@ -981,10 +1020,10 @@ def prepare_root_files(var, args):
 
     for cgroup,cc in args['channel_groups'].items():
         for r in regions:
-            out_fn = f'combine_new/{args["year"]}_{args["label"]}_{var.name}/shapes_{cgroup}_{r}.root'
+            out_fn = f'combine/{args["year"]}_{args["label"]}_{var.name}/shapes_{cgroup}_{r}.root'
             if args['do_massscan']:
                 out_fn =\
-                f'combine_new/massScan_{args["label"]}/{mass_point}/{args["year"]}_{args["label"]}_{var.name}/shapes_{cgroup}_{r}.root'
+                f'combine/massScan_{args["label"]}/{mass_point}/{args["year"]}_{args["label"]}_{var.name}/shapes_{cgroup}_{r}.root'
             out_file = uproot.recreate(out_fn)
             if args['do_massscan']:
                 data_hist, data_sumw2 = np.load(f'{tdir_nominal}/Data/{r}_{args["year"]}_data_obs.npy',allow_pickle=True)
@@ -996,7 +1035,8 @@ def prepare_root_files(var, args):
             th1_data._fTsumw2 = np.array(data_sumw2).sum()
             th1_data._fTsumwx2 = np.array(data_sumw2[1:] * centers).sum()
             out_file['data_obs'] = th1_data
-            bkg = ['DY_filter','DY_nofilter','EWK','TT+ST','VV']
+#            bkg = ['DY_filter','DY_nofilter','EWK','TT+ST','VV']
+            bkg = ['DY', 'EWK','TT+ST','VV']
             sig = ['VBF','ggH']
             mc_templates = []
             for group in sig:
@@ -1016,6 +1056,8 @@ def prepare_root_files(var, args):
                 name = name.replace('DY_nofilter_vbf_2j', 'DYJ2_nofilter')
                 name = name.replace('DY_filter_vbf_01j', 'DYJ01_filter')
                 name = name.replace('DY_nofilter_vbf_01j', 'DYJ01_nofilter')
+                name = name.replace('DY_vbf_2j', 'DYJ2')
+                name = name.replace('DY_vbf_01j', 'DYJ01')
                 name = name.replace('EWK_vbf','EWK')
                 name = name.replace('TT+ST_vbf','TT+ST')
                 name = name.replace('VV_vbf','VV')
@@ -1031,8 +1073,9 @@ def prepare_root_files(var, args):
 
 def get_numbers(var, cc, r, bin_name, args):
     groups = {'Data': ['vbf'],
-              'DY_nofilter':['vbf_01j','vbf_2j'],
-              'DY_filter':['vbf_01j','vbf_2j'],
+#              'DY_nofilter':['vbf_01j','vbf_2j'],
+#              'DY_filter':['vbf_01j','vbf_2j'],
+              'DY': ['vbf_01j','vbf_2j'],
               'EWK':['vbf'],
               'TT+ST':['vbf'],
               'VV':['vbf'],
@@ -1056,7 +1099,8 @@ def get_numbers(var, cc, r, bin_name, args):
         mass_point = f'{args["mass"]}'.replace('.','')
         tdir = tdir.replace('templates','/templates/massScan/')+f'{mass_point}'
         
-    bkg = ['DY_filter','DY_nofilter','EWK','TT+ST','VV']
+#    bkg = ['DY_filter','DY_nofilter','EWK','TT+ST','VV']
+    bkg = ['DY', 'EWK','TT+ST','VV']
     sig = ['VBF','ggH']
         
     shape_systs_by_group = {}
@@ -1081,6 +1125,7 @@ def get_numbers(var, cc, r, bin_name, args):
         
     systs = []
     systs.extend(shape_systs)
+
     data_yields = pd.DataFrame()
     data_yields['index'] = ['bin','observation']
     
@@ -1113,15 +1158,18 @@ def get_numbers(var, cc, r, bin_name, args):
             if g=='Data':
                 data = f'{tdir}/Data/{r}_{args["year"]}_data_obs.npy'
                 hist,_ = np.load(data, allow_pickle=True)
-                rate = hist.sum()          
+                rate = hist.sum()
                 data_yields.loc[0,'value'] = bin_name
                 data_yields.loc[1,'value'] = f'{rate}'
             else:
                 nominal_shape = f'{tdir}/{g}/{r}_{args["year"]}_{g}_{c}.npy'
                 if g in bkg and args['do_massscan']:
                     nominal_shape = f'{tdir_nominal}/{g}/{r}_{args["year"]}_{g}_{c}.npy'
-
-                hist,_ = np.load(nominal_shape, allow_pickle=True)
+                try:
+                    hist,_ = np.load(nominal_shape, allow_pickle=True)
+                except:
+                    print(f"Can't load templates for: {g} {c}")
+                    continue
                 rate = hist.sum()          
                 mc_yields.loc[0,gcname] = bin_name
                 mc_yields.loc[1,gcname] = gcname
@@ -1144,12 +1192,28 @@ def get_numbers(var, cc, r, bin_name, args):
 #                        systematics.loc[syst,gcname] = '1.0' if (g in syst) and (syst in shape_systs_by_group[g]) else '-'   
                     else:
                         systematics.loc[syst,gcname] = '1.0' if syst in shape_systs_by_group[g] else '-'
+
+                #https://twiki.cern.ch/twiki/bin/view/CMS/TWikiLUM                    
+                for year in ['2016','2017','2018']:
+                    systematics.loc[f'lumi_uncor{year}','type'] = 'lnN'
+                    if args['year']==year:
+                        val = 1.0 + lumi_syst[year]['uncor']/100
+                        systematics.loc[f'lumi_uncor{year}',gcname] = '-' if val==1.0 else f"{val}"
+                    else:
+                        systematics.loc[f'lumi_uncor{year}',gcname] = '-'
+                for src in lumi_syst[args['year']].keys():
+                    if src=='uncor': continue
+                    systematics.loc[f'lumi_{src}','type'] = 'lnN'
+                    val = 1.0 + lumi_syst[args['year']][src]/100
+                    systematics.loc[f'lumi_{src}',gcname] = '-' if val==1.0 else f"{val}"
+                    
                 for rate_syst, rate_syst_grouping in rate_syst_lookup[year].items():
                     systematics.loc[rate_syst,'type'] = 'lnN'
                     if gcname in rate_syst_grouping.keys():
                         val = rate_syst_grouping[gcname]
                     else: val = '-'
                     systematics.loc[rate_syst,gcname] = f'{val}'
+
     def to_string(df):
         string = ''
         for row in df.values:
@@ -1170,10 +1234,10 @@ def make_datacards(var, args):
     for cgroup, cc in args['channel_groups'].items():
         for r in ['SB', 'SR']:
             bin_name = f'{cgroup}_{r}_{year}'
-            datacard_name = f'combine_new/{year}_{args["label"]}_{var.name}/datacard_{cgroup}_{r}.txt'
+            datacard_name = f'combine/{year}_{args["label"]}_{var.name}/datacard_{cgroup}_{r}.txt'
             if args['do_massscan']:
                 mass_point = f'{args["mass"]}'.replace('.','')
-                datacard_name = f'combine_new/massScan_{args["label"]}/{mass_point}/{args["year"]}_{args["label"]}_{var.name}/datacard_{cgroup}_{r}.txt'
+                datacard_name = f'combine/massScan_{args["label"]}/{mass_point}/{args["year"]}_{args["label"]}_{var.name}/datacard_{cgroup}_{r}.txt'
             shapes_file = f'shapes_{cgroup}_{r}.root'
             datacard = open(datacard_name, 'w')
             datacard.write(f"imax 1\n")
@@ -1188,13 +1252,12 @@ def make_datacards(var, args):
             datacard.write(mc_yields)
             datacard.write("---------------\n")
             datacard.write(systematics)
-            datacard.write(f"XSecAndNorm{year}DYJ01  rateParam {bin_name} DYJ01_nofilter 1 [0.2,5] \n")
-            datacard.write(f"XSecAndNorm{year}DYJ01  rateParam {bin_name} DYJ01_filter 1 [0.2,5] \n")
-#            datacard.write(f"XSecAndNorm{year}DY_01j  rateParam {bin_name} DY_nofilter_vbf_01j 1 [0.2,5] \n")
-#            datacard.write(f"XSecAndNorm{year}DY_01j  rateParam {bin_name} DY_filter_vbf_01j 1 [0.2,5] \n")
-#            datacard.write(f"XSecAndNorm{year}DY_2j  rateParam {bin_name} DY_nofilter_vbf_2j 1 [0.2,5] \n")
-#            datacard.write(f"XSecAndNorm{year}DY_2j  rateParam {bin_name} DY_filter_vbf_2j 1 [0.2,5] \n")
+            datacard.write(f"XSecAndNorm{year}DYJ01  rateParam {bin_name} DYJ01 1 [0.2,5] \n")
             datacard.write(f"{bin_name} autoMCStats 0 1 1\n")
+            datacard.write("---------------\n")
+            datacard.write(f"nuisance edit rename (DYJ2|DYJ01|ggH_hmm|TT+ST|VV) * qgl_wgt  QGLweightPY \n")
+            datacard.write(f"nuisance edit rename EWK * qgl_wgt QGLweightHER \n")
+            datacard.write(f"nuisance edit rename qqH_hmm * qgl_wgt QGLweightPYDIPOLE \n")
             datacard.close()
             print(f'Saved datacard to {datacard_name}')
     return
@@ -1206,10 +1269,9 @@ def add_source(hist, group_name):
     vals = vals.groupby('g').aggregate(np.sum).reset_index()
     sumw2 = vals[sumw2_columns].sum(axis=0).reset_index(drop=True).values 
     try:
-        vals = vals[bin_columns].values[0] 
+        vals = vals[bin_columns].values.sum(axis=0) 
         return vals, sumw2
     except:
-#        print(group_name, "missing")
         return np.array([]), np.array([])
 
 def plot(var, hists, edges, args, r='', save=True, blind=True, show=False, plotsize=12, compare_with_pisa=False):    
@@ -1265,7 +1327,7 @@ def plot(var, hists, edges, args, r='', save=True, blind=True, show=False, plots
     data       = ret_nominal['data']
     data_sumw2 = ret_nominal['data_sumw2'][1:]
 
-    if blind and var.name=='dnn_score':
+    if blind and 'score' in var.name:
         data = data[:-blind_bins]
         data_sumw2 = data_sumw2[:-blind_bins]
         edges_data = edges_data[:-blind_bins]
@@ -1278,7 +1340,6 @@ def plot(var, hists, edges, args, r='', save=True, blind=True, show=False, plots
     ggh_nnlops_off = ret_nnlops_off['ggh']
     ggh_sumw2_nnlops_off  = ret_nnlops_off['ggh_sumw2'][1:]
 
-    
 #    ewk        = ret_nominal['ewk']
 #    ewk_sumw2  = ret_nominal['ewk_sumw2'][1:]
 #    ewk_py        = ret_nominal['ewk_py']
@@ -1369,11 +1430,13 @@ def plot(var, hists, edges, args, r='', save=True, blind=True, show=False, plots
             if ('nominal' in v) and ('nominal' in w): continue
             if ('off' in w): continue
             if ('wgt' not in w): continue
-            if ('jer1' not in v): continue
+#            if ('jer1' not in v): continue
+#            if ('EC2' not in v) or ('EC22016' in v): continue
+            if ('HF2016' not in v): continue
             if ('nominal' not in w): continue
             ret = get_shapes_for_option(hist,v,w)
             if ret['bkg_total'].sum():
-                #ax_vbf = hep.histplot(ret['bkg_total'].values, edges, histtype='step', **{'linewidth':3})
+                ax_vbf = hep.histplot(ret['bkg_total'].values, edges, histtype='step', **{'linewidth':3})
                 if (ret['bkg_total'].values.sum() > max_variation_up):
                     max_variation_up = ret['bkg_total'].values.sum()
                     max_var_up_name = f'{v},{w}'
@@ -1386,7 +1449,7 @@ def plot(var, hists, edges, args, r='', save=True, blind=True, show=False, plots
             if ret['vbf'].sum():
                 ax_vbf = hep.histplot(ret['vbf'], edges, histtype='step', **{'linewidth':3})
     
-    lbl = hep.cms.cmslabel(ax=plt1, data=True, paper=False, year=year)
+    lbl = hep.cms.label(ax=plt1, data=True, paper=False, year=year)
     
     plt1.set_yscale('log')
     plt1.set_ylim(0.01, 1e9)
@@ -1410,16 +1473,16 @@ def plot(var, hists, edges, args, r='', save=True, blind=True, show=False, plots
         bkg_unc = coffea.hist.plot.poisson_interval(unity, bkg_sumw2 / bkg_total**2)
         denom_unc = bkg_unc
 
-        if blind and var.name=='dnn_score':
+        if blind and 'score' in var.name:
             bkg_total_ = bkg_total[:-blind_bins]
         else:
             bkg_total_ = bkg_total
-
-        ratios[bkg_total_!=0] = np.array(data[bkg_total_!=0] / bkg_total_[bkg_total_!=0])
-        yerr[bkg_total_!=0] = np.sqrt(data[bkg_total_!=0])/bkg_total_[bkg_total_!=0]
+        mask = bkg_total_!=0
+        ratios[mask] = np.array(data[mask] / bkg_total_[mask])
+        yerr[mask] = np.sqrt(data[mask])/bkg_total_[mask]
         edges_ratio = edges_data if blind else edges
         ax_ratio = hep.histplot(ratios, edges_ratio, histtype='errorbar', yerr=yerr,**data_opts)
-        ax_ratio.fill_between(edges,np.r_[denom_unc[0],denom_unc[0, -1]],np.r_[denom_unc[1], denom_unc[1, -1]], **ratio_err_opts)
+        ax_ratio.fill_between(edges,np.r_[denom_unc[0],denom_unc[0, -1]],np.r_[denom_unc[1], denom_unc[1, -1]], label='Stat. unc.', **ratio_err_opts)
 
     for v in hist.v.unique():
         for w in hist.w.unique():
@@ -1427,14 +1490,43 @@ def plot(var, hists, edges, args, r='', save=True, blind=True, show=False, plots
             if ('nominal' not in v) and ('nominal' not in w): continue
             if ('nominal' in v) and ('nominal' in w): continue
             if ('off' in w): continue
-            if ('jer5' not in v) and ('jer6' not in v): continue
-            if ('nominal' not in w): continue
+#            if ('qgl' not in w): continue
+            if ('LHERen_DY' not in w): continue
+#            if ('RelativeSample2018' not in v): continue
+#            if ('EC2' not in v) or ('EC22016' in v): continue
+            #if ('nominal' not in w): continue
+            print(f'Add plot for {v} {w}')
             ret = get_shapes_for_option(hist,v,w)
             syst_ratio = np.zeros(len(bkg_total))
+            lbl = f'{v}' if w=='nominal' else f'{w}'
             syst_ratio[bkg_total!=0] = np.array(ret['bkg_total'].values[bkg_total!=0] / bkg_total[bkg_total!=0])
-            ax = hep.histplot(syst_ratio, edges, histtype='step', label=f'{v}', **{'linewidth':3})
+            ax = hep.histplot(syst_ratio, edges, histtype='step', label=lbl, **{'linewidth':3})
             plt2.legend(prop={'size': 'xx-small'})
 
+    plot_all_systematics = False
+    if plot_all_systematics:
+        total_err2_up = np.zeros(len(bkg_total))
+        total_err2_down = np.zeros(len(bkg_total))
+        ratio_up = np.ones(len(bkg_total))
+        ratio_down = np.ones(len(bkg_total))
+        mask = bkg_total!=0
+        for v in hist.v.unique():
+            for w in hist.w.unique():
+                if ('nominal' not in v) and ('nominal' not in w): continue
+                if ('nominal' in v) and ('nominal' in w): continue
+                if ('off' in w): continue
+                ret = get_shapes_for_option(hist,v,w)
+                if sum(ret['bkg_total'].values[mask])!=0:
+                    if ('_up' in w) or ('_up' in v):
+                        total_err2_up += np.square((ret['bkg_total'].values[mask]-bkg_total[mask])/bkg_total[mask])
+                    if ('_down' in w) or ('_down' in v):
+                        total_err2_down += np.square((ret['bkg_total'].values[mask]-bkg_total[mask])/bkg_total[mask])
+        ratio_up[mask] = 1+np.sqrt(total_err2_up)[mask]
+        ratio_down[mask] = 1-np.sqrt(total_err2_down)[mask]
+        ax_up = hep.histplot(ratio_up, edges, histtype='step', label='Total syst. unc.', **{'linewidth':3, 'color':'red'})
+        ax_down = hep.histplot(ratio_down, edges, histtype='step', **{'linewidth':3, 'color':'red'})
+        plt2.legend(prop={'size': 'xx-small'})            
+            
     plt2.axhline(1, ls='--')
     plt2.set_ylim([0.5,1.5])
     plt2.set_ylabel('Data/MC')

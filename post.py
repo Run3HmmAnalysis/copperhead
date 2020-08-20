@@ -102,11 +102,26 @@ mva_bins = {
         '2017': [0, 0.307, 0.604, 0.832, 1.014, 1.169, 1.31, 1.44, 1.567, 1.686, 1.795, 1.902, 2.009, 2.8],
         '2018': [0, 0.07, 0.432, 0.71, 0.926, 1.114, 1.28, 1.428, 1.564, 1.686, 1.798, 1.9, 2.0, 2.8]
     },
+    'dnn_allyears_128_64_32_test':{
+        '2016': [0, 0.16, 0.374, 0.569, 0.75, 0.918, 1.079, 1.23, 1.373, 1.514, 1.651, 1.784, 1.923, 2.8],
+        '2017': [0, 0.307, 0.604, 0.832, 1.014, 1.169, 1.31, 1.44, 1.567, 1.686, 1.795, 1.902, 2.009, 2.8],
+        '2018': [0, 0.07, 0.432, 0.71, 0.926, 1.114, 1.28, 1.428, 1.564, 1.686, 1.798, 1.9, 2.0, 2.8]
+    },
     'bdt_jul15_earlystop50':{
         '2016': [0, 0.284, 0.575, 0.804, 1.0, 1.17, 1.328, 1.477, 1.623, 1.774, 1.93, 2.097, 2.29, 2.8],
         '2017': [0, 0.414, 0.747, 0.991, 1.182, 1.349, 1.499, 1.637, 1.777, 1.917, 2.062, 2.216, 2.392, 2.8],
         '2018': [0, 0.129, 0.627, 0.953, 1.195, 1.393, 1.565, 1.725, 1.875, 2.02, 2.164, 2.308, 2.471, 2.8],
-    }
+    },
+    'bdt_nest10000_bestmodel_31July':{
+        '2016':[0, 0.282, 0.569, 0.797, 0.991, 1.162, 1.318, 1.466, 1.611, 1.759, 1.914, 2.078, 2.267, 5.0],
+        '2017':[0, 0.41, 0.742,  0.989, 1.182, 1.35,  1.501, 1.64,  1.781, 1.921, 2.066, 2.219, 2.395, 5.0],
+        '2018':[0, 0.129, 0.622, 0.948, 1.191, 1.388, 1.56, 1.72, 1.869, 2.013, 2.156, 2.298, 2.457, 5.0]
+    },    
+    'bdt_nest10000_weightCorrAndShuffle_2Aug':{
+        '2016':[0, 0.282, 0.57, 0.802, 0.999, 1.171, 1.328, 1.479, 1.624, 1.775, 1.93, 2.097, 2.288, 5.0],
+        '2017':[0, 0.411, 0.744, 0.99, 1.185, 1.352, 1.504, 1.642, 1.784, 1.924, 2.07, 2.222, 2.398, 5.0],
+        '2018':[0, 0.129, 0.621, 0.948, 1.189, 1.388, 1.558, 1.717, 1.866, 2.01, 2.152, 2.294, 2.451, 5.0]
+    },
 }
 dnn_model_to_train = 'dnn_allyears_200_100_50'
 dnn_models = [
@@ -125,7 +140,9 @@ dnn_models = [
 #    'dnn_allyears_100_50_25',
 #    'dnn_allyears_64_16_4',
 #    'dnn_allyears_64_48_32',
-    'dnn_allyears_128_64_32',
+    
+    'dnn_allyears_128_64_32', # best DNN so far
+#    'dnn_allyears_128_64_32_test', 
 #    'dnn_allyears_200_100_50',    
 #    'dnn_nominal_allyears_4layers',
 #    'dnn_nominal_allyears_5layers',
@@ -136,11 +153,26 @@ dnn_models = [
 #    'dnn_nominal_allyears_10layers'
 ]
 
-bdt_models = []
-#bdt_models = ['bdt_jul15_earlystop50']
+#bdt_models = []
+bdt_models = [
+    #'bdt_jul15_earlystop50',
+ #   'bdt_nest10000_bestmodel_31July',
+    'bdt_nest10000_weightCorrAndShuffle_2Aug',
+]
 
-#to_plot = ['dimuon_mass', 'dimuon_pt', 'mu1_pt', 'jet1_pt', 'jet1_eta', 'jet2_pt', 'jet2_eta', 'dnn_score']
-to_plot = ['dimuon_mass']
+to_plot_ = [
+    'dimuon_mass', 
+    'dimuon_mass_res',
+    'dimuon_pt', 'dimuon_eta','dimuon_phi','dimuon_cos_theta_cs','dimuon_phi_cs',
+    'mu1_pt','mu1_eta','mu1_phi',
+    'mu2_pt','mu2_eta','mu2_phi',
+    'jet1_pt','jet1_eta','jet1_phi','jet1_qgl', 
+    'jet2_pt','jet2_eta','jet2_phi','jet2_qgl',
+    'jj_mass','jj_deta',
+    'nsoftjets5','htsoft2'
+    ]
+to_plot = []
+#to_plot = ['rpt','jet1_eta','jet2_eta']
 vars_to_save = []
 
 if args.plot:
@@ -155,8 +187,10 @@ for model in dnn_models+bdt_models:
     vars_to_save.append(vars_to_plot[name])
 
 samples_ = [
-    'ewk_lljj_mll105_160_ptj0',
-    'vbf_powhegPS',
+    'dy_m105_160_amc',
+    'dy_m105_160_vbf_amc',
+#    'ewk_lljj_mll105_160_ptj0',
+#    'vbf_powhegPS',
 ]
 samples = [
     'data_A',
@@ -221,8 +255,12 @@ pt_variations += ['BBEC1', f'BBEC1{args.year}']
 pt_variations += ['EC2', f'EC2{args.year}']
 pt_variations += ['FlavorQCD']
 pt_variations += ['HF',f'HF{args.year}']
-pt_variations += ['RelativeBal', f'RelativeSample{args.year}']
-pt_variations += ['jer1','jer2','jer3','jer4','jer5','jer6']
+pt_variations += [
+    'RelativeBal', 
+    f'RelativeSample{args.year}'
+]
+pt_variations += ['jer1','jer2','jer3']
+pt_variations += ['jer4','jer5','jer6']
 
 all_pt_variations = []
 for ptvar in pt_variations:
@@ -254,7 +292,7 @@ if args.rebin:
     options += ['rebin']
 if args.overlap:
     modules = add_modules(modules,['to_pandas', 'evaluation'])
-    samples = ['vbf_powhegPS','vbf_powheg','vbf_powheg_herwig','vbf_powheg_dipole']
+    samples = ['vbf_powhegPS', 'vbf_powheg_dipole']
     options += ['dnn_overlap']
 if args.roc:
     modules = add_modules(modules,['to_pandas', 'evaluation'])
