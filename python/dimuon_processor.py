@@ -236,7 +236,7 @@ class DimuonProcessor(processor.ProcessorABC):
                 
         else:
             lumi_info = LumiMask(self.parameters['lumimask'])
-            mask = lumi_info(df.run, df.luminosityBlock)
+            mask = lumi_info(df.run.flatten(), df.luminosityBlock.flatten())
 
         hlt = np.zeros(df.shape[0], dtype=bool)
         for hlt_path in self.parameters['hlt']:
