@@ -150,7 +150,7 @@ postproc_args = {
     'syst_variations': all_pt_variations,
     'out_path': 'plots_new/',
     'samples':samples,
-    'training_samples': training_samples,
+    'training_samples': [],
     'channels': ['vbf','vbf_01j','vbf_2j'],
     'channel_groups': {'vbf':['vbf','vbf_01j','vbf_2j']},
     'regions': ['h-peak', 'h-sidebands'],
