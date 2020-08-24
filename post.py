@@ -181,7 +181,17 @@ if args.plot:
 else:
     vars_to_plot = {}
 
-for model in dnn_models+bdt_models:
+models = []
+if args.dnn:
+    models += dnn_models
+else:
+    dnn_models = []
+if args.bdt:
+    models += bdt_models
+else:
+    bdt_models = []
+
+for model in models:
     name = f'score_{model}'
     vars_to_plot.update({name:Variable(name, name, 50, 0, 5)})
     vars_to_save.append(vars_to_plot[name])
@@ -364,7 +374,7 @@ if load_unbinned_data:
 
         if args.rebin:
             df = pd.concat(dfs)
-            for model in dnn_models+bdt_models:
+            for model in models:
                 boundaries = rebin(df, model, postproc_args)
                 print(model, boundaries)
             sys.exit()
@@ -372,7 +382,7 @@ if load_unbinned_data:
         if args.overlap:
             print("Studying overlap with Pisa...")
             df = pd.concat(dfs)
-            for model in dnn_models+bdt_models:
+            for model in models:
                 overlap_study(df, postproc_args, model)
             sys.exit()
         
@@ -390,7 +400,7 @@ if load_unbinned_data:
                 hist[var] = pd.concat(hists+[hist[var]], ignore_index=True)
 
         if (args.dnn or args.bdt) and not args.plot:
-            for model in dnn_models+bdt_models:
+            for model in models:
                 print(f"Saving shapes: {model}")
                 save_shapes(hist, model, postproc_args, mva_bins)
 

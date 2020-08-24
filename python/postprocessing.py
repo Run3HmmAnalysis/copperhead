@@ -75,6 +75,9 @@ grouping = {
     'vbf_powheg_dipole': 'VBF',
 }
 
+bkg = ['DY', 'EWK','TT+ST','VV']
+sig = ['VBF','ggH']
+
 signal = {'vbf_powhegPS','vbf_powheg_herwig','vbf_powheg_dipole', 'ggh_amcPS',}
 
 rate_syst_lookup = {
@@ -496,7 +499,7 @@ def dnn_evaluation(df, model, args):
             if args['r']!='h-peak':
                 df_i['dimuon_mass'] = 125.
             if args['do_massscan']:
-                df_i['dimuon_mass'] = df_i['dimuon_mass']+mass_shift
+                df_i['dimuon_mass'] = df_i['dimuon_mass']-mass_shift
 
             df_i = (df_i[features]-scalers[0])/scalers[1]
             prediction = np.array(dnn_model.predict(df_i)).ravel()
@@ -534,7 +537,7 @@ def bdt_evaluation(df, model, args):
         if args['r']!='h-peak':
             df_i['dimuon_mass'] = 125.
         if args['do_massscan']:
-            df_i['dimuon_mass'] = df_i['dimuon_mass']+mass_shift
+            df_i['dimuon_mass'] = df_i['dimuon_mass']-mass_shift
         df_i = (df_i[features]-scalers[0])/scalers[1]
         #prediction = np.array(bdt_model.predict_proba(df_i)[:, 1]).ravel()
         prediction = np.array(bdt_model.predict_proba(df_i.values)[:, 1]).ravel()
@@ -589,13 +592,13 @@ def get_asimov_significance(df, model, args):
     print(df[var].max())
     for year in years:
         binning = binning_all[year]['vbf']['nominal']
-        sig = df[(df.cls=='signal')&(df.r=='h-peak')&(df.year==int(year))]
-        bkg = df[(df.cls=='background')&(df.r=='h-peak')&(df.year==int(year))]
+        S = df[(df.cls=='signal')&(df.r=='h-peak')&(df.year==int(year))]
+        B = df[(df.cls=='background')&(df.r=='h-peak')&(df.year==int(year))]
         for ibin in range(len(binning)-1):
             bin_lo = binning[ibin]
             bin_hi = binning[ibin+1]
-            sig_yield = sig[(sig[var]>=bin_lo)&(sig[var]<bin_hi)]['wgt_nominal'].sum()
-            bkg_yield = bkg[(bkg[var]>=bin_lo)&(bkg[var]<bin_hi)]['wgt_nominal'].sum()
+            sig_yield = S[(S[var]>=bin_lo)&(S[var]<bin_hi)]['wgt_nominal'].sum()
+            bkg_yield = B[(B[var]>=bin_lo)&(B[var]<bin_hi)]['wgt_nominal'].sum()
             #print(f'{year} Bin {ibin}: s={sig_yield}, b={bkg_yield}, sigma={sig_yield/sqrt(sig_yield+bkg_yield)}')
             significance2 += (sig_yield*sig_yield)/(sig_yield+bkg_yield)
     print(f"Model {model}: significance = {sqrt(significance2)}")
@@ -830,7 +833,7 @@ def save_shapes(hist, model, args, mva_bins):
     tdir = f'/depot/cms/hmm/templates/{args["year"]}_{args["label"]}_{var}'
     if args['do_massscan']:
         mass_point = f'{args["mass"]}'.replace('.','')
-        tdir = tdir.replace('templates','/templates/massScan/')+f'{mass_point}'
+        tdir = tdir.replace('templates','/templates/massScan/')+f'_{mass_point}'
         try:
             os.mkdir('/depot/cms/hmm/templates/massScan/')
         except:
@@ -937,6 +940,7 @@ def save_shapes(hist, model, args, mva_bins):
                         mc_hist = mc_hist.groupby('g').aggregate(np.sum).reset_index() 
                         for g in mc_hist.g.unique():
                             if g not in grouping.values():continue
+                            if args['do_massscan'] and (g in sig): continue
                             decor_ok = True
                             for dec_syst, decorr in decorrelation_scheme.items():
                                 if dec_syst in vwname:
@@ -969,8 +973,6 @@ def save_shapes(hist, model, args, mva_bins):
                             except:
                                 pass
                             np.save(f'{tdir}/{g}/{name}', [histo,sumw2])
-                            if (('nominal' in vwname) or ('LHE' in vwname)) and ('2j' in c):
-                                print(vwname, c, g, r, sum(histo))
                             for groupname, var_items in variations_by_group.items():
                                 if (groupname==g)&(vwname=='nominal'):
                                     for variname,variations in var_items.items():
@@ -997,7 +999,7 @@ def prepare_root_files(var, args):
     if args['do_massscan']:
         tdir_nominal = tdir
         mass_point = f'{args["mass"]}'.replace('.','')
-        tdir = tdir.replace('templates','/templates/massScan/')+f'{mass_point}'
+        tdir = tdir.replace('templates','/templates/massScan/')+f'_{mass_point}'
         try:
             os.mkdir(f'combine/massScan_{args["label"]}/')
         except:
@@ -1025,23 +1027,17 @@ def prepare_root_files(var, args):
                 out_fn =\
                 f'combine/massScan_{args["label"]}/{mass_point}/{args["year"]}_{args["label"]}_{var.name}/shapes_{cgroup}_{r}.root'
             out_file = uproot.recreate(out_fn)
-            if args['do_massscan']:
-                data_hist, data_sumw2 = np.load(f'{tdir_nominal}/Data/{r}_{args["year"]}_data_obs.npy',allow_pickle=True)
-            else:
-                data_hist, data_sumw2 = np.load(f'{tdir}/Data/{r}_{args["year"]}_data_obs.npy',allow_pickle=True)
+            data_hist, data_sumw2 = np.load(f'{tdir}/Data/{r}_{args["year"]}_data_obs.npy',allow_pickle=True)
             th1_data = from_numpy([data_hist, edges])
             th1_data._fName = 'data_obs'
             th1_data._fSumw2 = np.array(data_sumw2)
             th1_data._fTsumw2 = np.array(data_sumw2).sum()
             th1_data._fTsumwx2 = np.array(data_sumw2[1:] * centers).sum()
             out_file['data_obs'] = th1_data
-#            bkg = ['DY_filter','DY_nofilter','EWK','TT+ST','VV']
-            bkg = ['DY', 'EWK','TT+ST','VV']
-            sig = ['VBF','ggH']
             mc_templates = []
-            for group in sig:
-                mc_templates += glob.glob(f'{tdir}/{group}/{r}_*.npy')
             for group in bkg:
+                mc_templates += glob.glob(f'{tdir}/{group}/{r}_*.npy')
+            for group in sig:
                 if args['do_massscan']:
                     mc_templates += glob.glob(f'{tdir_nominal}/{group}/{r}_*.npy')
                 else:
@@ -1097,17 +1093,13 @@ def get_numbers(var, cc, r, bin_name, args):
     if args['do_massscan']:
         tdir_nominal = tdir
         mass_point = f'{args["mass"]}'.replace('.','')
-        tdir = tdir.replace('templates','/templates/massScan/')+f'{mass_point}'
-        
-#    bkg = ['DY_filter','DY_nofilter','EWK','TT+ST','VV']
-    bkg = ['DY', 'EWK','TT+ST','VV']
-    sig = ['VBF','ggH']
-        
+        tdir = tdir.replace('templates','/templates/massScan/')+f'_{mass_point}'
+
     shape_systs_by_group = {}
     for g, cc in groups.items():
         shape_systs_by_group[g] = [os.path.basename(path).replace('.npy','') for path in glob.glob(f'{tdir}/{g}/{r}_*.npy')]
         if args['do_massscan']:
-            if g in bkg:
+            if g in sig:
                 shape_systs_by_group[g] = [os.path.basename(path).replace('.npy','') for path in glob.glob(f'{tdir_nominal}/{g}/{r}_*.npy')]
         for c in cc:
             shape_systs_by_group[g] = [path for path in shape_systs_by_group[g] if (path!=f'{r}_{args["year"]}_{g}_{c}') and ('nominal' not in path)]
@@ -1119,9 +1111,6 @@ def get_numbers(var, cc, r, bin_name, args):
         shape_systs.extend(shs)
     shape_systs = np.unique(shape_systs)
     shape_systs = [sh for sh in shape_systs if 'data_obs' not in sh]
-
-#    if args['do_massscan']:
-#        shape_systs = [sh for sh in shape_systs if (('jer' not in sh) and (('jes' not in sh) or ('btag' in sh)))]
         
     systs = []
     systs.extend(shape_systs)
@@ -1163,7 +1152,7 @@ def get_numbers(var, cc, r, bin_name, args):
                 data_yields.loc[1,'value'] = f'{rate}'
             else:
                 nominal_shape = f'{tdir}/{g}/{r}_{args["year"]}_{g}_{c}.npy'
-                if g in bkg and args['do_massscan']:
+                if g in sig and args['do_massscan']:
                     nominal_shape = f'{tdir_nominal}/{g}/{r}_{args["year"]}_{g}_{c}.npy'
                 try:
                     hist,_ = np.load(nominal_shape, allow_pickle=True)
@@ -1486,7 +1475,7 @@ def plot(var, hists, edges, args, r='', save=True, blind=True, show=False, plots
 
     for v in hist.v.unique():
         for w in hist.w.unique():
-            continue
+#            continue
             if ('nominal' not in v) and ('nominal' not in w): continue
             if ('nominal' in v) and ('nominal' in w): continue
             if ('off' in w): continue
