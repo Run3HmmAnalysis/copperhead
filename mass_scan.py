@@ -167,21 +167,24 @@ print(f"Start!")
 print(f"Running options: {options}")
 tstart = time.time() 
 
-hist = {}
-
 mass_points = [120.0, 120.5, 121.0, 121.5, 122.0, 122.5, 123.0, 123.5, 124.0, 124.5,
                125.0, 125.1, 125.2, 125.3, 125.38, 125.4, 125.5, 125.6, 125.7, 125.8, 125.9, 
                126.0, 126.5, 127.0, 127.5, 128.0, 128.5, 129.0, 129.5, 130.0]
 #mass_points = [125.0]
 
+num_options = len(mass_points)*len(all_pt_variations)
+iopt = 0
 for m in mass_points:
+    hist = {}
     postproc_args['mass'] = m
     print(f"Running mass point: {m}")
     if load_unbinned_data:
         print(f"Will run modules: {modules}")
         for ptvar in all_pt_variations:
             postproc_args['syst_variations'] = [ptvar]
-            print(f"Processing pt variation: {ptvar}")
+            print(f"Running option: {args.year} m={m} {ptvar}")
+            iopt += 1
+            print(f"This is option #{iopt} out of {num_options} for {args.year}")
             print(f"Getting unbinned data...")
             dfs, hist_dfs, edges = postprocess(postproc_args, not args.iterative)
 
