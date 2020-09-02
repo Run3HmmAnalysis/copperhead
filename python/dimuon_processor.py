@@ -628,23 +628,26 @@ class DimuonProcessor(processor.ProcessorABC):
 #            weights.add_weight_with_variations('muTrig', muTrig, muTrig_up, muTrig_down)
 
             if ('nominal' in self.pt_variations):
-                lhefactor = 2. if ('dy_m105_160_amc' in dataset) and (('2017' in self.year) or ('2018' in self.year)) else 1.
-                nLHEScaleWeight = df.LHEScaleWeight.counts
+                try:
+                    lhefactor = 2. if ('dy_m105_160_amc' in dataset) and (('2017' in self.year) or ('2018' in self.year)) else 1.
+                    nLHEScaleWeight = df.LHEScaleWeight.counts
 
-                lhe_ren_up = np.full(numevents, df.LHEScaleWeight[:,6]*lhefactor, dtype=float)
-                lhe_ren_up[nLHEScaleWeight>8] = df.LHEScaleWeight[nLHEScaleWeight>8][:,7]*lhefactor
-                lhe_ren_up[nLHEScaleWeight>30] = df.LHEScaleWeight[nLHEScaleWeight>30][:,34]*lhefactor
-                lhe_ren_down = np.full(numevents, df.LHEScaleWeight[:,1]*lhefactor, dtype=float)
-                lhe_ren_down[nLHEScaleWeight>8] = df.LHEScaleWeight[nLHEScaleWeight>8][:,1]*lhefactor
-                lhe_ren_down[nLHEScaleWeight>30] = df.LHEScaleWeight[nLHEScaleWeight>30][:,5]*lhefactor  
-                weights.add_only_variations('LHERen', lhe_ren_up, lhe_ren_down)
-                lhe_fac_up = np.full(numevents, df.LHEScaleWeight[:,4]*lhefactor, dtype=float)
-                lhe_fac_up[nLHEScaleWeight>8] = df.LHEScaleWeight[nLHEScaleWeight>8][:,5]*lhefactor
-                lhe_fac_up[nLHEScaleWeight>30] = df.LHEScaleWeight[nLHEScaleWeight>30][:,24]*lhefactor
-                lhe_fac_down = np.full(numevents, df.LHEScaleWeight[:,3]*lhefactor, dtype=float)
-                lhe_fac_down[nLHEScaleWeight>8] = df.LHEScaleWeight[nLHEScaleWeight>8][:,3]*lhefactor
-                lhe_fac_down[nLHEScaleWeight>30] = df.LHEScaleWeight[nLHEScaleWeight>30][:,15]*lhefactor
-                weights.add_only_variations('LHEFac', lhe_fac_up, lhe_fac_down)
+                    lhe_ren_up = np.full(numevents, df.LHEScaleWeight[:,6]*lhefactor, dtype=float)
+                    lhe_ren_up[nLHEScaleWeight>8] = df.LHEScaleWeight[nLHEScaleWeight>8][:,7]*lhefactor
+                    lhe_ren_up[nLHEScaleWeight>30] = df.LHEScaleWeight[nLHEScaleWeight>30][:,34]*lhefactor
+                    lhe_ren_down = np.full(numevents, df.LHEScaleWeight[:,1]*lhefactor, dtype=float)
+                    lhe_ren_down[nLHEScaleWeight>8] = df.LHEScaleWeight[nLHEScaleWeight>8][:,1]*lhefactor
+                    lhe_ren_down[nLHEScaleWeight>30] = df.LHEScaleWeight[nLHEScaleWeight>30][:,5]*lhefactor  
+                    weights.add_only_variations('LHERen', lhe_ren_up, lhe_ren_down)
+                    lhe_fac_up = np.full(numevents, df.LHEScaleWeight[:,4]*lhefactor, dtype=float)
+                    lhe_fac_up[nLHEScaleWeight>8] = df.LHEScaleWeight[nLHEScaleWeight>8][:,5]*lhefactor
+                    lhe_fac_up[nLHEScaleWeight>30] = df.LHEScaleWeight[nLHEScaleWeight>30][:,24]*lhefactor
+                    lhe_fac_down = np.full(numevents, df.LHEScaleWeight[:,3]*lhefactor, dtype=float)
+                    lhe_fac_down[nLHEScaleWeight>8] = df.LHEScaleWeight[nLHEScaleWeight>8][:,3]*lhefactor
+                    lhe_fac_down[nLHEScaleWeight>30] = df.LHEScaleWeight[nLHEScaleWeight>30][:,15]*lhefactor
+                    weights.add_only_variations('LHEFac', lhe_fac_up, lhe_fac_down)
+                except:
+                    pass
 
             if ('vbf' in dataset) and ('dy' not in dataset) and ('nominal' in self.pt_variations):
                 for i, name in enumerate(self.sths_names):
