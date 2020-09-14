@@ -25,6 +25,7 @@ parser.add_argument("-d", "--debug", action='store_true') # load only 1 file per
 # Alternative options:
 parser.add_argument("-i", "--iterative", action='store_true') # run iteratively on 1 CPU
 parser.add_argument("-loc", "--local", action='store_true') # create local Dask workers
+parser.add_argument("-s", "--spark", action='store_true') # run with Spark
 
 args = parser.parse_args()
 
@@ -135,16 +136,52 @@ if __name__ == "__main__":
         for variation in all_pt_variations:
             print(f"Jet pT variation: {variation}")
             time_option = time.time()
-            output = processor.run_uproot_job(samp_info.full_fileset, 'Events',\
+            output,metrics = processor.run_uproot_job(samp_info.full_fileset, 'Events',\
                                               DimuonProcessor(samp_info=samp_info, do_timer=False, pt_variations=[variation],\
                                                               debug=args.debug, do_btag_syst=do_btag_syst),\
-                                              iterative_executor, executor_args={'nano': True}, chunksize=chunksize)
+                                                      iterative_executor, executor_args={'nano': True, 'savemetrics':True}, chunksize=chunksize, maxchunks=1)
             elapsed_option = time.time() - time_option
             print(f"Running this option took: {elapsed_option} s")
+            print(metrics)
         elapsed = time.time() - tstart
         print(f"Total running time: {elapsed} s")
         sys.exit()
     
+    if args.spark:
+        import pyspark.sql
+        from pyarrow.compat import guid
+        from coffea.processor.spark.detail import _spark_initialize, _spark_stop
+        from coffea.processor.spark.spark_executor import spark_executor
+        spark_config = pyspark.sql.SparkSession.builder \
+                        .appName('spark-executor-test-%s' % guid()) \
+                        .master('local[*]') \
+                        .config('spark.driver.memory', '4g') \
+                        .config('spark.executor.memory', '4g') \
+                        .config('spark.sql.execution.arrow.enabled','true') \
+                        .config('spark.sql.execution.arrow.maxRecordsPerBatch', 100000)
+
+        spark = _spark_initialize(config=spark_config, log_level='WARN', 
+                                  spark_progress=False, laurelin_version='0.5.1')
+
+        partitionsize = 200000
+        thread_workers = 2
+        print(spark)
+
+        tstart = time.time()
+        for variation in all_pt_variations:
+            print(f"Jet pT variation: {variation}")
+            time_option = time.time()
+            output = processor.run_spark_job(samp_info.full_fileset, DimuonProcessor(samp_info=samp_info, pt_variations=[variation], do_btag_syst=do_btag_syst),\
+                                             spark_executor, spark=spark,\
+                                             partitionsize=partitionsize, thread_workers=thread_workers,\
+                                             executor_args={'file_type': 'edu.vanderbilt.accre.laurelin.Root', 'cache': False, 'nano': True, 'retries': 5})
+            elapsed_option = time.time() - time_option
+            print(f"Running this option took: {elapsed_option} s")
+        elapsed = time.time() - tstart
+        print(f"Total running time: {elapsed} s")
+
+        sys.exit()
+
     if args.local:
         n_workers = 46
         distributed = pytest.importorskip("distributed", minversion="1.28.1")
