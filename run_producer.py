@@ -33,8 +33,9 @@ args = parser.parse_args()
 
 server = 'root://xrootd.rcac.purdue.edu/'
 global_out_path = '/depot/cms/hmm/coffea/'
-slurm_cluster_ip = '128.211.149.140:33725'
+slurm_cluster_ip = '128.211.149.140:45181'
 chunksize = 100000
+do_reduce = False
 
 # B-tag systematics significantly slow down 'nominal' processing 
 # and they are only needed at the very last stage of the analysis.
@@ -42,47 +43,48 @@ chunksize = 100000
 do_btag_syst = False
 
 sample_sources = [
-    'data',
-    'main_mc',
+#    'data',
+#    'main_mc',
     'signal',
-    'other_mc',
+#    'other_mc',
 ]
 
 smp = {}
 
 smp['data'] = [
-    'data_A',
-    'data_B',
-    'data_C',
-    'data_D',
-    'data_E',
-    'data_F',
+#    'data_A',
+#    'data_B',
+#    'data_C',
+#    'data_D',
+#    'data_E',
+#    'data_F',
     'data_G',
-    'data_H',
+#    'data_H',
 ]
 
 smp['main_mc'] = [
     'dy_m105_160_amc',
-    'dy_m105_160_vbf_amc',
-    'ewk_lljj_mll105_160_py',
-    "ewk_lljj_mll105_160_ptj0",
-    'ewk_lljj_mll105_160_py_dipole',
-    'ttjets_dl',
+#    'dy_m105_160_vbf_amc',
+#    'ewk_lljj_mll105_160_py',
+#    "ewk_lljj_mll105_160_ptj0",
+#    'ewk_lljj_mll105_160_py_dipole',
+#    'ttjets_dl',
 ]
 
 smp['other_mc'] = [
-    'ttjets_sl',
-    'ttz','ttw',
-    'st_tw_top','st_tw_antitop',
-    'ww_2l2nu','wz_2l2q','wz_3lnu',
-    'wz_1l1nu2q', 
-    'zz',
+#    'ttjets_sl',
+#    'ttz','ttw',
+#    'st_tw_top','st_tw_antitop',
+#    'ww_2l2nu','wz_2l2q',
+    'wz_3lnu',
+#    'wz_1l1nu2q', 
+#    'zz',
 ]
 
 smp['signal'] = [
-    'ggh_amcPS',
-    'vbf_powhegPS',
-    'vbf_powheg_herwig',
+#    'ggh_amcPS',
+#    'vbf_powhegPS',
+#    'vbf_powheg_herwig',
     'vbf_powheg_dipole'
 ]
 
@@ -132,13 +134,15 @@ if __name__ == "__main__":
         tstart = time.time() 
         for variation in all_pt_variations:
             print(f"Jet pT variation: {variation}")
+            time_option = time.time()
             output = processor.run_uproot_job(samp_info.full_fileset, 'Events',\
-                                              DimuonProcessor(samp_info=samp_info, do_timer=True, pt_variations=[variation],\
+                                              DimuonProcessor(samp_info=samp_info, do_timer=False, pt_variations=[variation],\
                                                               debug=args.debug, do_btag_syst=do_btag_syst),\
                                               iterative_executor, executor_args={'nano': True}, chunksize=chunksize)
-
+            elapsed_option = time.time() - time_option
+            print(f"Running this option took: {elapsed_option} s")
         elapsed = time.time() - tstart
-        print(f"Total time: {elapsed} s")
+        print(f"Total running time: {elapsed} s")
         sys.exit()
     
     if args.local:
@@ -162,30 +166,37 @@ if __name__ == "__main__":
             if (variation!='nominal') and not (('dy' in label) or ('ewk' in label) or ('vbf' in label) or ('ggh' in label) or ('ttjets_dl' in label)) or ('mg' in label):
                 continue
             print(f"Processing: {label}, {variation}")
-            output = processor.run_uproot_job(fileset, 'Events',\
-                                              DimuonProcessor(samp_info=samp_info, pt_variations=[variation], do_btag_syst=do_btag_syst),\
-                                              dask_executor, executor_args={'nano': True, 'client': client}, chunksize=chunksize)
-
+            time_option = time.time()
             out_dir = f"{global_out_path}/{samp_info.out_path}/"
-
             try:
                 os.mkdir(out_dir)
             except:
                 pass
-    
-            for mode in output.keys():
-                out_dir_ = f"{out_dir}/{mode}/"
-                out_path_ = f"{out_dir_}/{label}.coffea"
-                try:
-                    os.mkdir(out_dir_)
-                except:
-                    pass
-                util.save(output[mode], out_path_)
+            save_args = {
+                'out_dir': out_dir,
+                'label': label
+            }
+            output = processor.run_uproot_job(fileset, 'Events',\
+                                              DimuonProcessor(samp_info=samp_info, pt_variations=[variation], do_btag_syst=do_btag_syst),\
+                                              dask_executor, executor_args={'nano': True, 'client': client, 'do_reduce':do_reduce, 'save_args':save_args},\
+                                              chunksize=chunksize)
+            elapsed_option = time.time() - time_option
+            print(f"Running this option took: {elapsed_option} s")
+
+            if do_reduce:
+                for mode in output.keys():
+                    out_dir_ = f"{out_dir}/{mode}/"
+                    out_path_ = f"{out_dir_}/{label}.coffea"
+                    try:
+                        os.mkdir(out_dir_)
+                    except:
+                        pass
+                    util.save(output[mode], out_path_)
             
-            output.clear()
-            print(f"Saved output to {out_dir}")
+                output.clear()
+                print(f"Saved output to {out_dir}")
             
             del output
             
     elapsed = time.time() - tstart
-    print(f"Total time: {elapsed} s")
+    print(f"Total running time: {elapsed} s")
