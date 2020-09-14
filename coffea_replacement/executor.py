@@ -184,14 +184,7 @@ class _save_unmerged(object):
 
     def __call__(self, items, out_dir='', label=''):
         if len(items) == 0:
-            raise ValueError("Empty list provided to reduction")
-#        out = items.pop()
-#        if isinstance(out, AccumulatorABC):
-#            # if dask has a cached result, we cannot alter it, so make a copy
-#            out = copy.deepcopy(out)
-#        else:
-#            out = _maybe_decompress(out)
-        print(len(items))
+            raise ValueError("Empty list of outputs")
         i = 0
         if len(out_dir)*len(label)==0:
             raise("out_dir or label not specified!")
