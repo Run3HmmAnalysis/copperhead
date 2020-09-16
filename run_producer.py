@@ -27,9 +27,8 @@ parser.add_argument("-y", "--year", dest="year", default=2016, action='store') #
 parser.add_argument("-l", "--label", dest="label", default="test", action='store') # unique label for processing run
 parser.add_argument("-d", "--debug", action='store_true') # load only 1 file per dataset
 
-# By default, a SLURM cluster will be created and jobs will be parallelized
-parser.add_argument("-dask", "--dask", action='store_true', default=True) # run on Slurm cluster using Dask
-# Alternative options:
+# Processing options:
+parser.add_argument("-dask", "--dask", action='store_true') # run on Slurm cluster using Dask
 parser.add_argument("-i", "--iterative", action='store_true') # run iteratively on 1 CPU
 parser.add_argument("-dl", "--dasklocal", action='store_true') # create local Dask workers
 parser.add_argument("-s", "--spark", action='store_true') # run with Spark
