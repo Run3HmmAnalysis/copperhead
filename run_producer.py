@@ -2,6 +2,7 @@ import time
 import os, sys
 import argparse
 import socket
+import math
 
 import coffea
 print("Coffea version: ", coffea.__version__)
@@ -16,16 +17,24 @@ import pytest
 import dask
 from dask_jobqueue import SLURMCluster
 
+import pandas as pd
+import numpy as np
+import pickle
+import datetime
+
 parser = argparse.ArgumentParser()
 parser.add_argument("-y", "--year", dest="year", default=2016, action='store') # specify 2016, 2017 or 2018
-parser.add_argument("-l", "--label", dest="label", default="apr23", action='store') # unique label for processing run
+parser.add_argument("-l", "--label", dest="label", default="test", action='store') # unique label for processing run
 parser.add_argument("-d", "--debug", action='store_true') # load only 1 file per dataset
 
 # By default, a SLURM cluster will be created and jobs will be parallelized
+parser.add_argument("-dask", "--dask", action='store_true', default=True) # run on Slurm cluster using Dask
 # Alternative options:
 parser.add_argument("-i", "--iterative", action='store_true') # run iteratively on 1 CPU
-parser.add_argument("-loc", "--local", action='store_true') # create local Dask workers
+parser.add_argument("-dl", "--dasklocal", action='store_true') # create local Dask workers
 parser.add_argument("-s", "--spark", action='store_true') # run with Spark
+
+parser.add_argument("-ch", "--chunksize", dest="chunksize", default=100000, action='store')
 
 args = parser.parse_args()
 
@@ -34,9 +43,15 @@ args = parser.parse_args()
 
 server = 'root://xrootd.rcac.purdue.edu/'
 global_out_path = '/depot/cms/hmm/coffea/'
-slurm_cluster_ip = '128.211.149.140:45181'
-chunksize = 100000
-do_reduce = False
+slurm_cluster_ip = '128.211.149.140:34174'
+chunksize = int(args.chunksize)  # default 100000
+print(f"Running with chunksize {chunksize}")
+
+save_output = True
+do_reduce = True # if set to False, the merging step will not be performed in Dask executors, outputs will be saved unmerged
+
+save_diagnostics = True
+testing_db_path = '/depot/cms/hmm/performance_tests_db.pkl'
 
 # B-tag systematics significantly slow down 'nominal' processing 
 # and they are only needed at the very last stage of the analysis.
@@ -46,52 +61,46 @@ do_btag_syst = False
 sample_sources = [
 #    'data',
 #    'main_mc',
-    'signal',
-#    'other_mc',
+#    'signal',
+    'other_mc',
 ]
 
-smp = {}
+smp = {
+    'data':[
+        # 'data_A',
+        # 'data_B',
+        # 'data_C',
+        # 'data_D',
+        # 'data_E',
+        # 'data_F',
+        'data_G',
+        # 'data_H',
+    ],
+    'signal':[
+        # 'ggh_amcPS',
+        # 'vbf_powhegPS',
+        # 'vbf_powheg_herwig',
+        'vbf_powheg_dipole'
+    ],
+    'main_mc':[
+        'dy_m105_160_amc',
+        # 'dy_m105_160_vbf_amc',
+        # 'ewk_lljj_mll105_160_py',
+        # 'ewk_lljj_mll105_160_ptj0',
+        # 'ewk_lljj_mll105_160_py_dipole',
+        # 'ttjets_dl',
+    ],
+    'other_mc':[
+        # 'ttjets_sl','ttz','ttw',
+        # 'st_tw_top','st_tw_antitop',
+        # 'ww_2l2nu','wz_2l2q',
+        'wz_3lnu',
+        # 'wz_1l1nu2q', 'zz',
+    ],
+}
 
-smp['data'] = [
-#    'data_A',
-#    'data_B',
-#    'data_C',
-#    'data_D',
-#    'data_E',
-#    'data_F',
-    'data_G',
-#    'data_H',
-]
-
-smp['main_mc'] = [
-    'dy_m105_160_amc',
-#    'dy_m105_160_vbf_amc',
-#    'ewk_lljj_mll105_160_py',
-#    "ewk_lljj_mll105_160_ptj0",
-#    'ewk_lljj_mll105_160_py_dipole',
-#    'ttjets_dl',
-]
-
-smp['other_mc'] = [
-#    'ttjets_sl',
-#    'ttz','ttw',
-#    'st_tw_top','st_tw_antitop',
-#    'ww_2l2nu','wz_2l2q',
-    'wz_3lnu',
-#    'wz_1l1nu2q', 
-#    'zz',
-]
-
-smp['signal'] = [
-#    'ggh_amcPS',
-#    'vbf_powhegPS',
-#    'vbf_powheg_herwig',
-    'vbf_powheg_dipole'
-]
-
-
-# Each JES/JER systematic variation (can be up/down) will run 
-# approximately as long as the 'nominal' option.
+# Each JES/JER systematic variation (can be up/down)
+# will run approximately as long as the 'nominal' option.
 # Therefore, processing all variations takes ~35 times longer than only 'nominal'.
 
 pt_variations = []
@@ -107,47 +116,68 @@ pt_variations += ['nominal']
 
 ############################################################
 
+if args.iterative:
+    method = 'Iterative'
+elif args.spark:
+    method = 'Spark'
+elif args.dask:
+    method = 'Dask+Slurm'
+elif args.dasklocal:
+    method = 'DaskLocal'
+else:
+    raise Exception("Running method not specified!")
+    sys.exit()
 
 
-samples = []
-for sss in sample_sources:
-    samples += smp[sss]
-
-all_pt_variations = []
-for ptvar in pt_variations:
-    if ptvar=='nominal':
-        all_pt_variations += ['nominal']
-    else:
-        all_pt_variations += [f'{ptvar}_up']
-        all_pt_variations += [f'{ptvar}_down']    
-    
 if __name__ == "__main__":
+
+    t_start = time.time()
+
+
+    ###### Prepare resources ######
+
+    t_prep_start = time.time()
+
     samp_info = SamplesInfo(year=args.year, out_path=f'{args.year}_{args.label}', server=server, datasets_from='purdue', debug=args.debug)
+
+    samples = []
+    for sss in sample_sources:
+        samples += smp[sss]
 
     if args.debug:
         samp_info.load(samples, parallelize_outer=1, parallelize_inner=1)
     else:
         samp_info.load(samples, parallelize_outer=46, parallelize_inner=1)
 
-    samp_info.compute_lumi_weights()
-    
-    if args.iterative:
-        tstart = time.time() 
-        for variation in all_pt_variations:
-            print(f"Jet pT variation: {variation}")
-            time_option = time.time()
-            output,metrics = processor.run_uproot_job(samp_info.full_fileset, 'Events',\
-                                              DimuonProcessor(samp_info=samp_info, do_timer=False, pt_variations=[variation],\
-                                                              debug=args.debug, do_btag_syst=do_btag_syst),\
-                                                      iterative_executor, executor_args={'nano': True, 'savemetrics':True}, chunksize=chunksize, maxchunks=1)
-            elapsed_option = time.time() - time_option
-            print(f"Running this option took: {elapsed_option} s")
-            print(metrics)
-        elapsed = time.time() - tstart
-        print(f"Total running time: {elapsed} s")
-        sys.exit()
-    
-    if args.spark:
+    nevts_all = samp_info.compute_lumi_weights()
+
+    nevts = 0
+    nchunks = 0
+    for k,v in nevts_all.items():
+        nevts += v
+        nchunks += math.ceil(v/chunksize)
+
+    all_pt_variations = []
+    for ptvar in pt_variations:
+        if ptvar=='nominal':
+            all_pt_variations += ['nominal']
+        else:
+            all_pt_variations += [f'{ptvar}_up']
+            all_pt_variations += [f'{ptvar}_down']
+
+    out_dir = f"{global_out_path}/{samp_info.out_path}/"
+    try:
+        os.mkdir(out_dir)
+    except:
+        pass
+
+
+    ###### Initialize clusters for processing ######
+
+    if method=='Iterative':
+        nworkers = 1
+
+    elif method=='Spark':
         import pyspark.sql
         from pyarrow.compat import guid
         from coffea.processor.spark.detail import _spark_initialize, _spark_stop
@@ -155,85 +185,123 @@ if __name__ == "__main__":
         spark_config = pyspark.sql.SparkSession.builder \
                         .appName('spark-executor-test-%s' % guid()) \
                         .master('local[*]') \
-                        .config('spark.driver.memory', '4g') \
-                        .config('spark.executor.memory', '4g') \
+                        .config('spark.driver.memory', '16g') \
+                        .config('spark.executor.memory', '16g') \
                         .config('spark.sql.execution.arrow.enabled','true') \
-                        .config('spark.sql.execution.arrow.maxRecordsPerBatch', 100000)
+                        .config('spark.sql.execution.arrow.maxRecordsPerBatch', chunksize)
 
         spark = _spark_initialize(config=spark_config, log_level='WARN', 
-                                  spark_progress=False, laurelin_version='0.5.1')
-
-        partitionsize = 200000
+                                  spark_progress=False, laurelin_version='1.0.0')
         thread_workers = 2
+        nworkers = 1 # placeholder
         print(spark)
 
-        tstart = time.time()
-        for variation in all_pt_variations:
-            print(f"Jet pT variation: {variation}")
-            time_option = time.time()
-            output = processor.run_spark_job(samp_info.full_fileset, DimuonProcessor(samp_info=samp_info, pt_variations=[variation], do_btag_syst=do_btag_syst),\
-                                             spark_executor, spark=spark,\
-                                             partitionsize=partitionsize, thread_workers=thread_workers,\
-                                             executor_args={'file_type': 'edu.vanderbilt.accre.laurelin.Root', 'cache': False, 'nano': True, 'retries': 5})
-            elapsed_option = time.time() - time_option
-            print(f"Running this option took: {elapsed_option} s")
-        elapsed = time.time() - tstart
-        print(f"Total running time: {elapsed} s")
-
-        sys.exit()
-
-    if args.local:
-        n_workers = 46
-        distributed = pytest.importorskip("distributed", minversion="1.28.1")
-        distributed.config['distributed']['worker']['memory']['terminate'] = False
-        client = distributed.Client(processes=True, dashboard_address=None, n_workers=n_workers,\
-                                    threads_per_worker=1, memory_limit='12GB') 
-    else:
+    elif method=='Dask+Slurm':
+        flexible_workers = False
         distributed = pytest.importorskip("distributed", minversion="1.28.1")
         distributed.config['distributed']['worker']['memory']['terminate'] = False
         client = distributed.Client(slurm_cluster_ip)
+        nworkers = len(client._scheduler_identity.get("workers", {}))
+        print(f"Starting processing with {nworkers} workers")
 
-        
-    tstart = time.time()
+    elif method=='DaskLocal':
+        target_nworkers = 46
+        distributed = pytest.importorskip("distributed", minversion="1.28.1")
+        distributed.config['distributed']['worker']['memory']['terminate'] = False
+        client = distributed.Client(processes=True, dashboard_address=None, n_workers=target_nworkers,
+                                threads_per_worker=1, memory_limit='12GB') 
+        nworkers = len(client._scheduler_identity.get("workers", {}))
+        print(f"Starting processing with {nworkers} workers")
+
+    t_prep = time.time() - t_prep_start
+
+
+    ###### Start processing ######
+
+    t_run_start = time.time()
 
     for variation in all_pt_variations:
-        print(f"Jet pT variation: {variation}")
-        for label, fileset in samp_info.filesets.items():
-            # Not producing variated samples for minor backgrounds
-            if (variation!='nominal') and not (('dy' in label) or ('ewk' in label) or ('vbf' in label) or ('ggh' in label) or ('ttjets_dl' in label)) or ('mg' in label):
+        for sample_name, fileset in samp_info.filesets.items():
+            if (variation!='nominal')and not(('dy' in sample_name) or ('ewk' in sample_name) or ('vbf' in sample_name) or ('ggh' in sample_name) or ('ttjets_dl' in sample_name)) or ('mg' in sample_name):
                 continue
-            print(f"Processing: {label}, {variation}")
-            time_option = time.time()
-            out_dir = f"{global_out_path}/{samp_info.out_path}/"
+            print(f"Processing: {sample_name}, {variation}")
+
+            if method=='Iterative':
+                output,metrics = processor.run_uproot_job(fileset, 'Events',
+                                        DimuonProcessor(samp_info=samp_info, do_timer=False, pt_variations=[variation], debug=args.debug, do_btag_syst=do_btag_syst),
+                                        iterative_executor, 
+                                        executor_args={'nano': True, 'savemetrics':True}, chunksize=chunksize, maxchunks=1)
+
+            elif method=='Spark':
+                output  = processor.run_spark_job(fileset, 
+                                        DimuonProcessor(samp_info=samp_info, pt_variations=[variation], do_btag_syst=do_btag_syst),
+                                        spark_executor, spark=spark, partitionsize=chunksize, thread_workers=thread_workers,
+                                        executor_args={'file_type': 'edu.vanderbilt.accre.laurelin.Root', 'cache': False, 'nano': True, 'retries': 5,
+                                                        'laurelin_version': '1.0.0'})
+
+            elif (method=='Dask+Slurm') or (method=='DaskLocal'):
+                save_args = {
+                    'save': save_output,
+                    'out_dir': out_dir,
+                    'label': sample_name
+                }
+                if not do_reduce: save_output=False
+                output = processor.run_uproot_job(fileset, 'Events',
+                                        DimuonProcessor(samp_info=samp_info, pt_variations=[variation], do_btag_syst=do_btag_syst),
+                                        dask_executor, 
+                                        executor_args={'nano': True, 'client': client, 'do_reduce':do_reduce, 'save_args':save_args},
+                                        chunksize=chunksize)
+
+
+    t_run = time.time() - t_start
+
+
+    ###### Save outputs ######
+
+    if save_output:
+        t_save_start = time.time()
+        for mode in output.keys():
+            out_dir_ = f"{out_dir}/{mode}/"
+            out_path_ = f"{out_dir_}/{sample_name}.coffea"
             try:
-                os.mkdir(out_dir)
+                os.mkdir(out_dir_)
             except:
                 pass
-            save_args = {
-                'out_dir': out_dir,
-                'label': label
-            }
-            output = processor.run_uproot_job(fileset, 'Events',\
-                                              DimuonProcessor(samp_info=samp_info, pt_variations=[variation], do_btag_syst=do_btag_syst),\
-                                              dask_executor, executor_args={'nano': True, 'client': client, 'do_reduce':do_reduce, 'save_args':save_args},\
-                                              chunksize=chunksize)
-            elapsed_option = time.time() - time_option
-            print(f"Running this option took: {elapsed_option} s")
+            util.save(output[mode], out_path_)
+            print(f"Saved output to {out_dir}")
+        t_save = time.time() - t_save_start
+    else:
+        t_save = 0
 
-            if do_reduce:
-                for mode in output.keys():
-                    out_dir_ = f"{out_dir}/{mode}/"
-                    out_path_ = f"{out_dir_}/{label}.coffea"
-                    try:
-                        os.mkdir(out_dir_)
-                    except:
-                        pass
-                    util.save(output[mode], out_path_)
-            
-                output.clear()
-                print(f"Saved output to {out_dir}")
-            
-            del output
-            
-    elapsed = time.time() - tstart
-    print(f"Total running time: {elapsed} s")
+t = time.time() - t_start
+
+if save_diagnostics:
+    row = {
+        'datetime': datetime.datetime.now(),
+        'method': method,
+        'samples': np.asarray(samples),
+        'nevts': nevts,
+        'chunksize': chunksize, 
+        'nchunks': nchunks,
+        'nworkers': nworkers, # so far only for Dask 
+        'nvariations': len(all_pt_variations),
+        'prep_time': t_prep, 
+        'run_time': t_run, 
+        'save_time': t_save, 
+        'total_time': t,
+        'do_reduce': do_reduce
+    }
+
+    try:
+        with open(testing_db_path, 'rb') as db_file:
+            db = pickle.load(db_file)
+        print(f"Loaded database from {testing_db_path} to save diagnostics")
+        idx = len(db)
+    except:
+        db = pd.DataFrame(columns=list(row.keys()), dtype=float)
+        idx = 0
+    for k,v in row.items():
+        db.loc[idx, k] = v
+    print(db)
+    db.to_pickle(testing_db_path)
+    print(f"Database saved to {testing_db_path}")

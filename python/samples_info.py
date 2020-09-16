@@ -259,8 +259,10 @@ class SamplesInfo(object):
     
     def compute_lumi_weights(self):
         self.lumi_weights = {'data':1}
+        nevts = {}
         for sample in self.mc_samples:
             N = self.metadata[sample]['sumGenWgts']
+            numevents = self.metadata[sample]['nGenEvts']
             if isinstance(cross_sections[sample], dict):
                 xsec = cross_sections[sample][self.year]
             else:
@@ -270,4 +272,6 @@ class SamplesInfo(object):
             else:
                 self.lumi_weights[sample] = 0
             lumi_wgt = self.lumi_weights[sample]
-            print(f"{sample}: xsec={xsec}, N={N}, lumi_wgt={lumi_wgt}")
+            print(f"{sample}: xsec={xsec}, N={N}, events={numevents}, lumi_wgt={lumi_wgt}")
+            nevts[sample] = numevents
+        return nevts

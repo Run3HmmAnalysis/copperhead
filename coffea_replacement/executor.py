@@ -182,7 +182,9 @@ class _save_unmerged(object):
     def __str__(self):
         return "save_unmerged"
 
-    def __call__(self, items, out_dir='', label=''):
+    def __call__(self, items, save=True, out_dir='', label=''):
+        if not save:
+            return
         if len(items) == 0:
             raise ValueError("Empty list of outputs")
         i = 0
@@ -644,7 +646,7 @@ def dask_executor(items, function, accumulator, **kwargs):
     if do_reduce:
         reducer = _reduce() 
     else:
-        save_args = kwargs.pop('save_args', {'out_dir': '', 'label': ''})
+        save_args = kwargs.pop('save_args', {'save': True,'out_dir': '', 'label': ''})
         reducer = partial(_save_unmerged(), **save_args)
     # secret options
     direct_heavy = kwargs.pop('direct_heavy', None)
