@@ -196,7 +196,7 @@ class DimuonProcessor(processor.ProcessorABC):
         
         numevents = df.shape[0]
         weights = Weights(df)
-        
+
         nTrueInt = df.Pileup.nTrueInt.flatten() if is_mc else np.zeros(numevents, dtype=bool)
         event_variables = {
                 'run': df.run.flatten(),
@@ -258,9 +258,9 @@ class DimuonProcessor(processor.ProcessorABC):
         df.Muon['phi_raw'] = df.Muon.phi
         df.Muon['pfRelIso04_all_raw'] = df.Muon.pfRelIso04_all
 
-        roch_corr, roch_err = roccor_evaluator(self.roccor_lookup, is_mc, df.Muon)
-        
+        roch_corr, roch_err = roccor_evaluator(self.roccor_lookup, is_mc, df.Muon)        
         df.Muon['pt'] = df.Muon.pt*roch_corr
+
 #        df.Muon['pt_scale_up'] = df.Muon.pt+df.Muon.pt*roch_err
 #        df.Muon['pt_scale_down'] = df.Muon.pt-df.Muon.pt*roch_err
         muons_pts = {'nominal': df.Muon.pt}#, 'scale_up':df.Muon.pt_scale_up, 'scale_down':df.Muon.pt_scale_down}
@@ -309,22 +309,22 @@ class DimuonProcessor(processor.ProcessorABC):
         
             pass_event_flags = np.ones(numevents, dtype=bool)
             for flag in self.parameters["event_flags"]:
-                pass_event_flags = pass_event_flags & df.Flag[flag]
+                pass_event_flags = pass_event_flags & df.Flag[flag].astype(np.bool)
 
             pass_muon_flags = np.ones(df.shape[0], dtype=bool)
             for flag in self.parameters["muon_flags"]:
-                pass_muon_flags = pass_muon_flags & muons[flag]
+                pass_muon_flags = pass_muon_flags & muons[flag].astype(np.bool)
             
             muons = muons[(muons.pt_raw > self.parameters["muon_pt_cut"]) &\
                       (abs(muons.eta_raw) < self.parameters["muon_eta_cut"]) &\
                         (muons.pfRelIso04_all < self.parameters["muon_iso_cut"]) &\
-                        muons[self.parameters["muon_id"]] 
+                        muons[self.parameters["muon_id"]].astype(np.bool)
                          & pass_muon_flags
                          ]
 
             self.muons_all = self.muons_all[(self.muons_all.pt_fsr > self.parameters["muon_pt_cut"]) &\
                         (self.muons_all.pfRelIso04_all < self.parameters["muon_iso_cut"]) &\
-                        self.muons_all[self.parameters["muon_id"]] 
+                        self.muons_all[self.parameters["muon_id"]].astype(np.bool)
                          ]
         
             two_os_muons = ((muons.counts == 2) & (muons['charge'].prod() == -1))
