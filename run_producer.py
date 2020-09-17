@@ -46,8 +46,12 @@ global_out_path = '/depot/cms/hmm/coffea/'
 slurm_cluster_ip = '128.211.149.140:45522'
 chunksize = int(args.chunksize)  # default 100000
 print(f"Running with chunksize {chunksize}")
-maxchunks = int(args.maxchunks) if int(args.maxchunks)>0 else None # default None (process all chunks)
-
+if int(args.maxchunks)>0:
+    maxchunks = int(args.maxchunks)
+    print(f"Will process {maxchunks} chunks")
+else:
+    maxchunks = None # default None (process all chunks)
+    print("Will process all chunks")
 
 save_output = True
 do_reduce = True # if set to False, the merging step will not be performed in Dask executors, outputs will be saved unmerged
