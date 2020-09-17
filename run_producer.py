@@ -288,7 +288,7 @@ if save_diagnostics:
         'method': method,
         'samples': np.asarray(samples),
         'nevts': nevts,
-        'maxchunks': int(args.maxchunks)
+        'maxchunks': int(args.maxchunks),
         'chunksize': chunksize, 
         'nchunks': nchunks,
         'nworkers': nworkers, # so far only for Dask 
