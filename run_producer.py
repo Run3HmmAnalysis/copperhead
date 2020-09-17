@@ -42,7 +42,7 @@ args = parser.parse_args()
 
 server = 'root://xrootd.rcac.purdue.edu/'
 global_out_path = '/depot/cms/hmm/coffea/'
-slurm_cluster_ip = '128.211.149.140:34174'
+slurm_cluster_ip = '128.211.149.140:45522'
 chunksize = int(args.chunksize)  # default 100000
 print(f"Running with chunksize {chunksize}")
 
@@ -58,10 +58,10 @@ testing_db_path = '/depot/cms/hmm/performance_tests_db.pkl'
 do_btag_syst = False
 
 sample_sources = [
-#    'data',
+    'data',
 #    'main_mc',
 #    'signal',
-    'other_mc',
+#    'other_mc',
 ]
 
 smp = {
@@ -229,7 +229,7 @@ if __name__ == "__main__":
                 output,metrics = processor.run_uproot_job(fileset, 'Events',
                                         DimuonProcessor(samp_info=samp_info, do_timer=False, pt_variations=[variation], debug=args.debug, do_btag_syst=do_btag_syst),
                                         iterative_executor, 
-                                        executor_args={'nano': True, 'savemetrics':True}, chunksize=chunksize, maxchunks=1)
+                                        executor_args={'nano': True, 'savemetrics':True}, chunksize=chunksize)
 
             elif method=='Spark':
                 output  = processor.run_spark_job(fileset, 

@@ -274,4 +274,6 @@ class SamplesInfo(object):
             lumi_wgt = self.lumi_weights[sample]
             print(f"{sample}: xsec={xsec}, N={N}, events={numevents}, lumi_wgt={lumi_wgt}")
             nevts[sample] = numevents
+        for sample in self.data_samples:
+            nevts[sample] = self.data_entries
         return nevts
