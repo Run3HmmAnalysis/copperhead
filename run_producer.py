@@ -34,6 +34,7 @@ parser.add_argument("-dl", "--dasklocal", action='store_true') # create local Da
 parser.add_argument("-s", "--spark", action='store_true') # run with Spark
 
 parser.add_argument("-ch", "--chunksize", dest="chunksize", default=100000, action='store')
+parser.add_argument("-mch", "--maxchunks", dest="maxchunks", default=-1, action='store')
 
 args = parser.parse_args()
 
@@ -45,6 +46,8 @@ global_out_path = '/depot/cms/hmm/coffea/'
 slurm_cluster_ip = '128.211.149.140:45522'
 chunksize = int(args.chunksize)  # default 100000
 print(f"Running with chunksize {chunksize}")
+maxchunks = int(args.maxchunks) if int(args.maxchunks)>0 else None # default None (process all chunks)
+
 
 save_output = True
 do_reduce = True # if set to False, the merging step will not be performed in Dask executors, outputs will be saved unmerged
@@ -155,6 +158,10 @@ if __name__ == "__main__":
     for k,v in nevts_all.items():
         nevts += v
         nchunks += math.ceil(v/chunksize)
+    if nchunks>maxchunks:
+        nchunks = maxchunks
+        nevts = nchunks*chunksize
+
 
     all_pt_variations = []
     for ptvar in pt_variations:
@@ -229,7 +236,8 @@ if __name__ == "__main__":
                 output,metrics = processor.run_uproot_job(fileset, 'Events',
                                         DimuonProcessor(samp_info=samp_info, do_timer=False, pt_variations=[variation], debug=args.debug, do_btag_syst=do_btag_syst),
                                         iterative_executor, 
-                                        executor_args={'nano': True, 'savemetrics':True}, chunksize=chunksize)
+                                        executor_args={'nano': True, 'savemetrics':True}, 
+                                        chunksize=chunksize, maxchunks=maxchunks)
 
             elif method=='Spark':
                 output  = processor.run_spark_job(fileset, 
@@ -249,7 +257,7 @@ if __name__ == "__main__":
                                         DimuonProcessor(samp_info=samp_info, pt_variations=[variation], do_btag_syst=do_btag_syst),
                                         dask_executor, 
                                         executor_args={'nano': True, 'client': client, 'do_reduce':do_reduce, 'save_args':save_args},
-                                        chunksize=chunksize)
+                                        chunksize=chunksize, maxchunks=maxchunks)
 
 
     t_run = time.time() - t_start
@@ -290,7 +298,6 @@ if save_diagnostics:
         'total_time': t,
         'do_reduce': do_reduce
     }
-
     try:
         with open(testing_db_path, 'rb') as db_file:
             db = pickle.load(db_file)
