@@ -164,7 +164,7 @@ if __name__ == "__main__":
         nchunks += math.ceil(v/chunksize)
     if nchunks>args.maxchunks:
         nchunks = maxchunks
-        nevts = nchunks*chunksize
+        nevts = nchunks*args.chunksize
 
 
     all_pt_variations = []
