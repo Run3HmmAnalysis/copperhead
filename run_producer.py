@@ -162,7 +162,7 @@ if __name__ == "__main__":
     for k,v in nevts_all.items():
         nevts += v
         nchunks += math.ceil(v/chunksize)
-    if nchunks>maxchunks:
+    if nchunks>args.maxchunks:
         nchunks = maxchunks
         nevts = nchunks*chunksize
 
