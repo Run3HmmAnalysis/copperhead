@@ -261,10 +261,13 @@ class DimuonProcessor(processor.ProcessorABC):
         roch_corr, roch_err = roccor_evaluator(self.roccor_lookup, is_mc, df.Muon)        
         df.Muon['pt'] = df.Muon.pt*roch_corr
 
+        if self.timer:
+            self.timer.add_checkpoint("Rochester correction")
+
 #        df.Muon['pt_scale_up'] = df.Muon.pt+df.Muon.pt*roch_err
 #        df.Muon['pt_scale_down'] = df.Muon.pt-df.Muon.pt*roch_err
         muons_pts = {'nominal': df.Muon.pt}#, 'scale_up':df.Muon.pt_scale_up, 'scale_down':df.Muon.pt_scale_down}
-
+    
         if True: # reserved for loop over muon pT variations
 #        for
             fsr_offsets = awkward.JaggedArray.counts2offsets(df.FsrPhoton.counts)
@@ -275,7 +278,6 @@ class DimuonProcessor(processor.ProcessorABC):
             fsr_iso = np.array(df.FsrPhoton.relIso03.flatten(), dtype=float)
             fsr_drEt2 = np.array(df.FsrPhoton.dROverEt2.flatten(), dtype=float)
             has_fsr = np.zeros(len(df.Muon.pt.flatten()), dtype=bool)
-
             pt_fsr, eta_fsr, phi_fsr, mass_fsr, iso_fsr, has_fsr =\
             fsr_evaluator(muons_offsets, fsr_offsets,\
                         np.array(df.Muon.pt.flatten(), dtype=float),\
@@ -283,7 +285,6 @@ class DimuonProcessor(processor.ProcessorABC):
                         np.array(df.Muon.mass.flatten(),dtype=float),np.array(df.Muon.pfRelIso04_all.flatten(), dtype=float),\
                         np.array(df.Muon.fsrPhotonIdx.flatten(), dtype=int), fsr_pt, fsr_eta, fsr_phi, fsr_iso, fsr_drEt2,\
                           has_fsr) 
-            
             df.Muon['pt'] = awkward.JaggedArray.fromcounts(df.Muon.counts, pt_fsr)
             df.Muon['eta'] = awkward.JaggedArray.fromcounts(df.Muon.counts, eta_fsr)
             df.Muon['phi'] = awkward.JaggedArray.fromcounts(df.Muon.counts, phi_fsr)
@@ -291,6 +292,9 @@ class DimuonProcessor(processor.ProcessorABC):
             df.Muon['pfRelIso04_all'] = awkward.JaggedArray.fromcounts(df.Muon.counts, iso_fsr)
             df.Muon['pt_fsr'] = df.Muon.pt
             
+            if self.timer:
+                self.timer.add_checkpoint("FSR recovery")
+
             # GeoFit correction
             if 'dxybs' in df.Muon.columns:
                 muons_dxybs = df.Muon.dxybs.flatten()
@@ -298,6 +302,9 @@ class DimuonProcessor(processor.ProcessorABC):
                 muons_pt_gf = geofit_evaluator(df.Muon.pt.flatten(), df.Muon.eta.flatten(), muons_dxybs,\
                                                  muons_charge, self.year, ~has_fsr).flatten()
                 df.Muon['pt'] = awkward.JaggedArray.fromcounts(df.Muon.counts, muons_pt_gf)
+
+                if self.timer:
+                    self.timer.add_checkpoint("GeoFit correction")
 
             self.muons_all = df.Muon
             muons = df.Muon
@@ -341,7 +348,7 @@ class DimuonProcessor(processor.ProcessorABC):
             mask = mask & event_filter & hlt
 
             if self.timer:
-                self.timer.add_checkpoint("Applied muon corrections")
+                self.timer.add_checkpoint("Selected events and muons")
 
             #---------------------------------------------------------------#        
             # Initialize muon variables
@@ -536,17 +543,20 @@ class DimuonProcessor(processor.ProcessorABC):
                             df.Jet['mass'] = jets.mass
 
         if is_mc and self.do_jerunc:
-            jetarrays = {c:df.Jet[c].flatten() for c in df.Jet.columns}
-            pt_gen_jet = df.Jet.matched_genjet.pt.flatten(axis=0)
+#            for c in df.Jet.columns:
+#                print(c, len(df.Jet[c].flatten())) 
+            jetarrays = {c:df.Jet[c].flatten() for c in df.Jet.columns if 'matched' not in c}
+            pt_gen_jet = df.Jet['matched_genjet'].pt.flatten(axis=0)
+#            pt_gen_jet = df.Jet.matched_genjet.pt.flatten(axis=0)
             pt_gen_jet = np.zeros(len(df.Jet.flatten()))
             pt_gen_jet[df.Jet.matched_genjet.pt.flatten(axis=0).counts>0] = df.Jet.matched_genjet.pt.flatten().flatten()
             pt_gen_jet[df.Jet.matched_genjet.pt.flatten(axis=0).counts<=0] = 0
-            jetarrays['pt_gen_jet'] = pt_gen_jet
+            jetarrays['ptGenJet'] = pt_gen_jet
             jets = JaggedCandidateArray.candidatesfromcounts(df.Jet.counts, **jetarrays)
             jet_pt_jec = df.Jet.pt
             self.Jet_transformer_JER.transform(jets, forceStochastic=False)
             jet_pt_jec_jer = jets.pt
-            jet_pt_gen = jets.pt_gen_jet
+            jet_pt_gen = jets.ptGenJet
             jer_sf = (jet_pt_jec_jer-jet_pt_gen) / \
                      (jet_pt_jec-jet_pt_gen+(jet_pt_jec==jet_pt_gen)*(jet_pt_jec_jer-jet_pt_jec))
             jer_down_sf = (jets.pt_jer_down-jet_pt_gen)/(jet_pt_jec-jet_pt_gen+(jet_pt_jec==jet_pt_gen)*10.)
@@ -560,7 +570,7 @@ class DimuonProcessor(processor.ProcessorABC):
                 'jer6' : (abs(jets.eta)>3.139)&(jets.pt>50),
             }
             for jer_unc_name, jer_cut in jer_categories.items():
-                jer_cut = jer_cut&(jets.pt_gen_jet>0)
+                jer_cut = jer_cut&(jets.ptGenJet>0)
                 if (f"{jer_unc_name}_up" not in self.pt_variations) and (f"{jer_unc_name}_down" not in self.pt_variations):
                     continue
                 pt_name_up = f"pt_{jer_unc_name}_up"
@@ -579,7 +589,7 @@ class DimuonProcessor(processor.ProcessorABC):
         df.Jet = df.Jet[df.Jet.pt.argsort()]
 
         if self.timer:
-            self.timer.add_checkpoint("Applied JEC (if enabled)")
+            self.timer.add_checkpoint("Applied JEC/JER (if enabled)")
 
         
         #---------------------------------------------------------------#        
@@ -1007,12 +1017,12 @@ class DimuonProcessor(processor.ProcessorABC):
         # Calculate btag SF and apply btag veto
         #---------------------------------------------------------------#
         bjet_sel_mask = mask&two_jets&vbf_cut
-        
         # Btag weight
         btag_wgt = np.ones(numevents)
         if is_mc:
             systs = self.btag_systs if 'nominal' in variation else []
-            btag_wgt, btag_syst = btag_weights(self.btag_lookup, systs, df.Jet, weights, bjet_sel_mask, numevents)
+            btag_wgt, btag_syst = btag_weights(self, self.btag_lookup, systs, df.Jet, weights, bjet_sel_mask, numevents)
+
             weights.add_weight('btag_wgt', btag_wgt)
             for name,bs in btag_syst.items():
                 up = bs[0]
