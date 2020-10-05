@@ -30,7 +30,7 @@ from .dataframe import (
     LazyDataFrame,
 )
 from ..nanoaod import NanoEvents
-from ..util import _hash, save
+from ..util import _hash
 
 try:
     from collections.abc import Mapping, Sequence
@@ -155,6 +155,7 @@ def _maybe_decompress(item):
 def _iadd(output, result):
     output += _maybe_decompress(result)
 
+
 class _reduce(object):
     def __init__(self):
         pass
@@ -174,38 +175,6 @@ class _reduce(object):
         while items:
             out += _maybe_decompress(items.pop())
         return out
-
-class _save_unmerged(object):
-    def __init__(self):
-        pass
-
-    def __str__(self):
-        return "save_unmerged"
-
-    def __call__(self, items, save=True, out_dir='', label=''):
-        if not save:
-            return
-        if len(items) == 0:
-            raise ValueError("Empty list of outputs")
-        i = 0
-        if len(out_dir)*len(label)==0:
-            raise("out_dir or label not specified!")
-        while items:            
-            item = items.pop()
-            try:
-                output = _maybe_decompress(item)['out']
-                for mode in output.keys():
-                    out_dir_ = f"{out_dir}/{mode}/"
-                    out_path_ = f"{out_dir_}/{label}_{i}.coffea"
-                    try:
-                        os.mkdir(out_dir_)
-                    except:
-                        pass
-                    save(output[mode], out_path_)
-                    i += 1
-            except:
-                pass
-        return
 
 
 def _cancel(job):
@@ -632,6 +601,7 @@ def dask_executor(items, function, accumulator, **kwargs):
             .. note:: If ``heavy_input`` is set, ``function`` is assumed to be pure.
     """
     from dask.delayed import delayed
+
     if len(items) == 0:
         return accumulator
     client = kwargs.pop('client')
@@ -642,16 +612,13 @@ def dask_executor(items, function, accumulator, **kwargs):
     retries = kwargs.pop('retries', 3)
     heavy_input = kwargs.pop('heavy_input', None)
     function_name = kwargs.pop('function_name', None)
-    do_reduce = kwargs.pop('do_reduce', True)
-    if do_reduce:
-        reducer = _reduce() 
-    else:
-        save_args = kwargs.pop('save_args', {'save': True,'out_dir': '', 'label': ''})
-        reducer = partial(_save_unmerged(), **save_args)
+    reducer = _reduce()
     # secret options
     direct_heavy = kwargs.pop('direct_heavy', None)
     worker_affinity = kwargs.pop('worker_affinity', False)
-
+    
+    workers_to_use = kwargs.pop('workers_to_use', None)
+    
     if clevel is not None:
         function = _compression_wrapper(clevel, function, name=function_name)
         reducer = _compression_wrapper(clevel, reducer)
@@ -679,6 +646,7 @@ def dask_executor(items, function, accumulator, **kwargs):
                 retries=retries,
                 workers={worker},
                 allow_other_workers=False,
+                resources={'processor': 1, 'reducer': 0}
             ))
     else:
         work = client.map(
@@ -687,23 +655,35 @@ def dask_executor(items, function, accumulator, **kwargs):
             pure=(heavy_input is not None),
             priority=priority,
             retries=retries,
+            key=function_name,
+            workers = workers_to_use,
+            resources={'processor': 1, 'reducer': 0}
         )
-
     while len(work) > 1:
+        key = None
+        if (function_name=='metadata_fetcher'):# or (len(work)>8)
+            resources={'processor': 1, 'reducer': 0}
+            workers_ = workers_to_use
+        else:
+            resources={'processor': 0, 'reducer': 1}
+            key = 'reduce_dedicated'
+            workers_ = None
         work = client.map(
             reducer,
-             [work[i:i + ntree] for i in range(0, len(work), ntree)],
+            [work[i:i + ntree] for i in range(0, len(work), ntree)],
             pure=True,
             priority=priority,
             retries=retries,
+            key = key,
+            workers = workers_,
+            resources=resources,
         )
-    if do_reduce:
-        work = work[0]
-        accumulator += _maybe_decompress(work.result())
+    work = work[0]
     if status:
         from distributed import progress
         # FIXME: fancy widget doesn't appear, have to live with boring pbar
         progress(work, multi=True, notebook=False)
+    accumulator += _maybe_decompress(work.result())
     return accumulator
 
 
@@ -1035,7 +1015,8 @@ def run_uproot_job(fileset,
                 'compression': None,
                 'tailtimeout': None,
                 'worker_affinity': False,
-                'do_reduce': True
+                'function_name':'metadata_fetcher',
+#                'priority': 1000,
             }
             pre_args.update(pre_arg_override)
             pre_executor(to_get, metadata_fetcher, out, **pre_args)

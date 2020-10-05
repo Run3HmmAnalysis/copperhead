@@ -23,7 +23,7 @@ import pickle
 import datetime
 
 parser = argparse.ArgumentParser()
-parser.add_argument("-y", "--year", dest="year", default=2016, action='store') # specify 2016, 2017 or 2018
+parser.add_argument("-y", "--year", dest="year", default='2016', action='store') # specify 2016, 2017 or 2018
 parser.add_argument("-l", "--label", dest="label", default="test", action='store') # unique label for processing run
 parser.add_argument("-d", "--debug", action='store_true') # load only 1 file per dataset
 
@@ -43,7 +43,7 @@ args = parser.parse_args()
 
 server = 'root://xrootd.rcac.purdue.edu/'
 global_out_path = '/depot/cms/hmm/coffea/'
-slurm_cluster_ip = '128.211.149.140:45522'
+slurm_cluster_ip = '128.211.149.140:36984'
 chunksize = int(args.chunksize)  # default 100000
 print(f"Running with chunksize {chunksize}")
 if int(args.maxchunks)>0:
@@ -56,8 +56,10 @@ else:
 save_output = True
 do_reduce = True # if set to False, the merging step will not be performed in Dask executors, outputs will be saved unmerged
 
-save_diagnostics = True
-testing_db_path = '/depot/cms/hmm/performance_tests_db.pkl'
+save_diagnostics = False
+testing_db_path = '/depot/cms/hmm/performance_tests_db_fsrcache.pkl'
+
+show_timer=False
 
 # B-tag systematics significantly slow down 'nominal' processing 
 # and they are only needed at the very last stage of the analysis.
@@ -65,9 +67,9 @@ testing_db_path = '/depot/cms/hmm/performance_tests_db.pkl'
 do_btag_syst = False
 
 sample_sources = [
-    'data',
+#    'data',
 #    'main_mc',
-#    'signal',
+    'signal',
 #    'other_mc',
 ]
 
@@ -143,28 +145,35 @@ if __name__ == "__main__":
     ###### Prepare resources ######
 
     t_prep_start = time.time()
-
-    samp_info = SamplesInfo(year=args.year, out_path=f'{args.year}_{args.label}', server=server, datasets_from='purdue', debug=args.debug)
-
+    
     samples = []
     for sss in sample_sources:
         samples += smp[sss]
+    
+    dataset = samples[0] 
+    
+    samp_info = SamplesInfo(year=args.year, out_path=f'{args.year}_{args.label}', server=server, datasets_from='purdue', debug=args.debug)
+    samp_info.load(dataset, use_dask=False)
+    
+    nevts = samp_info.finalize()
+    
+#    samp_info = SamplesInfo(year=args.year, out_path=f'{args.year}_{args.label}', server=server, datasets_from='purdue', debug=args.debug)
 
-    if args.debug:
-        samp_info.load(samples, parallelize_outer=1, parallelize_inner=1)
-    else:
-        samp_info.load(samples, parallelize_outer=46, parallelize_inner=1)
+#    if args.debug:
+#        samp_info.load(samples, parallelize_outer=1, parallelize_inner=1)
+#    else:
+#        samp_info.load(samples, parallelize_outer=46, parallelize_inner=1)
 
-    nevts_all = samp_info.compute_lumi_weights()
+#    nevts_all = samp_info.compute_lumi_weights()
 
-    nevts = 0
-    nchunks = 0
-    for k,v in nevts_all.items():
-        nevts += v
-        nchunks += math.ceil(v/chunksize)
-    if (nchunks>args.maxchunks) & (args.maxchunks>0):
-        nchunks = args.maxchunks
-        nevts = nchunks*chunksize
+#    nevts = 0
+#    nchunks = 0
+#    for k,v in nevts_all.items():
+#        nevts += v
+#        nchunks += math.ceil(v/chunksize)
+#    if (nchunks>int(args.maxchunks)) & (int(args.maxchunks)>0):
+#        nchunks = int(args.maxchunks)
+#        nevts = nchunks*chunksize
 
 
     all_pt_variations = []
@@ -231,14 +240,16 @@ if __name__ == "__main__":
     t_run_start = time.time()
 
     for variation in all_pt_variations:
-        for sample_name, fileset in samp_info.filesets.items():
+        for sample_name in samples:
+            fileset = samp_info.fileset
+#        for sample_name, fileset in samp_info.filesets.items():
             if (variation!='nominal')and not(('dy' in sample_name) or ('ewk' in sample_name) or ('vbf' in sample_name) or ('ggh' in sample_name) or ('ttjets_dl' in sample_name)) or ('mg' in sample_name):
                 continue
             print(f"Processing: {sample_name}, {variation}")
 
             if method=='Iterative':
                 output,metrics = processor.run_uproot_job(fileset, 'Events',
-                                        DimuonProcessor(samp_info=samp_info, do_timer=False, pt_variations=[variation], debug=args.debug, do_btag_syst=do_btag_syst),
+                                        DimuonProcessor(samp_info=samp_info, do_timer=show_timer, pt_variations=[variation], debug=args.debug, do_btag_syst=do_btag_syst),
                                         iterative_executor, 
                                         executor_args={'nano': True, 'savemetrics':True}, 
                                         chunksize=chunksize, maxchunks=maxchunks)
