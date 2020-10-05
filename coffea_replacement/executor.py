@@ -660,13 +660,11 @@ def dask_executor(items, function, accumulator, **kwargs):
             resources={'processor': 1, 'reducer': 0}
         )
     while len(work) > 1:
-        key = None
         if (function_name=='metadata_fetcher'):# or (len(work)>8)
             resources={'processor': 1, 'reducer': 0}
             workers_ = workers_to_use
         else:
             resources={'processor': 0, 'reducer': 1}
-            key = 'reduce_dedicated'
             workers_ = None
         work = client.map(
             reducer,
@@ -674,7 +672,6 @@ def dask_executor(items, function, accumulator, **kwargs):
             pure=True,
             priority=priority,
             retries=retries,
-            key = key,
             workers = workers_,
             resources=resources,
         )
