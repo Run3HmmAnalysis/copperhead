@@ -30,6 +30,8 @@ def roccor_evaluator(rochester, is_mc, muons):
     if is_mc:
         mc_rand = np.random.rand(*muons.pt.flatten().shape)
         mc_rand = awkward.JaggedArray.fromoffsets(muons.pt.offsets, mc_rand)
+
+#        hasgen = ~np.isnan(copy.deepcopy(muons.matched_gen.pt).fillna(np.nan))
         hasgen = ~np.isnan(muons.matched_gen.pt.fillna(np.nan))
         mc_rand = awkward.JaggedArray.fromoffsets(hasgen.offsets, mc_rand)._content
 
@@ -177,16 +179,16 @@ def pu_lookup(parameters, mode='nom', auto=[]):
     return lookup 
         
 def pu_reweight(pu_hist_data, pu_hist_mc):
-    pu_arr_mc = np.zeros(len(pu_hist_mc))
+    pu_arr_mc_ = np.zeros(len(pu_hist_mc))
     for ibin,value in enumerate(pu_hist_mc):
-        pu_arr_mc[ibin] = max(value, 0)
+        pu_arr_mc_[ibin] = max(value, 0)
 
     pu_arr_data = np.zeros(len(pu_hist_data))
     for ibin,value in enumerate(pu_hist_data):
         pu_arr_data[ibin] = max(value, 0)
 
-    pu_arr_mc_ref = copy.deepcopy(pu_arr_mc)
-    pu_arr_mc = pu_arr_mc/pu_arr_mc.sum()
+    pu_arr_mc_ref = pu_arr_mc_
+    pu_arr_mc = pu_arr_mc_/pu_arr_mc_.sum()
     pu_arr_data = pu_arr_data/pu_arr_data.sum()
 
     weights = np.ones(len(pu_hist_mc))
@@ -227,7 +229,7 @@ def pu_evaluator(lookup, numevents, ntrueint):
 
 
 # https://github.com/jpata/hepaccelerate-cms/blob/f5965648f8a7861cb9856d0b5dd34a53ed42c027/tests/hmm/hmumu_utils.py#L1396
-@numba.njit(parallel=True)
+@numba.njit(parallel=True, cache=True)
 def fsr_evaluator(muons_offsets, fsr_offsets, muons_pt, muons_eta, muons_phi,\
                           muons_mass, muons_iso, muons_fsrIndex,
                             fsr_pt, fsr_eta, fsr_phi, fsr_iso, fsr_drEt2, has_fsr): 
@@ -281,14 +283,15 @@ def fsr_evaluator(muons_offsets, fsr_offsets, muons_pt, muons_eta, muons_phi,\
 
     return  muons_pt, muons_eta, muons_phi, muons_mass, muons_iso, has_fsr
     
-def btag_weights(lookup, systs, jets, weights, bjet_sel_mask, numevents):
+def btag_weights(processor, lookup, systs, jets, weights, bjet_sel_mask, numevents):
     btag_wgt = np.ones(numevents, dtype=float)
     jets_ = jets[abs(jets.eta)<2.4]
     jet_pt_ = awkward.JaggedArray.fromcounts(jets_[jets_.counts>0].counts, np.minimum(jets_.pt.flatten(), 1000.))
-
+    
     btag_wgt[(jets_.counts>0)] = lookup('central', jets_[jets_.counts>0].hadronFlavour,\
                                               abs(jets_[jets_.counts>0].eta), jet_pt_,\
                                               jets_[jets_.counts>0].btagDeepB, True).prod()
+
     btag_wgt[btag_wgt<0.01] = 1.
 
     btag_syst = {}
