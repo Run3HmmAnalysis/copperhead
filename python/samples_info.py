@@ -65,7 +65,7 @@ class SamplesInfo(object):
         #self.channels = ['ggh_01j', 'ggh_2j', 'vbf']
         self.channels = ['vbf','vbf_01j','vbf_2j']
 
-        self.lumi_weights = {}
+        self.lumi_weights = 1
 
 
     def load(self, sample, use_dask):
@@ -187,10 +187,10 @@ class SamplesInfo(object):
             else:
                 xsec = cross_sections[self.sample]
             if N>0:
-                self.lumi_weight = xsec*self.lumi / N
+                self.lumi_weights = xsec*self.lumi / N
             else:
-                self.lumi_weight = 0
-            print(f"{self.sample}: xsec={xsec}, N={N}, events={numevents}, lumi_wgt={self.lumi_weight}")
+                self.lumi_weights = 0
+            print(f"{self.sample}: xsec={xsec}, N={N}, events={numevents}, lumi_wgt={self.lumi_weights}")
             return numevents
         else:
             self.lumi_weight = 1

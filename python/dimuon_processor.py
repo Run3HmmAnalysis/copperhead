@@ -225,8 +225,7 @@ class DimuonProcessor(processor.ProcessorABC):
             pu_weight_down = pu_evaluator(self.pu_lookup_down, numevents, df.Pileup.nTrueInt)
             weights.add_weight_with_variations('pu_wgt', pu_weight, pu_weight_up, pu_weight_down)
             
-            if dataset in self.lumi_weights:
-                weights.add_weight('lumi', self.lumi_weights[dataset])
+            weights.add_weight('lumi', self.lumi_weights)
 
             if self.parameters["do_l1prefiring_wgts"]:
                 weights.add_weight_with_variations('l1prefiring_wgt',\
