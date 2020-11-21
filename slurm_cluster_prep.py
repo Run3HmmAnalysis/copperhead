@@ -14,6 +14,7 @@ __all__ = ['pytest', 'asyncio', 'dask',
            'SLURMCluster', 'dask_executor',
            'DimuonProcessor']
 
+
 async def f(scheduler_address):
     r = await Worker(scheduler_address,
                      resources={'processor': 0, 'reducer': 1},

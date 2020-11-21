@@ -201,7 +201,6 @@ if __name__ == "__main__":
         import pyspark.sql
         from pyarrow.compat import guid
         from coffea.processor.spark.detail import _spark_initialize
-        from coffea.processor.spark.detail import _spark_stop
         from coffea.processor.spark.spark_executor import spark_executor
         spark_config = pyspark.sql.SparkSession.builder \
             .appName('spark-executor-test-%s' % guid()) \
@@ -224,8 +223,8 @@ if __name__ == "__main__":
         flexible_workers = False
         distributed = pytest.importorskip("distributed",
                                           minversion="1.28.1")
-        distributed.config['distributed']['worker'
-                                         ]['memory']['terminate'] = False
+        distributed.config['distributed'][
+            'worker']['memory']['terminate'] = False
         client = distributed.Client(slurm_cluster_ip)
         nworkers = len(client._scheduler_identity.get("workers", {}))
         print(f"Starting processing with {nworkers} workers")
@@ -234,8 +233,8 @@ if __name__ == "__main__":
         target_nworkers = 46
         distributed = pytest.importorskip("distributed",
                                           minversion="1.28.1")
-        distributed.config['distributed']['worker'
-                                         ]['memory']['terminate'] = False
+        distributed.config['distributed'][
+            'worker']['memory']['terminate'] = False
         client = distributed.Client(processes=True,
                                     dashboard_address=None,
                                     n_workers=target_nworkers,
@@ -260,7 +259,7 @@ if __name__ == "__main__":
                     ('vbf' in sample_name) or
                     ('ggh' in sample_name) or
                     ('ttjets_dl' in sample_name)) or\
-            ('mg' in sample_name):
+                ('mg' in sample_name):
                 continue
             print(f"Processing: {sample_name}, {variation}")
 
