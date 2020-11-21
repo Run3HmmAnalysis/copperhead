@@ -15,6 +15,7 @@ variables.append(Variable("dimuon_ebe_mass_res", r"$\Delta M_{\mu\mu}$ [GeV]", 5
 variables.append(Variable("dimuon_ebe_mass_res_rel", r"$\Delta M_{\mu\mu} / M_{\mu\mu}$ [GeV]", 50, 0, 0.04))
 
 variables.append(Variable("dimuon_pt", r"$p_{T}(\mu\mu)$ [GeV]", 50, 0, 200))
+variables.append(Variable("dimuon_pt_log", r"$log(p_{T}(\mu\mu))$", 50, 0, 200))
 variables.append(Variable("dimuon_eta", r"$\eta (\mu\mu)$", 50, -5, 5))
 variables.append(Variable("dimuon_phi", r"$\phi (\mu\mu)$", 50, -3.2, 3.2))
 variables.append(Variable("dimuon_dEta", r"$\Delta\eta (\mu\mu)$", 50, 0, 10))
@@ -72,6 +73,7 @@ variables.append(Variable("mmj_min_dEta", r"$min. \Delta\eta (\mu\mu, j)$", 50, 
 variables.append(Variable("mmj_min_dPhi", r"$min. \Delta\phi (\mu\mu, j)$", 50, 0, 3.3))
 
 variables.append(Variable("jj_mass", r"$M(jj)$ [GeV]", 50, 0, 600))
+variables.append(Variable("jj_mass_log", r"$log M(jj)$", 50, 0, 600))
 variables.append(Variable("jj_pt", r"$p_{T}(jj)$ [GeV]", 50, 0, 150))
 variables.append(Variable("jj_eta", r"$\eta (jj)$", 50, -4.7, 4.7))
 variables.append(Variable("jj_phi", r"$\phi (jj)$", 50, -3.2, 3.2))
