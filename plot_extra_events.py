@@ -1,8 +1,6 @@
-import os,glob, sys
 import argparse
-from python.postprocessing import postprocess, plot, save_shapes, make_datacards, dnn_rebin, var_map_pisa
+from python.postprocessing import postprocess, plot, var_map_pisa
 from config.variables import variables
-from config.datasets import datasets
 import pandas as pd
 import uproot
 import coffea
@@ -24,7 +22,7 @@ samples = [
     # 'dy_m105_160_vbf_amc',
 ]
 
-modules =  ['to_pandas', 'get_hists']
+modules = ['to_pandas', 'get_hists']
 
 postproc_args = {
     'modules': modules,
@@ -50,8 +48,8 @@ with uproot.open('/depot/cms/hmm/coffea/'
 
 purdue_events = []
 for i in ['A', 'B', 'C', 'D']:
-    fi = coffea.util.load(f'/depot/cms/hmm/coffea/'\
-                          f'{args.year}_{args.label}/'\
+    fi = coffea.util.load(f'/depot/cms/hmm/coffea/'
+                          f'{args.year}_{args.label}/'
                           f'nominal/data_{i}.coffea')
     purdue_events.extend(fi['event_vbf_h-peak'].value)
 purdue_events = np.array(purdue_events)

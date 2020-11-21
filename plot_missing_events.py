@@ -1,5 +1,6 @@
 import os
-import uproot, coffea
+import uproot
+import coffea
 import numpy as np
 import argparse
 from config.variables import variables
@@ -26,9 +27,9 @@ with uproot.open('/depot/cms/hmm/coffea/'
     pisa_events = tree['event'].array()
     purdue_events = []
     for i in ['A', 'B', 'C', 'D']:
-        fi = coffea.util.load(f'/depot/cms/hmm/coffea/'\
-            f'{args.year}_{args.label}/'\
-            f'nominal/data_{i}.coffea')
+        fi = coffea.util.load(f'/depot/cms/hmm/coffea/'
+                              f'{args.year}_{args.label}/'
+                              f'nominal/data_{i}.coffea')
         purdue_events.extend(fi['event_vbf_h-peak'].value)
     purdue_events = np.array(purdue_events)
 
