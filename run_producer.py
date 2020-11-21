@@ -1,9 +1,8 @@
-import time
 import os
 import sys
+import time
 import argparse
 import math
-
 import coffea
 from coffea import util
 import coffea.processor as processor
@@ -18,6 +17,7 @@ import pandas as pd
 import numpy as np
 import pickle
 import datetime
+
 
 print("Coffea version: ", coffea.__version__)
 
@@ -63,7 +63,7 @@ else:
 
 save_output = False
 do_reduce = True
-# if set to False, the merging step 
+# if set to False, the merging step
 # will not be performed in Dask executors,
 # outputs will be saved unmerged
 
@@ -158,9 +158,9 @@ if __name__ == "__main__":
         samples += smp[sss]
 
     dataset = samples[0]
-    
-    samp_info = SamplesInfo(year=args.year, 
-                            out_path=f'{args.year}_{args.label}', 
+
+    samp_info = SamplesInfo(year=args.year,
+                            out_path=f'{args.year}_{args.label}',
                             server=server,
                             datasets_from='purdue',
                             debug=args.debug)
@@ -225,7 +225,7 @@ if __name__ == "__main__":
         distributed = pytest.importorskip("distributed",
                                           minversion="1.28.1")
         distributed.config['distributed']['worker']\
-        ['memory']['terminate'] = False
+            ['memory']['terminate'] = False
         client = distributed.Client(slurm_cluster_ip)
         nworkers = len(client._scheduler_identity.get("workers", {}))
         print(f"Starting processing with {nworkers} workers")
@@ -260,7 +260,7 @@ if __name__ == "__main__":
                     ('vbf' in sample_name) or
                     ('ggh' in sample_name) or
                     ('ttjets_dl' in sample_name)) or
-                    ('mg' in sample_name):
+                ('mg' in sample_name):
                 continue
             print(f"Processing: {sample_name}, {variation}")
 
