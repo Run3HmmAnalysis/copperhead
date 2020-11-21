@@ -10,7 +10,13 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest]
+        python-version: [3.7]
+    name: build - flake8 - python ${{ matrix.python-version }}
+
     steps:
       - uses: actions/checkout@master
       - name: Set up Python ${{ matrix.python-version }}
