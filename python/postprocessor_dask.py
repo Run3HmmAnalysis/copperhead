@@ -1,15 +1,12 @@
 import os, sys
-import glob
-from dask.distributed import get_client, wait, as_completed
+import time
 from functools import partial
-import lz4.frame
-import _pickle as pkl
-import copy
 
+import dask.dataframe as dd
 import pandas as pd
 import numpy as np
-import boost_histogram as bh
-from boost_histogram import loc
+from hist import Hist
+
 
 stderr = sys.stderr
 sys.stderr = open(os.devnull, 'w')
@@ -18,6 +15,7 @@ sys.stderr = stderr
 os.environ['TF_CPP_MIN_LOG_LEVEL']='2'
 
 from config.variables import variables_lookup, Variable
+from python.timer import Timer
 
 training_features = ['dimuon_mass', 'dimuon_pt', 'dimuon_pt_log', 'dimuon_eta', 'dimuon_mass_res', 'dimuon_mass_res_rel',\
                      'dimuon_cos_theta_cs', 'dimuon_phi_cs',
@@ -73,85 +71,74 @@ decorrelation_scheme = {
 #    'pdf_mcreplica': {'DY':['DY_filter', 'DY_nofilter'], 'ggH':['ggH'], 'VBF':['VBF']},
 }
 
-def workflow(client, argsets, parameters):
-    futures = client.map(partial(load_data, parameters=parameters), argsets)
+def workflow(client, paths, parameters, timer):
+    # Load dataframes
+    df_future = client.map(load_data, paths)
+    df_future = client.gather(df_future)
+    timer.add_checkpoint("Loaded data from Parquet")
 
-    for model in parameters['dnn_models']:
-        futures = client.map(partial(dnn_evaluation, parameters=parameters, model=model),futures)
-    for model in parameters['bdt_models']:
-        futures = client.map(partial(bdt_evaluation, parameters=parameters, model=model),futures)
-
-    hist_args = []
-    for future in futures:
-        for var in parameters['hist_vars']:
-            hist_args.append({'args':future, 'var':var})
-    hist_futures = client.map(partial(get_histogram,parameters=parameters),hist_args)
-
-    df = pd.DataFrame()
-    for future in as_completed(futures):
-        result = future.result()
-        if 'df' in result.keys():
-            df = pd.concat([df, future.result()['df']])
-
-    hist = pd.DataFrame()
-    for future in as_completed(hist_futures):
-        hist = pd.concat([hist, future.result()[0]])
-        
-    return df, hist
+    df = dd.concat(df_future)
+    npart = df.npartitions
+    df = df.compute()
+    df.reset_index(inplace=True,drop=True)
+    df = dd.from_pandas(df, npartitions=npart)
+    df = df.repartition(npartitions=parameters['ncpus'])
+    timer.add_checkpoint(f"Combined into a single Dask DataFrame")
     
-def load_data(args, parameters):
-    import dask
-    with lz4.frame.open(args['input']) as fin:
-        input_ = pkl.load(fin)
-    suff = f"_{args['c']}_{args['r']}"
+    keep_columns = ['s', 'year', 'r']
+    keep_columns += [f'c {v}' for v in parameters['syst_variations']]
+    keep_columns += [c for c in df.columns if 'wgt_' in c]
+    keep_columns += parameters['hist_vars']
 
-    df = pd.DataFrame()
+    # Evaluate classifiers
+    # TODO: outsource to GPUs
+    evaluate_mva = False
+    if evaluate_mva:
+        for v in parameters['syst_variations']:
+            for model in parameters['dnn_models']:
+                score_name = f'score_{model} {v}'
+                keep_columns += [score_name]
+                df[score_name] = df.map_partitions(dnn_evaluation, v, model, parameters)
+                timer.add_checkpoint(f"Evaluated {model} {v}")
+            for model in parameters['bdt_models']:
+                score_name = f'score_{model} {v}'
+                keep_columns += [score_name]
+                df[score_name] = df.map_partitions(bdt_evaluation, v, model, parameters)
+                timer.add_checkpoint(f"Evaluated {model} {v}")
+    df = df[[c for c in keep_columns if c in df.columns]]
 
-    len_ = len(input_['wgt_nominal'+suff].value)
-    if len_==0: return args
+    df = df.compute()
+    df.dropna(axis=1, inplace=True)
+    df.reset_index(inplace=True)
+    timer.add_checkpoint(f"Prepared for histogramming")
     
-    columns = sorted([c.replace(suff, '') for c in list(input_.keys()) if suff in c])
-    for var in columns:
-        if 'wgt_' in var:
-            try:
-                df[var] = input_[var+suff].value
-            except:
-                df[var] = input_['wgt_nominal'+suff].value
-        else:
-            try:
-                df[var] = input_[var+suff].value
-            except:
-                pass
-    df['year']=int(args['y'])
-    df['c'] = args['c']
-    df['r'] = args['r']
-    df['s'] = args['s']
-    df['v'] = args['v']
+    # Make histograms
+    hist_futures = client.map(partial(histogram,df=df,parameters=parameters),parameters['hist_vars'])
+    hists_ = client.gather(hist_futures)
+    hists = {}
+    for h in hists_:
+        hists.update(h)
+    timer.add_checkpoint(f"Histogramming")
+    return df, hists
 
-    ret = copy.deepcopy(args)
-    ret.update(**{'df':df})
-    return ret
+def load_data(path):
+    df = dd.read_parquet(path)
+    return df
 
-def prepare_features(df, parameters, add_year=False):
+def prepare_features(df, parameters, variation='nominal', add_year=True):
     global training_features
-    features = copy.deepcopy(training_features)
-    df['dimuon_pt_log'] = np.log(df['dimuon_pt'])
-    df['jj_mass_log'] = np.log(df['jj_mass'])
-    if add_year and ('year' not in features):
-        features+=['year']
-    if not add_year and ('year' in features):
-        features = [t for t in features if t!='year']
+    features = training_features+['year'] if add_year else training_features
+    features_var = []
     for trf in features:
-        if trf not in df.columns:
+        if f'{trf} {variation}' in df.columns:
+            features_var.append(f'{trf} {variation}')
+        elif trf in df.columns:
+            features_var.append(trf)
+        else:
             print(f'Variable {trf} not found in training dataframe!')
-    return df, features
+    return features_var
 
-def dnn_evaluation(args, model, parameters):
-    if not args: return args
-    if 'df' not in args: return args
-    df = args['df']
-    if df.shape[0]==0: return args
-
+def dnn_evaluation(df, variation, model, parameters):
     import keras.backend as K
     import tensorflow as tf
     from tensorflow.keras.models import load_model
@@ -163,18 +150,19 @@ def dnn_evaluation(args, model, parameters):
     tf.compat.v1.logging.set_verbosity(tf.compat.v1.logging.ERROR)
     sess = tf.compat.v1.Session(config=config)
     if parameters['do_massscan']:
-        mass_shift = args['mass']-125.0
-    allyears = ('allyears' in model)
-    df, features = prepare_features(df, parameters, allyears)
-    score_name = f'score_{model}'
+        mass_shift = parameters['mass']-125.0
+    features = prepare_features(df, parameters, variation, add_year=True)
+    score_name = f'score_{model} {variation}'
+    try:
+        df = df.compute()
+    except:
+        pass
     df[score_name] = 0
     with sess:
         nfolds = 4
         for i in range(nfolds):
-            if allyears:
-                label = f"allyears_jul7_{i}"
-            else:
-                label = f"{args['y']}_jul7_{i}"
+            # FIXME
+            label = f"allyears_jul7_{i}"
 
             train_folds = [(i+f)%nfolds for f in [0,1]]
             val_folds = [(i+f)%nfolds for f in [2]]
@@ -186,38 +174,31 @@ def dnn_evaluation(args, model, parameters):
             scalers = np.load(scalers_path)
             model_path = f"{parameters['models_path']}/{model}/dnn_{label}.h5"
             dnn_model = load_model(model_path)
-            df_i = df[eval_filter]
-            if args['r']!='h-peak':
-                df_i['dimuon_mass'] = 125.
+            df_i = df.loc[eval_filter,:]
+            df_i.loc[df_i.r!='h-peak','dimuon_mass'] = 125.0
             if parameters['do_massscan']:
                 df_i['dimuon_mass'] = df_i['dimuon_mass']-mass_shift
-
             df_i = (df_i[features]-scalers[0])/scalers[1]
             prediction = np.array(dnn_model.predict(df_i)).ravel()
-            df.loc[eval_filter, score_name] = np.arctanh((prediction))
-    return args
+            df.loc[eval_filter,score_name] = np.arctanh((prediction))
+    return df[score_name]
 
-def bdt_evaluation(args, model, parameters):
-    if not args: return args
-    if 'df' not in args: return args
-    df = args['df']
-    if df.shape[0]==0: return args
-
+def bdt_evaluation(df, variation, model, parameters):
     import xgboost as xgb
     import pickle
     if parameters['do_massscan']:
-        mass_shift = args['mass']-125.0
-    allyears = ('allyears' in model)
-    df, features = prepare_features(df, parameters, allyears)
-    score_name = f'score_{model}'
+        mass_shift = parameters['mass']-125.0
+    features = prepare_features(df, parameters, variation, add_year=False)
+    score_name = f'score_{model} {variation}'
+    try:
+        df = df.compute()
+    except:
+        pass
     df[score_name] = 0
-
     nfolds = 4
     for i in range(nfolds):
-        if allyears:
-            label = f"allyears_jul7_{i}"
-        else:
-            label = f"{args['y']}_jul7_{i}"
+        # FIXME
+        label = f"2016_jul7_{i}"
                     
         train_folds = [(i+f)%nfolds for f in [0,1]]
         val_folds = [(i+f)%nfolds for f in [2]]
@@ -230,130 +211,80 @@ def bdt_evaluation(args, model, parameters):
 
         bdt_model = pickle.load(open(model_path, "rb"))
         df_i = df[eval_filter]
-        if args['r']!='h-peak':
-            df_i['dimuon_mass'] = 125.
+        df_i.loc[df_i.r!='h-peak','dimuon_mass'] = 125.0
         if parameters['do_massscan']:
             df_i['dimuon_mass'] = df_i['dimuon_mass']-mass_shift
         df_i = (df_i[features]-scalers[0])/scalers[1]
-        #prediction = np.array(bdt_model.predict_proba(df_i)[:, 1]).ravel()
         if len(df_i)>0:
             if 'multiclass' in model:
                 prediction = np.array(bdt_model.predict_proba(df_i.values)[:, 5]).ravel()
             else:
                 prediction = np.array(bdt_model.predict_proba(df_i.values)[:, 1]).ravel()
-            df.loc[eval_filter, score_name] = np.arctanh((prediction))
-    return args
+            df.loc[eval_filter,score_name] = np.arctanh((prediction))
+    return df[score_name]
 
-def get_histogram(hist_args, parameters):
-    args = hist_args['args']
-    var = hist_args['var']
-    if not args: return
-    if 'df' not in args: return None, None
-    df = args['df']
-    if df is None: return None,None
-    if len(df)==0: return None,None
-    year = args['y']
-    mva_bins = parameters['mva_bins']
+
+def histogram(var, df=pd.DataFrame(), parameters={}):
     if var in variables_lookup.keys():
         var = variables_lookup[var]
     else:
         var = Variable(var, var, 50, 0, 5)
     
-    if ('score' in var.name):
-        bins = mva_bins[var.name.replace('score_','')][year]
-    dataset_axis = bh.axis.StrCategory(df.s.unique())
-    region_axis = bh.axis.StrCategory(df.r.unique())
-    channel_axis = bh.axis.StrCategory(df.c.unique())
-    syst_axis = bh.axis.StrCategory(df.v.unique())
-    val_err_axis = bh.axis.StrCategory(['value', 'sumw2'])
-    if ('score' in var.name) and len(bins)>0:
-        var_axis = bh.axis.Variable(bins)
-        nbins = len(bins)-1
-    else:
-        var_axis = bh.axis.Regular(var.nbins, var.xmin, var.xmax)
-        nbins = var.nbins
-    df_out = pd.DataFrame()
-    edges = []
-    regions = df.r.unique()
-    channels = df.c.unique()
-    for s in df.s.unique():
-        if ('data' in s):
-            if ('nominal' in parameters['syst_variations']):
-                syst_variations = ['nominal']
-                wgts = ['wgt_nominal']
-            else:
-                syst_variations = []
-                wgts = []
-        else:
-            syst_variations = parameters['syst_variations']
-            wgts = [c for c in df.columns if ('wgt_' in c)]
-        mcreplicas = [c for c in df.columns if ('mcreplica' in c)]
-        mcreplicas = []
-        if len(mcreplicas)>0:
-            wgts = [wgt for wgt in wgts if ('pdf_2rms' not in wgt)]
-        if len(mcreplicas)>0 and ('wgt_nominal' in df.columns) and (s in grouping.keys()):
-            decor = decorrelation_scheme['pdf_mcreplica']
-            for decor_group, proc_groups in decor.items():
-                for imcr, mcr in enumerate(mcreplicas):
-                    wgts += [f'pdf_mcreplica{imcr}_{decor_group}']
-                    if grouping[s] in proc_groups:
-                        df.loc[:,f'pdf_mcreplica{imcr}_{decor_group}'] = np.multiply(df.wgt_nominal,df[mcr])
-                    else:
-                        df.loc[:,f'pdf_mcreplica{imcr}_{decor_group}'] = df.wgt_nominal
-        for w in wgts:
-            hist = bh.Histogram(dataset_axis, region_axis, channel_axis, syst_axis, val_err_axis, var_axis)
-            hist.fill(df.s.to_numpy(), df.r.to_numpy(), df.c.to_numpy(), df.v.to_numpy(), 'value',\
-                              df[var.name].to_numpy(), weight=df[w].to_numpy())
-            hist.fill(df.s.to_numpy(), df.r.to_numpy(), df.c.to_numpy(), df.v.to_numpy(), 'sumw2',\
-                              df[var.name].to_numpy(), weight=(df[w]*df[w]).to_numpy())    
-            for v in df.v.unique():
-                if v not in syst_variations: continue
-                if (v!='nominal')&(w!='wgt_nominal'): continue
-                for r in regions:
-                    for c in channels:
-                        values = hist[loc(s), loc(r), loc(c), loc(v), loc('value'), :].to_numpy()[0]
-                        sumw2 = hist[loc(s), loc(r), loc(c), loc(v), loc('sumw2'), :].to_numpy()[0]
-                        values[values<0] = 0
-                        sumw2[values<0] = 0
-                        integral = values.sum()
-                        edges = hist[loc(s), loc(r), loc(c), loc(v), loc('value'), :].to_numpy()[1]
-                        contents = {}
-                        contents.update({f'bin{i}':[values[i]] for i in range(nbins)})
-                        contents.update({f'sumw2_0': 0.}) # add a dummy bin b/c sumw2 indices are shifted w.r.t bin indices
-                        contents.update({f'sumw2_{i+1}':[sumw2[i]] for i in range(nbins)})
-                        contents.update({'s':[s],'r':[r],'c':[c], 'v':[v], 'w':[w],\
-                                         'var':[var.name], 'integral':integral})
-                        contents['g'] = grouping[s] if s in grouping.keys() else f"{s}"
-                        row = pd.DataFrame(contents)
-                        df_out = pd.concat([df_out, row], ignore_index=True)
-        if df_out.shape[0]==0:
-            return df_out, edges
-        bin_names = [n for n in df_out.columns if 'bin' in n]
-        sumw2_names = [n for n in df_out.columns if 'sumw2' in n]
-        pdf_names = [n for n in df_out.w.unique() if ("mcreplica" in n)]
-        for decor_group, proc_groups in decorrelation_scheme['pdf_mcreplica'].items():
-            if len(pdf_names)==0: continue
-            for r in regions:
-                for c in channels:
-                    rms = df_out.loc[df_out.w.isin(pdf_names)&(df_out.v=='nominal')&(df_out.r==r)&(df_out.c==c), bin_names].std().values
-                    nom = df_out[(df_out.w=='wgt_nominal')&(df_out.v=='nominal')&(df_out.r==r)&(df_out.c==c)]
-                    nom_bins = nom[bin_names].values[0]
-                    nom_sumw2 = nom[sumw2_names].values[0]
-                    row_up = {}
-                    row_up.update({f'bin{i}':[nom_bins[i]+rms[i]] for i in range(nbins)})
-                    row_up.update({f'sumw2_{i}':[nom_sumw2[i]] for i in range(nbins+1)})
-                    row_up.update({f'sumw2_{i+1}':[sumw2[i]] for i in range(nbins)})
-                    row_up.update({'s':[s],'r':[r],'c':[c], 'v':['nominal'], 'w':[f'pdf_mcreplica_{decor_group}_up'],\
-                                     'var':[var.name], 'integral':(nom_bins.sum()+rms.sum())})
-                    row_up['g'] = grouping[s] if s in grouping.keys() else f"{s}"
-                    row_down = {}
-                    row_down.update({f'bin{i}':[nom_bins[i]-rms[i]] for i in range(nbins)})
-                    row_down.update({f'sumw2_{i}':[nom_sumw2[i]] for i in range(nbins+1)})
-                    row_down.update({f'sumw2_{i+1}':[sumw2[i]] for i in range(nbins)})
-                    row_down.update({'s':[s],'r':[r],'c':[c], 'v':['nominal'], 'w':[f'pdf_mcreplica_{decor_group}_down'],\
-                                     'var':[var.name], 'integral':(nom_bins.sum()-rms.sum())})
-                    row_down['g'] = grouping[s] if s in grouping.keys() else f"{s}"
-                    df_out = pd.concat([df_out, pd.DataFrame(row_up), pd.DataFrame(row_down)],ignore_index=True)
-                    df_out = df_out[~(df_out.w.isin(mcreplicas)&(df_out.v=='nominal')&(df_out.r==r)&(df_out.c==c))]
+    samples = df.s.unique()
+    years = df.year.unique()
+    regions = parameters['regions']
+    categories = parameters['categories']
+    syst_variations = parameters['syst_variations']
+    wgt_variations = [w for w in df.columns if ('wgt_' in w)]
+    
+    regions = [r for r in regions if r in df.r.unique()]
+    categories = [c for c in categories if c in df['c nominal'].unique()]
 
-    return df_out, edges
+    # sometimes different years have different binnings (MVA score)
+    h = {}
+    
+    for year in years:
+        if ('score' in var.name):
+            bins = parameters['mva_bins'][var.name.replace('score_','')][f'{year}']
+            h[year] = (
+              Hist.new
+              .StrCat(samples, name="dataset")
+              .StrCat(regions, name="region")
+              .StrCat(categories, name="category")
+              .StrCat(syst_variations, name="variation")
+              .StrCat(['value','sumw2'], name='val_err')
+              .Var(bins, name=var.name)
+              .Double()
+            )
+            nbins = len(bins)-1
+        else:
+            h[year] = (
+              Hist.new
+              .StrCat(samples, name="dataset")
+              .StrCat(regions, name="region")
+              .StrCat(categories, name="category")
+              .StrCat(syst_variations, name="variation")
+              .StrCat(['value','sumw2'], name='val_sumw2')
+              .Reg(var.nbins, var.xmin, var.xmax, name=var.name, label=var.caption)
+              .Double()
+            )
+            nbins = var.nbins
+        
+        for s in samples:
+            for r in regions:
+                for v in syst_variations:
+                    varname = f'{var.name} {v}'
+                    if varname not in df.columns:
+                        if var.name in df.columns:
+                            varname = var.name
+                        else:
+                            continue
+                    for c in categories:
+                        for w in wgt_variations:
+                            slicer = (df.s==s)&(df.r==r)&(df.year==year)&(df[f'c {v}']==c)
+                            data = df.loc[slicer, varname]
+                            weight = df.loc[slicer,w]
+                            h[year].fill(s, r, c, v, 'value', data, weight = weight)
+                            h[year].fill(s, r, c, v, 'sumw2', data, weight = weight*weight)
+                            # TODO: add treatment of PDF systematics (MC replicas)
+    return {var.name:h}

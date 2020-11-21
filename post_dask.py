@@ -15,6 +15,8 @@ slurm_cluster_ip = '' #'128.211.149.133:34003'
 
 # if Local cluster is used:
 dashboard_address = '128.211.149.133:34875'
+if not use_local_cluster:
+    dashboard_address = '128.211.149.133:8787'
 # How to open the dashboard:
 # Dashboard IP should be the same as the node from which the code is running. In my case it's hammer-c000.
 # Port can be anything, you can use default :8787
@@ -29,6 +31,7 @@ dashboard_address = '128.211.149.133:34875'
 
 parameters = {
     'slurm_cluster_ip':slurm_cluster_ip,
+    'ncpus': ncpus_local,
     'label': 'test',
     'path': '/depot/cms/hmm/coffea/',
     'models_path': '/depot/cms/hmm/trained_models/',
@@ -37,7 +40,9 @@ parameters = {
     'do_massscan': False,
     'years': ['2016'],
     'syst_variations':['nominal'],
+#    'syst_variations':['nominal', f'Absolute2016_up'],
     'categories': ['vbf','vbf_01j','vbf_2j'],
+    #'categories': ['ggh_01j', 'ggh_2j'],
     'regions': ['h-peak', 'h-sidebands']
 }
 
@@ -57,39 +62,35 @@ mva_bins = {
 parameters['mva_bins'] = mva_bins
 
 if __name__ == "__main__":
-    tick = time.time()
+    timer = Timer(ordered=True)
+
     if use_local_cluster:
+        print(f"Creating local cluster with {ncpus_local} workers. Dashboard address: {dashboard_address}")
         client = dask.distributed.Client(processes=True, dashboard_address=dashboard_address, n_workers=ncpus_local, threads_per_worker=1, memory_limit='4GB')
     else:
+        print(f"Creating Slurm cluster at {slurm_cluster_ip}. Dashboard address: {dashboard_address}")
         client = dask.distributed.Client(parameters['slurm_cluster_ip'])
         
     samples = [
 #        'ggh_amcPS',
 #        'vbf_powhegPS',
-        'vbf_powheg_herwig',
+#        'vbf_powheg_herwig',
         'vbf_powheg_dipole'
+#         'dy_m105_160_amc'
               ]
 
     parameters['hist_vars'] = ['dimuon_mass']
-    parameters['hist_vars'] += ['score_'+m for m in parameters['dnn_models']]
-    parameters['hist_vars'] += ['score_'+m for m in parameters['bdt_models']]
+#    parameters['hist_vars'] += ['score_'+m for m in parameters['dnn_models']]
+#    parameters['hist_vars'] += ['score_'+m for m in parameters['bdt_models']]
     
-    to_load = []
-    argsets = []
+    paths = []
     for y in parameters['years']:    
         for s in samples:
-            for v in parameters['syst_variations']:
-                inputs = glob.glob(f"{parameters['path']}/{y}_{parameters['label']}/{v}/{s}.coffea")
-                if len(inputs) == 0:
-                    inputs = glob.glob(f"{parameters['path']}/{y}_{parameters['label']}/nominal/{s}.coffea")
-                for i in inputs:
-                    for c in parameters['categories']:
-                        for r in parameters['regions']:
-                            argsets.append({'input':i,'s':s,'c':c,'r':r,'v':v,'y':y})
+            paths.append(f"{parameters['path']}/{y}_{parameters['label']}/nominal/{s}/")
     
-    # load unbinned data
-    df, hist = workflow(client, argsets, parameters)
+    
+    df, hists = workflow(client, paths, parameters, timer)
+
     print(df)
-    print(hist)
-    print(f'Time: {time.time()-tick}')
-    
+    print(hists['dimuon_mass'][2016].project('dimuon_mass'))
+    timer.summary()
