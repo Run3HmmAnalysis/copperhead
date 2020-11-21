@@ -253,13 +253,14 @@ if __name__ == "__main__":
         for sample_name in samples:
             fileset = samp_info.fileset
 #        for sample_name, fileset in samp_info.filesets.items():
-            if (variation != 'nominal') and\
+            condition = (variation != 'nominal') and\
                 not(('dy' in sample_name) or
                     ('ewk' in sample_name) or
                     ('vbf' in sample_name) or
                     ('ggh' in sample_name) or
-                    ('ttjets_dl' in sample_name)) or\
-                ('mg' in sample_name):
+                    ('ttjets_dl' in sample_name)
+                   ) or ('mg' in sample_name)
+            if condition:
                 continue
             print(f"Processing: {sample_name}, {variation}")
 
