@@ -53,13 +53,13 @@ else:
     maxchunks = None # default None (process all chunks)
     print("Will process all chunks")
 
-save_output = True
+save_output = False
 do_reduce = True # if set to False, the merging step will not be performed in Dask executors, outputs will be saved unmerged
 
 save_diagnostics = False
 testing_db_path = '/depot/cms/hmm/performance_tests_db_fsrcache.pkl'
 
-show_timer=False
+show_timer=True
 
 # B-tag systematics significantly slow down 'nominal' processing 
 # and they are only needed at the very last stage of the analysis.
@@ -67,9 +67,9 @@ show_timer=False
 do_btag_syst = False
 
 sample_sources = [
-#    'data',
+    'data',
 #    'main_mc',
-    'signal',
+#    'signal',
 #    'other_mc',
 ]
 
@@ -81,8 +81,8 @@ smp = {
         # 'data_D',
         # 'data_E',
         # 'data_F',
-        'data_G',
-        # 'data_H',
+        #'data_G',
+         'data_H',
     ],
     'signal':[
         # 'ggh_amcPS',
@@ -276,6 +276,7 @@ if __name__ == "__main__":
 
 
     t_run = time.time() - t_start
+    print(f"Total running time (with overhead): {t_run}")
 
 
     ###### Save outputs ######
@@ -296,6 +297,7 @@ if __name__ == "__main__":
         t_save = 0
 
 t = time.time() - t_start
+
 
 if save_diagnostics:
     row = {

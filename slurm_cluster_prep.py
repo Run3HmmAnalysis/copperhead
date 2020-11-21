@@ -9,6 +9,7 @@ from python.dimuon_processor import DimuonProcessor
 dask.config.set({"temporary-directory": "/depot/cms/hmm/dask-temp/"})
 dask.config.set({'distributed.worker.timeouts.connect': '60s'})
 
+
 async def f(scheduler_address):
     r = await Worker(scheduler_address,
                      resources={'processor': 0, 'reducer': 1},
