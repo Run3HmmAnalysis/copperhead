@@ -258,8 +258,8 @@ if __name__ == "__main__":
                     ('ewk' in sample_name) or
                     ('vbf' in sample_name) or
                     ('ggh' in sample_name) or
-                    ('ttjets_dl' in sample_name)
-                   ) or ('mg' in sample_name)
+                    ('ttjets_dl' in sample_name))\
+                or ('mg' in sample_name)
             if condition:
                 continue
             print(f"Processing: {sample_name}, {variation}")
