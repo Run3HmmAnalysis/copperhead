@@ -1,37 +1,30 @@
+import coffea.processor as processor
+from coffea.processor.executor import dask_executor, iterative_executor
+from python.dimuon_processor import DimuonProcessor
+from python.samples_info import SamplesInfo
+from dask.distributed import Client, get_client, as_completed
+dask.config.set({"temporary-directory": "/depot/cms/hmm/dask-temp/"})
+
 import time
-import os, sys
-import copy
+import os
+import sys
 import argparse
-import socket
-import math
 
 from functools import partial
 import traceback
 
 import coffea
 print("Coffea version: ", coffea.__version__)
-from coffea import util
-import coffea.processor as processor
-from coffea.processor.executor import dask_executor, iterative_executor
-
-from python.dimuon_processor import DimuonProcessor
-from python.samples_info import SamplesInfo
 
 import pytest
 import dask
-from dask_jobqueue import SLURMCluster
-from dask.distributed import get_client, get_worker, wait, as_completed, Worker, worker_client, secede, rejoin, fire_and_forget
-dask.config.set({"temporary-directory": "/depot/cms/hmm/dask-temp/"})
 
-import pandas as pd
-import numpy as np
-import pickle, lz4
+import lz4
 import _pickle as pkl
-import datetime
 
 parser = argparse.ArgumentParser()
-parser.add_argument("-y", "--year", dest="year", default='2016', action='store') # specify 2016, 2017 or 2018
-parser.add_argument("-l", "--label", dest="label", default="test", action='store') # unique label for processing run
+parser.add_argument("-y", "--year", dest="year", default='2016', action='store')  # specify 2016, 2017 or 2018
+parser.add_argument("-l", "--label", dest="label", default="test", action='store')  # unique label for processing run
 
 parser.add_argument("-ch", "--chunksize", dest="chunksize", default=10000, action='store')
 parser.add_argument("-mch", "--maxchunks", dest="maxchunks", default=-1, action='store')
@@ -41,11 +34,11 @@ args = parser.parse_args()
 
 #################### User settings: ####################
 
-slurm_cluster_ip = '128.211.149.133:36634'
+slurm_cluster_ip = '128.211.149.133:38601'
 
-use_dask_outer = True # outer loop (over datasets, syst.variations, etc)
-use_dask_inner = True # inner loop (over chunks of a dataset). Recommended: set to True unless you don't use Dask at all
-max_outer_workers = 8 # limitation to prevent a situation where too many workers are blocked by outer tasks
+use_dask_outer = True  # outer loop (over datasets, syst.variations, etc)
+use_dask_inner = True  # inner loop (over chunks of a dataset). Recommended: set to True unless you don't use Dask at all
+max_outer_workers = 8  # limitation to prevent a situation where too many workers are blocked by outer tasks
 
 parameters = {
     'year': args.year,
@@ -69,12 +62,11 @@ parameters = {
 parameters['out_dir'] = f"{parameters['global_out_path']}/{parameters['out_path']}/"
 
 
-
 def load_sample(dataset, parameters):
     samp_info = SamplesInfo(year=parameters['year'], out_path=parameters['out_path'],\
                             server=parameters['server'], datasets_from='purdue', debug=False)
     samp_info.load(dataset, use_dask=parameters['use_dask_outer'])
-    nevts = samp_info.finalize()
+    samp_info.finalize()
     return {dataset:samp_info}   
 
 def submit_job(arg_set, parameters):
@@ -87,12 +79,15 @@ def submit_job(arg_set, parameters):
     if parameters['use_dask_inner']:
         if parameters['use_dask_outer']:
             client = get_client()
+            workers_to_use =  parameters["inner_workers"]
         else:
-            distributed = pytest.importorskip("distributed", minversion="1.28.1")
-            distributed.config['distributed']['worker']['memory']['terminate'] = False
-            client = distributed.Client(parameters['slurm_cluster_ip'])
+            client = Client(parameters['slurm_cluster_ip'])
+            #client = dask.distributed.Client(processes=True, n_workers=10,\
+            #                                           dashboard_address='128.211.149.133:34875', \
+            #                                           threads_per_worker=1, memory_limit='4GB')
+            workers_to_use = list(client.scheduler_info()['workers'])
         executor = dask_executor
-        executor_args={'nano': True, 'client': client, 'workers_to_use': parameters["inner_workers"]}
+        executor_args={'nano': True, 'client': client, 'workers_to_use': workers_to_use, 'secede_rejoin': False}
     else:
         executor = iterative_executor
         executor_args={'nano': True}
@@ -101,12 +96,12 @@ def submit_job(arg_set, parameters):
         output = processor.run_uproot_job(samp_info.fileset, 'Events',
                                       DimuonProcessor(samp_info=samp_info,\
                                                       pt_variations=[pt_variation],\
-                                                      do_btag_syst=False),
+                                                      do_btag_syst=False, do_pdf=False),
                                       executor, executor_args=executor_args,
                                       chunksize=parameters['chunksize'], maxchunks=parameters['maxchunks'])
     except Exception as e:
         tb = traceback.format_exc()
-        return 'Failed: '+dataset+': '+str(e)+' '#+tb
+        return 'Failed: '+dataset+': '+str(e)+' '+tb
 
     if parameters['save_output']:
         try:
@@ -154,8 +149,8 @@ if __name__ == "__main__":
     'main_mc':[
         'dy_m105_160_amc',
         'dy_m105_160_vbf_amc',
-        'ewk_lljj_mll105_160_py',
-        'ewk_lljj_mll105_160_ptj0',
+#        'ewk_lljj_mll105_160_py',
+#        'ewk_lljj_mll105_160_ptj0',
         'ewk_lljj_mll105_160_py_dipole',
         'ttjets_dl',
     ],
@@ -173,11 +168,12 @@ if __name__ == "__main__":
     datasets = []
     for group, samples in smp.items():
         for sample in samples:
-#            if 'data' not in group: continue 
+#            if 'data' in group: continue 
             if 'signal' not in group: continue
-#            if 'main_mc' not in group: continue
+#            if ('main_mc' not in group) and ('signal' not in group): continue
 #            if 'other_mc' not in group: continue
-#            if 'vbf_powheg_dipole' not in sample: continue
+#            if 'vbf_powheg' not in sample: continue
+#            if 'dy_m105_160_amc' not in sample: continue
             datasets.append(sample)
 
     arg_sets = []
@@ -187,10 +183,10 @@ if __name__ == "__main__":
     samp_infos = {}
 
     if parameters['use_dask_outer']:
-        distributed = pytest.importorskip("distributed", minversion="1.28.1")
-        distributed.config['distributed']['worker']['memory']['terminate'] = False
-        client = distributed.Client(parameters['slurm_cluster_ip'])
-
+        client = Client(parameters['slurm_cluster_ip'])
+        #client = dask.distributed.Client(processes=True, n_workers=10,\
+        #                                               dashboard_address='128.211.149.133:34875', \
+        #                                               threads_per_worker=1, memory_limit='4GB')
         loaded = client.map(partial(load_sample, parameters=parameters),datasets) # list of futures
         loaded = client.gather(loaded) # list of results when futures are finished
         for l in loaded:
