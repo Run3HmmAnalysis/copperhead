@@ -26,10 +26,14 @@ from python.mass_resolution import mass_resolution_purdue, mass_resolution_pisa
 from config.parameters import parameters
 from config.variables import variables, Variable
 
+
 class DimuonProcessor(processor.ProcessorABC):
-    def __init__(self, samp_info,\
-                 do_timer=False, save_unbin=True,\
-                 do_jecunc=False, do_jerunc=False, do_pdf=True, do_btag_syst=True, auto_pu=True, debug=False, pt_variations=['nominal']): 
+    def __init__(self, samp_info,
+                 do_timer=False, save_unbin=True,
+                 do_jecunc=False, do_jerunc=False,
+                 do_pdf=True, do_btag_syst=True,
+                 auto_pu=True, debug=False,
+                 pt_variations=['nominal']): 
         if not samp_info:
             print("Samples info missing!")
             return
@@ -41,7 +45,8 @@ class DimuonProcessor(processor.ProcessorABC):
         self.pt_variations = pt_variations
         self.do_pdf = do_pdf
         self.do_btag_syst = do_btag_syst
-        self.parameters = {k:v[self.year] for k,v in parameters.items()}
+        self.parameters = {
+            k: v[self.year] for k, v in parameters.items()}
 
         self.timer = Timer('global') if do_timer else None
  
@@ -53,30 +58,47 @@ class DimuonProcessor(processor.ProcessorABC):
         self.lumi_weights = self.samp_info.lumi_weights
 
         weights_ = ['nominal', 'lumi', 'genwgt', 'nnlops', 'btag_wgt']
-        variated_weights = ['pu_wgt', 'muID', 'muIso', 'muTrig', 'l1prefiring_wgt', 'qgl_wgt', 'LHEFac', 'LHERen', 'pdf_2rms']
-        self.sths_names = ["Yield","PTH200","Mjj60","Mjj120","Mjj350","Mjj700","Mjj1000","Mjj1500","PTH25","JET01"]
-        variated_weights.extend(["THU_VBF_"+name for name in self.sths_names])
+        variated_weights = ['pu_wgt', 'muID', 'muIso',
+                            'muTrig', 'l1prefiring_wgt',
+                            'qgl_wgt', 'LHEFac', 'LHERen',
+                            'pdf_2rms']
+        self.sths_names = ["Yield", "PTH200", "Mjj60", "Mjj120",
+                           "Mjj350", "Mjj700", "Mjj1000", "Mjj1500",
+                           "PTH25", "JET01"]
+        variated_weights.extend(
+            ["THU_VBF_" + name for name in self.sths_names])
 
         if self.do_btag_syst:
-            self.btag_systs = ["jes", "lf", "hfstats1", "hfstats2","cferr1", "cferr2","hf", "lfstats1", "lfstats2"]
-            variated_weights.extend(["btag_wgt_"+name for name in self.btag_systs])
+            self.btag_systs = ["jes", "lf", "hfstats1",
+                               "hfstats2","cferr1", "cferr2",
+                               "hf", "lfstats1", "lfstats2"]
+            variated_weights.extend(
+                ["btag_wgt_"+name for name in self.btag_systs])
         else:
             self.btag_systs = []
 
         for wgt in weights_:
             if 'nominal' in wgt:
-                variables.append(Variable("wgt_nominal", "wgt_nominal", 1, 0, 1))
+                variables.append(
+                    Variable("wgt_nominal", "wgt_nominal", 1, 0, 1))
             else:
-                variables.append(Variable(f"wgt_{wgt}_off", f"wgt_{wgt}_off", 1, 0, 1))
+                variables.append(
+                    Variable(f"wgt_{wgt}_off", f"wgt_{wgt}_off",
+                             1, 0, 1))
 
         for wgt in variated_weights:
-            variables.append(Variable(f"wgt_{wgt}_up", f"wgt_{wgt}_up", 1, 0, 1))
-            variables.append(Variable(f"wgt_{wgt}_down", f"wgt_{wgt}_down", 1, 0, 1))
-            variables.append(Variable(f"wgt_{wgt}_off", f"wgt_{wgt}_off", 1, 0, 1))
+            variables.append(
+                Variable(f"wgt_{wgt}_up", f"wgt_{wgt}_up", 1, 0, 1))
+            variables.append(
+                Variable(f"wgt_{wgt}_down", f"wgt_{wgt}_down", 1, 0, 1))
+            variables.append(
+                Variable(f"wgt_{wgt}_off", f"wgt_{wgt}_off", 1, 0, 1))
 
         if ('2016' in self.year) and self.do_pdf:
             for i in range(100):
-                variables.append(Variable(f"pdf_mcreplica{i}", f"pdf_mcreplica{i}", 1, 0, 1))
+                variables.append(
+                    Variable(f"pdf_mcreplica{i}", f"pdf_mcreplica{i}",
+                             1, 0, 1))
         
         self.vars_unbin = set([v.name for v in variables])
 
@@ -87,28 +109,38 @@ class DimuonProcessor(processor.ProcessorABC):
                 for varname in self.vars_unbin:
                     for c in self.channels:
                         for r in self.regions:
-                            unbin_dict[f'{varname}_{c}_{r}'] = processor.column_accumulator(np.ndarray([]))
-                            # have to encode everything into the name because having multiple axes isn't possible
-                acc_dicts[jet_pt_var] = processor.dict_accumulator(unbin_dict)
+                            unbin_dict[f'{varname}_{c}_{r}'] =\
+                             processor.column_accumulator(np.ndarray([]))
+                            # have to encode everything into the name
+                            # because having multiple axes isn't possible
+                acc_dicts[jet_pt_var] = processor.dict_accumulator(
+                                            unbin_dict)
 
-        ### --------------------------------------- ###
+        # --------------------------------------- ###
         accumulators = processor.dict_accumulator(acc_dicts)
         self._accumulator = accumulators
-        ### --------------------------------------- ###
+        # --------------------------------------- ###
         
-        ### Prepare lookups for corrections ###        
-        rochester_data = txt_converters.convert_rochester_file(self.parameters["roccor_file"], loaduncs=True)
-        self.roccor_lookup = rochester_lookup.rochester_lookup(rochester_data)
+        # Prepare lookups for corrections ###        
+        rochester_data = txt_converters.convert_rochester_file(
+            self.parameters["roccor_file"],
+            loaduncs=True)
+        self.roccor_lookup = rochester_lookup.rochester_lookup(
+            rochester_data)
         self.musf_lookup = musf_lookup(self.parameters)
         self.pu_lookup = pu_lookup(self.parameters)
         self.pu_lookup_up = pu_lookup(self.parameters, 'up')
         self.pu_lookup_down = pu_lookup(self.parameters, 'down')
-        
-        self.btag_lookup = BTagScaleFactor(self.parameters["btag_sf_csv"], BTagScaleFactor.RESHAPE,\
-                                       'iterativefit,iterativefit,iterativefit')
+
+        self.btag_lookup = BTagScaleFactor(
+            self.parameters["btag_sf_csv"],
+            BTagScaleFactor.RESHAPE,
+            'iterativefit,iterativefit,iterativefit')
         self.stxs_acc_lookups, self.powheg_xsec_lookup = stxs_lookups()
-        
-        ### Prepare evaluator for corrections that can be loaded together ###        
+
+        # Prepare evaluator for corrections that can be 
+        # loaded together
+
         zpt_filename = self.parameters['zpt_weights_file']
         puid_filename = self.parameters['puid_sf_file']
         rescalib_files = []
@@ -116,55 +148,79 @@ class DimuonProcessor(processor.ProcessorABC):
         self.extractor = extractor()
         self.extractor.add_weight_sets([f"* * {zpt_filename}"])
         self.extractor.add_weight_sets([f"* * {puid_filename}"])
-        self.extractor.add_weight_sets([f"* * data/mass_res_pisa/muonresolution.root"])
-        
+        self.extractor.add_weight_sets(
+            [f"* * data/mass_res_pisa/muonresolution.root"])
+
         for mode in ["Data", "MC"]:
             label = f"res_calib_{mode}_{self.year}"
             path = self.parameters['res_calib_path']       
             file_path = f"{path}/{label}.root"
-            self.extractor.add_weight_sets([f"{label} {label} {file_path}"])
-            
+            self.extractor.add_weight_sets(
+                [f"{label} {label} {file_path}"])
+
         self.extractor.finalize()
         self.evaluator = self.extractor.make_evaluator()
-        
+
         if '2016' in self.year:
             self.zpt_path = 'zpt_weights/2016_value'
         else:
             self.zpt_path = 'zpt_weights/2017_value'
-        self.evaluator[self.zpt_path]._axes = self.evaluator[self.zpt_path]._axes[0]                   
-     #https://github.com/CoffeaTeam/coffea/blob/2650ad7657094f6e50ebf962a1fc1763cd2c6601/coffea/lookup_tools/dense_lookup.py#L37        
+        self.evaluator[self.zpt_path]._axes =\
+            self.evaluator[self.zpt_path]._axes[0]                   
+
+        # https://github.com/CoffeaTeam/coffea/blob/
+        # 2650ad7657094f6e50ebf962a1fc1763cd2c6601/coffea/
+        # lookup_tools/dense_lookup.py#L37        
         
         ### Prepare evaluators for JEC, JER and their systematics ### 
         jetext = extractor()
         jetext.add_weight_sets(self.parameters['jec_weight_sets'])
         jetext.finalize()
         Jetevaluator = jetext.make_evaluator()
-        JECcorrector = FactorizedJetCorrector(**{name: Jetevaluator[name] for name in self.parameters['jec_names']})
-        JECuncertainties = JetCorrectionUncertainty(**{name:Jetevaluator[name] for name in self.parameters['junc_names']})
-        JER = JetResolution(**{name:Jetevaluator[name] for name in self.parameters['jer_names']})
-        JERsf = JetResolutionScaleFactor(**{name:Jetevaluator[name] for name in self.parameters['jersf_names']})
-        self.Jet_transformer_JER = JetTransformer(jec=None, jer = JER, jersf = JERsf)
-        self.Jet_transformer = JetTransformer(jec=JECcorrector,junc=JECuncertainties)
+        JECcorrector = FactorizedJetCorrector(
+            **{name: Jetevaluator[name] for name in\
+               self.parameters['jec_names']})
+        JECuncertainties = JetCorrectionUncertainty(
+            **{name:Jetevaluator[name] for name in\
+               self.parameters['junc_names']})
+        JER = JetResolution(
+            **{name:Jetevaluator[name] for name in\
+               self.parameters['jer_names']})
+        JERsf = JetResolutionScaleFactor(
+            **{name:Jetevaluator[name] for name in\
+               self.parameters['jersf_names']})
+        self.Jet_transformer_JER = JetTransformer(
+            jec=None, jer = JER, jersf = JERsf)
+        self.Jet_transformer = JetTransformer(
+            jec=JECcorrector,junc=JECuncertainties)
         self.JECcorrector_Data = {}
         self.Jet_transformer_data = {}
-        self.data_runs = list(self.parameters['jec_unc_names_data'].keys())
+        self.data_runs = list(
+            self.parameters['jec_unc_names_data'].keys())
         for run in self.data_runs:
-            self.JECcorrector_Data[run] = FactorizedJetCorrector(**{name: Jetevaluator[name] for name in\
-                                                          self.parameters['jec_names_data'][run]})
-            JECuncertainties_Data = JetCorrectionUncertainty(**{name:Jetevaluator[name] for name in\
-                                                                self.parameters['junc_names_data'][run]})
-            self.Jet_transformer_data[run] = JetTransformer(jec=self.JECcorrector_Data[run],junc=JECuncertainties_Data)
-            
-        all_jec_names = [name for name in dir(Jetevaluator) if self.parameters['jec_unc_sources'] in name]
-        self.JECuncertaintySources = JetCorrectionUncertainty(**{name: Jetevaluator[name] for name in all_jec_names})
+            self.JECcorrector_Data[run] = FactorizedJetCorrector(
+                **{name: Jetevaluator[name] for name in\
+                   self.parameters['jec_names_data'][run]})
+            JECuncertainties_Data = JetCorrectionUncertainty(
+                **{name:Jetevaluator[name] for name in\                                      self.parameters['junc_names_data'][run]})
+            self.Jet_transformer_data[run] = JetTransformer(
+                jec=self.JECcorrector_Data[run],
+                junc=JECuncertainties_Data)
+
+        all_jec_names = [name for name in dir(Jetevaluator) if
+                         self.parameters['jec_unc_sources'] in name]
+        self.JECuncertaintySources = JetCorrectionUncertainty(
+            **{name: Jetevaluator[name] for name in all_jec_names})
         self.jet_unc_names = list(self.JECuncertaintySources.levels)
         
         self.do_jecunc = False
         self.do_jerunc = False
         for ptvar in self.pt_variations:
-            if ptvar.replace('_up','').replace('_down','') in self.parameters["jec_unc_to_consider"]:
+            if ptvar.replace('_up','').replace('_down','') in\
+                self.parameters["jec_unc_to_consider"]:
                 self.do_jecunc = True
-            if ptvar.replace('_up','').replace('_down','') in ['jer1','jer2','jer3','jer4','jer5','jer6']:
+            if ptvar.replace('_up','').replace('_down','') in\
+                ['jer1', 'jer2', 'jer3', 'jer4', 'jer5', 'jer6']:
                 self.do_jerunc = True
 
 
