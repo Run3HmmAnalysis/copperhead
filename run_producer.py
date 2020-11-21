@@ -224,8 +224,8 @@ if __name__ == "__main__":
         flexible_workers = False
         distributed = pytest.importorskip("distributed",
                                           minversion="1.28.1")
-        distributed.config['distributed']['worker']\
-            ['memory']['terminate'] = False
+        distributed.config['distributed']['worker'
+                                         ]['memory']['terminate'] = False
         client = distributed.Client(slurm_cluster_ip)
         nworkers = len(client._scheduler_identity.get("workers", {}))
         print(f"Starting processing with {nworkers} workers")
@@ -234,8 +234,8 @@ if __name__ == "__main__":
         target_nworkers = 46
         distributed = pytest.importorskip("distributed",
                                           minversion="1.28.1")
-        distributed.config['distributed']['worker']\
-            ['memory']['terminate'] = False
+        distributed.config['distributed']['worker'
+                                         ]['memory']['terminate'] = False
         client = distributed.Client(processes=True,
                                     dashboard_address=None,
                                     n_workers=target_nworkers,
@@ -259,8 +259,8 @@ if __name__ == "__main__":
                     ('ewk' in sample_name) or
                     ('vbf' in sample_name) or
                     ('ggh' in sample_name) or
-                    ('ttjets_dl' in sample_name)) or
-                ('mg' in sample_name):
+                    ('ttjets_dl' in sample_name)) or\
+            ('mg' in sample_name):
                 continue
             print(f"Processing: {sample_name}, {variation}")
 
@@ -277,11 +277,11 @@ if __name__ == "__main__":
                                     iterative_executor,
                                     executor_args={
                                         'nano': True,
-                                        'savemetrics':True}, 
+                                        'savemetrics': True},
                                     chunksize=chunksize,
                                     maxchunks=maxchunks)
             elif method == 'Spark':
-                output  = processor.run_spark_job(
+                output = processor.run_spark_job(
                     fileset,
                     DimuonProcessor(
                         samp_info=samp_info,
