@@ -1,52 +1,36 @@
 import time
 import os
-import copy
 import argparse
-import socket
-import math
-
-from functools import partial
 import traceback
 
-import coffea
-#print("Coffea version: ", coffea.__version__)
-from coffea import util
-from python.executor import dask_executor, iterative_executor, run_uproot_job
-
+from python.executor import dask_executor, run_uproot_job
 from python.dimuon_processor_pandas import DimuonProcessor
 from python.samples_info import SamplesInfo
 
-import pytest
 import dask
 import dask.dataframe as dd
-from dask_jobqueue import SLURMCluster
-from dask.distributed import Client, get_client, as_completed
+from dask.distributed import Client
 dask.config.set({"temporary-directory": "/depot/cms/hmm/dask-temp/"})
 
-import pandas as pd
-import numpy as np
-import pickle, lz4
-import _pickle as pkl
-
 parser = argparse.ArgumentParser()
+# specify 2016, 2017 or 2018
 parser.add_argument("-y", "--year", dest="year",
-                    default='2016', action='store')  # specify 2016, 2017 or 2018
+                    default='2016', action='store')
+# unique label for processing run
 parser.add_argument("-l", "--label", dest="label",
-                    default="test", action='store')  # unique label for processing run
+                    default="test", action='store')
 parser.add_argument("-ch", "--chunksize", dest="chunksize",
                     default=10000, action='store')
 parser.add_argument("-mch", "--maxchunks", dest="maxchunks",
                     default=-1, action='store')
-
 args = parser.parse_args()
 
-
-#################### User settings: ####################
+# User settings:
 
 local_cluster = True  # set to False for Slurm cluster
 slurm_cluster_ip = '128.211.149.133:38601'
 
-mch = None if int(args.maxchunks)<0 else int(args.maxchunks)
+mch = None if int(args.maxchunks) < 0 else int(args.maxchunks)
 
 pt_variations = []
 pt_variations += ['nominal']
@@ -64,11 +48,11 @@ pt_variations += ['jer4', 'jer5', 'jer6']
 
 all_pt_variations = []
 for ptvar in pt_variations:
-    if ptvar=='nominal':
+    if ptvar == 'nominal':
         all_pt_variations += ['nominal']
     else:
         all_pt_variations += [f'{ptvar}_up']
-        all_pt_variations += [f'{ptvar}_down'] 
+        all_pt_variations += [f'{ptvar}_down']
 
 parameters = {
     'year': args.year,
@@ -89,7 +73,8 @@ parameters = {
     'client': None,
 }
 
-parameters['out_dir'] = f"{parameters['global_out_path']}/{parameters['out_path']}/"
+parameters['out_dir'] = f"{parameters['global_out_path']}/"\
+                        f"{parameters['out_path']}/"
 
 
 def load_sample(dataset, parameters):
@@ -126,16 +111,18 @@ def load_samples(datasets, parameters):
 def submit_job(arg_set, parameters):
     executor = dask_executor
     executor_args = {
-        'nano': True, 
-        'client': parameters['client'], 
+        'nano': True,
+        'client': parameters['client'],
         'compression': None
     }
 
     try:
         output = run_uproot_job(parameters['samp_infos'].fileset, 'Events',
-                                DimuonProcessor(samp_info=parameters['samp_infos'],\
-                                                pt_variations=parameters['pt_variations'],
-                                                do_btag_syst=False, do_pdf=False),
+                                DimuonProcessor(
+                                    samp_info=parameters['samp_infos'],
+                                    pt_variations=parameters['pt_variations'],
+                                    do_btag_syst=False, do_pdf=False
+                                ),
                                 executor, executor_args=executor_args,
                                 chunksize=parameters['chunksize'],
                                 maxchunks=parameters['maxchunks'])
@@ -158,7 +145,7 @@ def submit_job(arg_set, parameters):
             raise Exception(e)
         for ds in output.s.unique():
             out_path_ = f"{out_dir_}/{ds}/"
-            dd.to_parquet(df=output[output.s==ds], path=out_path_)
+            dd.to_parquet(df = output[output.s == ds], path = out_path_)
             print(f"Saved output to {out_path_}")
     return 'Success!'
 
@@ -166,37 +153,37 @@ def submit_job(arg_set, parameters):
 if __name__ == "__main__":
     t0 = time.time()
     smp = {
-    'data': [
-        'data_A',
-        'data_B',
-        'data_C',
-        'data_D',
-        'data_E',
-        'data_F',
-        'data_G',
-        'data_H',
+        'data': [
+            'data_A',
+            'data_B',
+            'data_C',
+            'data_D',
+            'data_E',
+            'data_F',
+            'data_G',
+            'data_H',
+            ],
+        'signal': [
+            # 'ggh_amcPS',
+            # 'vbf_powhegPS',
+            'vbf_powheg_herwig',
+            'vbf_powheg_dipole'
+            ],
+        'main_mc': [
+            'dy_m105_160_amc',
+            'dy_m105_160_vbf_amc',
+            # 'ewk_lljj_mll105_160_py',
+            # 'ewk_lljj_mll105_160_ptj0',
+            'ewk_lljj_mll105_160_py_dipole',
+            'ttjets_dl',
+            ],
+        'other_mc': [
+            'ttjets_sl', 'ttz', 'ttw',
+            'st_tw_top', 'st_tw_antitop',
+            'ww_2l2nu', 'wz_2l2q',
+            'wz_3lnu',
+            'wz_1l1nu2q', 'zz',
         ],
-    'signal': [
-#        'ggh_amcPS',
-#        'vbf_powhegPS',
-        'vbf_powheg_herwig',
-        'vbf_powheg_dipole'
-        ],
-    'main_mc': [
-        'dy_m105_160_amc',
-        'dy_m105_160_vbf_amc',
-#        'ewk_lljj_mll105_160_py',
-#        'ewk_lljj_mll105_160_ptj0',
-        'ewk_lljj_mll105_160_py_dipole',
-        'ttjets_dl',
-        ],
-    'other_mc': [
-        'ttjets_sl', 'ttz', 'ttw',
-        'st_tw_top', 'st_tw_antitop',
-        'ww_2l2nu', 'wz_2l2q',
-        'wz_3lnu',
-        'wz_1l1nu2q', 'zz',
-    ],
     }
 
     # by default, include all samples
@@ -219,11 +206,12 @@ if __name__ == "__main__":
         arg_sets.append({'dataset': d})
 
     if parameters['local_cluster']:
-        parameters['client'] = dask.distributed.Client(processes=True,
-                                                       n_workers=40,
-                                                       dashboard_address='128.211.149.133:34875',
-                                                       threads_per_worker=1,
-                                                       memory_limit='4GB')
+        parameters['client'] = dask.distributed.Client(
+                                    processes=True,
+                                    n_workers=40,
+                                    dashboard_address='128.211.149.133:34875',
+                                    threads_per_worker=1,
+                                    memory_limit='4GB')
     else:
         parameters['client'] = Client(parameters['slurm_cluster_ip'])
 
