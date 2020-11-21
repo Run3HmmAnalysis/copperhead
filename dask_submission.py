@@ -42,11 +42,12 @@ slurm_cluster_ip = '128.211.149.133:38601'
 # outer loop (over datasets, syst.variations, etc)
 use_dask_outer = True
 
-# inner loop (over chunks of a dataset). 
-#Recommended: set to True unless you don't use Dask at all
+# inner loop (over chunks of a dataset).
+# Recommended: set to True unless you don't use Dask at all
 use_dask_inner = True
 
-# limitation to prevent a situation where too many workers are blocked by outer tasks
+# limitation to prevent a situation where 
+# too many workers are blocked by outer tasks
 max_outer_workers = 8
 
 parameters = {
@@ -56,10 +57,10 @@ parameters = {
     'out_path': f'{args.year}_{args.label}',
     'server': 'root://xrootd.rcac.purdue.edu/',
     'datasets_from': 'purdue',
-#    'pt_variations': ['nominal', 'jer1_up', 'jer1_down'],
+    # 'pt_variations': ['nominal', 'jer1_up', 'jer1_down'],
     'pt_variations': ['nominal'],
     'chunksize': int(args.chunksize),
-    'maxchunks': None, # None to process all
+    'maxchunks': None,  # None to process all
     'save_output': True,
     'use_dask_outer': use_dask_outer,
     'use_dask_inner': use_dask_inner,
@@ -96,9 +97,12 @@ def submit_job(arg_set, parameters):
             workers_to_use = parameters["inner_workers"]
         else:
             client = Client(parameters['slurm_cluster_ip'])
-            # client = dask.distributed.Client(processes=True, n_workers=10,\
-            #                                           dashboard_address='128.211.149.133:34875', \
-            #                                           threads_per_worker=1, memory_limit='4GB')
+            # client = dask.distributed.Client(
+            #                    processes=True,
+            #                    n_workers=10,
+            #                    dashboard_address='128.211.149.133:34875',
+            #                    threads_per_worker=1,
+            #                    memory_limit='4GB')
             workers_to_use = list(client.scheduler_info()['workers'])
         executor = dask_executor
         executor_args = {
@@ -115,10 +119,10 @@ def submit_job(arg_set, parameters):
         output = processor.run_uproot_job(
                             samp_info.fileset,
                             'Events',
-                            DimuonProcessor(samp_info = samp_info,
-                                            pt_variations = [pt_variation],
-                                            do_btag_syst = False,
-                                            do_pdf = False),
+                            DimuonProcessor(samp_info=samp_info,
+                                            pt_variations=[pt_variation],
+                                            do_btag_syst=False,
+                                            do_pdf=False),
                             executor,
                             executor_args=executor_args,
                             chunksize=parameters['chunksize'],
@@ -131,7 +135,7 @@ def submit_job(arg_set, parameters):
         try:
             os.mkdir(parameters['out_dir'])
         except Exception as e:
-                raise Exception(e)
+            raise Exception(e)
         for mode in output.keys():
             out_dir_ = f"{parameters['out_dir']}/{mode}/"
             out_path_ = f"{out_dir_}/{dataset}.coffea"
@@ -150,7 +154,7 @@ def submit_job(arg_set, parameters):
 
 if __name__ == "__main__":
     if parameters['use_dask_outer'] and not parameters['use_dask_inner']:
-        print("Parallelizing over datasets without parallelizing"\
+        print("Parallelizing over datasets without parallelizing"
               "over chunks is really inefficient. Please reconsider.")
         sys.exit()
 
@@ -211,13 +215,15 @@ if __name__ == "__main__":
 
     if parameters['use_dask_outer']:
         client = Client(parameters['slurm_cluster_ip'])
-        # client = dask.distributed.Client(processes=True, n_workers=10,\
-        #                                               dashboard_address='128.211.149.133:34875', \
-        #                                               threads_per_worker=1, memory_limit='4GB')
-        
-        # list of futures
-        loaded = client.map(partial(load_sample, parameters = parameters), datasets)
-        # list of results when futures are finished
+        # client = dask.distributed.Client(
+        #                processes=True,
+        #                n_workers=10,
+        #                dashboard_address='128.211.149.133:34875',
+        #                threads_per_worker=1,
+        #                memory_limit='4GB')
+
+        func = partial(load_sample, parameters=parameters)
+        loaded = client.map(func, datasets)
         loaded = client.gather(loaded)
 
         for ld in loaded:
@@ -226,15 +232,18 @@ if __name__ == "__main__":
 
         workers = list(client.scheduler_info()['workers'])
         if len(workers) < parameters['max_outer_workers']:
-            print("Not enough workers to run everything in parallel. Aborting...")
+            print("Not enough workers to run everything in parallel."\
+                  " Aborting...")
             sys.exit()
 
-        outer_workers = workers[0:min(len(arg_sets), parameters['max_outer_workers'])]
+        outer_workers = workers[0:min(len(arg_sets),
+                                parameters['max_outer_workers'])]
+        inner_workers = [w for w in workers if w not in outer_workers]
         parameters['all_workers'] = workers
         parameters['outer_workers'] = outer_workers
-        parameters['inner_workers'] = [w for w in workers if w not in outer_workers]
+        parameters['inner_workers'] = inner_workers
         key = [f'{a["dataset"]}, {a["pt_variation"]}' for a in arg_sets]
-        processed = client.map(partial(submit_job,parameters=parameters),
+        processed = client.map(partial(submit_job, parameters=parameters),
                                arg_sets,
                                key=key,
                                resources={'processor': 1, 'reducer': 0},

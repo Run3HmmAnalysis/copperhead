@@ -145,7 +145,7 @@ def submit_job(arg_set, parameters):
             raise Exception(e)
         for ds in output.s.unique():
             out_path_ = f"{out_dir_}/{ds}/"
-            dd.to_parquet(df = output[output.s == ds], path = out_path_)
+            dd.to_parquet(df=output[output.s == ds], path=out_path_)
             print(f"Saved output to {out_path_}")
     return 'Success!'
 
