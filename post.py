@@ -28,7 +28,7 @@ args = parser.parse_args()
 
 if int(args.dnn_training) + int(args.rebin) +\
     int(args.dnn) + int(args.bdt) + int(args.datacards) +\
-    int(args.plot) + int(args.overlap) + int(args.roc) == 0:
+        int(args.plot) + int(args.overlap) + int(args.roc) == 0:
     print("Please specify option(s) to run:")
     print("-t --dnn_training")
     print("-r --rebin")

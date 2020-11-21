@@ -1,11 +1,10 @@
 import time
-import os, sys
+import os
+import sys
 import argparse
-import socket
 import math
 
 import coffea
-print("Coffea version: ", coffea.__version__)
 from coffea import util
 import coffea.processor as processor
 from coffea.processor.executor import dask_executor, iterative_executor
@@ -14,13 +13,13 @@ from python.dimuon_processor import DimuonProcessor
 from python.samples_info import SamplesInfo
 
 import pytest
-import dask
-from dask_jobqueue import SLURMCluster
 
 import pandas as pd
 import numpy as np
 import pickle
 import datetime
+
+print("Coffea version: ", coffea.__version__)
 
 parser = argparse.ArgumentParser()
 # specify 2016, 2017 or 2018
@@ -41,7 +40,8 @@ parser.add_argument("-i", "--iterative", action='store_true')
 parser.add_argument("-dl", "--dasklocal", action='store_true')
 # run with Spark
 parser.add_argument("-s", "--spark", action='store_true')
-parser.add_argument("-ch", "--chunksize", dest="chunksize", default=100000, action='store')
+parser.add_argument("-ch", "--chunksize", dest="chunksize",
+                    default=100000, action='store')
 parser.add_argument("-mch", "--maxchunks", dest="maxchunks",
                     default=-1, action='store')
 
@@ -63,7 +63,9 @@ else:
 
 save_output = False
 do_reduce = True
-# if set to False, the merging step will not be performed in Dask executors, outputs will be saved unmerged
+# if set to False, the merging step 
+# will not be performed in Dask executors,
+# outputs will be saved unmerged
 
 save_diagnostics = False
 testing_db_path = '/depot/cms/hmm/performance_tests_db_fsrcache.pkl'
@@ -90,8 +92,8 @@ smp = {
         # 'data_D',
         # 'data_E',
         # 'data_F',
-        #'data_G',
-         'data_H',
+        # 'data_G',
+        'data_H',
     ],
     'signal': [
         # 'ggh_amcPS',
@@ -146,18 +148,16 @@ else:
 
 
 if __name__ == "__main__":
-
     t_start = time.time()
 
     # Prepare resources
-
     t_prep_start = time.time()
-    
+
     samples = []
     for sss in sample_sources:
         samples += smp[sss]
-    
-    dataset = samples[0] 
+
+    dataset = samples[0]
     
     samp_info = SamplesInfo(year=args.year, 
                             out_path=f'{args.year}_{args.label}', 
@@ -165,9 +165,8 @@ if __name__ == "__main__":
                             datasets_from='purdue',
                             debug=args.debug)
     samp_info.load(dataset, use_dask=False)
-    
+
     nevts = samp_info.finalize()
-    
     nevts_all = samp_info.compute_lumi_weights()
 
     nevts = 0
@@ -181,7 +180,7 @@ if __name__ == "__main__":
 
     all_pt_variations = []
     for ptvar in pt_variations:
-        if ptvar=='nominal':
+        if ptvar == 'nominal':
             all_pt_variations += ['nominal']
         else:
             all_pt_variations += [f'{ptvar}_up']
@@ -201,36 +200,47 @@ if __name__ == "__main__":
     elif method == 'Spark':
         import pyspark.sql
         from pyarrow.compat import guid
-        from coffea.processor.spark.detail import _spark_initialize, _spark_stop
+        from coffea.processor.spark.detail import _spark_initialize
+        from coffea.processor.spark.detail import _spark_stop
         from coffea.processor.spark.spark_executor import spark_executor
         spark_config = pyspark.sql.SparkSession.builder \
-                        .appName('spark-executor-test-%s' % guid()) \
-                        .master('local[*]') \
-                        .config('spark.driver.memory', '16g') \
-                        .config('spark.executor.memory', '16g') \
-                        .config('spark.sql.execution.arrow.enabled','true') \
-                        .config('spark.sql.execution.arrow.maxRecordsPerBatch', chunksize)
+            .appName('spark-executor-test-%s' % guid()) \
+            .master('local[*]') \
+            .config('spark.driver.memory', '16g') \
+            .config('spark.executor.memory', '16g') \
+            .config('spark.sql.execution.arrow.enabled', 'true') \
+            .config('spark.sql.execution.arrow.maxRecordsPerBatch',
+                    chunksize)
 
-        spark = _spark_initialize(config=spark_config, log_level='WARN', 
-                                  spark_progress=False, laurelin_version='1.0.0')
+        spark = _spark_initialize(config=spark_config,
+                                  log_level='WARN',
+                                  spark_progress=False,
+                                  laurelin_version='1.0.0')
         thread_workers = 2
         nworkers = 1  # placeholder
         print(spark)
 
-    elif method=='Dask+Slurm':
+    elif method == 'Dask+Slurm':
         flexible_workers = False
-        distributed = pytest.importorskip("distributed", minversion="1.28.1")
-        distributed.config['distributed']['worker']['memory']['terminate'] = False
+        distributed = pytest.importorskip("distributed",
+                                          minversion="1.28.1")
+        distributed.config['distributed']['worker']\
+        ['memory']['terminate'] = False
         client = distributed.Client(slurm_cluster_ip)
         nworkers = len(client._scheduler_identity.get("workers", {}))
         print(f"Starting processing with {nworkers} workers")
 
-    elif method=='DaskLocal':
+    elif method == 'DaskLocal':
         target_nworkers = 46
-        distributed = pytest.importorskip("distributed", minversion="1.28.1")
-        distributed.config['distributed']['worker']['memory']['terminate'] = False
-        client = distributed.Client(processes=True, dashboard_address=None, n_workers=target_nworkers,
-                                threads_per_worker=1, memory_limit='12GB') 
+        distributed = pytest.importorskip("distributed",
+                                          minversion="1.28.1")
+        distributed.config['distributed']['worker']\
+            ['memory']['terminate'] = False
+        client = distributed.Client(processes=True,
+                                    dashboard_address=None,
+                                    n_workers=target_nworkers,
+                                    threads_per_worker=1,
+                                    memory_limit='12GB')
         nworkers = len(client._scheduler_identity.get("workers", {}))
         print(f"Starting processing with {nworkers} workers")
 
@@ -244,12 +254,12 @@ if __name__ == "__main__":
         for sample_name in samples:
             fileset = samp_info.fileset
 #        for sample_name, fileset in samp_info.filesets.items():
-            if (variation!='nominal') and\
-                not(('dy' in sample_name) or\
-                    ('ewk' in sample_name) or\
-                    ('vbf' in sample_name) or\
-                    ('ggh' in sample_name) or\
-                    ('ttjets_dl' in sample_name)) or\
+            if (variation != 'nominal') and\
+                not(('dy' in sample_name) or
+                    ('ewk' in sample_name) or
+                    ('vbf' in sample_name) or
+                    ('ggh' in sample_name) or
+                    ('ttjets_dl' in sample_name)) or
                     ('mg' in sample_name):
                 continue
             print(f"Processing: {sample_name}, {variation}")
@@ -264,7 +274,7 @@ if __name__ == "__main__":
                                         pt_variations=[variation],
                                         debug=args.debug,
                                         do_btag_syst=do_btag_syst),
-                                    iterative_executor, 
+                                    iterative_executor,
                                     executor_args={
                                         'nano': True,
                                         'savemetrics':True}, 
@@ -272,21 +282,21 @@ if __name__ == "__main__":
                                     maxchunks=maxchunks)
             elif method == 'Spark':
                 output  = processor.run_spark_job(
-                                    fileset, 
-                                    DimuonProcessor(
-                                        samp_info=samp_info,
-                                        pt_variations=[variation],
-                                        do_btag_syst=do_btag_syst),
-                                    spark_executor,
-                                    spark=spark,
-                                    partitionsize=chunksize,
-                                    thread_workers=thread_workers,
-                                    executor_args={
-                                        'file_type': 'edu.vanderbilt.accre.laurelin.Root',
-                                        'cache': False,
-                                        'nano': True,
-                                        'retries': 5,
-                                        'laurelin_version': '1.0.0'})
+                    fileset,
+                    DimuonProcessor(
+                        samp_info=samp_info,
+                        pt_variations=[variation],
+                        do_btag_syst=do_btag_syst),
+                    spark_executor,
+                    spark=spark,
+                    partitionsize=chunksize,
+                    thread_workers=thread_workers,
+                    executor_args={
+                        'file_type': 'edu.vanderbilt.accre.laurelin.Root',
+                        'cache': False,
+                        'nano': True,
+                        'retries': 5,
+                        'laurelin_version': '1.0.0'})
 
             elif (method == 'Dask+Slurm') or (method == 'DaskLocal'):
                 save_args = {
@@ -295,14 +305,14 @@ if __name__ == "__main__":
                     'label': sample_name
                 }
                 if not do_reduce:
-                    save_output=False
+                    save_output = False
                 output = processor.run_uproot_job(
                     fileset,
                     'Events',
                     DimuonProcessor(samp_info=samp_info,
                                     pt_variations=[variation],
                                     do_btag_syst=do_btag_syst),
-                    dask_executor, 
+                    dask_executor,
                     executor_args={'nano': True,
                                    'client': client,
                                    'do_reduce': do_reduce,
@@ -339,7 +349,7 @@ if save_diagnostics:
         'samples': np.asarray(samples),
         'nevts': nevts,
         'maxchunks': int(args.maxchunks),
-        'chunksize': chunksize, 
+        'chunksize': chunksize,
         'nchunks': nchunks,
         'nworkers': nworkers,  # so far only for Dask
         'nvariations': len(all_pt_variations),
@@ -354,7 +364,7 @@ if save_diagnostics:
             db = pickle.load(db_file)
         print(f"Loaded database from {testing_db_path} to save diagnostics")
         idx = len(db)
-    except Exception as e:
+    except Exception:
         db = pd.DataFrame(columns=list(row.keys()), dtype=float)
         idx = 0
     for k, v in row.items():
