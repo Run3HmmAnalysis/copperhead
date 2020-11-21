@@ -3,7 +3,7 @@ import dask
 from python.timer import Timer
 from python.postprocessor_dask import workflow
 
-use_local_cluster = True 
+use_local_cluster = True
 # is False, will use Slurm cluster (requires manual setup of the cluster)
 
 ncpus_local = 16  # number of cores to use. Each one will start with 4GB
@@ -17,7 +17,7 @@ dashboard_address = '128.211.149.133:34875'
 if not use_local_cluster:
     dashboard_address = '128.211.149.133:8787'
 # How to open the dashboard:
-# Dashboard IP should be the same as the node 
+# Dashboard IP should be the same as the node
 # from which the code is running. In my case it's hammer-c000.
 # Port can be anything, you can use default :8787
 # 1. Open remote desktop on Hammer (ThinLinc)
@@ -58,7 +58,7 @@ mva_bins = {
                  1.114, 1.28, 1.428, 1.564, 1.686,
                  1.798, 1.9, 2.0, 2.8]
     },
-    'bdt_nest10000_weightCorrAndShuffle_2Aug':{
+    'bdt_nest10000_weightCorrAndShuffle_2Aug': {
         '2016': [0, 0.282, 0.57, 0.802, 0.999,
                  1.171, 1.328, 1.479, 1.624, 1.775,
                  1.93, 2.097, 2.288, 5.0],
@@ -66,8 +66,8 @@ mva_bins = {
                  1.352, 1.504, 1.642, 1.784, 1.924,
                  2.07, 2.222, 2.398, 5.0],
         '2018': [0, 0.129, 0.621, 0.948, 1.189,
-                1.388, 1.558, 1.717, 1.866, 2.01,
-                2.152, 2.294, 2.451, 5.0]
+                 1.388, 1.558, 1.717, 1.866, 2.01,
+                 2.152, 2.294, 2.451, 5.0]
     },
 }
 
@@ -77,7 +77,7 @@ if __name__ == "__main__":
     timer = Timer(ordered=True)
 
     if use_local_cluster:
-        print(f"Creating local cluster with {ncpus_local} workers."\
+        print(f"Creating local cluster with {ncpus_local} workers."
               f" Dashboard address: {dashboard_address}")
         client = dask.distributed.Client(
                     processes=True,
@@ -86,7 +86,7 @@ if __name__ == "__main__":
                     threads_per_worker=1,
                     memory_limit='4GB')
     else:
-        print(f"Creating Slurm cluster at {slurm_cluster_ip}."\
+        print(f"Creating Slurm cluster at {slurm_cluster_ip}."
               f"Dashboard address: {dashboard_address}")
         client = dask.distributed.Client(parameters['slurm_cluster_ip'])
 
@@ -105,10 +105,10 @@ if __name__ == "__main__":
     paths = []
     for y in parameters['years']:
         for s in samples:
-            paths.append(f"{parameters['path']}/"\
-                         f"{y}_{parameters['label']}/"\
+            paths.append(f"{parameters['path']}/"
+                         f"{y}_{parameters['label']}/"
                          f"nominal/{s}/")
-    
+
     df, hists = workflow(client, paths, parameters, timer)
 
     print(df)

@@ -164,10 +164,10 @@ load_unbinned_data = True
 modules = []
 options = []
 if args.dnn:
-    if len(dnn_models)==0:
+    if len(dnn_models) == 0:
         print("List of DNN models is empty!")
         sys.exit()
-    modules = add_modules(modules,['to_pandas', 'evaluation', 'get_hists'])
+    modules = add_modules(modules, ['to_pandas', 'evaluation', 'get_hists'])
     options += ['evaluation']
 if args.bdt:
     if len(bdt_models) == 0:
@@ -177,7 +177,8 @@ if args.bdt:
     options += ['evaluation']
 if args.datacards:
     options += ['datacards']
-    if not (args.dnn or args.bdt): load_unbinned_data = False
+    if not (args.dnn or args.bdt):
+        load_unbinned_data = False
 if args.overlap:
     modules = add_modules(modules, ['to_pandas', 'evaluation'])
     options += ['dnn_overlap']
@@ -194,7 +195,7 @@ postproc_args = {
     'samples': samples,
     'training_samples': {},
     'channels': ['vbf', 'vbf_01j', 'vbf_2j'],
-    'channel_groups': {'vbf':['vbf', 'vbf_01j', 'vbf_2j']},
+    'channel_groups': {'vbf': ['vbf', 'vbf_01j', 'vbf_2j']},
     'regions': ['h-peak', 'h-sidebands'],
     'vars_to_plot': list(vars_to_plot.values()),
     'wgt_variations': True,
@@ -259,7 +260,7 @@ for m in mass_points:
 
     if args.datacards:
         for myvar in vars_to_save:
-            print(f"Preparing ROOT files with shapes ({myvar.name})...") 
+            print(f"Preparing ROOT files with shapes ({myvar.name})...")
             prepare_root_files(myvar, postproc_args, shift_signal=False)
             prepare_root_files(myvar, postproc_args, shift_signal=True)
             print("Writing datacards...")

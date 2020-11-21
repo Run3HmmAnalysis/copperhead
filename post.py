@@ -1,7 +1,7 @@
 import time
 import os,sys,glob
 import argparse
-from python.postprocessing import postprocess, plot, save_yields, load_yields, save_shapes, make_datacards, rebin, dnn_training, prepare_root_files, overlap_study, plot_rocs
+from python.postprocessing import postprocess, plot, save_yields, load_yields, save_shapes, make_datacards, rebin, dnn_training, prepare_root_files, overlap_study, overlap_study_unbinned, plot_rocs
 from config.variables import variables, Variable
 from config.datasets import datasets
 import pandas as pd
@@ -34,7 +34,7 @@ int(args.datacards)+int(args.plot)+int(args.overlap)+int(args.roc)==0:
     print("-roc --roc")
     sys.exit()
 
-if (args.year=='') and not args.dnn_training and not args.roc:
+if (args.year=='') and not args.dnn_training and not args.roc and not args.overlap:
     print("Year must be specified! Merging data from different years is only allowed for DNN training.")
     sys.exit()
 
@@ -42,12 +42,12 @@ if args.dnn_training and (args.dnn or args.bdt or args.datacards or args.plot or
     print("Can't combine 'training' option with 'evaluation','datacards' or 'plot'!")
     sys.exit()
 
-if args.rebin and (args.dnn or args.bdt or args.datacards or args.plot or args.overlap):
-    print("Can't combine 'rebin' option with 'evaluation','datacards' or 'plot'!")
+if args.rebin and (args.datacards or args.plot or args.overlap):
+    print("Can't combine 'rebin' option with 'datacards' or 'plot'!")
     sys.exit()
 
-if (args.dnn or args.bdt) and (args.dnn_training or args.rebin or args.overlap):
-    print("Can't combine 'evaluation' option with 'training' or 'rebin'!")
+if (args.dnn or args.bdt) and (args.dnn_training ):
+    print("Can't combine 'evaluation' option with 'training' or 'overlap'!")
     sys.exit()
 
 if args.datacards and (args.dnn_training or args.rebin or args.plot or args.overlap):
@@ -62,7 +62,7 @@ if args.overlap and (args.dnn or args.bdt or args.dnn_training or args.rebin or 
     print("Can't combine overlap study with other options!")
     sys.exit()
 
-if args.roc and (args.dnn or args.bdt or args.dnn_training or args.rebin or args.datacards or args.plot or args.overlap):
+if args.roc and (args.dnn_training or args.rebin or args.datacards or args.plot or args.overlap):
     print("Can't combine ROC plotting with other options (will add support of that later)!")
     sys.exit()    
 
@@ -122,6 +122,11 @@ mva_bins = {
         '2017':[0, 0.411, 0.744, 0.99, 1.185, 1.352, 1.504, 1.642, 1.784, 1.924, 2.07, 2.222, 2.398, 5.0],
         '2018':[0, 0.129, 0.621, 0.948, 1.189, 1.388, 1.558, 1.717, 1.866, 2.01, 2.152, 2.294, 2.451, 5.0]
     },
+    'bdt_nest10000_allyears_multiclass_clsweightAndShuffle_6Aug':{
+        '2016':[0, 0.282, 0.57, 0.802, 0.999, 1.171, 1.328, 1.479, 1.624, 1.775, 1.93, 2.097, 2.288, 5.0],
+        '2017':[0, 0.411, 0.744, 0.99, 1.185, 1.352, 1.504, 1.642, 1.784, 1.924, 2.07, 2.222, 2.398, 5.0],
+        '2018':[0, 0.129, 0.621, 0.948, 1.189, 1.388, 1.558, 1.717, 1.866, 2.01, 2.152, 2.294, 2.451, 5.0]
+    },
 }
 dnn_model_to_train = 'dnn_allyears_200_100_50'
 dnn_models = [
@@ -157,7 +162,8 @@ dnn_models = [
 bdt_models = [
     #'bdt_jul15_earlystop50',
  #   'bdt_nest10000_bestmodel_31July',
-    'bdt_nest10000_weightCorrAndShuffle_2Aug',
+#    'bdt_nest10000_weightCorrAndShuffle_2Aug',
+#    'bdt_nest10000_allyears_multiclass_clsweightAndShuffle_6Aug',
 ]
 
 to_plot_ = [
@@ -171,7 +177,7 @@ to_plot_ = [
     'jj_mass','jj_deta',
     'nsoftjets5','htsoft2'
     ]
-to_plot = []
+to_plot = ['dimuon_mass']
 #to_plot = ['rpt','jet1_eta','jet2_eta']
 vars_to_save = []
 
@@ -182,27 +188,42 @@ else:
     vars_to_plot = {}
 
 models = []
+
+if args.overlap:
+    models=dnn_models+bdt_models
+
 if args.dnn:
     models += dnn_models
-else:
+elif (not args.rebin) and (not args.overlap):
     dnn_models = []
 if args.bdt:
     models += bdt_models
-else:
+elif (not args.rebin) and (not args.overlap):
     bdt_models = []
 
+
+    
 for model in models:
     name = f'score_{model}'
     vars_to_plot.update({name:Variable(name, name, 50, 0, 5)})
     vars_to_save.append(vars_to_plot[name])
 
-samples_ = [
-    'dy_m105_160_amc',
-    'dy_m105_160_vbf_amc',
+samples = [
+    'data_A',
+    'data_B',
+    'data_C',
+    'data_D',
+    'data_E',
+    'data_F',
+    'data_G',
+    'data_H',
+    'vbf_powheg_dipole'
+#    'dy_m105_160_amc',
+#    'dy_m105_160_vbf_amc',
 #    'ewk_lljj_mll105_160_ptj0',
 #    'vbf_powhegPS',
 ]
-samples = [
+samples_ = [
     'data_A',
     'data_B',
     'data_C',
@@ -302,7 +323,7 @@ if args.rebin:
     options += ['rebin']
 if args.overlap:
     modules = add_modules(modules,['to_pandas', 'evaluation'])
-    samples = ['vbf_powhegPS', 'vbf_powheg_dipole']
+#    samples = ['vbf_powhegPS', 'vbf_powheg_dipole']
     options += ['dnn_overlap']
 if args.roc:
     modules = add_modules(modules,['to_pandas', 'evaluation'])
@@ -374,7 +395,7 @@ if load_unbinned_data:
 
         if args.rebin:
             df = pd.concat(dfs)
-            for model in models:
+            for model in dnn_models+bdt_models:
                 boundaries = rebin(df, model, postproc_args)
                 print(model, boundaries)
             sys.exit()
@@ -383,7 +404,8 @@ if load_unbinned_data:
             print("Studying overlap with Pisa...")
             df = pd.concat(dfs)
             for model in models:
-                overlap_study(df, postproc_args, model)
+                #overlap_study(df, postproc_args, model)
+                overlap_study_unbinned(df, postproc_args, model)
             sys.exit()
         
         if args.roc:
