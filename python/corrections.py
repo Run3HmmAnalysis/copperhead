@@ -1,13 +1,9 @@
 import numpy as np
 import awkward
-from awkward import JaggedArray
 import uproot
 import numba
-import copy 
 
-from coffea.lookup_tools import extractor, dense_lookup
-from coffea.lookup_tools import txt_converters, rochester_lookup
-from coffea.util import load
+from coffea.lookup_tools import dense_lookup
 
 
 class NNLOPS_Evaluator(object):
@@ -25,7 +21,6 @@ class NNLOPS_Evaluator(object):
             self.ratio_3jet = {
                 "mcatnlo": f["gr_NNLOPSratio_pt_mcatnlo_3jet"],
                 "powheg": f["gr_NNLOPSratio_pt_powheg_3jet"]}
-
 
     def evaluate(self, hig_pt, njets, mode):
         result = np.ones(len(hig_pt), dtype=float)
@@ -66,7 +61,7 @@ def roccor_evaluator(rochester, is_mc, muons):
 
         corrections = np.ones_like(muons.pt.flatten())
         errors = np.ones_like(muons.pt.flatten())
-        
+
         mc_kspread = rochester.kSpreadMC(
                         muons.charge[hasgen],
                         muons.pt[hasgen],
@@ -95,7 +90,7 @@ def roccor_evaluator(rochester, is_mc, muons):
                         mc_rand[~hasgen])
 
         corrections[hasgen.flatten()] = mc_kspread.flatten()
-        corrections[~hasgen.flatten()] = mc_ksmear.flatten() 
+        corrections[~hasgen.flatten()] = mc_ksmear.flatten()
         errors[hasgen.flatten()] = errspread.flatten()
         errors[~hasgen.flatten()] = errsmear.flatten()
 
@@ -133,26 +128,32 @@ def musf_lookup(parameters):
         id_file = uproot.open(scaleFactors['id'][0])
         iso_file = uproot.open(scaleFactors['iso'][0])
         trig_file = uproot.open(scaleFactors['trig'][0])
-        mu_id_vals += id_file[scaleFactors['id'][1]].values *\
-                        scaleFactors['scale']
-        mu_id_err += id_file[scaleFactors['id'][1]].variances**0.5 *\
-                        scaleFactors['scale']
+        mu_id_vals +=\
+            id_file[scaleFactors['id'][1]].values *\
+            scaleFactors['scale']
+        mu_id_err +=\
+            id_file[scaleFactors['id'][1]].variances**0.5 *\
+            scaleFactors['scale']
         mu_id_edges = id_file[scaleFactors['id'][1]].edges
-        mu_iso_vals += iso_file[scaleFactors['iso'][1]].values *\
-                        scaleFactors['scale']
-        mu_iso_err += iso_file[scaleFactors['iso'][1]].variances**0.5 *\
-                        scaleFactors['scale']
+        mu_iso_vals +=\
+            iso_file[scaleFactors['iso'][1]].values *\
+            scaleFactors['scale']
+        mu_iso_err +=\
+            iso_file[scaleFactors['iso'][1]].variances**0.5 *\
+            scaleFactors['scale']
         mu_iso_edges = iso_file[scaleFactors['iso'][1]].edges
-        mu_trig_vals_data += trig_file[scaleFactors['trig'][1]].values *\
-                        scaleFactors['scale']
-        mu_trig_vals_mc += trig_file[scaleFactors['trig'][2]].values *\
-                        scaleFactors['scale']
+        mu_trig_vals_data +=\
+            trig_file[scaleFactors['trig'][1]].values *\
+            scaleFactors['scale']
+        mu_trig_vals_mc +=\
+            trig_file[scaleFactors['trig'][2]].values *\
+            scaleFactors['scale']
         mu_trig_err_data +=\
             trig_file[scaleFactors['trig'][1]].variances**0.5 *\
-                scaleFactors['scale']
+            scaleFactors['scale']
         mu_trig_err_mc +=\
             trig_file[scaleFactors['trig'][2]].variances**0.5 *\
-                scaleFactors['scale']
+            scaleFactors['scale']
         mu_trig_edges = trig_file[scaleFactors['trig'][1]].edges
 
     mu_id_sf = dense_lookup.dense_lookup(mu_id_vals, mu_id_edges)
@@ -165,14 +166,14 @@ def musf_lookup(parameters):
                             mu_trig_edges)
     mu_trig_eff_mc = dense_lookup.dense_lookup(
                             mu_trig_vals_mc,
-                            mu_trig_edges)    
+                            mu_trig_edges)
     mu_trig_err_data = dense_lookup.dense_lookup(
                             mu_trig_err_data,
-                            mu_trig_edges)    
+                            mu_trig_edges)
     mu_trig_err_mc = dense_lookup.dense_lookup(
                             mu_trig_err_mc,
-                            mu_trig_edges) 
-        
+                            mu_trig_edges)
+
     return (mu_id_sf, mu_id_err, mu_iso_sf,
             mu_iso_err, mu_trig_eff_data,
             mu_trig_eff_mc, mu_trig_err_data, mu_trig_err_mc)
@@ -198,7 +199,7 @@ def musf_evaluator(lookups, year, numevents, muons):
         muID = mu_id_sf(eta, pt)
         muIso = mu_iso_sf(eta, pt)
         muIDerr = mu_id_err(eta, pt)
-        muIsoerr = mu_iso_err(eta, pt) 
+        muIsoerr = mu_iso_err(eta, pt)
         muTrig_data = mu_trig_eff_data(abs_eta, pt)
         muTrig_mc = mu_trig_eff_mc(abs_eta, pt)
         muTrigerr_data = mu_trig_err_data(abs_eta, pt)
@@ -209,36 +210,36 @@ def musf_evaluator(lookups, year, numevents, muons):
         muIDerr = mu_id_err(pt, abs_eta)
         muIsoerr = mu_iso_err(pt, abs_eta)
         muTrig_data = mu_trig_eff_data(abs_eta, pt)
-        muTrig_mc = mu_trig_eff_mc(abs_eta, pt)                
+        muTrig_mc = mu_trig_eff_mc(abs_eta, pt)
         muTrigerr_data = mu_trig_err_data(abs_eta, pt)
         muTrigerr_mc = mu_trig_err_mc(abs_eta, pt)
 
     denom = ((1 - (1. - muTrig_mc).prod()))
     denom_up = ((1 - (1. - muTrig_mc - muTrigerr_mc).prod()) != 0)
-    denom_dn = ((1 - (1. - muTrig_mc + muTrigerr_mc).prod()) != 0)            
+    denom_dn = ((1 - (1. - muTrig_mc + muTrigerr_mc).prod()) != 0)
 
-    muTrig[denom !=0 ] = (
-        (1 - (1. - muTrig_data).prod())[denom!=0] / denom[denom!=0])
-    muTrig_up[denom_up!=0] = (
-        (1 - (1. - muTrig_data - muTrigerr_data).prod())[denom_up!=0] /
-        denom_up[denom_up!=0])
-    muTrig_down[denom_dn!=0] = (
-        (1 - (1. - muTrig_data + muTrigerr_data).prod())[denom_dn!=0] /
-        denom_dn[denom_dn!=0])
+    muTrig[denom !=0] = (
+        (1 - (1. - muTrig_data).prod())[denom != 0] / denom[denom != 0])
+    muTrig_up[denom_up != 0] = (
+        (1 - (1. - muTrig_data - muTrigerr_data).prod())[denom_up != 0] /
+        denom_up[denom_up != 0])
+    muTrig_down[denom_dn != 0] = (
+        (1 - (1. - muTrig_data + muTrigerr_data).prod())[denom_dn != 0] /
+        denom_dn[denom_dn != 0])
 
     # muSF = (muID*muIso).prod()*muTrig
     # muSF_up = ((muID + muIDerr) * (muIso + muIsoerr) * muTrig_up).prod()
     # muSF_down = ((muID - muIDerr) *
     # (muIso - muIsoerr) * muTrig_down).prod()
     # return muSF, muSF_up, muSF_down
-    
+
     muID_up = (muID + muIDerr).prod()
     muID_down = (muID - muIDerr).prod()
     muIso_up = (muIso + muIsoerr).prod()
     muIso_down = (muIso - muIsoerr).prod()
     muID = muID.prod()
     muIso = muIso.prod()
-    
+
     return muID, muID_up, muID_down, muIso,\
         muIso_up, muIso_down, muTrig,\
         muTrig_up, muTrig_down
@@ -257,30 +258,29 @@ def pu_lookup(parameters, mode='nom', auto=[]):
     else:
         print("PU lookup: incorrect mode ", mode)
         return
-    
+
     nbins = len(pu_hist_data)
     edges = [[i for i in range(nbins)]]
     # pu_hist_mc = load("data/pileup/pisa_lookup_2018.coffea")(range(102))
-    if len(auto)==0:
+    if len(auto) == 0:
         pu_hist_mc = uproot.open(parameters['pu_file_mc'])['pu_mc']
     else:
         pu_hist_mc = np.histogram(auto, bins=range(nbins + 1))[0]
-        
 
     lookup = dense_lookup.dense_lookup(
                 pu_reweight(pu_hist_data, pu_hist_mc),
                 edges)
     lookup._axes = lookup._axes[0]
-    return lookup 
+    return lookup
 
 
 def pu_reweight(pu_hist_data, pu_hist_mc):
     pu_arr_mc_ = np.zeros(len(pu_hist_mc))
-    for ibin,value in enumerate(pu_hist_mc):
+    for ibin, value in enumerate(pu_hist_mc):
         pu_arr_mc_[ibin] = max(value, 0)
 
     pu_arr_data = np.zeros(len(pu_hist_data))
-    for ibin,value in enumerate(pu_hist_data):
+    for ibin, value in enumerate(pu_hist_data):
         pu_arr_data[ibin] = max(value, 0)
 
     pu_arr_mc_ref = pu_arr_mc_
@@ -288,23 +288,24 @@ def pu_reweight(pu_hist_data, pu_hist_mc):
     pu_arr_data = pu_arr_data / pu_arr_data.sum()
 
     weights = np.ones(len(pu_hist_mc))
-    weights[pu_arr_mc!=0] =\
+    weights[pu_arr_mc != 0] =\
         pu_arr_data[pu_arr_mc != 0] / pu_arr_mc[pu_arr_mc != 0]
     maxw = min(weights.max(), 5.)
-    cropped=[]
+    cropped = []
     while (maxw > 3):
-        cropped=[]
+        cropped = []
         for i in range(len(weights)):
-            cropped.append(min(maxw,weights[i]))
+            cropped.append(min(maxw, weights[i]))
         shift = checkIntegral(cropped, weights, pu_arr_mc_ref)
-        if(abs(shift) > 0.0025): break
+        if(abs(shift) > 0.0025):
+            break
         maxw *= 0.95
 
     maxw /= 0.95
     if (len(cropped) > 0):
         for i in range(len(weights)):
-            cropped[i] = min(maxw,weights[i])
-        normshift = checkIntegral(cropped,weights, pu_arr_mc_ref)
+            cropped[i] = min(maxw, weights[i])
+        normshift = checkIntegral(cropped, weights, pu_arr_mc_ref)
         for i in range(len(weights)):
             weights[i] = cropped[i] * (1 - normshift)
     return weights
@@ -316,7 +317,7 @@ def checkIntegral(wgt1, wgt2, ref):
     for i in range(len(wgt1)):
         myint += wgt1[i] * ref[i]
         refint += wgt2[i] * ref[i]
-    return (myint - refint) / refint 
+    return (myint - refint) / refint
 
 
 def pu_evaluator(lookup, numevents, ntrueint):
@@ -327,13 +328,15 @@ def pu_evaluator(lookup, numevents, ntrueint):
     return pu_weight
 
 
-# https://github.com/jpata/hepaccelerate-cms/blob/f5965648f8a7861cb9856d0b5dd34a53ed42c027/tests/hmm/hmumu_utils.py# L1396
+# https://github.com/jpata/hepaccelerate-cms/blob/
+# f5965648f8a7861cb9856d0b5dd34a53ed42c027/tests/
+# hmm/hmumu_utils.py#L1396
 @numba.njit(parallel=True, cache=True)
-def fsr_evaluator(muons_offsets, fsr_offsets, 
+def fsr_evaluator(muons_offsets, fsr_offsets,
                   muons_pt, muons_eta, muons_phi,
                   muons_mass, muons_iso, muons_fsrIndex,
                   fsr_pt, fsr_eta, fsr_phi, fsr_iso,
-                  fsr_drEt2, has_fsr): 
+                  fsr_drEt2, has_fsr):
     for iev in numba.prange(len(muons_offsets) - 1):
         # loop over muons in event
         mu_first = muons_offsets[iev]
@@ -366,7 +369,7 @@ def fsr_evaluator(muons_offsets, fsr_offsets,
                     continue
 
                 has_fsr[imu] = True
-       
+
                 # compute and set corrected momentum
                 px_total = 0
                 py_total = 0
@@ -384,12 +387,12 @@ def fsr_evaluator(muons_offsets, fsr_offsets,
                 out_pt = np.sqrt(px_total**2 + py_total**2)
                 out_eta = np.arcsinh(pz_total / out_pt)
                 out_phi = np.arctan2(py_total, px_total)
-                out_mass = np.sqrt(e_total**2 - 
-                                   px_total**2 - 
-                                   py_total**2 - 
+                out_mass = np.sqrt(e_total**2 -
+                                   px_total**2 -
+                                   py_total**2 -
                                    pz_total**2)
 
-                # reference: 
+                # reference:
                 # https://gitlab.cern.ch/uhh-cmssw/
                 # fsr-photon-recovery/tree/master
                 muons_iso[imu] = (muons_iso[imu] *
@@ -401,8 +404,8 @@ def fsr_evaluator(muons_offsets, fsr_offsets,
                 muons_phi[imu] = out_phi
                 muons_mass[imu] = out_mass
 
-    return  muons_pt, muons_eta, muons_phi,\
-            muons_mass, muons_iso, has_fsr
+    return muons_pt, muons_eta, muons_phi,\
+           muons_mass, muons_iso, has_fsr
 
 
 def btag_weights(processor, lookup, systs, jets,
@@ -410,10 +413,10 @@ def btag_weights(processor, lookup, systs, jets,
     btag_wgt = np.ones(numevents, dtype=float)
     jets_ = jets[abs(jets.eta) < 2.4]
     jet_pt_ = awkward.JaggedArray.fromcounts(
-                jets_[jets_.counts > 0].counts, 
+                jets_[jets_.counts > 0].counts,
                 np.minimum(jets_.pt.flatten(),
                            1000.))
-    
+
     btag_wgt[(jets_.counts > 0)] =\
         lookup('central',
                jets_[jets_.counts > 0].hadronFlavour,
@@ -434,7 +437,7 @@ def btag_weights(processor, lookup, systs, jets,
         5: ["jes", "lf", "hfstats1", "hfstats2"],
         21: ["jes", "hf", "lfstats1", "lfstats2"],
     }
-    
+
     for sys in systs:
         njets = len(jets_.flatten())
         btag_syst[sys] = [np.ones(njets, dtype=float),
@@ -496,23 +499,23 @@ def puid_weights(evaluator, year, jets, pt_name,
             ((abs(jets.eta) > 2.6) & (abs(jets.eta) < 3.0))
 
         pMC_L = puid_eff_L[jets_passed_L].prod() *\
-            (1. - puid_eff_L[jets_failed_L]).prod() 
+            (1. - puid_eff_L[jets_failed_L]).prod()
         pMC_T = puid_eff_T[jets_passed_T].prod() *\
-            (1. - puid_eff_T[jets_failed_T]).prod() 
+            (1. - puid_eff_T[jets_failed_T]).prod()
 
         pData_L = puid_eff_L[jets_passed_L].prod() *\
             puid_sf_L[jets_passed_L].prod() *\
             (1. - puid_eff_L[jets_failed_L] *
-            puid_sf_L[jets_failed_L]).prod()
+             puid_sf_L[jets_failed_L]).prod()
         pData_T = puid_eff_T[jets_passed_T].prod() *\
-        puid_sf_T[jets_passed_T].prod() * \
+            puid_sf_T[jets_passed_T].prod() *\
             (1. - puid_eff_T[jets_failed_T] *
              puid_sf_T[jets_failed_T]).prod()
 
         puid_weight = np.ones(numevents)
-        puid_weight[pMC_L * pMC_T!=0] = np.divide(
-            (pData_L * pData_T)[pMC_L*pMC_T!=0],
-            (pMC_L*pMC_T)[pMC_L*pMC_T!=0])
+        puid_weight[pMC_L * pMC_T != 0] = np.divide(
+            (pData_L * pData_T)[pMC_L * pMC_T != 0],
+            (pMC_L * pMC_T)[pMC_L * pMC_T != 0])
 
     else:
         wp_dict = {"loose": "L", "medium": "M", "tight": "T"}
@@ -524,26 +527,26 @@ def puid_weights(evaluator, year, jets, pt_name,
         jets_passed = (jets[pt_name] > 25) &\
             (jets[pt_name] < 50) & jet_puid
         jets_failed = (jets[pt_name] > 25) &\
-            (jets[pt_name] < 50) & (~jet_puid)  
+            (jets[pt_name] < 50) & (~jet_puid)
 
         pMC = puid_eff[jets_passed].prod() *\
-            (1. - puid_eff[jets_failed]).prod() 
+            (1. - puid_eff[jets_failed]).prod()
         pData = puid_eff[jets_passed].prod() *\
             puid_sf[jets_passed].prod() *\
             (1. - puid_eff[jets_failed] *
              puid_sf[jets_failed]).prod()
         puid_weight = np.ones(numevents)
-        puid_weight[pMC != 0] = np.divide(pData[pMC != 0], pMC[pMC != 0]) 
+        puid_weight[pMC != 0] = np.divide(pData[pMC != 0], pMC[pMC != 0])
     return puid_weight
 
 
 def qgl_weights(jet, isHerwig):
-    weights = np.ones(len(jet.qgl), dtype=float)    
+    weights = np.ones(len(jet.qgl), dtype=float)
     wgt_mask = (jet.partonFlavour != 0) &\
         (abs(jet.eta) < 2) & (jet.qgl > 0)
     light = wgt_mask & (abs(jet.partonFlavour) < 4)
     gluon = wgt_mask & (jet.partonFlavour == 21)
-  
+
     qgl = jet.qgl
 
     if isHerwig:
@@ -575,38 +578,38 @@ def geofit_evaluator(muons_pt, muons_eta, muons_dxybs,
                      muons_charge, year, mask):
     pt_cor = np.zeros(len(muons_pt.flatten()), dtype=float)
     d0_BS_charge_full = np.multiply(muons_dxybs.flatten(),
-                                    muons_charge.flatten()) 
+                                    muons_charge.flatten())
     passes_mask = mask & (np.abs(d0_BS_charge_full) < 999999.)
     d0_BS_charge = d0_BS_charge_full[passes_mask]
     pt = muons_pt.flatten()[passes_mask]
     eta = muons_eta.flatten()[passes_mask]
-    
+
     pt_cor_mask = pt_cor[passes_mask]
-    
+
     cuts = {
         'eta_1': (np.abs(eta) < 0.9),
         'eta_2': ((np.abs(eta) < 1.7) & (np.abs(eta) >= 0.9)),
         'eta_3': (np.abs(eta) >= 1.7)
     }
-    
+
     factors = {
         '2016': {
             'eta_1': 411.34,
             'eta_2': 673.40,
-            'eta_3': 1099.0,            
+            'eta_3': 1099.0,
         },
         '2017': {
             'eta_1': 582.32,
             'eta_2': 974.05,
-            'eta_3': 1263.4,            
-        },        
+            'eta_3': 1263.4,
+        },
         '2018': {
             'eta_1': 650.84,
             'eta_2': 988.37,
-            'eta_3': 1484.6,            
+            'eta_3': 1484.6,
         }
     }
-    
+
     for eta_i in ['eta_1', 'eta_2', 'eta_3']:
         pt_cor_mask[cuts[eta_i]] = factors[year][eta_i] *\
             d0_BS_charge[cuts[eta_i]] * pt[cuts[eta_i]] *\

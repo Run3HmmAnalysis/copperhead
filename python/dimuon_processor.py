@@ -1,27 +1,38 @@
 import os, sys
 import copy
 
-import awkward, uproot
+import awkward
+import uproot
 import numpy as np
-#np.set_printoptions(threshold=sys.maxsize)
+# np.set_printoptions(threshold=sys.maxsize)
 import pandas as pd
 
 from coffea import hist, util
 from coffea.analysis_objects import JaggedCandidateArray
 import coffea.processor as processor
-from coffea.lookup_tools import extractor, dense_lookup, txt_converters, rochester_lookup
-from coffea.jetmet_tools import FactorizedJetCorrector, JetCorrectionUncertainty, JetTransformer, JetResolution, JetResolutionScaleFactor
+from coffea.lookup_tools import extractor, dense_lookup
+from coffea.lookup_tools import txt_converters, rochester_lookup
+from coffea.jetmet_tools import FactorizedJetCorrector
+from coffea.jetmet_tools import JetCorrectionUncertainty
+from coffea.jetmet_tools import JetTransformer, JetResolution
+from coffea.jetmet_tools import JetResolutionScaleFactor
 from coffea.btag_tools import BTagScaleFactor
 from coffea.lumi_tools import LumiMask
 
-from python.utils import p4_sum, p4_sum_alt, delta_r, rapidity, cs_variables
+from python.utils import p4_sum, p4_sum_alt, delta_r
+from python.utils import rapidity, cs_variables
 from python.timer import Timer
 from python.samples_info import SamplesInfo
 from python.weights import Weights
-from python.corrections import musf_lookup, musf_evaluator, pu_lookup, pu_evaluator, NNLOPS_Evaluator, roccor_evaluator, get_jec_unc
-from python.corrections import qgl_weights, puid_weights, btag_weights, geofit_evaluator, fsr_evaluator
+from python.corrections import musf_lookup, musf_evaluator
+from python.corrections import pu_lookup, pu_evaluator
+from python.corrections import NNLOPS_Evaluator, roccor_evaluator
+from python.corrections import get_jec_unc, qgl_weights
+from python.corrections import puid_weights, btag_weights 
+from python.corrections import geofit_evaluator, fsr_evaluator
 from python.stxs_uncert import vbf_uncert_stage_1_1, stxs_lookups
-from python.mass_resolution import mass_resolution_purdue, mass_resolution_pisa
+from python.mass_resolution import mass_resolution_purdue
+from python.mass_resolution import mass_resolution_pisa
 
 from config.parameters import parameters
 from config.variables import variables, Variable
@@ -216,10 +227,10 @@ class DimuonProcessor(processor.ProcessorABC):
         self.do_jecunc = False
         self.do_jerunc = False
         for ptvar in self.pt_variations:
-            if ptvar.replace('_up','').replace('_down','') in\
+            if ptvar.replace('_up', '').replace('_down', '') in\
                 self.parameters["jec_unc_to_consider"]:
                 self.do_jecunc = True
-            if ptvar.replace('_up','').replace('_down','') in\
+            if ptvar.replace('_up', '').replace('_down', '') in\
                 ['jer1', 'jer2', 'jer3', 'jer4', 'jer5', 'jer6']:
                 self.do_jerunc = True
 
@@ -233,9 +244,9 @@ class DimuonProcessor(processor.ProcessorABC):
         return self._columns
     
     def process(self, df):
-        #---------------------------------------------------------------#        
+        # --------------------------------------------------------------#        
         # Filter out events not passing HLT or having less than 2 muons.
-        #---------------------------------------------------------------#
+        # --------------------------------------------------------------#
         if self.timer:
             self.timer.update() 
             
@@ -244,17 +255,18 @@ class DimuonProcessor(processor.ProcessorABC):
 
         is_mc = 'data' not in dataset
 
-        #---------------------------------------------------------------#  
+        # --------------------------------------------------------------#  
         # From now on, number of events will remain unchanged (size of 'mask').
         # Variable 'mask' will be used to store global event selection        
         # Apply HLT, lumimask, genweights, PU weights and L1 prefiring weights
-        #---------------------------------------------------------------#            
+        # --------------------------------------------------------------#            
         
         numevents = df.shape[0]
         print(f'Number of events loaded: {numevents}')
         weights = Weights(df)
 
-        nTrueInt = df.Pileup.nTrueInt.flatten() if is_mc else np.zeros(numevents, dtype=bool)
+        nTrueInt = df.Pileup.nTrueInt.flatten() if is_mc\
+            else np.zeros(numevents, dtype=bool)
         event_variables = {
                 'run': df.run.flatten(),
                 'event': df.event.flatten(),
@@ -265,34 +277,43 @@ class DimuonProcessor(processor.ProcessorABC):
         if is_mc:    
             mask = np.ones(numevents, dtype=bool)
             
-            #---------------------------------------------------------------#        
+            # --------------------------------------------------------------#        
             # Apply gen.weights, pileup weights, lumi weights, L1 prefiring weights
             # 
-            #---------------------------------------------------------------# 
+            # --------------------------------------------------------------# 
 
             genweight = df.genWeight.flatten()
             weights.add_weight('genwgt', genweight)    
             if self.auto_pu:
                 pu_distribution = df.Pileup.nTrueInt
-                self.pu_lookup = pu_lookup(self.parameters, 'nom', auto=pu_distribution)
-                self.pu_lookup_up = pu_lookup(self.parameters, 'up', auto=pu_distribution)
-                self.pu_lookup_down = pu_lookup(self.parameters, 'down', auto=pu_distribution)
-            pu_weight = pu_evaluator(self.pu_lookup, numevents, df.Pileup.nTrueInt)
-            pu_weight_up = pu_evaluator(self.pu_lookup_up, numevents, df.Pileup.nTrueInt)
-            pu_weight_down = pu_evaluator(self.pu_lookup_down, numevents, df.Pileup.nTrueInt)
-            weights.add_weight_with_variations('pu_wgt', pu_weight, pu_weight_up, pu_weight_down)
+                self.pu_lookup = pu_lookup(
+                    self.parameters, 'nom', auto=pu_distribution)
+                self.pu_lookup_up = pu_lookup(
+                    self.parameters, 'up', auto=pu_distribution)
+                self.pu_lookup_down = pu_lookup(
+                    self.parameters, 'down', auto=pu_distribution)
+            pu_weight = pu_evaluator(
+                self.pu_lookup, numevents, df.Pileup.nTrueInt)
+            pu_weight_up = pu_evaluator(
+                self.pu_lookup_up, numevents, df.Pileup.nTrueInt)
+            pu_weight_down = pu_evaluator(
+                self.pu_lookup_down, numevents, df.Pileup.nTrueInt)
+            weights.add_weight_with_variations(
+                'pu_wgt', pu_weight, pu_weight_up, pu_weight_down)
             
             weights.add_weight('lumi', self.lumi_weights[dataset])
 
             if self.parameters["do_l1prefiring_wgts"]:
-                weights.add_weight_with_variations('l1prefiring_wgt',\
-                                                   df.L1PreFiringWeight.Nom.flatten(),\
-                                                   df.L1PreFiringWeight.Up.flatten(),\
-                                                   df.L1PreFiringWeight.Dn.flatten())
+                weights.add_weight_with_variations(
+                    'l1prefiring_wgt',
+                    df.L1PreFiringWeight.Nom.flatten(),
+                    df.L1PreFiringWeight.Up.flatten(),
+                    df.L1PreFiringWeight.Dn.flatten())
                 
         else:
             lumi_info = LumiMask(self.parameters['lumimask'])
-            mask = lumi_info(df.run.flatten(), df.luminosityBlock.flatten())
+            mask = lumi_info(
+                df.run.flatten(), df.luminosityBlock.flatten())
 
         hlt = np.zeros(df.shape[0], dtype=bool)
         for hlt_path in self.parameters['hlt']:
@@ -304,35 +325,43 @@ class DimuonProcessor(processor.ProcessorABC):
             self.timer.add_checkpoint("Applied HLT and lumimask")
             
 
-        #---------------------------------------------------------------#        
-        # Update muon kinematics with Rochester correction, FSR recovery and GeoFit correction
+        # --------------------------------------------------------------#        
+        # Update muon kinematics with Rochester correction,
+        # FSR recovery and GeoFit correction
         # Raw pT and eta are stored to be used in event selection
-        #---------------------------------------------------------------# 
+        # --------------------------------------------------------------# 
 
         df.Muon['pt_raw'] = df.Muon.pt
         df.Muon['eta_raw'] = df.Muon.eta
         df.Muon['phi_raw'] = df.Muon.phi
         df.Muon['pfRelIso04_all_raw'] = df.Muon.pfRelIso04_all
 
-        roch_corr, roch_err = roccor_evaluator(self.roccor_lookup, is_mc, df.Muon)        
+        roch_corr, roch_err = roccor_evaluator(
+            self.roccor_lookup, is_mc, df.Muon)        
         df.Muon['pt'] = df.Muon.pt*roch_corr
 
         if self.timer:
             self.timer.add_checkpoint("Rochester correction")
 
-#        df.Muon['pt_scale_up'] = df.Muon.pt+df.Muon.pt*roch_err
-#        df.Muon['pt_scale_down'] = df.Muon.pt-df.Muon.pt*roch_err
-        muons_pts = {'nominal': df.Muon.pt}#, 'scale_up':df.Muon.pt_scale_up, 'scale_down':df.Muon.pt_scale_down}
+        # df.Muon['pt_scale_up'] = df.Muon.pt+df.Muon.pt*roch_err
+        # df.Muon['pt_scale_down'] = df.Muon.pt-df.Muon.pt*roch_err
+        muons_pts = {'nominal': df.Muon.pt}  
+        # , 'scale_up':df.Muon.pt_scale_up,
+        # 'scale_down':df.Muon.pt_scale_down}
     
-        if True: # reserved for loop over muon pT variations
-#        for
-            fsr_offsets = awkward.JaggedArray.counts2offsets(df.FsrPhoton.counts)
-            muons_offsets = awkward.JaggedArray.counts2offsets(df.Muon.counts)
+        if True:  # reserved for loop over muon pT variations
+        # for
+            fsr_offsets = awkward.JaggedArray.counts2offsets(
+                df.FsrPhoton.counts)
+            muons_offsets = awkward.JaggedArray.counts2offsets(
+                df.Muon.counts)
             fsr_pt = np.array(df.FsrPhoton.pt.flatten(), dtype=float)
             fsr_eta = np.array(df.FsrPhoton.eta.flatten(), dtype=float)
             fsr_phi = np.array(df.FsrPhoton.phi.flatten(), dtype=float)
-            fsr_iso = np.array(df.FsrPhoton.relIso03.flatten(), dtype=float)
-            fsr_drEt2 = np.array(df.FsrPhoton.dROverEt2.flatten(), dtype=float)
+            fsr_iso = np.array(
+                df.FsrPhoton.relIso03.flatten(), dtype=float)
+            fsr_drEt2 = np.array(
+                df.FsrPhoton.dROverEt2.flatten(), dtype=float)
             has_fsr = np.zeros(len(df.Muon.pt.flatten()), dtype=bool)
             pt_fsr, eta_fsr, phi_fsr, mass_fsr, iso_fsr, has_fsr =\
             fsr_evaluator(muons_offsets, fsr_offsets,\
