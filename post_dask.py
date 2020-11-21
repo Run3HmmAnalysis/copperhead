@@ -1,16 +1,15 @@
-import time
 import dask
-from dask.distributed import Client
-from functools import partial
 
-from python.postprocessor_dask import *
+from python.timer import Timer
+from python.postprocessor_dask import workflow
 
-use_local_cluster = True # is False, will use Slurm cluster (requires manual setup of the cluster)
+use_local_cluster = True 
+# is False, will use Slurm cluster (requires manual setup of the cluster)
 
-ncpus_local = 16 # number of cores to use. Each one will start with 4GB
+ncpus_local = 16  # number of cores to use. Each one will start with 4GB
 
 # only if Slurm cluster is used:
-slurm_cluster_ip = '' #'128.211.149.133:34003'
+slurm_cluster_ip = ''  # '128.211.149.133:34003'
 
 
 # if Local cluster is used:
@@ -18,44 +17,57 @@ dashboard_address = '128.211.149.133:34875'
 if not use_local_cluster:
     dashboard_address = '128.211.149.133:8787'
 # How to open the dashboard:
-# Dashboard IP should be the same as the node from which the code is running. In my case it's hammer-c000.
+# Dashboard IP should be the same as the node 
+# from which the code is running. In my case it's hammer-c000.
 # Port can be anything, you can use default :8787
 # 1. Open remote desktop on Hammer (ThinLinc)
 # 2. Launch terminal
-# 3. Log it to the node from which you are running the processing, e.g. [ssh -Y hammer-c000]
+# 3. Log it to the node from which you are running the processing,
+# e.g. [ssh -Y hammer-c000]
 # 4. Launch Firefox [firefox]
 # 5. Type in Firefox the address: <dashboard_address>/status
-# 6. Refresh few times once you started running plot_dask.py, the plots will appear
-
-
+# 6. Refresh few times once you started running plot_dask.py,
+# the plots will appear
 
 parameters = {
-    'slurm_cluster_ip':slurm_cluster_ip,
+    'slurm_cluster_ip': slurm_cluster_ip,
     'ncpus': ncpus_local,
     'label': 'test',
     'path': '/depot/cms/hmm/coffea/',
     'models_path': '/depot/cms/hmm/trained_models/',
-    'dnn_models':['dnn_allyears_128_64_32'],
-    'bdt_models':['bdt_nest10000_weightCorrAndShuffle_2Aug'],
+    'dnn_models': ['dnn_allyears_128_64_32'],
+    'bdt_models': ['bdt_nest10000_weightCorrAndShuffle_2Aug'],
     'do_massscan': False,
     'years': ['2016'],
-    'syst_variations':['nominal'],
-#    'syst_variations':['nominal', f'Absolute2016_up'],
-    'categories': ['vbf','vbf_01j','vbf_2j'],
-    #'categories': ['ggh_01j', 'ggh_2j'],
+    'syst_variations': ['nominal'],
+    # 'syst_variations':['nominal', f'Absolute2016_up'],
+    'categories': ['vbf', 'vbf_01j', 'vbf_2j'],
+    # 'categories': ['ggh_01j', 'ggh_2j'],
     'regions': ['h-peak', 'h-sidebands']
 }
 
 mva_bins = {
-    'dnn_allyears_128_64_32':{
-        '2016': [0, 0.16, 0.374, 0.569, 0.75, 0.918, 1.079, 1.23, 1.373, 1.514, 1.651, 1.784, 1.923, 2.8],
-        '2017': [0, 0.307, 0.604, 0.832, 1.014, 1.169, 1.31, 1.44, 1.567, 1.686, 1.795, 1.902, 2.009, 2.8],
-        '2018': [0, 0.07, 0.432, 0.71, 0.926, 1.114, 1.28, 1.428, 1.564, 1.686, 1.798, 1.9, 2.0, 2.8]
+    'dnn_allyears_128_64_32': {
+        '2016': [0, 0.16, 0.374, 0.569, 0.75,
+                 0.918, 1.079, 1.23, 1.373, 1.514,
+                 1.651, 1.784, 1.923, 2.8],
+        '2017': [0, 0.307, 0.604, 0.832, 1.014,
+                 1.169, 1.31, 1.44, 1.567, 1.686,
+                 1.795, 1.902, 2.009, 2.8],
+        '2018': [0, 0.07, 0.432, 0.71, 0.926,
+                 1.114, 1.28, 1.428, 1.564, 1.686,
+                 1.798, 1.9, 2.0, 2.8]
     },
     'bdt_nest10000_weightCorrAndShuffle_2Aug':{
-        '2016':[0, 0.282, 0.57, 0.802, 0.999, 1.171, 1.328, 1.479, 1.624, 1.775, 1.93, 2.097, 2.288, 5.0],
-        '2017':[0, 0.411, 0.744, 0.99, 1.185, 1.352, 1.504, 1.642, 1.784, 1.924, 2.07, 2.222, 2.398, 5.0],
-        '2018':[0, 0.129, 0.621, 0.948, 1.189, 1.388, 1.558, 1.717, 1.866, 2.01, 2.152, 2.294, 2.451, 5.0]
+        '2016': [0, 0.282, 0.57, 0.802, 0.999,
+                 1.171, 1.328, 1.479, 1.624, 1.775,
+                 1.93, 2.097, 2.288, 5.0],
+        '2017': [0, 0.411, 0.744, 0.99, 1.185,
+                 1.352, 1.504, 1.642, 1.784, 1.924,
+                 2.07, 2.222, 2.398, 5.0],
+        '2018': [0, 0.129, 0.621, 0.948, 1.189,
+                1.388, 1.558, 1.717, 1.866, 2.01,
+                2.152, 2.294, 2.451, 5.0]
     },
 }
 
@@ -65,29 +77,37 @@ if __name__ == "__main__":
     timer = Timer(ordered=True)
 
     if use_local_cluster:
-        print(f"Creating local cluster with {ncpus_local} workers. Dashboard address: {dashboard_address}")
-        client = dask.distributed.Client(processes=True, dashboard_address=dashboard_address, n_workers=ncpus_local, threads_per_worker=1, memory_limit='4GB')
+        print(f"Creating local cluster with {ncpus_local} workers."\
+              f" Dashboard address: {dashboard_address}")
+        client = dask.distributed.Client(
+                    processes=True,
+                    dashboard_address=dashboard_address,
+                    n_workers=ncpus_local,
+                    threads_per_worker=1,
+                    memory_limit='4GB')
     else:
-        print(f"Creating Slurm cluster at {slurm_cluster_ip}. Dashboard address: {dashboard_address}")
+        print(f"Creating Slurm cluster at {slurm_cluster_ip}."\
+              f"Dashboard address: {dashboard_address}")
         client = dask.distributed.Client(parameters['slurm_cluster_ip'])
-        
+
     samples = [
-#        'ggh_amcPS',
-#        'vbf_powhegPS',
-#        'vbf_powheg_herwig',
+        # 'ggh_amcPS',
+        # 'vbf_powhegPS',
+        # 'vbf_powheg_herwig',
         'vbf_powheg_dipole'
-#         'dy_m105_160_amc'
+        # 'dy_m105_160_amc'
               ]
 
     parameters['hist_vars'] = ['dimuon_mass']
-#    parameters['hist_vars'] += ['score_'+m for m in parameters['dnn_models']]
-#    parameters['hist_vars'] += ['score_'+m for m in parameters['bdt_models']]
-    
+    # parameters['hist_vars'] += ['score_'+m for m in parameters['dnn_models']]
+    # parameters['hist_vars'] += ['score_'+m for m in parameters['bdt_models']]
+
     paths = []
-    for y in parameters['years']:    
+    for y in parameters['years']:
         for s in samples:
-            paths.append(f"{parameters['path']}/{y}_{parameters['label']}/nominal/{s}/")
-    
+            paths.append(f"{parameters['path']}/"\
+                         f"{y}_{parameters['label']}/"\
+                         f"nominal/{s}/")
     
     df, hists = workflow(client, paths, parameters, timer)
 
