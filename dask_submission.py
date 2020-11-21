@@ -46,7 +46,7 @@ use_dask_outer = True
 # Recommended: set to True unless you don't use Dask at all
 use_dask_inner = True
 
-# limitation to prevent a situation where 
+# limitation to prevent a situation where
 # too many workers are blocked by outer tasks
 max_outer_workers = 8
 
@@ -232,7 +232,7 @@ if __name__ == "__main__":
 
         workers = list(client.scheduler_info()['workers'])
         if len(workers) < parameters['max_outer_workers']:
-            print("Not enough workers to run everything in parallel."\
+            print("Not enough workers to run everything in parallel."
                   " Aborting...")
             sys.exit()
 

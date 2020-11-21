@@ -1,7 +1,7 @@
 import time
 import os,sys,glob
 import argparse
-from python.postprocessing import postprocess, plot, save_yields, load_yields, save_shapes, make_datacards, prepare_root_files
+from python.postprocessing import postprocess, plot, save_yields, load_yields, save_shapes, make_datacards, prepare_root_files, overlap_study_unbinned
 from config.variables import variables, Variable
 from config.datasets import datasets
 import pandas as pd
@@ -14,17 +14,20 @@ parser.add_argument("-bdt", "--bdt", action='store_true')
 parser.add_argument("-dc", "--datacards", action='store_true')
 parser.add_argument("-js", "--jetsyst", action='store_true')
 parser.add_argument("-i", "--iterative", action='store_true')
+parser.add_argument("-o", "--overlap", action='store_true')
+
 args = parser.parse_args()
 
-if int(args.dnn)+int(args.bdt)+int(args.datacards)==0:
+if int(args.dnn)+int(args.bdt)+int(args.datacards)+int(args.overlap)==0:
     print("Please specify option(s) to run:")
     print("-t --dnn_training")
     print("-dnn --dnn")
     print("-bdt --bdt")
     print("-dc --datacards")
+    print("-o --overlap")
     sys.exit()
 
-if (args.year==''):
+if (args.year=='') and not args.overlap:
     print("Year must be specified!")
     sys.exit()
 
@@ -46,21 +49,25 @@ dnn_models = [
 ]
 #bdt_models = []
 bdt_models = [
-    'bdt_nest10000_weightCorrAndShuffle_2Aug',
+#    'bdt_nest10000_weightCorrAndShuffle_2Aug',
 ]
 
 vars_to_save = []
 vars_to_plot = {}
 
 models = []
-if args.dnn:
-    models += dnn_models
+
+if args.dnn or args.bdt:
+    if args.dnn:
+        models += dnn_models
+    else:
+        dnn_models = []
+    if args.bdt:
+        models += bdt_models
+    else:
+        bdt_models = []
 else:
-    dnn_models = []
-if args.bdt:
-    models += bdt_models
-else:
-    bdt_models = []
+    models = dnn_models+bdt_models
 
 for model in models:
     name = f'score_{model}'
@@ -68,6 +75,21 @@ for model in models:
     vars_to_save.append(vars_to_plot[name])
 
 samples = [
+    'data_A',
+    'data_B',
+    'data_C',
+    'data_D',
+    'data_E',
+    'data_F',
+    'data_G',
+    'data_H',
+#    'ggh_amcPS',
+#    'vbf_powhegPS',
+#    'vbf_powheg_herwig',
+    'vbf_powheg_dipole'
+]
+
+samples_ = [
     'data_A',
     'data_B',
     'data_C',
@@ -112,7 +134,7 @@ for ptvar in pt_variations:
         all_pt_variations += [f'{ptvar}_up']
         all_pt_variations += [f'{ptvar}_down'] 
 
-if (not args.jetsyst):
+if (not args.jetsyst) or args.overlap:
     all_pt_variations = ['nominal']
 
 # keeping correct order just for debug output
@@ -139,7 +161,10 @@ if args.bdt:
 if args.datacards:
     options += ['datacards']
     if not (args.dnn or args.bdt): load_unbinned_data = False
-
+if args.overlap:
+    modules = add_modules(modules,['to_pandas', 'evaluation'])
+    options += ['dnn_overlap'] 
+        
 postproc_args = {
     'modules': modules,
     'year': args.year,
@@ -170,7 +195,7 @@ tstart = time.time()
 mass_points = [120.0, 120.5, 121.0, 121.5, 122.0, 122.5, 123.0, 123.5, 124.0, 124.5,
                125.0, 125.1, 125.2, 125.3, 125.38, 125.4, 125.5, 125.6, 125.7, 125.8, 125.9, 
                126.0, 126.5, 127.0, 127.5, 128.0, 128.5, 129.0, 129.5, 130.0]
-#mass_points = [125.0]
+mass_points = [125.0]#, 125.38, 125.5, 126.0]
 
 num_options = len(mass_points)*len(all_pt_variations)
 iopt = 0
@@ -188,6 +213,14 @@ for m in mass_points:
             print(f"Getting unbinned data...")
             dfs, hist_dfs, edges = postprocess(postproc_args, not args.iterative)
 
+            if args.overlap:
+                print("Studying overlap with Pisa...")
+                df = pd.concat(dfs)
+                for model in models:
+                    #overlap_study(df, postproc_args, model)
+                    overlap_study_unbinned(df, postproc_args, model)
+                continue
+            
             for var, hists in hist_dfs.items():
                 print(f"Concatenating histograms: {var}")
                 if var not in hist.keys():
@@ -203,9 +236,11 @@ for m in mass_points:
     if args.datacards:
         for myvar in vars_to_save:
             print(f"Preparing ROOT files with shapes ({myvar.name})...")    
-            prepare_root_files(myvar, postproc_args)
+            prepare_root_files(myvar, postproc_args, shift_signal=False)
+            prepare_root_files(myvar, postproc_args, shift_signal=True)
             print(f"Writing datacards...")
-            make_datacards(myvar, postproc_args)
+            make_datacards(myvar, postproc_args, shift_signal=False)
+            make_datacards(myvar, postproc_args, shift_signal=True)
 
 elapsed = time.time() - tstart
 print(f"Total time: {elapsed} s")
