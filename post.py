@@ -26,8 +26,9 @@ parser.add_argument("-js", "--jetsyst", action='store_true')
 parser.add_argument("-i", "--iterative", action='store_true')
 args = parser.parse_args()
 
-if int(args.dnn_training)+int(args.rebin)+int(args.dnn)+int(args.bdt)+\
-int(args.datacards)+int(args.plot)+int(args.overlap)+int(args.roc) == 0:
+if int(args.dnn_training) + int(args.rebin) +\
+    int(args.dnn) + int(args.bdt) + int(args.datacards) +\
+    int(args.plot) + int(args.overlap) + int(args.roc) == 0:
     print("Please specify option(s) to run:")
     print("-t --dnn_training")
     print("-r --rebin")
@@ -39,7 +40,7 @@ int(args.datacards)+int(args.plot)+int(args.overlap)+int(args.roc) == 0:
     print("-roc --roc")
     sys.exit()
 
-if (args.year=='') and not args.dnn_training and\
+if (args.year == '') and not args.dnn_training and\
         not args.roc and not args.overlap:
     print("Year must be specified!"
           " Merging data from different years is only "
@@ -47,7 +48,7 @@ if (args.year=='') and not args.dnn_training and\
     sys.exit()
 
 if args.dnn_training and\
-        (args.dnn or args.bdt or\
+        (args.dnn or args.bdt or
          args.datacards or args.plot or args.overlap):
     print("Can't combine 'training' option with"
           " 'evaluation','datacards' or 'plot'!")
@@ -57,34 +58,34 @@ if args.rebin and (args.datacards or args.plot or args.overlap):
     print("Can't combine 'rebin' option with 'datacards' or 'plot'!")
     sys.exit()
 
-if (args.dnn or args.bdt) and (args.dnn_training ):
+if (args.dnn or args.bdt) and (args.dnn_training):
     print("Can't combine 'evaluation' option with"
           " 'training' or 'overlap'!")
     sys.exit()
 
 if args.datacards and\
-        (args.dnn_training or args.rebin or\
+        (args.dnn_training or args.rebin or
          args.plot or args.overlap):
     print("Can't combine 'datacards' option with 'training',"
           " 'rebin' or 'plot'!")
     sys.exit()
 
 if args.plot and\
-        (args.dnn_training or args.rebin or\
+        (args.dnn_training or args.rebin or
          args.datacards or args.overlap):
     print("Can't combine 'datacards' option with 'training',"
           "'rebin' or 'datacards'!")
     sys.exit()
 
 if args.overlap and\
-    (args.dnn or args.bdt or\
-     args.dnn_training or args.rebin or\
+    (args.dnn or args.bdt or
+     args.dnn_training or args.rebin or
      args.datacards or args.plot or args.roc):
     print("Can't combine overlap study with other options!")
     sys.exit()
 
 if args.roc and\
-    (args.dnn_training or args.rebin or\
+    (args.dnn_training or args.rebin or
      args.datacards or args.plot or args.overlap):
     print("Can't combine ROC plotting with other options"
           "(will add support of that later)!")
@@ -113,9 +114,9 @@ mva_bins = {
         '2016': [],
         '2017': [0, 0.324, 0.627, 0.86, 1.047,
                  1.206, 1.352, 1.489, 1.628, 1.758,
-                 1.868, 1.956, 2.039,2.3],
+                 1.868, 1.956, 2.039, 2.3],
         '2018': []
-    },   
+    },
     'dnn_nominal_allyears_4layers': {
         '2016': [0, 0.168, 0.391, 0.588, 0.765,
                  0.929, 1.079, 1.224, 1.372, 1.537,
@@ -131,7 +132,7 @@ mva_bins = {
         '2016': [],
         '2017': [0, 0.313, 0.608, 0.836, 1.021,
                  1.181, 1.327, 1.46, 1.589, 1.705,
-                 1.807, 1.9, 1.996,2.3],
+                 1.807, 1.9, 1.996, 2.3],
         '2018': []
     },
     'dnn_allyears_64_128_128_64': {
@@ -184,7 +185,7 @@ mva_bins = {
         '2018': [0, 0.129, 0.622, 0.948, 1.191,
                  1.388, 1.56, 1.72, 1.869, 2.013,
                  2.156, 2.298, 2.457, 5.0]
-    },    
+    },
     'bdt_nest10000_weightCorrAndShuffle_2Aug': {
         '2016': [0, 0.282, 0.57, 0.802, 0.999,
                  1.171, 1.328, 1.479, 1.624, 1.775,
@@ -224,10 +225,10 @@ dnn_models = [
     # 'dnn_allyears_32_16_8',
     # 'dnn_allyears_100_50_25',
     # 'dnn_allyears_64_16_4',
-    # 'dnn_allyears_64_48_32',    
-    'dnn_allyears_128_64_32', # best DNN so far
-    # 'dnn_allyears_128_64_32_test', 
-    # 'dnn_allyears_200_100_50',    
+    # 'dnn_allyears_64_48_32',
+    'dnn_allyears_128_64_32',  # best DNN so far
+    # 'dnn_allyears_128_64_32_test',
+    # 'dnn_allyears_200_100_50',
     # 'dnn_nominal_allyears_4layers',
     # 'dnn_nominal_allyears_5layers',
     # 'dnn_nominal_allyears_6layers',
@@ -246,10 +247,10 @@ bdt_models = [
 ]
 
 to_plot_ = [
-    'dimuon_mass', 
+    'dimuon_mass',
     'dimuon_mass_res',
     'dimuon_pt', 'dimuon_eta', 'dimuon_phi',
-    'dimuon_cos_theta_cs','dimuon_phi_cs',
+    'dimuon_cos_theta_cs', 'dimuon_phi_cs',
     'mu1_pt', 'mu1_eta', 'mu1_phi',
     'mu2_pt', 'mu2_eta', 'mu2_phi',
     'jet1_pt', 'jet1_eta', 'jet1_phi', 'jet1_qgl',
@@ -384,6 +385,7 @@ if (not args.jetsyst) or args.dnn_training\
                       or args.roc:
     all_pt_variations = ['nominal']
 
+
 # keeping correct order just for debug output
 def add_modules(modules, new_modules):
     for m in new_modules:
@@ -401,7 +403,8 @@ if args.dnn_training:
     options += ['dnn_training']
 if args.rebin:
     modules = add_modules(modules, ['to_pandas', 'evaluation'])
-    if not args.dnn_training: samples = ['vbf_powheg_dipole', 'ggh_amcPS']
+    if not args.dnn_training:
+        samples = ['vbf_powheg_dipole', 'ggh_amcPS']
     options += ['rebin']
 if args.overlap:
     modules = add_modules(modules, ['to_pandas', 'evaluation'])
@@ -410,7 +413,7 @@ if args.overlap:
 if args.roc:
     modules = add_modules(modules, ['to_pandas', 'evaluation'])
     samples = samples_for_roc
-    options += ['dnn_roc']  
+    options += ['dnn_roc']
 if args.dnn:
     if len(dnn_models) == 0:
         print("List of DNN models is empty!")
@@ -425,7 +428,8 @@ if args.bdt:
     options += ['evaluation']
 if args.datacards:
     options += ['datacards']
-    if not (args.dnn or args.bdt): load_unbinned_data = False
+    if not (args.dnn or args.bdt):
+        load_unbinned_data = False
 if args.plot:
     modules = add_modules(modules, ['to_pandas',  'get_hists'])
     options += ['plot']
@@ -434,7 +438,7 @@ postproc_args = {
     'modules': modules,
     'year': args.year,
     'label': args.label,
-    'in_path': f'/depot/cms/hmm/coffea/',
+    'in_path': '/depot/cms/hmm/coffea/',
     'dnn_models': dnn_models,
     'bdt_models': bdt_models,
     'syst_variations': all_pt_variations,
@@ -442,7 +446,7 @@ postproc_args = {
     'samples': samples,
     'training_samples': training_samples,
     'channels': ['vbf', 'vbf_01j', 'vbf_2j'],
-    'channel_groups': {'vbf':['vbf', 'vbf_01j', 'vbf_2j']},
+    'channel_groups': {'vbf': ['vbf', 'vbf_01j', 'vbf_2j']},
     'regions': ['h-peak', 'h-sidebands'],
     'vars_to_plot': list(vars_to_plot.values()),
     'wgt_variations': True,
