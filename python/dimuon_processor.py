@@ -195,6 +195,7 @@ class DimuonProcessor(processor.ProcessorABC):
         #---------------------------------------------------------------#            
         
         numevents = df.shape[0]
+        print(f'Number of events loaded: {numevents}')
         weights = Weights(df)
 
         nTrueInt = df.Pileup.nTrueInt.flatten() if is_mc else np.zeros(numevents, dtype=bool)
@@ -225,7 +226,7 @@ class DimuonProcessor(processor.ProcessorABC):
             pu_weight_down = pu_evaluator(self.pu_lookup_down, numevents, df.Pileup.nTrueInt)
             weights.add_weight_with_variations('pu_wgt', pu_weight, pu_weight_up, pu_weight_down)
             
-            weights.add_weight('lumi', self.lumi_weights)
+            weights.add_weight('lumi', self.lumi_weights[dataset])
 
             if self.parameters["do_l1prefiring_wgts"]:
                 weights.add_weight_with_variations('l1prefiring_wgt',\
@@ -295,7 +296,8 @@ class DimuonProcessor(processor.ProcessorABC):
                 self.timer.add_checkpoint("FSR recovery")
 
             # GeoFit correction
-            if 'dxybs' in df.Muon.columns:
+            if False:#'dxybs' in df.Muon.columns:
+                
                 muons_dxybs = df.Muon.dxybs.flatten()
                 muons_charge = df.Muon.charge.flatten()
                 muons_pt_gf = geofit_evaluator(df.Muon.pt.flatten(), df.Muon.eta.flatten(), muons_dxybs,\
@@ -507,6 +509,7 @@ class DimuonProcessor(processor.ProcessorABC):
         # Apply JEC, get JEC variations
         #---------------------------------------------------------------#
     
+        #self.do_jec = True
         self.do_jec = False
         if ('data' in dataset) and ('2018' in self.year):
             self.do_jec = True
@@ -514,6 +517,16 @@ class DimuonProcessor(processor.ProcessorABC):
         
         if self.do_jec or self.do_jecunc: 
             if is_mc:
+                if self.do_jec:
+                    jets = JaggedCandidateArray.candidatesfromcounts(df.Jet.counts,\
+                                               **{c:df.Jet[c].flatten() for c in df.Jet.columns if 'matched' not in c})
+                    if self.timer:
+                        self.timer.add_checkpoint("Converted jets to JCA")
+                    self.Jet_transformer.transform(jets, forceStochastic=False)
+                    df.Jet['pt'] = jets.pt
+                    df.Jet['eta'] = jets.eta
+                    df.Jet['phi'] = jets.phi
+                    df.Jet['mass'] = jets.mass
                 if self.do_jecunc:
                     for junc_name in self.jet_unc_names:
                         if junc_name not in self.parameters["jec_unc_to_consider"]: continue
@@ -534,13 +547,18 @@ class DimuonProcessor(processor.ProcessorABC):
                 if self.do_jec:
                     for run in self.data_runs: # 'A', 'B', 'C', 'D', etc...
                         if run in dataset: # dataset name is something like 'data_B'
-                            jets = JaggedCandidateArray.candidatesfromcounts(df.Jet.counts, **{c:df.Jet[c].flatten() for c in df.Jet.columns})
+                            jets = JaggedCandidateArray.candidatesfromcounts(df.Jet.counts, **{c:df.Jet[c].flatten() for c in df.Jet.columns if 'matched' not in c})
+                            if self.timer:
+                                self.timer.add_checkpoint("Converted jets to JCA")
+
+
                             self.Jet_transformer_data[run].transform(jets, forceStochastic=False)
                             df.Jet['pt'] = jets.pt
                             df.Jet['eta'] = jets.eta
                             df.Jet['phi'] = jets.phi
                             df.Jet['mass'] = jets.mass
-
+            if self.timer:
+                self.timer.add_checkpoint("Applied JEC")
         if is_mc and self.do_jerunc:
 #            for c in df.Jet.columns:
 #                print(c, len(df.Jet[c].flatten())) 
@@ -583,7 +601,10 @@ class DimuonProcessor(processor.ProcessorABC):
                     jet_variation_names += [f"{jer_unc_name}_up"]
                 if (f"{jer_unc_name}_down" in self.pt_variations):
                     jet_variation_names += [f"{jer_unc_name}_down"]
-                            
+            if self.timer:
+                self.timer.add_checkpoint("Computed JER nuisances")
+
+               
         df.Jet['pt_nominal'] = df.Jet.pt
         df.Jet = df.Jet[df.Jet.pt.argsort()]
 

@@ -51,11 +51,12 @@ class SamplesInfo(object):
             self.lumi = 41530.
         elif '2018' in self.year:
             self.lumi = 59970.
-        print('year: ', self.year)  
-        print('Default lumi: ', self.lumi)  
+        #print('year: ', self.year)  
+        #print('Default lumi: ', self.lumi)  
 
         self.data_entries = 0
         self.sample = ''
+        self.samples = []
 
         self.fileset = {}
         self.metadata = {}
@@ -65,18 +66,19 @@ class SamplesInfo(object):
         #self.channels = ['ggh_01j', 'ggh_2j', 'vbf']
         self.channels = ['vbf','vbf_01j','vbf_2j']
 
-        self.lumi_weights = 1
+        self.lumi_weights = {}
 
 
-    def load(self, sample, use_dask):
+    def load(self, sample, use_dask, client=None):
         t0 = time.time()
         
         if 'data' in sample:
             self.is_mc = False
         
-        res = self.load_sample(sample, use_dask)
+        res = self.load_sample(sample, use_dask, client)
         
         self.sample = sample
+        self.samples = [sample]
         self.fileset = {sample: res['files']}
 
         self.metadata = res['metadata']
@@ -99,7 +101,7 @@ class SamplesInfo(object):
         dt=round(t1-t0, 2)
         print(f"Loading took {dt} s")
 
-    def load_sample(self, sample, use_dask=False):
+    def load_sample(self, sample, use_dask=False, client=None):
         if sample not in self.paths:
             print(f"Couldn't load {sample}! Skipping.")
             return {'sample': sample, 'metadata': {}, 'files': {}, 'data_entries': 0, 'is_missing': True}
@@ -123,19 +125,19 @@ class SamplesInfo(object):
             
         if use_dask:
             from dask.distributed import get_client
-            client = get_client()
+            if not client:
+                client = get_client()
             if 'data' in sample:
-                work = client.map(self.get_data, all_files, priority=100, resources={'processor': 1, 'reducer': 0})
+                work = client.map(self.get_data, all_files, priority=100)
             else:
-                work = client.map(self.get_mc, all_files, priority=100, resources={'processor': 1, 'reducer': 0})
+                work = client.map(self.get_mc, all_files, priority=100)
             for w in work:
                 ret = w.result()
                 if 'data' in sample:
                     data_entries += ret['data_entries']
                 else:
                     sumGenWgts += ret['sumGenWgts']
-                    nGenEvts += ret['nGenEvts']
-
+                    nGenEvts += ret['nGenEvts']            
         else:
             for f in all_files:
                 if 'data' in sample:
@@ -187,11 +189,10 @@ class SamplesInfo(object):
             else:
                 xsec = cross_sections[self.sample]
             if N>0:
-                self.lumi_weights = xsec*self.lumi / N
+                self.lumi_weights[self.sample] = xsec*self.lumi / N
             else:
-                self.lumi_weights = 0
-            print(f"{self.sample}: xsec={xsec}, N={N}, events={numevents}, lumi_wgt={self.lumi_weights}")
+                self.lumi_weights[self.sample] = 0
+            print(f"{self.sample}: events={numevents}")
             return numevents
         else:
-            self.lumi_weight = 1
             return self.data_entries
