@@ -1,9 +1,10 @@
-import os, sys
+import os
+import sys
 import copy
 
 import awkward, uproot
 import numpy as np
-#np.set_printoptions(threshold=sys.maxsize)
+# np.set_printoptions(threshold=sys.maxsize)
 import pandas as pd
 
 from coffea import hist, util
@@ -18,19 +19,23 @@ from python.utils import p4_sum, p4_sum_alt, delta_r, rapidity, cs_variables
 from python.timer import Timer
 from python.samples_info import SamplesInfo
 from python.weights import Weights
-from python.corrections import musf_lookup, musf_evaluator, pu_lookup, pu_evaluator, NNLOPS_Evaluator, roccor_evaluator, get_jec_unc
-from python.corrections import qgl_weights, puid_weights, btag_weights, geofit_evaluator, fsr_evaluator
+from python.corrections import musf_lookup, musf_evaluator, pu_lookup
+from python.corrections import pu_evaluator, NNLOPS_Evaluator
+from python.corrections import roccor_evaluator, get_jec_unc
+from python.corrections import qgl_weights, puid_weights, btag_weights
+from python.corrections import geofit_evaluator, fsr_evaluator
 from python.stxs_uncert import vbf_uncert_stage_1_1, stxs_lookups
 from python.mass_resolution import mass_resolution_purdue, mass_resolution_pisa
 
 from config.parameters import parameters
 from config.variables import variables, Variable
 
+
 class DimuonProcessor(processor.ProcessorABC):
     def __init__(self, samp_info, do_timer=False, save_unbin=True,
                  do_jecunc=False, do_jerunc=False, do_pdf=True,
                  do_btag_syst=True, auto_pu=True, debug=False,
-                 pt_variations=['nominal']): 
+                 pt_variations=['nominal']):
         if not samp_info:
             print("Samples info missing!")
             return
@@ -46,9 +51,9 @@ class DimuonProcessor(processor.ProcessorABC):
             k: v[self.year] for k, v in parameters.items()}
 
         self.timer = Timer('global') if do_timer else None
- 
+
         self._columns = self.parameters["proc_columns"]
-                        
+
         self.regions = self.samp_info.regions
         self.channels = self.samp_info.channels
 
@@ -67,9 +72,7 @@ class DimuonProcessor(processor.ProcessorABC):
 
         self.vars_to_save = set([v.name for v in variables])
 
-        # --------------------------------------- ###
-        
-        # Prepare lookups for corrections       
+        # Prepare lookups for corrections
         rochester_data = txt_converters.convert_rochester_file(
             self.parameters["roccor_file"], loaduncs=True)
         self.roccor_lookup = rochester_lookup.rochester_lookup(
@@ -78,40 +81,40 @@ class DimuonProcessor(processor.ProcessorABC):
         self.pu_lookup = pu_lookup(self.parameters)
         self.pu_lookup_up = pu_lookup(self.parameters, 'up')
         self.pu_lookup_down = pu_lookup(self.parameters, 'down')
-        
+
         self.btag_lookup = BTagScaleFactor(
             self.parameters["btag_sf_csv"],
             BTagScaleFactor.RESHAPE,
             'iterativefit,iterativefit,iterativefit')
         self.stxs_acc_lookups, self.powheg_xsec_lookup = stxs_lookups()
-        
+
         # Prepare evaluator for corrections that can be loaded together
         zpt_filename = self.parameters['zpt_weights_file']
         puid_filename = self.parameters['puid_sf_file']
         rescalib_files = []
-        
+
         self.extractor = extractor()
         self.extractor.add_weight_sets([f"* * {zpt_filename}"])
         self.extractor.add_weight_sets([f"* * {puid_filename}"])
         self.extractor.add_weight_sets(
             ["* * data/mass_res_pisa/muonresolution.root"])
-        
+
         for mode in ["Data", "MC"]:
             label = f"res_calib_{mode}_{self.year}"
-            path = self.parameters['res_calib_path']       
+            path = self.parameters['res_calib_path']
             file_path = f"{path}/{label}.root"
             self.extractor.add_weight_sets(
                 [f"{label} {label} {file_path}"])
-            
+
         self.extractor.finalize()
         self.evaluator = self.extractor.make_evaluator()
-        
+
         if '2016' in self.year:
             self.zpt_path = 'zpt_weights/2016_value'
         else:
             self.zpt_path = 'zpt_weights/2017_value'
         self.evaluator[self.zpt_path]._axes =\
-            self.evaluator[self.zpt_path]._axes[0]       
+            self.evaluator[self.zpt_path]._axes[0]
 
         # Prepare evaluators for JEC, JER and their systematics
         jetext = extractor()
@@ -122,16 +125,16 @@ class DimuonProcessor(processor.ProcessorABC):
             **{name: Jetevaluator[name] for name in
                self.parameters['jec_names']})
         JECuncertainties = JetCorrectionUncertainty(
-            **{name:Jetevaluator[name] for name in
+            **{name: Jetevaluator[name] for name in
                self.parameters['junc_names']})
         JER = JetResolution(
-            **{name:Jetevaluator[name] for name in
+            **{name: Jetevaluator[name] for name in
                self.parameters['jer_names']})
         JERsf = JetResolutionScaleFactor(
-            **{name:Jetevaluator[name] for name in
+            **{name: Jetevaluator[name] for name in
                self.parameters['jersf_names']})
         self.Jet_transformer_JER = JetTransformer(
-            jec=None, jer = JER, jersf = JERsf)
+            jec=None, jer=JER, jersf=JERsf)
         self.Jet_transformer = JetTransformer(
             jec=JECcorrector,junc=JECuncertainties)
         self.JECcorrector_Data = {}
@@ -162,9 +165,9 @@ class DimuonProcessor(processor.ProcessorABC):
             ptvar_ = ptvar.replace('_up','').replace('_down','')
             if ptvar_ in self.parameters["jec_unc_to_consider"]:
                 self.do_jecunc = True
-            if ptvar_ in ['jer1','jer2','jer3','jer4','jer5','jer6']:
+            jers = ['jer1', 'jer2', 'jer3', 'jer4', 'jer5', 'jer6']
+            if ptvar_ in jers:
                 self.do_jerunc = True
-
 
     @property
     def accumulator(self):
@@ -180,17 +183,17 @@ class DimuonProcessor(processor.ProcessorABC):
         # less than 2 muons.
         # ------------------------------------------------------------#
         if self.timer:
-            self.timer.update() 
+            self.timer.update()
 
         dataset = df.metadata['dataset']
 
         is_mc = 'data' not in dataset
 
-        #-------------------------------------------------------------#
+        # ------------------------------------------------------------#
         # Apply HLT, lumimask, genweights, PU weights 
         # and L1 prefiring weights
-        #-------------------------------------------------------------#
-        
+        # ------------------------------------------------------------#
+
         numevents = df.shape[0]
         weights = Weights(df)
 
@@ -205,16 +208,16 @@ class DimuonProcessor(processor.ProcessorABC):
         output['nTrueInt'] = nTrueInt
         output['met'] = df.MET.pt.flatten()
 
-        if is_mc:    
+        if is_mc:
             mask = np.ones(numevents, dtype=bool)
-            
+
             # --------------------------------------------------------#
-            # Apply gen.weights, pileup weights, lumi weights, 
+            # Apply gen.weights, pileup weights, lumi weights,
             # L1 prefiring weights
-            #---------------------------------------------------------#
+            # --------------------------------------------------------#
 
             genweight = df.genWeight.flatten()
-            weights.add_weight('genwgt', genweight)    
+            weights.add_weight('genwgt', genweight)
             if self.auto_pu:
                 pu_distribution = df.Pileup.nTrueInt
                 self.pu_lookup = pu_lookup(
@@ -253,11 +256,11 @@ class DimuonProcessor(processor.ProcessorABC):
         if self.timer:
             self.timer.add_checkpoint("Applied HLT and lumimask")
 
-        #-------------------------------------------------------------#
+        # ------------------------------------------------------------#
         # Update muon kinematics with Rochester correction,
         # FSR recovery and GeoFit correction
         # Raw pT and eta are stored to be used in event selection
-        #-------------------------------------------------------------#
+        # ------------------------------------------------------------#
 
         df.Muon['pt_raw'] = df.Muon.pt
         df.Muon['eta_raw'] = df.Muon.eta
@@ -265,7 +268,7 @@ class DimuonProcessor(processor.ProcessorABC):
         df.Muon['pfRelIso04_all_raw'] = df.Muon.pfRelIso04_all
 
         roch_corr, roch_err = roccor_evaluator(
-            self.roccor_lookup, is_mc, df.Muon)        
+            self.roccor_lookup, is_mc, df.Muon)
         df.Muon['pt'] = df.Muon.pt*roch_corr
 
         if self.timer:
@@ -274,9 +277,9 @@ class DimuonProcessor(processor.ProcessorABC):
         # df.Muon['pt_scale_up'] = df.Muon.pt+df.Muon.pt*roch_err
         # df.Muon['pt_scale_down'] = df.Muon.pt-df.Muon.pt*roch_err
         # muons_pts = {'nominal': df.Muon.pt}
-        # 'scale_up':df.Muon.pt_scale_up, 
+        # 'scale_up':df.Muon.pt_scale_up,
         # 'scale_down':df.Muon.pt_scale_down}
-    
+
         if True:  # reserved for loop over muon pT variations
             # for
             fsr_offsets = awkward.JaggedArray.counts2offsets(
@@ -295,9 +298,9 @@ class DimuonProcessor(processor.ProcessorABC):
                 fsr_evaluator(
                     muons_offsets, fsr_offsets,
                     np.array(df.Muon.pt.flatten(), dtype=float),
-                    np.array(df.Muon.eta.flatten(),dtype=float),
+                    np.array(df.Muon.eta.flatten(), dtype=float),
                     np.array(df.Muon.phi.flatten(), dtype=float),
-                    np.array(df.Muon.mass.flatten(),dtype=float),
+                    np.array(df.Muon.mass.flatten(), dtype=float),
                     np.array(
                         df.Muon.pfRelIso04_all.flatten(),
                         dtype=float),
@@ -305,7 +308,7 @@ class DimuonProcessor(processor.ProcessorABC):
                         df.Muon.fsrPhotonIdx.flatten(),
                         dtype=int),
                     fsr_pt, fsr_eta, fsr_phi,
-                    fsr_iso, fsr_drEt2, has_fsr) 
+                    fsr_iso, fsr_drEt2, has_fsr)
             df.Muon['pt'] = awkward.JaggedArray.fromcounts(
                 df.Muon.counts, pt_fsr)
             df.Muon['eta'] = awkward.JaggedArray.fromcounts(
@@ -339,12 +342,12 @@ class DimuonProcessor(processor.ProcessorABC):
             self.muons_all = df.Muon
             muons = df.Muon
 
-            #---------------------------------------------------------#
+            # --------------------------------------------------------#
             # Select muons that pass pT, eta, isolation cuts,
             # muon ID and quality flags
             # Select events with 2 OS muons, no electrons,
             # passing quality cuts and at least one good PV
-            #---------------------------------------------------------#
+            # --------------------------------------------------------#
 
             pass_event_flags = np.ones(numevents, dtype=bool)
             for flag in self.parameters["event_flags"]:
@@ -371,11 +374,11 @@ class DimuonProcessor(processor.ProcessorABC):
                 (self.muons_all.pfRelIso04_all <
                  self.parameters["muon_iso_cut"]) &
                  self.muons_all[
-                     self.parameters["muon_id"]].astype(np.bool)]
+                 self.parameters["muon_id"]].astype(np.bool)]
 
             two_os_muons = ((muons.counts == 2) &
                             (muons['charge'].prod() == -1))
-        
+
             electrons = df.Electron[
                 (df.Electron.pt > self.parameters["electron_pt_cut"]) &
                 (abs(df.Electron.eta) <
@@ -393,9 +396,9 @@ class DimuonProcessor(processor.ProcessorABC):
             if self.timer:
                 self.timer.add_checkpoint("Selected events and muons")
 
-            #---------------------------------------------------------#
+            # --------------------------------------------------------#
             # Initialize muon variables
-            #---------------------------------------------------------#
+            # --------------------------------------------------------#
 
             mu1 = muons[muons.pt.argmax()]
             mu2 = muons[muons.pt.argmin()]
@@ -408,9 +411,9 @@ class DimuonProcessor(processor.ProcessorABC):
                                      'dimuon_mass_res_rel',
                                      'dimuon_ebe_mass_res',
                                      'dimuon_ebe_mass_res_rel',
-                                     'dimuon_pt','dimuon_pt_log',
+                                     'dimuon_pt', 'dimuon_pt_log',
                                      'dimuon_eta', 'dimuon_phi',
-                                     'dimuon_dEta','dimuon_dPhi',
+                                     'dimuon_dEta', 'dimuon_dPhi',
                                      'dimuon_dR', 'dimuon_rap',
                                      'dimuon_cos_theta_cs',
                                      'dimuon_phi_cs']
@@ -418,11 +421,11 @@ class DimuonProcessor(processor.ProcessorABC):
             for n in (mu1_variable_names + mu2_variable_names +
                       dimuon_variable_names):
                 output[n] = 0.0
-        
-            #---------------------------------------------------------#
+
+            # --------------------------------------------------------#
             # Select events with muons passing leading pT cut
             # and trigger matching
-            #---------------------------------------------------------#
+            # --------------------------------------------------------#
 
             # Events where there is at least one muon passing
             # leading muon pT cut (redundant selection)
@@ -437,7 +440,7 @@ class DimuonProcessor(processor.ProcessorABC):
                                     (df.TrigObj.id == -13)]
 
             # Muons that pass tight id and iso as well as
-            # leading muon pT cut     
+            # leading muon pT cut
             mu_for_trigmatch = muons[(
                 muons.pt_raw > self.parameters["muon_leading_pt"])
                 # &(df.Muon.pfRelIso04_all <
@@ -447,7 +450,7 @@ class DimuonProcessor(processor.ProcessorABC):
 
             # For every such muon check if there is
             # a L3 object within dR<0.1
-            muTrig = mu_for_trigmatch.cross(df.TrigObj, nested = True)
+            muTrig = mu_for_trigmatch.cross(df.TrigObj, nested=True)
             _, _, dr = delta_r(
                 muTrig.i0.eta_raw, muTrig.i1.eta,
                 muTrig.i0.phi, muTrig.i1.phi)
@@ -463,10 +466,10 @@ class DimuonProcessor(processor.ProcessorABC):
 
             if self.timer:
                 self.timer.add_checkpoint("Applied trigger matching")
-        
-            #---------------------------------------------------------#
+
+            # --------------------------------------------------------#
             # Fill dimuon and muon variables
-            #---------------------------------------------------------#
+            # --------------------------------------------------------#
 
             two_muons = muons.counts == 2
 
@@ -504,7 +507,7 @@ class DimuonProcessor(processor.ProcessorABC):
                 output['dimuon_mass_res_rel'][two_muons] *\
                 output['dimuon_mass'][two_muons]
 
-            cos_theta_cs, phi_cs = cs_variables(mu1,mu2,two_muons)
+            cos_theta_cs, phi_cs = cs_variables(mu1, mu2, two_muons)
             output['dimuon_cos_theta_cs'][two_muons] =\
                 cos_theta_cs.flatten()
             output['dimuon_phi_cs'][two_muons] = phi_cs.flatten()
@@ -531,10 +534,10 @@ class DimuonProcessor(processor.ProcessorABC):
 
             if self.timer:
                 self.timer.add_checkpoint("Filled muon variables")
-        
-        #-------------------------------------------------------------#
+
+        # ------------------------------------------------------------#
         # Prepare jets
-        #-------------------------------------------------------------#
+        # ------------------------------------------------------------#
         df.Jet['ptRaw'] = df.Jet.pt * (1 - df.Jet.rawFactor)
         df.Jet['massRaw'] = df.Jet.mass * (1 - df.Jet.rawFactor)
         df.Jet['rho'] = df.fixedGridRhoFastjetAll
@@ -572,7 +575,7 @@ class DimuonProcessor(processor.ProcessorABC):
             df.Jet.counts, jet_matched_muon_id)
         if is_mc:
             gjj = df.Jet.cross(df.GenJet, nested=True)
-            _,_,deltar_gjj = delta_r(
+            _, _, deltar_gjj = delta_r(
                 gjj.i0.eta, gjj.i1.eta, gjj.i0.phi, gjj.i1.phi)
             matched_jets = gjj[
                 (deltar_gjj == deltar_gjj.min()) &
@@ -583,14 +586,14 @@ class DimuonProcessor(processor.ProcessorABC):
                 (matched_jets.flatten().counts > 0).astype(int),
                 matched_jets_flat)
             df.Jet['matched_genjet'] = awkward.JaggedArray.fromcounts(
-                matched_jets.counts,matched_jets_new)
+                matched_jets.counts, matched_jets_new)
 
         if self.timer:
             self.timer.add_checkpoint("Prepared jets")
 
-        #-------------------------------------------------------------#
+        # ------------------------------------------------------------#
         # Apply JEC, get JEC variations
-        #-------------------------------------------------------------#
+        # ------------------------------------------------------------#
 
         # self.do_jec = True
         self.do_jec = False
@@ -599,7 +602,7 @@ class DimuonProcessor(processor.ProcessorABC):
         jet_variation_names = ['nominal'] if\
             ('nominal' in self.pt_variations) else []
 
-        if self.do_jec or self.do_jecunc: 
+        if self.do_jec or self.do_jecunc:
             if is_mc:
                 if self.do_jec:
                     jets = JaggedCandidateArray.candidatesfromcounts(
@@ -641,13 +644,13 @@ class DimuonProcessor(processor.ProcessorABC):
                         if (f"{junc_name}_down" in self.pt_variations):
                             jet_variation_names +=\
                                 [f"{junc_name}_down"]
-                    
+
             else:
                 if not self.do_jec:
                     continue
                 for run in self.data_runs:
                     # 'A', 'B', 'C', 'D', etc...
-                    if run in dataset: 
+                    if run in dataset:
                         # dataset name is something like 'data_B'
                         jets =\
                             JaggedCandidateArray.candidatesfromcounts(
@@ -669,7 +672,7 @@ class DimuonProcessor(processor.ProcessorABC):
                 self.timer.add_checkpoint("Applied JEC")
         if is_mc and self.do_jerunc:
             # for c in df.Jet.columns:
-            #     print(c, len(df.Jet[c].flatten())) 
+            #     print(c, len(df.Jet[c].flatten()))
             jetarrays = {c: df.Jet[c].flatten() for c in
                          df.Jet.columns if 'matched' not in c}
             pt_gen_jet = df.Jet['matched_genjet'].pt.flatten(axis=0)
@@ -678,7 +681,7 @@ class DimuonProcessor(processor.ProcessorABC):
             pt_gen_jet[
                 df.Jet.matched_genjet.pt.flatten(
                     axis=0).counts > 0] =\
-                        df.Jet.matched_genjet.pt.flatten().flatten()
+                    df.Jet.matched_genjet.pt.flatten().flatten()
             pt_gen_jet[df.Jet.matched_genjet.pt.flatten(
                 axis=0).counts <= 0] = 0
             jetarrays['ptGenJet'] = pt_gen_jet
@@ -691,25 +694,27 @@ class DimuonProcessor(processor.ProcessorABC):
             jet_pt_gen = jets.ptGenJet
             jer_sf = (jet_pt_jec_jer - jet_pt_gen) / \
                      (jet_pt_jec - jet_pt_gen +
-                      (jet_pt_jec == jet_pt_gen) *
-                      (jet_pt_jec_jer - jet_pt_jec))
+                     (jet_pt_jec == jet_pt_gen) *
+                     (jet_pt_jec_jer - jet_pt_jec))
             jer_down_sf = (jets.pt_jer_down - jet_pt_gen) /\
                      (jet_pt_jec - jet_pt_gen +
-                      (jet_pt_jec == jet_pt_gen) * 10.)
+                     (jet_pt_jec == jet_pt_gen) * 10.)
             jet_pt_jer_down = jet_pt_gen + (jet_pt_jec - jet_pt_gen) *
-                      (jer_down_sf / jer_sf)
+                     (jer_down_sf / jer_sf)
             jer_categories = {
                 'jer1': (abs(jets.eta) < 1.93),
                 'jer2': (abs(jets.eta) > 1.93) & (abs(jets.eta) < 2.5),
-                'jer3': (abs(jets.eta) > 2.5) &
-                    (abs(jets.eta) < 3.139) & (jets.pt < 50),
-                'jer4': (abs(jets.eta) > 2.5) &
-                    (abs(jets.eta) < 3.139) & (jets.pt > 50),
+                'jer3': ((abs(jets.eta) > 2.5) &
+                         (abs(jets.eta) < 3.139) &
+                         (jets.pt < 50)),
+                'jer4': ((abs(jets.eta) > 2.5) &
+                         (abs(jets.eta) < 3.139) &
+                         (jets.pt > 50)),
                 'jer5': (abs(jets.eta) > 3.139) & (jets.pt < 50),
                 'jer6': (abs(jets.eta) > 3.139) & (jets.pt > 50),
             }
             for jer_unc_name, jer_cut in jer_categories.items():
-                jer_cut = jer_cut&(jets.ptGenJet>0)
+                jer_cut = jer_cut & (jets.ptGenJet > 0)
                 up_ = (f"{jer_unc_name}_up" not in self.pt_variations)
                 dn_ = (f"{jer_unc_name}_down" not in
                        self.pt_variations)
@@ -736,9 +741,9 @@ class DimuonProcessor(processor.ProcessorABC):
         if self.timer:
             self.timer.add_checkpoint("Applied JEC/JER (if enabled)")
 
-        #-------------------------------------------------------------#
+        # ------------------------------------------------------------#
         # Apply jetID
-        #-------------------------------------------------------------#
+        # ------------------------------------------------------------#
 
         if "loose" in self.parameters["jet_id"]:
             jet_id = (df.Jet.jetId >= 1)
@@ -752,11 +757,11 @@ class DimuonProcessor(processor.ProcessorABC):
 
         good_jet_id = jet_id & (df.Jet.qgl > -2)
 
-        df.Jet = df.Jet[good_jet_id]         
+        df.Jet = df.Jet[good_jet_id]
 
-        #-------------------------------------------------------------#
+        # ------------------------------------------------------------#
         # Calculate other event weights
-        #-------------------------------------------------------------#
+        # ------------------------------------------------------------#
 
         if is_mc:
             if ('ggh' in dataset):
@@ -778,13 +783,13 @@ class DimuonProcessor(processor.ProcessorABC):
                 weights.add_weight('zpt_wgt', zpt_weight)
 
             muID, muID_up, muID_down,\
-            muIso, muIso_up, muIso_down,\
-            muTrig, muTrig_up, muTrig_down = musf_evaluator(
-                self.musf_lookup, self.year, numevents, muons)
+                muIso, muIso_up, muIso_down,\
+                muTrig, muTrig_up, muTrig_down = musf_evaluator(
+                    self.musf_lookup, self.year, numevents, muons)
             weights.add_weight_with_variations(
                 'muID', muID, muID_up, muID_down)
             weights.add_weight_with_variations(
-                'muIso', muIso, muIso_up, muIso_down)           
+                'muIso', muIso, muIso_up, muIso_down)
             # weights.add_weight_with_variations(
             #     'muTrig', muTrig, muTrig_up, muTrig_down)
 
@@ -815,7 +820,7 @@ class DimuonProcessor(processor.ProcessorABC):
                             nLHEScaleWeight > 8][:, 1] * lhefactor
                     lhe_ren_down[nLHEScaleWeight > 30] =\
                         df.LHEScaleWeight[
-                            nLHEScaleWeight > 30][:, 5] * lhefactor  
+                            nLHEScaleWeight > 30][:, 5] * lhefactor
                     weights.add_only_variations(
                         'LHERen', lhe_ren_up, lhe_ren_down)
                     lhe_fac_up = np.full(
@@ -934,7 +939,7 @@ class DimuonProcessor(processor.ProcessorABC):
                     weights.add_only_variations(
                         "pdf_2rms",
                         (1 + 2 * pdf_wgts.std()),
-                        (1 - 2 * pdf_wgts.std()))           
+                        (1 - 2 * pdf_wgts.std()))
 
         #-------------------------------------------------------------#
         # Fill outputs
@@ -952,7 +957,7 @@ class DimuonProcessor(processor.ProcessorABC):
         for wgt in weights.df.columns:
             if ('up' not in wgt) and ('down' not in wgt):
                 continue
-            output[f'wgt_{wgt}'] = weights.get_weight(wgt) 
+            output[f'wgt_{wgt}'] = weights.get_weight(wgt)
 
         columns_to_save = [c for c in output.columns
                            if (c[0] in self.vars_to_save) or
@@ -967,7 +972,7 @@ class DimuonProcessor(processor.ProcessorABC):
         output = output[output.r.isin(self.regions)]
 
         if self.timer:
-            self.timer.add_checkpoint("Filled outputs")            
+            self.timer.add_checkpoint("Filled outputs")
             self.timer.summary()
         return output
 
@@ -1140,7 +1145,7 @@ class DimuonProcessor(processor.ProcessorABC):
         variables['jj_mass'][two_jets], _ = p4_sum(
             jet1[two_jets[one_jet]], jet2)
         variables['jj_mass_log'] = np.log(variables['jj_mass'])
-        
+
         variables['jj_dEta'][two_jets],\
         variables['jj_dPhi'][two_jets], _ = delta_r(
             variables['jet1_eta'][two_jets],
@@ -1154,7 +1159,7 @@ class DimuonProcessor(processor.ProcessorABC):
                          0.5 *
                          (variables['jet1_eta'][two_muons & two_jets] +
                           variables['jet2_eta'][two_muons & two_jets]))
-        
+
         variables['mmjj_pt'][two_muons & two_jets],\
         variables['mmjj_eta'][two_muons & two_jets],\
         variables['mmjj_phi'][two_muons & two_jets],\
@@ -1226,7 +1231,7 @@ class DimuonProcessor(processor.ProcessorABC):
             variables['htsoft2'] = self.get_softjet_vars(
                 df, df.SoftActivityJet, 2, muons, mu1, mu2,
                 jet1, jet2, two_muons, one_jet, two_jets)
-        
+
         variables['nsoftjets5'],\
             variables['htsoft5'] = self.get_softjet_vars(
                 df, df.SoftActivityJet, 5, muons, mu1, mu2,
@@ -1264,7 +1269,7 @@ class DimuonProcessor(processor.ProcessorABC):
                 weights.add_only_variations(
                     f'btag_wgt_{name}', up, down)
 
-        # Separate from ttH and VH phase space        
+        # Separate from ttH and VH phase space
         nBtagLoose = df.Jet[
             (df.Jet.btagDeepB > self.parameters["btag_loose_wp"]) &
             (abs(df.Jet.eta) < 2.5)].counts
@@ -1300,14 +1305,14 @@ class DimuonProcessor(processor.ProcessorABC):
 
         #---------------------------------------------------------------#
         # Fill outputs
-        #---------------------------------------------------------------# 
+        #---------------------------------------------------------------#
 
         variables.update({'njets': df.Jet.counts.flatten()})
         variables.update({'c': category, 'two_jets': two_jets})
         variables.update({'wgt_nominal': weights.get_weight('nominal')})
 
         # All variables are affected by jet pT because of jet selections:
-        # a jet may or may not be selected depending on pT variation, 
+        # a jet may or may not be selected depending on pT variation,
         # so even variables that don't directly depend on jet pT
         # (e.g. QGL) must be saved for all pT variations.
 
@@ -1383,16 +1388,16 @@ class DimuonProcessor(processor.ProcessorABC):
 
         nsoftjets[mask] = (
             df[f'SoftActivityJetNjets{cutoff}'][mask] -
-            (mumatch[mask] & (
-                df.SoftActivityJet.pt > cutoff)[mask]).sum()).flatten()
+            (mumatch[mask] &
+             (df.SoftActivityJet.pt > cutoff)[mask]).sum()).flatten()
         nsoftjets[mask1j] = (
-            df[f'SoftActivityJetNjets{cutoff}'][mask1j]-
-            ((mumatch[mask1j]|j1match[mask1j_]) & (
-                df.SoftActivityJet.pt > cutoff)[mask1j]).sum()).flatten()
+            df[f'SoftActivityJetNjets{cutoff}'][mask1j] -
+            ((mumatch[mask1j] | j1match[mask1j_]) &
+             (df.SoftActivityJet.pt > cutoff)[mask1j]).sum()).flatten()
         nsoftjets[mask2j] = (
             df[f'SoftActivityJetNjets{cutoff}'][mask2j] -
-            ((mumatch[mask2j] | j1match[mask2j__] | j2match[mask2j_]) & (
-                df.SoftActivityJet.pt>cutoff)[mask2j]).sum()).flatten()
+            ((mumatch[mask2j] | j1match[mask2j__] | j2match[mask2j_]) &
+             (df.SoftActivityJet.pt > cutoff)[mask2j]).sum()).flatten()
 
         saj_filter = (mumatch[mask2j] |
                       j1match[mask2j__] |
@@ -1402,7 +1407,7 @@ class DimuonProcessor(processor.ProcessorABC):
         if footprintSAJ.shape[0] > 0:
             htsoft[mask2j] = df[f'SoftActivityJetHT{cutoff}'][mask2j] -
                         (footprintSAJ.pt *
-                         (footprintSAJ.pt > cutoff)).sum()  
+                         (footprintSAJ.pt > cutoff)).sum()
         return nsoftjets, htsoft
 
     def postprocess(self, accumulator):
