@@ -24,6 +24,8 @@ sys.stderr = stderr
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 pd.options.mode.chained_assignment = None
 
+__all__ = ['keras']
+
 training_features_ = ['dimuon_mass', 'dimuon_pt', 'dimuon_eta',
                       'dimuon_dEta', 'dimuon_dPhi', 'dimuon_dR',
                       'jj_mass', 'jj_eta', 'jj_phi', 'jj_pt', 'jj_dEta',
@@ -236,7 +238,6 @@ def postprocess(args, parallelize=True):
         pool = mp.Pool(cpus)
         a = [pool.apply_async(worker, args=(argset,),
                               callback=update) for argset in argsets]
-        results = []
         for process in a:
             process.wait()
             df, hists, edges = process.get()
@@ -281,7 +282,7 @@ def to_pandas(args):
 
     # groups = ['DY_nofilter', 'DY_filter', 'EWK',
     #           'TT+ST', 'VV', 'ggH', 'VBF']
-    groups = ['DY', 'EWK', 'TT+ST', 'VV', 'ggH', 'VBF']
+    # groups = ['DY', 'EWK', 'TT+ST', 'VV', 'ggH', 'VBF']
     columns = [c.replace(suff, '') for c in
                list(proc_out.keys()) if suff in c]
     df = pd.DataFrame()
@@ -400,10 +401,9 @@ def prepare_features(df, args, add_year=False):
 
 def dnn_training(df, args, model):
     from tensorflow.keras.models import Model
-    from tensorflow.keras.layers import Dense, Activation, Input
-    from tensorflow.keras.layers import Dropout, Concatenate
-    from tensorflow.keras.layers import Lambda, BatchNormalization
-    from tensorflow.keras import backend as K
+    from tensorflow.keras.layers import Dense, Input
+    from tensorflow.keras.layers import Dropout
+    from tensorflow.keras.layers import BatchNormalization
 
     def scale_data(inputs, model, label):
         x_mean = np.mean(x_train[inputs].values, axis=0)
@@ -442,11 +442,11 @@ def dnn_training(df, args, model):
         print(f"Training folds: {train_folds}")
         print(f"Validation folds: {val_folds}")
         print(f"Evaluation folds: {eval_folds}")
-        print(f"Samples used: ", df.s.unique())
+        print("Samples used: ", df.s.unique())
 
         train_filter = df.event.mod(nfolds).isin(train_folds)
         val_filter = df.event.mod(nfolds).isin(val_folds)
-        eval_filter = df.event.mod(nfolds).isin(eval_folds)
+        # eval_filter = df.event.mod(nfolds).isin(eval_folds)
 
         other_columns = ['event', 'wgt_nominal']
 
@@ -552,7 +552,6 @@ def evaluation(df, args):
 
 
 def dnn_evaluation(df, model, args):
-    import keras.backend as K
     import tensorflow as tf
     from tensorflow.keras.models import load_model
     config = tf.compat.v1.ConfigProto(
@@ -576,8 +575,8 @@ def dnn_evaluation(df, model, args):
             else:
                 label = f"{args['year']}_{args['label']}_{i}"
 
-            train_folds = [(i + f) % nfolds for f in [0, 1]]
-            val_folds = [(i + f) % nfolds for f in [2]]
+            # train_folds = [(i + f) % nfolds for f in [0, 1]]
+            # val_folds = [(i + f) % nfolds for f in [2]]
             eval_folds = [(i + f) % nfolds for f in [3]]
 
             eval_filter = df.event.mod(nfolds).isin(eval_folds)
@@ -600,7 +599,6 @@ def dnn_evaluation(df, model, args):
 
 
 def bdt_evaluation(df, model, args):
-    import xgboost as xgb
     import pickle
     if args['do_massscan']:
         mass_shift = args['mass'] - 125.0
@@ -616,8 +614,8 @@ def bdt_evaluation(df, model, args):
         else:
             label = f"{args['year']}_{args['label']}_{i}"
 
-        train_folds = [(i + f) % nfolds for f in [0, 1]]
-        val_folds = [(i + f) % nfolds for f in [2]]
+        # train_folds = [(i + f) % nfolds for f in [0, 1]]
+        # val_folds = [(i + f) % nfolds for f in [2]]
         eval_folds = [(i + f) % nfolds for f in [3]]
 
         eval_filter = df.event.mod(nfolds).isin(eval_folds)
@@ -806,7 +804,7 @@ def overlap_study(df, args, model):
         df.event.values.astype(int), pisa_df.event.values.astype(int))
     # print(f'Total Purdue events: {df.shape[0]}')
     # print(f'Total Pisa events: {pisa_df.shape[0]}')
-    percent = round(100 * len(overlap) / pisa_df.shape[0], 2)
+    # percent = round(100 * len(overlap) / pisa_df.shape[0], 2)
     # print(f'Common events: {len(overlap)} ({percent}%)')
     df = df.set_index('event')
     pisa_df = pisa_df.set_index('event')
@@ -868,7 +866,7 @@ def overlap_study(df, args, model):
 
 
 def overlap_study_unbinned(purdue_df, args, model):
-    scores = [c for c in purdue_df.columns if 'score' in c]
+    # scores = [c for c in purdue_df.columns if 'score' in c]
     var = f'score_{model}'
     mass_point = str(args['mass']).replace('.', '')
     path = '/depot/cms/hmm/pisa/data_massScan/'
@@ -1053,7 +1051,7 @@ def get_hists(df, var, args, mva_bins=[]):
                         contents.update({
                             f'bin{i}': [values[i]] for i in
                             range(nbins)})
-                        contents.update({f'sumw2_0': 0.})
+                        contents.update({'sumw2_0': 0.})
                         # add a dummy bin b/c sumw2 indices
                         # are shifted w.r.t bin indices
                         contents.update({
@@ -1232,7 +1230,7 @@ def save_shapes(hist, model, args, mva_bins):
     variated_shapes = {}
 
     hist = hist[var]
-    centers = (edges[: -1] + edges[1:]) / 2.0
+    # centers = (edges[: -1] + edges[1:]) / 2.0
     bin_columns = [c for c in hist.columns if 'bin' in c]
     sumw2_columns = [c for c in hist.columns if 'sumw2' in c]
     data_names = [n for n in hist.s.unique() if 'data' in n]
@@ -1521,16 +1519,16 @@ def get_numbers(var, cc, r, bin_name, args, shift_signal=False):
               'VV': ['vbf'],
               'ggH': ['vbf'],
               'VBF': ['vbf']}
-    regions = ['SB', 'SR']
+    # regions = ['SB', 'SR']
     year = args['year']
-    floating_norm = {'DY': ['vbf_01j']}
+    # floating_norm = {'DY': ['vbf_01j']}
     sig_groups = ['ggH', 'VBF']
-    sample_variations = {
-        'SignalPartonShower': {
-            'VBF': ['vbf_powhegPS', 'vbf_powheg_herwig']},
-        'EWKPartonShower': {
-            'EWK': ['ewk_lljj_mll105_160', 'ewk_lljj_mll105_160_py']},
-    }
+    # sample_variations = {
+    #     'SignalPartonShower': {
+    #         'VBF': ['vbf_powhegPS', 'vbf_powheg_herwig']},
+    #     'EWKPartonShower': {
+    #         'EWK': ['ewk_lljj_mll105_160', 'ewk_lljj_mll105_160_py']},
+    # }
 
     sig_counter = 0
     bkg_counter = 0
@@ -1719,12 +1717,12 @@ def make_datacards(var, args, shift_signal=False):
             else:
                 shapes_file = f'shapes_{cgroup}_{r}_nominal.root'
             datacard = open(datacard_name, 'w')
-            datacard.write(f"imax 1\n")
-            datacard.write(f"jmax *\n")
-            datacard.write(f"kmax *\n")
+            datacard.write("imax 1\n")
+            datacard.write("jmax *\n")
+            datacard.write("kmax *\n")
             datacard.write("---------------\n")
-            datacard.write(f"shapes * {bin_name} {shapes_file} "\
-                f"$PROCESS $PROCESS_$SYSTEMATIC\n")
+            datacard.write(f"shapes * {bin_name} {shapes_file} "
+                           "$PROCESS $PROCESS_$SYSTEMATIC\n")
             datacard.write("---------------\n")
             data_yields, mc_yields, systematics = get_numbers(
                 var, cc, r, bin_name, args, shift_signal)
@@ -1733,17 +1731,17 @@ def make_datacards(var, args, shift_signal=False):
             datacard.write(mc_yields)
             datacard.write("---------------\n")
             datacard.write(systematics)
-            datacard.write(f"XSecAndNorm{year}DYJ01  rateParam "\
-                f"{bin_name} DYJ01 1 [0.2,5] \n")
+            datacard.write(f"XSecAndNorm{year}DYJ01  rateParam "
+                           f"{bin_name} DYJ01 1 [0.2,5] \n")
             datacard.write(f"{bin_name} autoMCStats 0 1 1\n")
             datacard.write("---------------\n")
-            datacard.write(f"nuisance edit rename"\
-                           f" (DYJ2|DYJ01|ggH_hmm|TT+ST|VV) * "\
-                           f"qgl_wgt  QGLweightPY \n")
-            datacard.write(f"nuisance edit rename EWK * qgl_wgt"\
-                f" QGLweightHER \n")
-            datacard.write(f"nuisance edit rename qqH_hmm * qgl_wgt"\
-                f" QGLweightPYDIPOLE \n")
+            datacard.write("nuisance edit rename"
+                           " (DYJ2|DYJ01|ggH_hmm|TT+ST|VV) * "
+                           "qgl_wgt  QGLweightPY \n")
+            datacard.write("nuisance edit rename EWK * qgl_wgt"
+                            " QGLweightHER \n")
+            datacard.write("nuisance edit rename qqH_hmm * qgl_wgt"
+                           " QGLweightPYDIPOLE \n")
             datacard.close()
             print(f'Saved datacard to {datacard_name}')
     return
@@ -1775,7 +1773,7 @@ def plot(var, hists, edges, args, r='', save=True, blind=True,
     year = args['year']
     label = args['label']
     bin_columns = [c for c in hist.columns if 'bin' in c]
-    sumw2_columns = [c for c in hist.columns if 'sumw2' in c]
+    # sumw2_columns = [c for c in hist.columns if 'sumw2' in c]
 
     def get_shapes_for_option(hist_, v, w):
         bkg_groups = ['DY', 'DY_nofilter', 'DY_filter',
@@ -1829,12 +1827,12 @@ def plot(var, hists, edges, args, r='', save=True, blind=True,
         edges_data = edges_data[: -blind_bins]
 
     vbf = ret_nominal['vbf']
-    vbf_sumw2 = ret_nominal['vbf_sumw2'][1:]
-    ggh = ret_nominal['ggh']
-    ggh_sumw2 = ret_nominal['ggh_sumw2'][1:]
+    # vbf_sumw2 = ret_nominal['vbf_sumw2'][1:]
+    # ggh = ret_nominal['ggh']
+    # ggh_sumw2 = ret_nominal['ggh_sumw2'][1:]
 
-    ggh_nnlops_off = ret_nnlops_off['ggh']
-    ggh_sumw2_nnlops_off = ret_nnlops_off['ggh_sumw2'][1:]
+    # ggh_nnlops_off = ret_nnlops_off['ggh']
+    # ggh_sumw2_nnlops_off = ret_nnlops_off['ggh_sumw2'][1:]
 
     # ewk        = ret_nominal['ewk']
     # ewk_sumw2  = ret_nominal['ewk_sumw2'][1:]
@@ -1903,11 +1901,11 @@ def plot(var, hists, edges, args, r='', save=True, blind=True,
         r_opt = 'inclusive' if r == '' else r
         pisa_hist, pisa_data_hist = get_pisa_hist(var, r_opt, edges)
         if pisa_hist.sum():
-            ax_pisa = hep.histplot(
+            hep.histplot(
                 pisa_hist, edges, label='Pisa', histtype='step',
                 **{'linewidth': 3, 'color': 'red'})
         if pisa_data_hist.sum():
-            ax_pisa_data = hep.histplot(
+            hep.histplot(
                 pisa_data_hist, edges, label='Pisa Data',
                 histtype='errorbar', yerr=np.sqrt(pisa_data_hist),
                 **data_opts_pisa)
@@ -1922,7 +1920,7 @@ def plot(var, hists, edges, args, r='', save=True, blind=True,
     #                                                  'color':'blue'})
 
     if ggh.sum():
-        ax_ggh = hep.histplot(ggh, edges, label='ggH', histtype='step',
+        hep.histplot(ggh, edges, label='ggH', histtype='step',
                               **{'linewidth': 3, 'color': 'lime'})
     # if ggh_nnlops_off.sum():
     #     ax_ggh = hep.histplot(ggh_nnlops_off, edges,
@@ -1930,10 +1928,10 @@ def plot(var, hists, edges, args, r='', save=True, blind=True,
     #                           **{'linewidth':3, 'color':'violet'})
 
     if vbf.sum():
-        ax_vbf = hep.histplot(vbf, edges, label='VBF', histtype='step',
+        hep.histplot(vbf, edges, label='VBF', histtype='step',
                               **{'linewidth': 3, 'color': 'aqua'})
     if data.sum():
-        ax_data = hep.histplot(data, edges_data, label='Data',
+        hep.histplot(data, edges_data, label='Data',
                                histtype='errorbar', yerr=np.sqrt(data),
                                **data_opts)
 
@@ -1958,21 +1956,21 @@ def plot(var, hists, edges, args, r='', save=True, blind=True,
                 continue
             ret = get_shapes_for_option(hist, v, w)
             if ret['bkg_total'].sum():
-                ax_vbf = hep.histplot(ret['bkg_total'].values, edges,
+                hep.histplot(ret['bkg_total'].values, edges,
                                       histtype='step',
                                       **{'linewidth': 3})
                 if (ret['bkg_total'].values.sum() > max_variation_up):
                     max_variation_up = ret['bkg_total'].values.sum()
-                    max_var_up_name = f'{v},{w}'
+                    # max_var_up_name = f'{v},{w}'
                 if (ret['bkg_total'].values.sum() < max_variation_down):
                     max_variation_down = ret['bkg_total'].values.sum()
-                    max_var_down_name = f'{v},{w}'
+                    # max_var_down_name = f'{v},{w}'
 
             if ret['ggh'].sum():
-                ax_vbf = hep.histplot(ret['ggh'], edges, histtype='step',
+                hep.histplot(ret['ggh'], edges, histtype='step',
                                       **{'linewidth': 3})
             if ret['vbf'].sum():
-                ax_vbf = hep.histplot(ret['vbf'], edges, histtype='step',
+                hep.histplot(ret['vbf'], edges, histtype='step',
                                       **{'linewidth': 3})
 
     lbl = hep.cms.label(ax=plt1, data=True, paper=False, year=year)
@@ -1993,7 +1991,6 @@ def plot(var, hists, edges, args, r='', save=True, blind=True,
         ratios = np.zeros(len(data))
         yerr = np.zeros(len(data))
         unity = np.ones_like(bkg_total)
-        zero = np.zeros_like(bkg_total)
         bkg_total[bkg_total == 0] = 1e-20
         ggh[ggh == 0] = 1e-20
         vbf[vbf == 0] = 1e-20
@@ -2071,10 +2068,10 @@ def plot(var, hists, edges, args, r='', save=True, blind=True,
                                       bkg_total[mask]) / bkg_total[mask])
         ratio_up[mask] = 1 + np.sqrt(total_err2_up)[mask]
         ratio_down[mask] = 1 - np.sqrt(total_err2_down)[mask]
-        ax_up = hep.histplot(ratio_up, edges, histtype='step',
+        hep.histplot(ratio_up, edges, histtype='step',
                              label='Total syst. unc.',
                              **{'linewidth': 3, 'color': 'red'})
-        ax_down = hep.histplot(ratio_down, edges, histtype='step',
+        hep.histplot(ratio_down, edges, histtype='step',
                                **{'linewidth': 3, 'color': 'red'})
         plt2.legend(prop={'size': 'xx-small'})
 
@@ -2088,7 +2085,7 @@ def plot(var, hists, edges, args, r='', save=True, blind=True,
         ratio = np.zeros(len(bkg_total))
         ratio[bkg_total != 0] = np.array(pisa_hist[bkg_total != 0] /
                                          bkg_total[bkg_total != 0])
-        ax = hep.histplot(ratio, edges, label='Pisa/Purdue MC',
+        hep.histplot(ratio, edges, label='Pisa/Purdue MC',
                           histtype='step', **{'linewidth': 3,
                                               'color': 'red'})
         plt2.legend(prop={'size': 'small'})
@@ -2098,7 +2095,7 @@ def plot(var, hists, edges, args, r='', save=True, blind=True,
         ratio_data = np.zeros(len(bkg_total))
         ratio_data[data != 0] = np.array(pisa_data_hist[data != 0] /
                                          data[data != 0])
-        ax = hep.histplot(ratio_data, edges,
+        hep.histplot(ratio_data, edges,
                           label='Pisa/Purdue Data', histtype='step',
                           **{'linewidth': 3, 'color': 'blue'})
         plt2.legend(prop={'size': 'small'})
