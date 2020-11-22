@@ -178,7 +178,7 @@ class DimuonProcessor(processor.ProcessorABC):
         else:
             self.zpt_path = 'zpt_weights/2017_value'
         self.evaluator[self.zpt_path]._axes =\
-            self.evaluator[self.zpt_path]._axes[0]          
+            self.evaluator[self.zpt_path]._axes[0]
 
         # https://github.com/CoffeaTeam/coffea/blob/
         # 2650ad7657094f6e50ebf962a1fc1763cd2c6601/coffea/
@@ -231,11 +231,10 @@ class DimuonProcessor(processor.ProcessorABC):
         for ptvar in self.pt_variations:
             if ptvar.replace('_up', '').replace('_down', '') in\
                 self.parameters["jec_unc_to_consider"]:
-                self.do_jecunc = True
+                    self.do_jecunc = True
             if ptvar.replace('_up', '').replace('_down', '') in\
                 ['jer1', 'jer2', 'jer3', 'jer4', 'jer5', 'jer6']:
-                self.do_jerunc = True
-
+                    self.do_jerunc = True
 
     @property
     def accumulator(self):
@@ -257,7 +256,7 @@ class DimuonProcessor(processor.ProcessorABC):
 
         is_mc = 'data' not in dataset
 
-        # --------------------------------------------------------------# 
+        # --------------------------------------------------------------#
         # From now on, number of events will remain unchanged
         # (size of 'mask').
         # Variable 'mask' will be used to store global event selection
@@ -281,7 +280,7 @@ class DimuonProcessor(processor.ProcessorABC):
         if is_mc:
             mask = np.ones(numevents, dtype=bool)
 
-            # ----------------------------------------------------------# 
+            # ----------------------------------------------------------#
             # Apply gen.weights, pileup weights, lumi weights,
             # L1 prefiring weights
             # ----------------------------------------------------------#
@@ -353,7 +352,7 @@ class DimuonProcessor(processor.ProcessorABC):
         # 'scale_down':df.Muon.pt_scale_down}
 
         if True:  # reserved for loop over muon pT variations
-        # for
+            # for
             fsr_offsets = awkward.JaggedArray.counts2offsets(
                 df.FsrPhoton.counts)
             muons_offsets = awkward.JaggedArray.counts2offsets(
@@ -367,20 +366,21 @@ class DimuonProcessor(processor.ProcessorABC):
                 df.FsrPhoton.dROverEt2.flatten(), dtype=float)
             has_fsr = np.zeros(len(df.Muon.pt.flatten()), dtype=bool)
             pt_fsr, eta_fsr, phi_fsr, mass_fsr, iso_fsr, has_fsr =\
-                fsr_evaluator(muons_offsets,
-                          fsr_offsets,
-                          np.array(df.Muon.pt.flatten(), dtype=float),
-                          np.array(df.Muon.eta.flatten(),dtype=float),
-                          np.array(df.Muon.phi.flatten(), dtype=float),
-                          np.array(df.Muon.mass.flatten(),dtype=float),
-                          np.array(
-                              df.Muon.pfRelIso04_all.flatten(), 
-                              dtype=float),
-                          np.array(
-                              df.Muon.fsrPhotonIdx.flatten(),
-                              dtype=int),
-                          fsr_pt, fsr_eta, fsr_phi, fsr_iso, 
-                          fsr_drEt2, has_fsr)
+                fsr_evaluator(
+                    muons_offsets,
+                    fsr_offsets,
+                    np.array(df.Muon.pt.flatten(), dtype=float),
+                    np.array(df.Muon.eta.flatten(), dtype=float),
+                    np.array(df.Muon.phi.flatten(), dtype=float),
+                    np.array(df.Muon.mass.flatten(), dtype=float),
+                    np.array(
+                        df.Muon.pfRelIso04_all.flatten(),
+                        dtype=float),
+                    np.array(
+                        df.Muon.fsrPhotonIdx.flatten(),
+                        dtype=int),
+                    fsr_pt, fsr_eta, fsr_phi, fsr_iso,
+                    fsr_drEt2, has_fsr)
             df.Muon['pt'] = awkward.JaggedArray.fromcounts(
                 df.Muon.counts, pt_fsr)
             df.Muon['eta'] = awkward.JaggedArray.fromcounts(
@@ -443,11 +443,11 @@ class DimuonProcessor(processor.ProcessorABC):
 
             self.muons_all = self.muons_all[
                 (self.muons_all.pt_fsr >
-                     self.parameters["muon_pt_cut"]) &
-                (self.muons_all.pfRelIso04_all < 
-                     self.parameters["muon_iso_cut"]) &     
-                 self.muons_all[
-                     self.parameters["muon_id"]].astype(np.bool)]
+                self.parameters["muon_pt_cut"]) &
+                (self.muons_all.pfRelIso04_all <
+                self.parameters["muon_iso_cut"]) &
+                self.muons_all[
+                self.parameters["muon_id"]].astype(np.bool)]
 
             two_os_muons = ((muons.counts == 2) &
                             (muons['charge'].prod() == -1))
@@ -488,10 +488,10 @@ class DimuonProcessor(processor.ProcessorABC):
             for n in mu2_variable_names:
                 mu2_variables[n] = np.zeros(numevents)
 
-            # ----------------------------------------------------------# 
+            # ----------------------------------------------------------#
             # Select events with muons passing leading pT cut
             # and trigger matching
-            # ----------------------------------------------------------# 
+            # ----------------------------------------------------------#
 
             # Events where there is at least one muon
             # passing leading muon pT cut (redundant selection)
@@ -501,19 +501,19 @@ class DimuonProcessor(processor.ProcessorABC):
 
             # All L3 trigger muons
             df.TrigObj['mass'] = df.TrigObj.zeros_like()
-            df.TrigObj = df.TrigObj[(df.TrigObj.id == 13) |\
+            df.TrigObj = df.TrigObj[(df.TrigObj.id == 13) |
                                     (df.TrigObj.id == -13)]
 
             # Muons that pass tight id and iso
             # as well as leading muon pT cut
             mu_for_trigmatch = muons[
-                (muons.pt_raw > self.parameters["muon_leading_pt"]) 
+                (muons.pt_raw > self.parameters["muon_leading_pt"])
                 # &(df.Muon.pfRelIso04_all <
                 # self.parameters["muon_trigmatch_iso"]) &
                 # df.Muon[self.parameters["muon_trigmatch_id"]]
                 ]
 
-            # For every such muon check if there is 
+            # For every such muon check if there is
             # a L3 object within dR<0.1
             muTrig = mu_for_trigmatch.cross(df.TrigObj, nested = True)
             _,_,dr = delta_r(muTrig.i0.eta_raw,
@@ -551,15 +551,15 @@ class DimuonProcessor(processor.ProcessorABC):
                 dimuon_variables[n] = np.zeros(numevents)
 
             dimuon_variables['dimuon_pt'][two_muons],\
-            dimuon_variables['dimuon_eta'][two_muons],\
-            dimuon_variables['dimuon_phi'][two_muons],\
-            dimuon_variables['dimuon_mass'][two_muons],\
-            dimuon_variables['dimuon_rap'][two_muons] =\
+                dimuon_variables['dimuon_eta'][two_muons],\
+                dimuon_variables['dimuon_phi'][two_muons],\
+                dimuon_variables['dimuon_mass'][two_muons],\
+                dimuon_variables['dimuon_rap'][two_muons] =\
                 p4_sum(mu1[two_muons], mu2[two_muons])
 
             dimuon_variables['dimuon_dEta'][two_muons],\
-            dimuon_variables['dimuon_dPhi'][two_muons],\
-            dimuon_variables['dimuon_dR'][two_muons] =\
+                dimuon_variables['dimuon_dPhi'][two_muons],\
+                dimuon_variables['dimuon_dR'][two_muons] =\
                 delta_r(mu1[two_muons].eta.flatten(),\                                   mu2[two_muons].eta.flatten(),\
                 mu1[two_muons].phi.flatten(),\
                 mu2[two_muons].phi.flatten())
