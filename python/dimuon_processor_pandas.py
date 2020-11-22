@@ -650,9 +650,7 @@ class DimuonProcessor(processor.ProcessorABC):
                             jet_variation_names +=\
                                 [f"{junc_name}_down"]
 
-            else:
-                if not self.do_jec:
-                    continue
+            elif self.do_jec:
                 for run in self.data_runs:
                     # 'A', 'B', 'C', 'D', etc...
                     if run in dataset:
@@ -683,10 +681,8 @@ class DimuonProcessor(processor.ProcessorABC):
             pt_gen_jet = df.Jet['matched_genjet'].pt.flatten(axis=0)
             # pt_gen_jet = df.Jet.matched_genjet.pt.flatten(axis=0)
             pt_gen_jet = np.zeros(len(df.Jet.flatten()))
-            pt_gen_jet[
-                df.Jet.matched_genjet.pt.flatten(
-                    axis=0).counts > 0] =
-                    df.Jet.matched_genjet.pt.flatten().flatten()
+            pt_gen_jet[df.Jet.matched_genjet.pt.flatten(axis=0).counts >
+                       0] = df.Jet.matched_genjet.pt.flatten().flatten()
             pt_gen_jet[df.Jet.matched_genjet.pt.flatten(
                 axis=0).counts <= 0] = 0
             jetarrays['ptGenJet'] = pt_gen_jet
@@ -704,8 +700,9 @@ class DimuonProcessor(processor.ProcessorABC):
             jer_down_sf = ((jets.pt_jer_down - jet_pt_gen) /
                            (jet_pt_jec - jet_pt_gen +
                            (jet_pt_jec == jet_pt_gen) * 10.))
-            jet_pt_jer_down = jet_pt_gen + (jet_pt_jec - jet_pt_gen) *\
-                     (jer_down_sf / jer_sf)
+            jet_pt_jer_down = jet_pt_gen +\
+                (jet_pt_jec - jet_pt_gen) *\
+                (jer_down_sf / jer_sf)
             jer_categories = {
                 'jer1': (abs(jets.eta) < 1.93),
                 'jer2': (abs(jets.eta) > 1.93) & (abs(jets.eta) < 2.5),
@@ -802,7 +799,7 @@ class DimuonProcessor(processor.ProcessorABC):
                 try:
                     if (('dy_m105_160_amc' in dataset) and
                         (('2017' in self.year) or
-                         ('2018' in self.year)):
+                         ('2018' in self.year))):
                         lhefactor = 2.
                     else:
                         lhefactor = 1.
@@ -1040,7 +1037,7 @@ class DimuonProcessor(processor.ProcessorABC):
 
         jet_selection = (
             (df.Jet[pt_name] > self.parameters["jet_pt_cut"]) &
-            (abs(df.Jet.eta) < self.parameters["jet_eta_cut"])) &
+            (abs(df.Jet.eta) < self.parameters["jet_eta_cut"])) &\
             deltar_mujet_ok
 
         #-------------------------------------------------------------#
@@ -1063,7 +1060,7 @@ class DimuonProcessor(processor.ProcessorABC):
                           (abs(df.Jet.eta) < 3.0))
             not_eta_window = ((abs(df.Jet.eta) < 2.6) |
                               (abs(df.Jet.eta) > 3.0))
-            jet_puid = (eta_window & (puId >= 7)) |
+            jet_puid = (eta_window & (puId >= 7)) |\
                         (not_eta_window & jet_puid_wps['loose'])
         else:
             jet_puid = df.Jet.ones_like()
@@ -1252,7 +1249,7 @@ class DimuonProcessor(processor.ProcessorABC):
         leading_jet_pt = np.zeros(numevents, dtype=bool)
         leading_jet_pt[df.Jet.counts>0] = (
             df.Jet.pt[df.Jet.counts > 0][:,0] > 35.)
-        vbf_cut = (variables['jj_mass'] > 400) &
+        vbf_cut = (variables['jj_mass'] > 400) &\
                         (variables['jj_dEta'] > 2.5) & leading_jet_pt
 
         #-------------------------------------------------------------#
@@ -1410,7 +1407,7 @@ class DimuonProcessor(processor.ProcessorABC):
                       outer|inner)
         footprintSAJ = df.SoftActivityJet[mask2j][saj_filter]
         if footprintSAJ.shape[0] > 0:
-            htsoft[mask2j] = df[f'SoftActivityJetHT{cutoff}'][mask2j] -
+            htsoft[mask2j] = df[f'SoftActivityJetHT{cutoff}'][mask2j] -\
                         (footprintSAJ.pt *
                          (footprintSAJ.pt > cutoff)).sum()
         return nsoftjets, htsoft
