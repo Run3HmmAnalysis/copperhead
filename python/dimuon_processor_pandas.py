@@ -1153,7 +1153,7 @@ class DimuonProcessor(processor.ProcessorABC):
         # Definition with rapidity would be different
         variables['zeppenfeld'][two_muons & two_jets] =\
             (output['dimuon_eta'][two_muons & two_jets] -
-             0.5 *(variables['jet1_eta'][two_muons & two_jets] +
+             0.5 * (variables['jet1_eta'][two_muons & two_jets] +
                    variables['jet2_eta'][two_muons & two_jets]))
 
         variables['mmjj_pt'][two_muons & two_jets],\

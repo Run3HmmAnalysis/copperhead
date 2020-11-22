@@ -1,11 +1,6 @@
-import sys, os
-stderr = sys.stderr
-sys.stderr = open(os.devnull, 'w')
-import keras
-sys.stderr = stderr
-os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
+import sys
+import os
 import pandas as pd
-pd.options.mode.chained_assignment = None
 import multiprocessing as mp
 import coffea
 from coffea import util
@@ -21,6 +16,13 @@ import mplhep as hep
 import tqdm
 from sklearn.metrics import roc_curve
 from math import sqrt
+
+stderr = sys.stderr
+sys.stderr = open(os.devnull, 'w')
+import keras  # noqa: E402
+sys.stderr = stderr
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
+pd.options.mode.chained_assignment = None
 
 training_features_ = ['dimuon_mass', 'dimuon_pt', 'dimuon_eta',
                       'dimuon_dEta', 'dimuon_dPhi', 'dimuon_dR',
@@ -452,18 +454,19 @@ def dnn_training(df, args, model):
         df_val['cls_avg_wgt'] = 1.0
         for icls, cls in enumerate(classes):
             train_evts = len(y_train[y_train == icls])
-            df_train.loc[y_train == icls,'cls_avg_wgt'] =\
-                df_train.loc[y_train == icls,'wgt_nominal'].values.mean()
-            df_val.loc[y_val == icls,'cls_avg_wgt'] =\
-                df_val.loc[y_val == icls,'wgt_nominal'].values.mean()
+            df_train.loc[y_train == icls, 'cls_avg_wgt'] =\
+                df_train.loc[
+                    y_train == icls, 'wgt_nominal'].values.mean()
+            df_val.loc[y_val == icls, 'cls_avg_wgt'] =\
+                df_val.loc[y_val == icls, 'wgt_nominal'].values.mean()
             print(f"{train_evts} training events in class {cls}")
 
         for smp in df_train.s.unique():
-            df_train.loc[df_train.s == smp,'smp_avg_wgt'] =\
+            df_train.loc[df_train.s == smp, 'smp_avg_wgt'] =\
                 df_train.loc[df_train.s ==
-                             smp,'wgt_nominal'].values.mean()
-            df_val.loc[df_val.s == smp,'smp_avg_wgt'] =\
-                df_val.loc[df_val.s == smp,'wgt_nominal'].values.mean()
+                             smp, 'wgt_nominal'].values.mean()
+            df_val.loc[df_val.s == smp, 'smp_avg_wgt'] =\
+                df_val.loc[df_val.s == smp, 'wgt_nominal'].values.mean()
             print(f"{train_evts} training events in class {cls}")        
             
         # df_train['training_wgt'] =\
@@ -1371,7 +1374,7 @@ def save_shapes(hist, model, args, mva_bins):
                                                 f'_{g}_{c}'\
                                                 f'_{variname}{ud}'
                                             np.save(f'{tdir}/{g}/{name}',
-                                                    [histo_ud,sumw2_ud])
+                                                    [histo_ud, sumw2_ud])
 
             try:
                 os.mkdir(f'{tdir}/Data/')
@@ -1379,19 +1382,19 @@ def save_shapes(hist, model, args, mva_bins):
                 pass  
             name = f'{r_names[r]}_{args["year"]}_data_obs'
             np.save(f'{tdir}/Data/{name}',
-                    [data_obs_hist,data_obs_sumw2])
+                    [data_obs_hist, data_obs_sumw2])
 
 
 def prepare_root_files(var, args, shift_signal=False):
     if ('score' in var.name):
         edges = args['mva_bins'][
-            var.name.replace('score_','')][args['year']]
+            var.name.replace('score_', '')][args['year']]
     edges = np.array(edges)
     tdir = f'/depot/cms/hmm/templates/'\
         f'{args["year"]}_{args["label"]}_{var.name}'
     if args['do_massscan']:
         tdir_nominal = tdir
-        mass_point = f'{args["mass"]}'.replace('.','')
+        mass_point = f'{args["mass"]}'.replace('.', '')
         tdir = tdir.replace('templates',
                             '/templates/massScan/') + f'_{mass_point}'
         try:
@@ -1403,7 +1406,7 @@ def prepare_root_files(var, args, shift_signal=False):
         except Exception:
             pass
         try:
-            os.mkdir(f'combine/massScan_{args["label"]}/{mass_point}/'\
+            os.mkdir(f'combine/massScan_{args["label"]}/{mass_point}/'
                      f'{args["year"]}_{args["label"]}_{var.name}/')
         except Exception:
             pass
@@ -1416,19 +1419,19 @@ def prepare_root_files(var, args, shift_signal=False):
     regions = ['SB', 'SR']
     centers = (edges[: -1] + edges[1:]) / 2.0
 
-    for cgroup,cc in args['channel_groups'].items():
+    for cgroup, cc in args['channel_groups'].items():
         for r in regions:
             out_fn = f'combine/{args["year"]}_{args["label"]}'\
                 f'_{var.name}/shapes_{cgroup}_{r}.root'
             if args['do_massscan']:
                 if shift_signal:
                     out_fn = f'combine/massScan_{args["label"]}/'\
-                    f'{mass_point}/{args["year"]}_{args["label"]}'\
-                    f'_{var.name}/shapes_{cgroup}_{r}.root'
+                        f'{mass_point}/{args["year"]}_{args["label"]}'\
+                        f'_{var.name}/shapes_{cgroup}_{r}.root'
                 else:
                     out_fn = f'combine/massScan_{args["label"]}'\
-                    f'/{mass_point}/{args["year"]}_{args["label"]}'\
-                    f'_{var.name}/shapes_{cgroup}_{r}_nominal.root'
+                        f'/{mass_point}/{args["year"]}_{args["label"]}'\
+                        f'_{var.name}/shapes_{cgroup}_{r}_nominal.root'
             out_file = uproot.recreate(out_fn)
             data_hist, data_sumw2 = np.load(
                 f'{tdir}/Data/{r}_{args["year"]}_data_obs.npy',
@@ -1456,7 +1459,7 @@ def prepare_root_files(var, args, shift_signal=False):
                 if 'data_obs' in path:
                     continue
                 hist, sumw2 = np.load(path, allow_pickle=True)
-                name = os.path.basename(path).replace('.npy','')
+                name = os.path.basename(path).replace('.npy', '')
                 name = name.replace('DY_filter_vbf_2j', 'DYJ2_filter')
                 name = name.replace('DY_nofilter_vbf_2j',
                                     'DYJ2_nofilter')
@@ -1466,11 +1469,11 @@ def prepare_root_files(var, args, shift_signal=False):
                                     'DYJ01_nofilter')
                 name = name.replace('DY_vbf_2j', 'DYJ2')
                 name = name.replace('DY_vbf_01j', 'DYJ01')
-                name = name.replace('EWK_vbf','EWK')
-                name = name.replace('TT+ST_vbf','TT+ST')
-                name = name.replace('VV_vbf','VV')
-                name = name.replace('VBF_vbf','qqH_hmm')
-                name = name.replace('ggH_vbf','ggH_hmm')
+                name = name.replace('EWK_vbf', 'EWK')
+                name = name.replace('TT+ST_vbf', 'TT+ST')
+                name = name.replace('VV_vbf', 'VV')
+                name = name.replace('VBF_vbf', 'qqH_hmm')
+                name = name.replace('ggH_vbf', 'ggH_hmm')
                 th1 = from_numpy([hist, edges])
                 th1._fName = name.replace(f'{r}_{args["year"]}_', '')
                 th1._fSumw2 = np.array(sumw2)
@@ -1479,26 +1482,26 @@ def prepare_root_files(var, args, shift_signal=False):
                 out_file[name.replace(f'{r}_{args["year"]}_', '')] = th1
             out_file.close()
 
+
 def get_numbers(var, cc, r, bin_name, args, shift_signal=False):
     groups = {'Data': ['vbf'],
               # 'DY_nofilter':['vbf_01j','vbf_2j'],
               # 'DY_filter':['vbf_01j','vbf_2j'],
               'DY': ['vbf_01j', 'vbf_2j'],
-              'EWK':['vbf'],
-              'TT+ST':['vbf'],
-              'VV':['vbf'],
-              'ggH':['vbf'],
-              'VBF':['vbf']
-             }
+              'EWK': ['vbf'],
+              'TT+ST': ['vbf'],
+              'VV': ['vbf'],
+              'ggH': ['vbf'],
+              'VBF': ['vbf']}
     regions = ['SB', 'SR']
     year = args['year']
     floating_norm = {'DY': ['vbf_01j']}
     sig_groups = ['ggH', 'VBF']
     sample_variations = {
         'SignalPartonShower': {
-            'VBF': ['vbf_powhegPS', 'vbf_powheg_herwig']}, 
+            'VBF': ['vbf_powhegPS', 'vbf_powheg_herwig']},
         'EWKPartonShower': {
-            'EWK': ['ewk_lljj_mll105_160', 'ewk_lljj_mll105_160_py']}, 
+            'EWK': ['ewk_lljj_mll105_160', 'ewk_lljj_mll105_160_py']},
     }
 
     sig_counter = 0
@@ -1554,9 +1557,9 @@ def get_numbers(var, cc, r, bin_name, args, shift_signal=False):
             # gcname = f'{g}_{c}'
             gcname = g
             if (g == 'VBF'):
-                gcname='qqH_hmm'
+                gcname = 'qqH_hmm'
             if (g == 'ggH'):
-                gcname='ggH_hmm'
+                gcname = 'ggH_hmm'
             if ('01j' in c):
                 gcname = gcname.replace('DY', 'DYJ01')
             if ('2j' in c):
@@ -1583,43 +1586,43 @@ def get_numbers(var, cc, r, bin_name, args, shift_signal=False):
                     nominal_shape = f'{tdir_nominal}/{g}/'\
                         f'{r}_{args["year"]}_{g}_{c}.npy'
                 try:
-                    hist,_ = np.load(nominal_shape, allow_pickle=True)
+                    hist, _ = np.load(nominal_shape, allow_pickle=True)
                 except Exception:
                     print(f"Can't load templates for: {g} {c}")
                     continue
-                rate = hist.sum()          
-                mc_yields.loc[0,gcname] = bin_name
-                mc_yields.loc[1,gcname] = gcname
-                mc_yields.loc[2,gcname] = f'{counter}'
-                mc_yields.loc[3,gcname] = f'{rate}'
+                rate = hist.sum()
+                mc_yields.loc[0, gcname] = bin_name
+                mc_yields.loc[1, gcname] = gcname
+                mc_yields.loc[2, gcname] = f'{counter}'
+                mc_yields.loc[3, gcname] = f'{rate}'
                 for syst in shape_systs:
                     systematics.loc[syst,'type'] = 'shape'
                     if sum([dec_syst in syst for dec_syst in
                             decorrelation_scheme.keys()]):
                         for dec_syst, decorr in
-                          decorrelation_scheme.items():
+                        decorrelation_scheme.items():
                             if (dec_syst in syst):
                                 for dec_group, proc_groups in
-                                  decorr.items():
+                                decorr.items():
                                     if dec_group in syst:
                                         if (g in proc_groups)\
                                         and(syst in
-                                          shape_systs_by_group[g]):
+                                        shape_systs_by_group[g]):
                                             systematics.loc[
-                                                syst,gcname] = '1.0'
+                                                syst, gcname] = '1.0'
                                         else:
                                             systematics.loc[
-                                                syst,gcname] = '-'
+                                                syst, gcname] = '-'
                                     # else:
                                     #     systematics.loc[
                                     #         syst,gcname] = '-'
                     # if sum([gname in syst for gname in groups.keys()]):
-                    #     systematics.loc[syst,gcname] = '1.0' 
-                    #         if (g in syst) and 
+                    #     systematics.loc[syst,gcname] = '1.0'
+                    #         if (g in syst) and
                     #         (syst in shape_systs_by_group[g]) else '-'
                     else:
-                        systematics.loc[syst,gcname] = '1.0' if syst in
-                            shape_systs_by_group[g] else '-'
+                        systematics.loc[syst, gcname] = '1.0' if syst in
+                        shape_systs_by_group[g] else '-'
 
                 # https://twiki.cern.ch/twiki/bin/view/CMS/TWikiLUM
                 for year in ['2016', '2017', '2018']:
@@ -1631,25 +1634,25 @@ def get_numbers(var, cc, r, bin_name, args, shift_signal=False):
                     else:
                         systematics.loc[f'lumi_uncor{year}',gcname] = '-'
                 for src in lumi_syst[args['year']].keys():
-                    if src=='uncor': continue
+                    if src == 'uncor': continue
                     systematics.loc[f'lumi_{src}', 'type'] = 'lnN'
                     val = 1.0 + lumi_syst[args['year']][src] / 100
-                    systematics.loc[f'lumi_{src}',gcname] =\
+                    systematics.loc[f'lumi_{src}', gcname] =\
                         '-' if val == 1.0 else f"{val}"
-                    
+
                 for rate_syst, rate_syst_grouping in
                   rate_syst_lookup[year].items():
                     systematics.loc[rate_syst, 'type'] = 'lnN'
                     if gcname in rate_syst_grouping.keys():
                         val = rate_syst_grouping[gcname]
                     else: val = '-'
-                    systematics.loc[rate_syst,gcname] = f'{val}'
+                    systematics.loc[rate_syst, gcname] = f'{val}'
 
     def to_string(df):
         string = ''
         for row in df.values:
             for i, item in enumerate(row):
-                ncols = 2 if item in ['bin','process','rate',
+                ncols = 2 if item in ['bin', 'process', 'rate',
                                       'observation'] else 1
                 # print(item)
                 row[i] = item + ' ' * (ncols * 20 - len(item))
@@ -1660,7 +1663,8 @@ def get_numbers(var, cc, r, bin_name, args, shift_signal=False):
     print(mc_yields) 
     print(systematics)
     return to_string(data_yields), to_string(mc_yields), to_string(systematics.reset_index())
-            
+
+
 def make_datacards(var, args, shift_signal=False):
     year = args["year"]
     for cgroup, cc in args['channel_groups'].items():
@@ -1702,7 +1706,7 @@ def make_datacards(var, args, shift_signal=False):
             datacard.write(f"{bin_name} autoMCStats 0 1 1\n")
             datacard.write("---------------\n")
             datacard.write(f"nuisance edit rename'
-                           \f' (DYJ2|DYJ01|ggH_hmm|TT+ST|VV) * '\
+                           f' (DYJ2|DYJ01|ggH_hmm|TT+ST|VV) * '
                            f'qgl_wgt  QGLweightPY \n")
             datacard.write(f"nuisance edit rename EWK * qgl_wgt'\
                 f' QGLweightHER \n")
@@ -1718,16 +1722,16 @@ def add_source(hist, group_name):
     sumw2_columns = [c for c in hist.columns if 'sumw2' in c]
     vals = hist[hist['g'] == group_name]
     vals = vals.groupby('g').aggregate(np.sum).reset_index()
-    sumw2 = vals[sumw2_columns].sum(axis=0).reset_index(drop=True).values 
+    sumw2 = vals[sumw2_columns].sum(axis=0).reset_index(drop=True).values
     try:
-        vals = vals[bin_columns].values.sum(axis=0) 
+        vals = vals[bin_columns].values.sum(axis=0)
         return vals, sumw2
     except Exception:
         return np.array([]), np.array([])
 
 
 def plot(var, hists, edges, args, r='', save=True, blind=True,
-         show=False, plotsize=12, compare_with_pisa=False):    
+         show=False, plotsize=12, compare_with_pisa=False):
     hist = hists[var.name]
     edges_data = edges
     blind_bins = 5
@@ -1742,7 +1746,7 @@ def plot(var, hists, edges, args, r='', save=True, blind=True,
     sumw2_columns = [c for c in hist.columns if 'sumw2' in c]
     
     def get_shapes_for_option(hist_, v, w):
-        bkg_groups = ['DY', 'DY_nofilter','DY_filter',
+        bkg_groups = ['DY', 'DY_nofilter', 'DY_filter',
                       'EWK', 'TT+ST', 'VV']
         hist_nominal = hist_[(hist_.w == 'wgt_nominal') &
                              (hist_.v == 'nominal')]
@@ -1756,29 +1760,30 @@ def plot(var, hists, edges, args, r='', save=True, blind=True,
         bin_columns = [c for c in hist.columns if 'bin' in c]
         sumw2_columns = [c for c in hist.columns if 'sumw2' in c]
         bkg_df = hist[hist['g'].isin(bkg_groups)]
-        bkg_df.loc[bkg_df.g.isin(['DY_nofilter','DY_filter']),'g'] = 'DY'
+        bkg_df.loc[bkg_df.g.isin(
+            ['DY_nofilter', 'DY_filter']), 'g'] = 'DY'
         bkg_df.loc[:, 'bkg_integral'] = bkg_df[bin_columns].sum(axis=1)
         bkg_df = bkg_df.groupby('g').aggregate(np.sum).reset_index()
         bkg_df = bkg_df.sort_values(
             by='bkg_integral').reset_index(drop=True)
         bkg_total = bkg_df[bin_columns].sum(
-            axis=0).reset_index(drop=True)    
+            axis=0).reset_index(drop=True)
         bkg_sumw2 = bkg_df[sumw2_columns].sum(
             axis=0).reset_index(drop=True)
 
-        return {'data': data, 
+        return {'data': data,
                 'data_sumw2': data_sumw2,
                 'vbf': vbf,
                 'vbf_sumw2': vbf_sumw2,
-                'ggh': ggh, 
+                'ggh': ggh,
                 'ggh_sumw2': ggh_sumw2,
-                # 'ewk':        ewk, 
+                # 'ewk':        ewk,
                 # 'ewk_sumw2': ewk_sumw2,
-                # 'ewk_py':        ewk_py, 
+                # 'ewk_py':        ewk_py,
                 # 'ewk_py_sumw2': ewk_py_sumw2,
                 'bkg_df': bkg_df,
-                'bkg_total': bkg_total, 
-                'bkg_sumw2': bkg_sumw2 }
+                'bkg_total': bkg_total,
+                'bkg_sumw2': bkg_sumw2}
 
     ret_nominal = get_shapes_for_option(hist, 'nominal', 'wgt_nominal')
     ret_nnlops_off = get_shapes_for_option(
@@ -1792,12 +1797,12 @@ def plot(var, hists, edges, args, r='', save=True, blind=True,
         edges_data = edges_data[: -blind_bins]
 
     vbf = ret_nominal['vbf']
-    vbf_sumw2  = ret_nominal['vbf_sumw2'][1:]
+    vbf_sumw2 = ret_nominal['vbf_sumw2'][1:]
     ggh = ret_nominal['ggh']
-    ggh_sumw2  = ret_nominal['ggh_sumw2'][1:]
-    
+    ggh_sumw2 = ret_nominal['ggh_sumw2'][1:]
+
     ggh_nnlops_off = ret_nnlops_off['ggh']
-    ggh_sumw2_nnlops_off  = ret_nnlops_off['ggh_sumw2'][1:]
+    ggh_sumw2_nnlops_off = ret_nnlops_off['ggh_sumw2'][1:]
 
     # ewk        = ret_nominal['ewk']
     # ewk_sumw2  = ret_nominal['ewk_sumw2'][1:]
@@ -1810,10 +1815,10 @@ def plot(var, hists, edges, args, r='', save=True, blind=True,
 
     if len(bkg_df.values) > 1:
         bkg = np.stack(bkg_df[bin_columns].values)
-        stack=True
+        stack = True
     else:
         bkg = bkg_df[bin_columns].values
-        stack=False
+        stack = False
     bkg_labels = bkg_df.g
 
     # Report yields
@@ -1835,9 +1840,9 @@ def plot(var, hists, edges, args, r='', save=True, blind=True,
     fig = plt.figure()
     plt.rcParams.update({'font.size': 22})
     ratio_plot_size = 0.25
-    data_opts = {'color': 'k', 'marker': '.', 'markersize':15}
-    data_opts_pisa = {'color': 'red', 'marker': '.', 'markersize':15}
-    stack_fill_opts = {'alpha': 0.8, 'edgecolor':(0,0,0)}
+    data_opts = {'color': 'k', 'marker': '.', 'markersize': 15}
+    data_opts_pisa = {'color': 'red', 'marker': '.', 'markersize': 15}
+    stack_fill_opts = {'alpha': 0.8, 'edgecolor': (0, 0, 0)}
     stat_err_opts = {'step': 'post', 'label': 'Stat. unc.',
                      'hatch': '//////', 'facecolor': 'none',
                      'edgecolor': (0, 0, 0, .5), 'linewidth': 0}
@@ -1847,8 +1852,8 @@ def plot(var, hists, edges, args, r='', save=True, blind=True,
     fig.clf()    
     fig.set_size_inches(plotsize, plotsize * (1 + ratio_plot_size))
     gs = fig.add_gridspec(2, 1, height_ratios=[
-        (1 - ratio_plot_size), ratio_plot_size], hspace = .05)
-    
+        (1 - ratio_plot_size), ratio_plot_size], hspace=.05)
+
     # Top panel: Data/MC
     plt1 = fig.add_subplot(gs[0])
 
@@ -1886,7 +1891,7 @@ def plot(var, hists, edges, args, r='', save=True, blind=True,
 
     if ggh.sum():
         ax_ggh = hep.histplot(ggh, edges, label='ggH', histtype='step',
-                              **{'linewidth':3, 'color':'lime'})
+                              **{'linewidth': 3, 'color': 'lime'})
     # if ggh_nnlops_off.sum():
     #     ax_ggh = hep.histplot(ggh_nnlops_off, edges,
     #                           label='ggH NNLOPS off', histtype='step',
@@ -1894,7 +1899,7 @@ def plot(var, hists, edges, args, r='', save=True, blind=True,
 
     if vbf.sum():
         ax_vbf = hep.histplot(vbf, edges, label='VBF', histtype='step',
-                              **{'linewidth':3, 'color':'aqua'})
+                              **{'linewidth': 3, 'color': 'aqua'})
     if data.sum():
         ax_data = hep.histplot(data, edges_data, label='Data',
                                histtype='errorbar', yerr=np.sqrt(data),
@@ -1930,7 +1935,7 @@ def plot(var, hists, edges, args, r='', save=True, blind=True,
                 if (ret['bkg_total'].values.sum() < max_variation_down):
                     max_variation_down = ret['bkg_total'].values.sum()
                     max_var_down_name = f'{v},{w}'
-                    
+
             if ret['ggh'].sum():
                 ax_vbf = hep.histplot(ret['ggh'], edges, histtype='step',
                                       **{'linewidth': 3})
@@ -1947,17 +1952,17 @@ def plot(var, hists, edges, args, r='', save=True, blind=True,
     plt1.set_xlabel('')
     plt1.tick_params(axis='x', labelbottom=False)
     plt1.legend(prop={'size': 'small'})
-    
+
     # Bottom panel: Data/MC ratio plot
     plt2 = fig.add_subplot(gs[1], sharex=plt1)
-    
-    if (data.sum()*bkg_total.sum()) and (
-      not blind or var.name!='dimuon_mass'):
+
+    if (data.sum() * bkg_total.sum()) and (
+      not blind or var.name != 'dimuon_mass'):
         ratios = np.zeros(len(data))
         yerr = np.zeros(len(data))
         unity = np.ones_like(bkg_total)
         zero = np.zeros_like(bkg_total)
-        bkg_total[bkg_total==0] = 1e-20
+        bkg_total[bkg_total == 0] = 1e-20
         ggh[ggh == 0] = 1e-20
         vbf[vbf == 0] = 1e-20
         bkg_unc = coffea.hist.plot.poisson_interval(
@@ -1974,7 +1979,7 @@ def plot(var, hists, edges, args, r='', save=True, blind=True,
         edges_ratio = edges_data if blind else edges
         ax_ratio = hep.histplot(ratios, edges_ratio,
                                 histtype='errorbar',
-                                yerr=yerr,**data_opts)
+                                yerr=yerr, **data_opts)
         ax_ratio.fill_between(edges,
                               np.r_[denom_unc[0],
                                     denom_unc[0, -1]],
@@ -2001,9 +2006,8 @@ def plot(var, hists, edges, args, r='', save=True, blind=True,
             syst_ratio = np.zeros(len(bkg_total))
             lbl = f'{v}' if w == 'nominal' else f'{w}'
             syst_ratio[bkg_total != 0] =\
-                           np.array(
-                               ret['bkg_total'].values[bkg_total!=0] /\
-                               bkg_total[bkg_total!=0])
+                np.array(ret['bkg_total'].values[bkg_total != 0] /
+                         bkg_total[bkg_total != 0])
             ax = hep.histplot(syst_ratio, edges, histtype='step',
                               label=lbl, **{'linewidth': 3})
             plt2.legend(prop={'size': 'xx-small'})
@@ -2040,7 +2044,7 @@ def plot(var, hists, edges, args, r='', save=True, blind=True,
                              **{'linewidth': 3, 'color': 'red'})
         ax_down = hep.histplot(ratio_down, edges, histtype='step',
                                **{'linewidth': 3, 'color': 'red'})
-        plt2.legend(prop={'size': 'xx-small'})            
+        plt2.legend(prop={'size': 'xx-small'})
 
     plt2.axhline(1, ls='--')
     plt2.set_ylim([0.5, 1.5])
@@ -2050,17 +2054,17 @@ def plot(var, hists, edges, args, r='', save=True, blind=True,
 
     if compare_with_pisa and pisa_hist.sum():
         ratio = np.zeros(len(bkg_total))
-        ratio[bkg_total != 0] = np.array(pisa_hist[bkg_total != 0] /\
+        ratio[bkg_total != 0] = np.array(pisa_hist[bkg_total != 0] /
                                          bkg_total[bkg_total != 0])
         ax = hep.histplot(ratio, edges, label='Pisa/Purdue MC',
                           histtype='step', **{'linewidth': 3,
-                                              'color':'red'})
+                                              'color': 'red'})
         plt2.legend(prop={'size': 'small'})
         plt2.set_ylim([0.8, 1.2])
 
     if compare_with_pisa and pisa_data_hist.sum():
         ratio_data = np.zeros(len(bkg_total))
-        ratio_data[data!=0] = np.array(pisa_data_hist[data != 0] /\
+        ratio_data[data!=0] = np.array(pisa_data_hist[data != 0] /
                                        data[data != 0])
         ax = hep.histplot(ratio_data, edges,
                           label='Pisa/Purdue Data', histtype='step',
@@ -2093,17 +2097,18 @@ def plot(var, hists, edges, args, r='', save=True, blind=True,
     if show:
         plt.show()
 
+
 var_map_pisa = {
     'mu1_pt': 'Mu0_pt',
     'mu1_eta': 'Mu0_eta',
     'mu2_pt': 'Mu1_pt',
     'mu2_eta': 'Mu1_eta',
-    'dimuon_pt': 'Higgs_pt', 
+    'dimuon_pt': 'Higgs_pt',
     'dimuon_eta': 'Higgs_eta',
     'dimuon_mass': 'Higgs_m',
     'jet1_pt': 'QJet0_pt_touse',
     'jet1_phi': 'QJet0_phi',
-    'jet1_eta': 'QJet0_eta',    
+    'jet1_eta': 'QJet0_eta',
     'jet2_pt': 'QJet1_pt_touse',
     'jet2_phi': 'QJet1_phi',
     'jet2_eta': 'QJet1_eta',
@@ -2113,12 +2118,12 @@ var_map_pisa = {
 def get_pisa_hist(var, r, edges):
     import uproot
     filenames = {
-        'data': \
-            '/depot/cms/hmm/coffea/pisa-jun12/data2018Snapshot.root',
-        'dy_m105_160_amc':\
-            '/depot/cms/hmm/coffea/pisa/DY105_2018AMCPYSnapshot.root',
-        'dy_m105_160_vbf_amc':\
-            '/depot/cms/hmm/coffea/pisa/DY105VBF_2018AMCPYSnapshot.root'
+        'data':
+        '/depot/cms/hmm/coffea/pisa-jun12/data2018Snapshot.root',
+        'dy_m105_160_amc':
+        '/depot/cms/hmm/coffea/pisa/DY105_2018AMCPYSnapshot.root',
+        'dy_m105_160_vbf_amc':
+        '/depot/cms/hmm/coffea/pisa/DY105VBF_2018AMCPYSnapshot.root'
     }
     xsec = {
         'data': 1,
@@ -2133,7 +2138,7 @@ def get_pisa_hist(var, r, edges):
     qgl_mean = {
         'data': 1,
         'dy_m105_160_amc':  1.04859375342,
-        'dy_m105_160_vbf_amc' :1.00809412662
+        'dy_m105_160_vbf_amc': 1.00809412662
     }
 
     lumi = 59970.
@@ -2146,11 +2151,11 @@ def get_pisa_hist(var, r, edges):
             tree = f['Events']
             wgt = np.ones(len(tree['event'].array()), dtype=float)
             weights = ['genWeight', 'puWeight',
-                       'btagEventWeight','muEffWeight',
+                       'btagEventWeight', 'muEffWeight',
                        'EWKreweight',
                        'PrefiringWeight', 'QGLweight']
             if 'data' not in s:
-                for i,w in enumerate(weights):
+                for i, w in enumerate(weights):
                     wgt = wgt * tree[w].array()
                 wgt = wgt * xsec[s] * lumi / N[s] / qgl_mean[s]
             hist = bh.Histogram(bh.axis.Variable(edges))

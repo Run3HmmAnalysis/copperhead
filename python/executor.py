@@ -101,8 +101,8 @@ class FileMeta(object):
             actual_chunksize = math.ceil(self.metadata['numentries'] / n)
             for index in range(n):
                 start, stop = actual_chunksize * index,\
-                min(self.metadata['numentries'],
-                    actual_chunksize * (index + 1))
+                    min(self.metadata['numentries'],
+                        actual_chunksize * (index + 1))
                 yield WorkItem(self.dataset, self.filename,
                                self.treename, start, stop,
                                self.metadata['uuid'])
@@ -129,7 +129,8 @@ def _iadd(output, result):
         output['metrics'] += result['metrics']
     except Exception:
         output += result
-    
+
+
 class _reduce(object):
     def __init__(self):
         pass
@@ -200,8 +201,8 @@ def dask_executor(items, function, accumulator, **kwargs):
             retries=retries,
             key=function_name,
         )
-        
-    if (function_name=='processor'):
+
+    if (function_name == 'processor'):
         if status:
             from distributed import progress
             progress(work, multi=True, notebook=False)
@@ -247,9 +248,9 @@ def _work_function(item, processor_instance, flatten=False,
     import warnings
     try:
         out = processor_instance.accumulator.identity()
-    except:
+    except Exception:
         import pandas as pd
-        out = pd.DataFrame()    
+        out = pd.DataFrame()
     retry_count = 0
     while retry_count <= retries:
         try:
@@ -292,7 +293,7 @@ def _work_function(item, processor_instance, flatten=False,
             toc = time.time()
             metrics = dict_accumulator()
             if savemetrics:
-                if isinstance(file.source, 
+                if isinstance(file.source,
                               uproot.source.xrootd.XRootDSource):
                     metrics['bytesread'] =\
                         value_accumulator(int, file.source.bytesread)
@@ -382,7 +383,7 @@ def _get_metadata(item, skipbadfiles=False, retries=0,
             metadata = {'numentries': tree.numentries,
                         'uuid': file._context.uuid}
             if align_clusters:
-                metadata['clusters'] = [0] +
+                metadata['clusters'] = [0] +\
                     list(c[1] for c in tree.clusters())
             out = set_accumulator([FileMeta(item.dataset,
                                             item.filename,
@@ -496,7 +497,7 @@ def run_uproot_job(fileset,
                     filemeta).pop().metadata
                 metadata_cache[filemeta] = filemeta.metadata
             if skipbadfiles and not filemeta.populated(
-                clusters=align_clusters):
+              clusters=align_clusters):
                 continue
             for chunk in filemeta.chunks(chunksize, align_clusters):
                 chunks.append(chunk)
@@ -537,7 +538,7 @@ def run_uproot_job(fileset,
     else:
         closure = partial(closure, processor_instance=pi_to_send)
 
-    #out = processor_instance.accumulator.identity()
+    # out = processor_instance.accumulator.identity()
     import pandas as pd
     out = pd.DataFrame()
 
