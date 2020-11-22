@@ -218,7 +218,7 @@ def musf_evaluator(lookups, year, numevents, muons):
     denom_up = ((1 - (1. - muTrig_mc - muTrigerr_mc).prod()) != 0)
     denom_dn = ((1 - (1. - muTrig_mc + muTrigerr_mc).prod()) != 0)
 
-    muTrig[denom !=0] = (
+    muTrig[denom != 0] = (
         (1 - (1. - muTrig_data).prod())[denom != 0] / denom[denom != 0])
     muTrig_up[denom_up != 0] = (
         (1 - (1. - muTrig_data - muTrigerr_data).prod())[denom_up != 0] /
@@ -405,7 +405,7 @@ def fsr_evaluator(muons_offsets, fsr_offsets,
                 muons_mass[imu] = out_mass
 
     return muons_pt, muons_eta, muons_phi,\
-           muons_mass, muons_iso, has_fsr
+        muons_mass, muons_iso, has_fsr
 
 
 def btag_weights(processor, lookup, systs, jets,
