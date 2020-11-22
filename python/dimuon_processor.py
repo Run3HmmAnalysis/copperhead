@@ -1527,7 +1527,7 @@ class DimuonProcessor(processor.ProcessorABC):
     def get_regions(self, mass):
         regions = {
             "z-peak": ((mass > 76) & (mass < 106)),
-            "h-sidebands":((mass > 110) & (mass < 115.03)) |
+            "h-sidebands": ((mass > 110) & (mass < 115.03)) |
             ((mass > 135.03) & (mass < 150)),
             "h-peak": ((mass > 115.03) & (mass < 135.03)),
         }
