@@ -4,12 +4,10 @@ from itertools import repeat
 import time
 import uproot
 import pickle
-import sys
 import math
 import copy
 import json
 import cloudpickle
-from tqdm.auto import tqdm
 from collections import defaultdict
 from cachetools import LRUCache
 import lz4.frame as lz4f
@@ -29,7 +27,7 @@ from coffea.util import _hash
 try:
     from collections.abc import Mapping, Sequence
 except ImportError:
-    from collections import Mapping, Sequence
+    from collections import Mapping
 
 
 _PICKLE_PROTOCOL = pickle.HIGHEST_PROTOCOL
@@ -331,8 +329,8 @@ def _work_function(item, processor_instance, flatten=False,
                 metrics['columns'] = set_accumulator({})
                 metrics['entries'] = value_accumulator(int, 0)
                 metrics['processtime'] = value_accumulator(float, 0)
-            wrapped_out = dict_accumulator({'out': out,
-                                            'metrics': metrics})
+            # wrapped_out = dict_accumulator({'out': out,
+            #                                 'metrics': metrics})
         except Exception as e:
             if retries == retry_count:
                 raise e
@@ -481,7 +479,7 @@ def run_uproot_job(fileset,
         while fileset:
             filemeta = fileset.pop()
             if skipbadfiles and not filemeta.populated(
-                clusters=align_clusters):
+              clusters=align_clusters):
                 continue
             for chunk in filemeta.chunks(chunksize, align_clusters):
                 chunks.append(chunk)

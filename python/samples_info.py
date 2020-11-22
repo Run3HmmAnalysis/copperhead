@@ -49,7 +49,7 @@ class SamplesInfo(object):
             self.lumi = 41530.
         elif '2018' in self.year:
             self.lumi = 59970.
-        # print('year: ', self.year)  
+        # print('year: ', self.year)
         # print('Default lumi: ', self.lumi)
 
         self.data_entries = 0
@@ -94,7 +94,7 @@ class SamplesInfo(object):
             print()
 
         t1 = time.time()
-        dt=round(t1 - t0, 2)
+        dt = round(t1 - t0, 2)
         print(f"Loading took {dt} s")
 
     def load_sample(self, sample, use_dask=False, client=None):
@@ -135,7 +135,7 @@ class SamplesInfo(object):
                     data_entries += ret['data_entries']
                 else:
                     sumGenWgts += ret['sumGenWgts']
-                    nGenEvts += ret['nGenEvts']            
+                    nGenEvts += ret['nGenEvts']
         else:
             for f in all_files:
                 if 'data' in sample:
@@ -144,7 +144,7 @@ class SamplesInfo(object):
                 else:
                     tree = uproot.open(f)['Runs']
                     if ('NanoAODv6' in self.paths[sample]) or\
-                      ('NANOV10' in self.paths[sample]):
+                    ('NANOV10' in self.paths[sample]):
                         sumGenWgts += tree.array('genEventSumw_')[0]
                         nGenEvts += tree.array('genEventCount_')[0]
                     else:

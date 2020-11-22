@@ -13,8 +13,8 @@ def mass_resolution_purdue(is_mc, evaluator, mu1, mu2, mass, two_muons, year):
 
     calibration = np.array(
         evaluator[label](mu1[two_muons].pt.flatten(),
-        abs(mu1[two_muons].eta.flatten()),
-        abs(mu2[two_muons].eta.flatten())))
+            abs(mu1[two_muons].eta.flatten()),
+            abs(mu2[two_muons].eta.flatten())))
 
     return (np.sqrt(dpt1 * dpt1 + dpt2 * dpt2) * calibration).flatten()
 
