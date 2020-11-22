@@ -1376,14 +1376,15 @@ def save_shapes(hist, model, args, mva_bins):
                             except Exception:
                                 pass
                             np.save(f'{tdir}/{g}/{name}', [histo, sumw2])
-                            for groupname, var_items in
-                            variations_by_group.items():
+                            for groupname, var_items in\
+                                    variations_by_group.items():
                                 if ((groupname == g) &
                                         (vwname == 'nominal')):
-                                    for variname, variations in
-                                    var_items.items():
-                                        for iud, ud in
-                                        enumerate(['Up', 'Down']):
+                                    for variname, variations in\
+                                            var_items.items():
+                                        for iud, ud in\
+                                                enumerate(
+                                                    ['Up', 'Down']):
                                             if len(variations[iud]) == 0:
                                                 variations[iud] =\
                                                     np.ones(len(histo))
@@ -1626,11 +1627,11 @@ def get_numbers(var, cc, r, bin_name, args, shift_signal=False):
                     systematics.loc[syst, 'type'] = 'shape'
                     if sum([dec_syst in syst for dec_syst in
                             decorrelation_scheme.keys()]):
-                        for dec_syst, decorr in
-                        decorrelation_scheme.items():
+                        for dec_syst, decorr in\
+                                decorrelation_scheme.items():
                             if (dec_syst in syst):
-                                for dec_group, proc_groups in
-                                decorr.items():
+                                for dec_group, proc_groups in\
+                                        decorr.items():
                                     if dec_group in syst:
                                         if ((g in proc_groups) and
                                             (syst in
@@ -1648,8 +1649,8 @@ def get_numbers(var, cc, r, bin_name, args, shift_signal=False):
                     #         if (g in syst) and
                     #         (syst in shape_systs_by_group[g]) else '-'
                     else:
-                        systematics.loc[syst, gcname] = '1.0' if syst in
-                        shape_systs_by_group[g] else '-'
+                        systematics.loc[syst, gcname] = '1.0' if syst in\
+                            shape_systs_by_group[g] else '-'
 
                 # https://twiki.cern.ch/twiki/bin/view/CMS/TWikiLUM
                 for year in ['2016', '2017', '2018']:
@@ -1669,8 +1670,8 @@ def get_numbers(var, cc, r, bin_name, args, shift_signal=False):
                     systematics.loc[f'lumi_{src}', gcname] =\
                         '-' if val == 1.0 else f"{val}"
 
-                for rate_syst, rate_syst_grouping in
-                rate_syst_lookup[year].items():
+                for rate_syst, rate_syst_grouping in\
+                        rate_syst_lookup[year].items():
                     systematics.loc[rate_syst, 'type'] = 'lnN'
                     if gcname in rate_syst_grouping.keys():
                         val = rate_syst_grouping[gcname]
@@ -1722,8 +1723,8 @@ def make_datacards(var, args, shift_signal=False):
             datacard.write(f"jmax *\n")
             datacard.write(f"kmax *\n")
             datacard.write("---------------\n")
-            datacard.write(f"shapes * {bin_name} {shapes_file} '\
-                f'$PROCESS $PROCESS_$SYSTEMATIC\n")
+            datacard.write(f"shapes * {bin_name} {shapes_file} "\
+                f"$PROCESS $PROCESS_$SYSTEMATIC\n")
             datacard.write("---------------\n")
             data_yields, mc_yields, systematics = get_numbers(
                 var, cc, r, bin_name, args, shift_signal)
@@ -1732,17 +1733,17 @@ def make_datacards(var, args, shift_signal=False):
             datacard.write(mc_yields)
             datacard.write("---------------\n")
             datacard.write(systematics)
-            datacard.write(f"XSecAndNorm{year}DYJ01  rateParam '\
-                f'{bin_name} DYJ01 1 [0.2,5] \n")
+            datacard.write(f"XSecAndNorm{year}DYJ01  rateParam "\
+                f"{bin_name} DYJ01 1 [0.2,5] \n")
             datacard.write(f"{bin_name} autoMCStats 0 1 1\n")
             datacard.write("---------------\n")
-            datacard.write(f"nuisance edit rename'
-                           f' (DYJ2|DYJ01|ggH_hmm|TT+ST|VV) * '
-                           f'qgl_wgt  QGLweightPY \n")
-            datacard.write(f"nuisance edit rename EWK * qgl_wgt'\
-                f' QGLweightHER \n")
-            datacard.write(f"nuisance edit rename qqH_hmm * qgl_wgt'\
-                f' QGLweightPYDIPOLE \n")
+            datacard.write(f"nuisance edit rename"\
+                           f" (DYJ2|DYJ01|ggH_hmm|TT+ST|VV) * "\
+                           f"qgl_wgt  QGLweightPY \n")
+            datacard.write(f"nuisance edit rename EWK * qgl_wgt"\
+                f" QGLweightHER \n")
+            datacard.write(f"nuisance edit rename qqH_hmm * qgl_wgt"\
+                f" QGLweightPYDIPOLE \n")
             datacard.close()
             print(f'Saved datacard to {datacard_name}')
     return
