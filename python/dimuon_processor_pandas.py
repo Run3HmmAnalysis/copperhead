@@ -442,9 +442,9 @@ class DimuonProcessor(processor.ProcessorABC):
             # leading muon pT cut
             # mu_for_trigmatch = muons[(
             #     muons.pt_raw > self.parameters["muon_leading_pt"])
-                # &(df.Muon.pfRelIso04_all <
-                #    self.parameters["muon_trigmatch_iso"]) &
-                # df.Muon[self.parameters["muon_trigmatch_id"]]
+            #     &(df.Muon.pfRelIso04_all <
+            #     self.parameters["muon_trigmatch_iso"]) &
+            #     df.Muon[self.parameters["muon_trigmatch_id"]]
             #    ]
 
             # For every such muon check if there is
@@ -1152,10 +1152,9 @@ class DimuonProcessor(processor.ProcessorABC):
 
         # Definition with rapidity would be different
         variables['zeppenfeld'][two_muons & two_jets] =\
-                        (output['dimuon_eta'][two_muons & two_jets] -
-                         0.5 *
-                         (variables['jet1_eta'][two_muons & two_jets] +
-                          variables['jet2_eta'][two_muons & two_jets]))
+            (output['dimuon_eta'][two_muons & two_jets] -
+             0.5 *(variables['jet1_eta'][two_muons & two_jets] +
+                   variables['jet2_eta'][two_muons & two_jets]))
 
         variables['mmjj_pt'][two_muons & two_jets],\
             variables['mmjj_eta'][two_muons & two_jets],\
@@ -1170,7 +1169,7 @@ class DimuonProcessor(processor.ProcessorABC):
                 variables['jj_phi'][two_muons & two_jets],
                 variables['jj_mass'][two_muons & two_jets])
 
-        variables['rpt'][two_muons&two_jets] =\
+        variables['rpt'][two_muons & two_jets] =\
             variables['mmjj_pt'][two_muons & two_jets] /\
             (output['dimuon_pt'][two_muons & two_jets] +
              variables['jet1_pt'][two_muons & two_jets] +

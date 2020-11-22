@@ -1,5 +1,4 @@
 from __future__ import print_function, division
-import concurrent.futures
 from functools import partial
 from itertools import repeat
 import time
@@ -8,13 +7,8 @@ import pickle
 import sys
 import math
 import copy
-import shutil
 import json
 import cloudpickle
-import uproot
-import subprocess
-import re
-import os
 from tqdm.auto import tqdm
 from collections import defaultdict
 from cachetools import LRUCache
@@ -48,7 +42,8 @@ if not hasattr(uproot.source.xrootd.XRootDSource, '_read_real'):
         self.bytesread = getattr(self, 'bytesread', 0) + self._chunkbytes
         return self._read_real(chunkindex)
 
-    uproot.source.xrootd.XRootDSource._read_real = uproot.source.xrootd.XRootDSource._read
+    uproot.source.xrootd.XRootDSource._read_real =\
+        uproot.source.xrootd.XRootDSource._read
     uproot.source.xrootd.XRootDSource._read = _read
 
 
@@ -67,7 +62,8 @@ class FileMeta(object):
 
     def __eq__(self, other):
         # In case of hash collisions
-        return self.filename == other.filename and self.treename == other.treename
+        return self.filename == other.filename and\
+            self.treename == other.treename
 
     def maybe_populate(self, cache):
         if cache and self in cache:
@@ -96,19 +92,28 @@ class FileMeta(object):
             if self.metadata['clusters'][-1] != chunks[-1]:
                 chunks.append(self.metadata['clusters'][-1])
             for start, stop in zip(chunks[:-1], chunks[1:]):
-                yield WorkItem(self.dataset, self.filename, self.treename, start, stop, self.metadata['uuid'])
+                yield WorkItem(self.dataset, self.filename,
+                               self.treename, start, stop,
+                               self.metadata['uuid'])
         else:
-            n = max(round(self.metadata['numentries'] / target_chunksize), 1)
+            n = max(round(self.metadata['numentries'] /
+                          target_chunksize), 1)
             actual_chunksize = math.ceil(self.metadata['numentries'] / n)
             for index in range(n):
-                start, stop = actual_chunksize * index, min(self.metadata['numentries'], actual_chunksize * (index + 1))
-                yield WorkItem(self.dataset, self.filename, self.treename, start, stop, self.metadata['uuid'])
+                start, stop = actual_chunksize * index,\
+                min(self.metadata['numentries'],
+                    actual_chunksize * (index + 1))
+                yield WorkItem(self.dataset, self.filename,
+                               self.treename, start, stop,
+                               self.metadata['uuid'])
 
 
 class WorkItem(object):
-    __slots__ = ['dataset', 'filename', 'treename', 'entrystart', 'entrystop', 'fileuuid']
+    __slots__ = ['dataset', 'filename', 'treename',
+                 'entrystart', 'entrystop', 'fileuuid']
 
-    def __init__(self, dataset, filename, treename, entrystart, entrystop, fileuuid):
+    def __init__(self, dataset, filename, treename, entrystart,
+                 entrystop, fileuuid):
         self.dataset = dataset
         self.filename = filename
         self.treename = treename
@@ -122,7 +127,7 @@ def _iadd(output, result):
         import pandas as pd
         output['out'] = pd.concat([output['out'], result['out']])
         output['metrics'] += result['metrics']
-    except:
+    except Exception:
         output += result
     
 class _reduce(object):
@@ -137,74 +142,15 @@ class _reduce(object):
             raise ValueError("Empty list provided to reduction")
         out = items.pop()
         if isinstance(out, AccumulatorABC):
-            # if dask has a cached result, we cannot alter it, so make a copy
+            # if dask has a cached result, we cannot alter it,
+            # so make a copy
             out = copy.deepcopy(out)
         while items:
             _iadd(out, items.pop())
         return out
 
 
-def iterative_executor(items, function, accumulator, **kwargs):
-    """Execute in one thread iteratively
-
-    Parameters
-    ----------
-        items : list
-            List of input arguments
-        function : callable
-            A function to be called on each input, which returns an accumulator instance
-        accumulator : AccumulatorABC
-            An accumulator to collect the output of the function
-        status : bool
-            If true (default), enable progress bar
-        unit : str
-            Label of progress bar unit
-        desc : str
-            Label of progress bar description
-
-    """
-    if len(items) == 0:
-        return accumulator
-    status = kwargs.pop('status', True)
-    unit = kwargs.pop('unit', 'items')
-    desc = kwargs.pop('desc', 'Processing')
-    add_fn = _iadd
-    for i, item in tqdm(enumerate(items), disable=not status, unit=unit, total=len(items), desc=desc):
-        add_fn(accumulator, function(item))
-    return accumulator
-
-
 def dask_executor(items, function, accumulator, **kwargs):
-    """Execute using dask futures
-
-    Parameters
-    ----------
-        items : list
-            List of input arguments
-        function : callable
-            A function to be called on each input, which returns an accumulator instance
-        accumulator : AccumulatorABC
-            An accumulator to collect the output of the function
-        client : distributed.client.Client
-            A dask distributed client instance
-        treereduction : int, optional
-            Tree reduction factor for output accumulators (default: 20)
-        status : bool, optional
-            If true (default), enable progress bar
-        priority : int, optional
-            Task priority, default 0
-        retries : int, optional
-            Number of retries for failed tasks (default: 3)
-        heavy_input : serializable, optional
-            Any value placed here will be broadcast to workers and joined to input
-            items in a tuple (item, heavy_input) that is passed to function.
-        function_name : str, optional
-            Name of the function being passed
-
-            .. note:: If ``heavy_input`` is set, ``function`` is assumed to be pure.
-    """
-    from dask.delayed import delayed
-
     if len(items) == 0:
         return accumulator
     client = kwargs.pop('client')
@@ -220,7 +166,8 @@ def dask_executor(items, function, accumulator, **kwargs):
     worker_affinity = kwargs.pop('worker_affinity', False)
 
     if heavy_input is not None:
-        heavy_token = client.scatter(heavy_input, broadcast=True, hash=False, direct=direct_heavy)
+        heavy_token = client.scatter(heavy_input, broadcast=True,
+                                     hash=False, direct=direct_heavy)
         items = list(zip(items, repeat(heavy_token)))
 
     work = []
@@ -230,7 +177,8 @@ def dask_executor(items, function, accumulator, **kwargs):
         def belongsto(workerindex, item):
             if heavy_input is not None:
                 item = item[0]
-            hashed = _hash((item.fileuuid, item.treename, item.entrystart, item.entrystop))
+            hashed = _hash((item.fileuuid, item.treename,
+                            item.entrystart, item.entrystop))
             return hashed % len(workers) == workerindex
 
         for workerindex, worker in enumerate(workers):
@@ -278,13 +226,15 @@ def dask_executor(items, function, accumulator, **kwargs):
         return accumulator
 
 
-def _work_function(item, processor_instance, flatten=False, savemetrics=False,
-                   mmap=False, nano=False, cachestrategy=None, skipbadfiles=False,
+def _work_function(item, processor_instance, flatten=False,
+                   savemetrics=False, mmap=False, nano=False,
+                   cachestrategy=None, skipbadfiles=False,
                    retries=0, xrootdtimeout=None):
     if processor_instance == 'heavy':
         item, processor_instance = item
     if not isinstance(processor_instance, ProcessorABC):
-        processor_instance = cloudpickle.loads(lz4f.decompress(processor_instance))
+        processor_instance = cloudpickle.loads(
+            lz4f.decompress(processor_instance))
     if mmap:
         localsource = {}
     else:
@@ -306,7 +256,9 @@ def _work_function(item, processor_instance, flatten=False, savemetrics=False,
             from uproot.source.xrootd import XRootDSource
             xrootdsource = XRootDSource.defaults
             xrootdsource['timeout'] = xrootdtimeout
-            file = uproot.open(item.filename, localsource=localsource, xrootdsource=xrootdsource)
+            file = uproot.open(item.filename,
+                               localsource=localsource,
+                               xrootdsource=xrootdsource)
             if nano:
                 cache = None
                 if cachestrategy == 'dask-worker':
@@ -331,7 +283,8 @@ def _work_function(item, processor_instance, flatten=False, savemetrics=False,
                 )
             else:
                 tree = file[item.treename]
-                df = LazyDataFrame(tree, item.entrystart, item.entrystop, flatten=flatten)
+                df = LazyDataFrame(tree, item.entrystart,
+                                   item.entrystop, flatten=flatten)
                 df['dataset'] = item.dataset
                 df['filename'] = item.filename
             tic = time.time()
@@ -339,13 +292,18 @@ def _work_function(item, processor_instance, flatten=False, savemetrics=False,
             toc = time.time()
             metrics = dict_accumulator()
             if savemetrics:
-                if isinstance(file.source, uproot.source.xrootd.XRootDSource):
-                    metrics['bytesread'] = value_accumulator(int, file.source.bytesread)
-                    metrics['dataservers'] = set_accumulator({file.source._source.get_property('DataServer')})
+                if isinstance(file.source, 
+                              uproot.source.xrootd.XRootDSource):
+                    metrics['bytesread'] =\
+                        value_accumulator(int, file.source.bytesread)
+                    metrics['dataservers'] = set_accumulator(
+                        {file.source._source.get_property('DataServer')})
                 metrics['columns'] = set_accumulator(df.materialized)
                 metrics['entries'] = value_accumulator(int, df.size)
-                metrics['processtime'] = value_accumulator(float, toc - tic)
-            wrapped_out = dict_accumulator({'out': out, 'metrics': metrics})
+                metrics['processtime'] = value_accumulator(float,
+                                                           toc - tic)
+            wrapped_out = dict_accumulator({'out': out,
+                                            'metrics': metrics})
             file.source.close()
             break
         # catch xrootd errors and optionally skip
@@ -356,7 +314,8 @@ def _work_function(item, processor_instance, flatten=False, savemetrics=False,
             else:
                 w_str = 'Bad file source %s.' % item.filename
                 if retries:
-                    w_str += ' Attempt %d of %d.' % (retry_count + 1, retries + 1)
+                    w_str += ' Attempt %d of %d.' %\
+                        (retry_count + 1, retries + 1)
                     if retry_count + 1 < retries:
                         w_str += ' Will retry.'
                     else:
@@ -371,11 +330,13 @@ def _work_function(item, processor_instance, flatten=False, savemetrics=False,
                 metrics['columns'] = set_accumulator({})
                 metrics['entries'] = value_accumulator(int, 0)
                 metrics['processtime'] = value_accumulator(float, 0)
-            wrapped_out = dict_accumulator({'out': out, 'metrics': metrics})
+            wrapped_out = dict_accumulator({'out': out,
+                                            'metrics': metrics})
         except Exception as e:
             if retries == retry_count:
                 raise e
-            w_str = 'Attempt %d of %d. Will retry.' % (retry_count + 1, retries + 1)
+            w_str = 'Attempt %d of %d. Will retry.' %\
+                (retry_count + 1, retries + 1)
             warnings.warn(w_str)
         retry_count += 1
     return out
@@ -388,32 +349,45 @@ def _normalize_fileset(fileset, treename):
             fileset = json.load(fin)
     for dataset, filelist in fileset.items():
         if isinstance(filelist, dict):
-            local_treename = filelist['treename'] if 'treename' in filelist else treename
+            local_treename = filelist['treename'] if 'treename' in\
+                filelist else treename
             filelist = filelist['files']
         elif isinstance(filelist, list):
             if treename is None:
-                raise ValueError('treename must be specified if the fileset does not contain tree names')
+                raise ValueError('treename must be specified if the'
+                                 ' fileset does not contain tree names')
             local_treename = treename
         else:
-            raise ValueError('list of filenames in fileset must be a list or a dict')
+            raise ValueError(
+                'list of filenames in fileset must be a list or a dict')
         for filename in filelist:
             yield FileMeta(dataset, filename, local_treename)
 
 
-def _get_metadata(item, skipbadfiles=False, retries=0, xrootdtimeout=None, align_clusters=False):
+def _get_metadata(item, skipbadfiles=False, retries=0,
+                  xrootdtimeout=None, align_clusters=False):
     import warnings
     out = set_accumulator()
     retry_count = 0
     while retry_count <= retries:
         try:
-            # add timeout option according to modified uproot numentries defaults
-            xrootdsource = {"timeout": xrootdtimeout, "chunkbytes": 32 * 1024, "limitbytes": 1024**2, "parallel": False}
+            # add timeout option according to
+            # modified uproot numentries defaults
+            xrootdsource = {"timeout": xrootdtimeout,
+                            "chunkbytes": 32 * 1024,
+                            "limitbytes": 1024**2,
+                            "parallel": False}
             file = uproot.open(item.filename, xrootdsource=xrootdsource)
             tree = file[item.treename]
-            metadata = {'numentries': tree.numentries, 'uuid': file._context.uuid}
+            metadata = {'numentries': tree.numentries,
+                        'uuid': file._context.uuid}
             if align_clusters:
-                metadata['clusters'] = [0] + list(c[1] for c in tree.clusters())
-            out = set_accumulator([FileMeta(item.dataset, item.filename, item.treename, metadata)])
+                metadata['clusters'] = [0] +
+                    list(c[1] for c in tree.clusters())
+            out = set_accumulator([FileMeta(item.dataset,
+                                            item.filename,
+                                            item.treename,
+                                            metadata)])
             break
         except OSError as e:
             if not skipbadfiles:
@@ -421,7 +395,8 @@ def _get_metadata(item, skipbadfiles=False, retries=0, xrootdtimeout=None, align
             else:
                 w_str = 'Bad file source %s.' % item.filename
                 if retries:
-                    w_str += ' Attempt %d of %d.' % (retry_count + 1, retries + 1)
+                    w_str += ' Attempt %d of %d.' %\
+                        (retry_count + 1, retries + 1)
                     if retry_count + 1 < retries:
                         w_str += ' Will retry.'
                     else:
@@ -432,7 +407,8 @@ def _get_metadata(item, skipbadfiles=False, retries=0, xrootdtimeout=None, align
         except Exception as e:
             if retries == retry_count:
                 raise e
-            w_str = 'Attempt %d of %d. Will retry.' % (retry_count + 1, retries + 1)
+            w_str = 'Attempt %d of %d. Will retry.' %\
+                (retry_count + 1, retries + 1)
             warnings.warn(w_str)
         retry_count += 1
     return out
@@ -449,62 +425,13 @@ def run_uproot_job(fileset,
                    maxchunks=None,
                    metadata_cache=None,
                    ):
-    '''A tool to run a processor using uproot for data delivery
-
-    A convenience wrapper to submit jobs for a file set, which is a
-    dictionary of dataset: [file list] entries.  Supports only uproot
-    reading, via the LazyDataFrame class.  For more customized processing,
-    e.g. to read other objects from the files and pass them into data frames,
-    one can write a similar function in their user code.
-
-    Parameters
-    ----------
-        fileset : dict
-            A dictionary ``{dataset: [file, file], }``
-            Optionally, if some files' tree name differ, the dictionary can be specified:
-            ``{dataset: {'treename': 'name', 'files': [file, file]}, }``
-        treename : str
-            name of tree inside each root file, can be ``None``;
-            treename can also be defined in fileset, which will override the passed treename
-        processor_instance : ProcessorABC
-            An instance of a class deriving from ProcessorABC
-        executor : callable
-            A function that takes 3 arguments: items, function, accumulator
-            and performs some action equivalent to:
-            ``for item in items: accumulator += function(item)``
-        executor_args : dict, optional
-            Arguments to pass to executor.  See `iterative_executor`,
-            `futures_executor`, `dask_executor`, or `parsl_executor` for available options.
-            Some options that affect the behavior of this function:
-            'savemetrics' saves some detailed metrics for xrootd processing (default False);
-            'flatten' removes any jagged structure from the input files (default False);
-            'nano' builds the dataframe as a `NanoEvents` object rather than `LazyDataFrame` (default False);
-            'processor_compression' sets the compression level used to send processor instance to workers (default 1).
-            'skipbadfiles' instead of failing on a bad file, skip it (default False)
-            'retries' optionally retry n times (default 0)
-            'xrootdtimeout' timeout for xrootd read (seconds)
-            'tailtimeout' timeout requirement on job tails (seconds)
-            'align_clusters' aligns the chunks to natural boundaries in the ROOT files
-        pre_executor : callable
-            A function like executor, used to calculate fileset metadata
-            Defaults to executor
-        pre_args : dict, optional
-            Similar to executor_args, defaults to executor_args
-        chunksize : int, optional
-            Maximum number of entries to process at a time in the data frame, default: 100k
-        maxchunks : int, optional
-            Maximum number of chunks to process per dataset
-            Defaults to processing the whole dataset
-        metadata_cache : mapping, optional
-            A dict-like object to use as a cache for (file, tree) metadata that is used to
-            determine chunking.  Defaults to a in-memory LRU cache that holds 100k entries
-            (about 1MB depending on the length of filenames, etc.)  If you edit an input file
-            (please don't) during a session, the session can be restarted to clear the cache.
-    '''
     if not isinstance(fileset, (Mapping, str)):
-        raise ValueError("Expected fileset to be a mapping dataset: list(files) or filename")
+        raise ValueError(
+            "Expected fileset to be a mapping dataset: "
+            "list(files) or filename")
     if not isinstance(processor_instance, ProcessorABC):
-        raise ValueError("Expected processor_instance to derive from ProcessorABC")
+        raise ValueError(
+            "Expected processor_instance to derive from ProcessorABC")
 
     if pre_executor is None:
         pre_executor = executor
@@ -532,7 +459,9 @@ def run_uproot_job(fileset,
     chunks = []
     if maxchunks is None:
         # this is a bit of an abuse of map-reduce but ok
-        to_get = set(filemeta for filemeta in fileset if not filemeta.populated(clusters=align_clusters))
+        to_get = set(
+            filemeta for filemeta in fileset if not filemeta.populated(
+                clusters=align_clusters))
         if len(to_get) > 0:
             out = set_accumulator()
             pre_arg_override = {
@@ -550,7 +479,8 @@ def run_uproot_job(fileset,
                 filemeta.maybe_populate(metadata_cache)
         while fileset:
             filemeta = fileset.pop()
-            if skipbadfiles and not filemeta.populated(clusters=align_clusters):
+            if skipbadfiles and not filemeta.populated(
+                clusters=align_clusters):
                 continue
             for chunk in filemeta.chunks(chunksize, align_clusters):
                 chunks.append(chunk)
@@ -562,9 +492,11 @@ def run_uproot_job(fileset,
             if nchunks[filemeta.dataset] >= maxchunks:
                 continue
             if not filemeta.populated(clusters=align_clusters):
-                filemeta.metadata = metadata_fetcher(filemeta).pop().metadata
+                filemeta.metadata = metadata_fetcher(
+                    filemeta).pop().metadata
                 metadata_cache[filemeta] = filemeta.metadata
-            if skipbadfiles and not filemeta.populated(clusters=align_clusters):
+            if skipbadfiles and not filemeta.populated(
+                clusters=align_clusters):
                 continue
             for chunk in filemeta.chunks(chunksize, align_clusters):
                 chunks.append(chunk)
@@ -582,7 +514,9 @@ def run_uproot_job(fileset,
     if pi_compression is None:
         pi_to_send = processor_instance
     else:
-        pi_to_send = lz4f.compress(cloudpickle.dumps(processor_instance), compression_level=pi_compression)
+        pi_to_send = lz4f.compress(
+            cloudpickle.dumps(processor_instance),
+            compression_level=pi_compression)
     closure = partial(
         _work_function,
         flatten=flatten,
@@ -594,7 +528,8 @@ def run_uproot_job(fileset,
         retries=retries,
         xrootdtimeout=xrootdtimeout,
     )
-    # hack around dask/dask#5503 which is really a silly request but here we are
+    # hack around dask/dask#5503 which is really a
+    # silly request but here we are
     if executor is dask_executor:
         executor_args['heavy_input'] = pi_to_send
         executor_args['function_name'] = 'processor'
@@ -606,7 +541,8 @@ def run_uproot_job(fileset,
     import pandas as pd
     out = pd.DataFrame()
 
-    wrapped_out = dict_accumulator({'out': out, 'metrics': dict_accumulator()})
+    wrapped_out = dict_accumulator({'out': out,
+                                    'metrics': dict_accumulator()})
     exe_args = {
         'unit': 'chunk',
         'function_name': type(processor_instance).__name__,
@@ -619,116 +555,3 @@ def run_uproot_job(fileset,
     if savemetrics:
         return wrapped_out['out'], wrapped_out['metrics']
     return wrapped_out['out']
-
-
-
-def run_spark_job(fileset, processor_instance, executor, executor_args={},
-                  spark=None, partitionsize=200000, thread_workers=16):
-    '''A wrapper to submit spark jobs
-
-    A convenience wrapper to submit jobs for spark datasets, which is a
-    dictionary of dataset: [file list] entries.  Presently supports reading of
-    parquet files converted from root.  For more customized processing,
-    e.g. to read other objects from the files and pass them into data frames,
-    one can write a similar function in their user code.
-
-    Parameters
-    ----------
-        fileset : dict
-            dictionary {dataset: [file, file], }
-        processor_instance : ProcessorABC
-            An instance of a class deriving from ProcessorABC
-
-            .. note:: The processor instance must define all the columns in data and MC that it reads as ``.columns``
-        executor:
-            anything that inherits from `SparkExecutor` like `spark_executor`
-
-            In general, a function that takes 3 arguments: items, function accumulator
-            and performs some action equivalent to:
-            for item in items: accumulator += function(item)
-        executor_args:
-            arguments to send to the creation of a spark session
-        spark:
-            an optional already created spark instance
-
-            if ``None`` then we create an ephemeral spark instance using a config
-        partitionsize:
-            partition size to try to aim for (coalescese only, repartition too expensive)
-        thread_workers:
-            how many spark jobs to let fly in parallel during processing steps
-    '''
-
-    try:
-        import pyspark
-    except ImportError as e:
-        print('you must have pyspark installed to call run_spark_job()!', file=sys.stderr)
-        raise e
-
-    from packaging import version
-    import pyarrow as pa
-    import warnings
-    arrow_env = ('ARROW_PRE_0_15_IPC_FORMAT', '1')
-    if (version.parse(pa.__version__) >= version.parse('0.15.0') and
-        version.parse(pyspark.__version__) < version.parse('3.0.0')):
-        import os
-        if (arrow_env[0] not in os.environ or
-            os.environ[arrow_env[0]] != arrow_env[1]):
-            warnings.warn('If you are using pyarrow >= 0.15.0, make sure to set %s=%s in your environment!' % arrow_env)
-
-    import pyspark.sql
-    from .spark.spark_executor import SparkExecutor
-    from .spark.detail import _spark_initialize, _spark_stop, _spark_make_dfs
-
-    if not isinstance(fileset, Mapping):
-        raise ValueError("Expected fileset to be a mapping dataset: list(files)")
-    if not isinstance(processor_instance, ProcessorABC):
-        raise ValueError("Expected processor_instance to derive from ProcessorABC")
-    if not isinstance(executor, SparkExecutor):
-        raise ValueError("Expected executor to derive from SparkExecutor")
-
-    executor_args.setdefault('config', None)
-    executor_args.setdefault('file_type', 'parquet')
-    executor_args.setdefault('laurelin_version', '1.1.1')
-    executor_args.setdefault('treeName', 'Events')
-    executor_args.setdefault('flatten', False)
-    executor_args.setdefault('nano', False)
-    executor_args.setdefault('cache', True)
-    executor_args.setdefault('skipbadfiles', False)
-    executor_args.setdefault('retries', 0)
-    executor_args.setdefault('xrootdtimeout', None)
-    file_type = executor_args['file_type']
-    treeName = executor_args['treeName']
-    flatten = executor_args['flatten']
-    nano = executor_args['nano']
-    use_cache = executor_args['cache']
-
-    if executor_args['config'] is None:
-        executor_args.pop('config')
-
-    # initialize spark if we need to
-    # if we initialize, then we deconstruct
-    # when we're done
-    killSpark = False
-    if spark is None:
-        spark = _spark_initialize(**executor_args)
-        killSpark = True
-        use_cache = False  # if we always kill spark then we cannot use the cache
-    else:
-        if not isinstance(spark, pyspark.sql.session.SparkSession):
-            raise ValueError("Expected 'spark' to be a pyspark.sql.session.SparkSession")
-
-    dfslist = {}
-    if executor._cacheddfs is None:
-        dfslist = _spark_make_dfs(spark, fileset, partitionsize, processor_instance.columns,
-                                  thread_workers, file_type, treeName)
-
-    output = processor_instance.accumulator.identity()
-    executor(spark, dfslist, processor_instance, output, thread_workers, use_cache, flatten, nano)
-    processor_instance.postprocess(output)
-
-    if killSpark:
-        _spark_stop(spark)
-        del spark
-        spark = None
-
-    return output
