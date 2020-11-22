@@ -1,17 +1,11 @@
-import os
-import sys
 import copy
-
 import awkward
-import uproot
 import numpy as np
 # np.set_printoptions(threshold=sys.maxsize)
-import pandas as pd
 
-from coffea import hist, util
 from coffea.analysis_objects import JaggedCandidateArray
 import coffea.processor as processor
-from coffea.lookup_tools import extractor, dense_lookup
+from coffea.lookup_tools import extractor
 from coffea.lookup_tools import txt_converters, rochester_lookup
 from coffea.jetmet_tools import FactorizedJetCorrector
 from coffea.jetmet_tools import JetCorrectionUncertainty
@@ -23,7 +17,6 @@ from coffea.lumi_tools import LumiMask
 from python.utils import p4_sum, p4_sum_alt, delta_r
 from python.utils import rapidity, cs_variables
 from python.timer import Timer
-from python.samples_info import SamplesInfo
 from python.weights import Weights
 from python.corrections import musf_lookup, musf_evaluator
 from python.corrections import pu_lookup, pu_evaluator
@@ -155,13 +148,12 @@ class DimuonProcessor(processor.ProcessorABC):
 
         zpt_filename = self.parameters['zpt_weights_file']
         puid_filename = self.parameters['puid_sf_file']
-        rescalib_files = []
 
         self.extractor = extractor()
         self.extractor.add_weight_sets([f"* * {zpt_filename}"])
         self.extractor.add_weight_sets([f"* * {puid_filename}"])
         self.extractor.add_weight_sets(
-            [f"* * data/mass_res_pisa/muonresolution.root"])
+            ["* * data/mass_res_pisa/muonresolution.root"])
 
         for mode in ["Data", "MC"]:
             label = f"res_calib_{mode}_{self.year}"
@@ -347,7 +339,7 @@ class DimuonProcessor(processor.ProcessorABC):
 
         # df.Muon['pt_scale_up'] = df.Muon.pt+df.Muon.pt*roch_err
         # df.Muon['pt_scale_down'] = df.Muon.pt-df.Muon.pt*roch_err
-        muons_pts = {'nominal': df.Muon.pt}
+        # muons_pts = {'nominal': df.Muon.pt}
         # , 'scale_up':df.Muon.pt_scale_up,
         # 'scale_down':df.Muon.pt_scale_down}
 
@@ -527,9 +519,9 @@ class DimuonProcessor(processor.ProcessorABC):
 
             # Events where there is a trigger object
             # matched to a tight-ID tight-Iso muon passing leading pT cut
-            event_passing_trig_match = (
-                mu_for_trigmatch[
-                    has_matched_trigmuon].counts > 0).flatten()
+            # event_passing_trig_match = (
+            #     mu_for_trigmatch[
+            #         has_matched_trigmuon].counts > 0).flatten()
 
             mask = mask & pass_leading_pt  # & event_passing_trig_match
 
@@ -708,9 +700,9 @@ class DimuonProcessor(processor.ProcessorABC):
                         if (junc_name not in juncs):
                             continue
                         up_ = (f"{junc_name}_up" not in
-                                 self.pt_variations)
+                               self.pt_variations)
                         dn_ = (f"{junc_name}_down" not in
-                                 self.pt_variations)
+                               self.pt_variations)
                         if (up_ and dn_):
                             continue
                         jec_up_down = get_jec_unc(
@@ -991,7 +983,6 @@ class DimuonProcessor(processor.ProcessorABC):
         # --------------------------------------------------------------#
 
         if self.do_pdf and is_mc and ('nominal' in self.pt_variations):
-            pdf_rms = np.zeros(numevents, dtype=float)
             do_pdf = (("dy" in dataset or "ewk" in dataset or
                        "ggh" in dataset or "vbf" in dataset) and
                       ('mg' not in dataset))
@@ -1175,7 +1166,7 @@ class DimuonProcessor(processor.ProcessorABC):
         # Jet PUID scale factors
         if is_mc and False:  # disable for now
             puid_weight = puid_weights(
-                self.evaluator, self.year, jets,
+                self.evaluator, self.year, df.Jet,
                 pt_name, jet_puid_opt, jet_puid, numevents)
             weights.add_weight('puid_wgt', puid_weight)
 
@@ -1191,8 +1182,8 @@ class DimuonProcessor(processor.ProcessorABC):
         one_jet = (df.Jet.counts > 0)
         two_jets = (df.Jet.counts > 1)
 
-        jet1_mask = one_jet.astype(int)
-        jet2_mask = two_jets.astype(int)
+        # jet1_mask = one_jet.astype(int)
+        # jet2_mask = two_jets.astype(int)
 
         jet1 = df.Jet[one_jet][:, 0]
         jet2 = df.Jet[two_jets][:, 1]
@@ -1398,8 +1389,8 @@ class DimuonProcessor(processor.ProcessorABC):
             (abs(df.Jet.eta) < 2.5)].counts
         mask = mask & (nBtagLoose < 2) & (nBtagMedium < 1)
 
-        mass = (muon_variables['dimuon_mass'] > 115) &\
-            (muon_variables['dimuon_mass'] < 135)
+        # mass = (muon_variables['dimuon_mass'] > 115) &\
+        #     (muon_variables['dimuon_mass'] < 135)
 
         if self.timer:
             self.timer.add_checkpoint("Applied b-jet SF and b-tag veto")
@@ -1514,14 +1505,14 @@ class DimuonProcessor(processor.ProcessorABC):
         nsoftjets[mask] = (
             df[f'SoftActivityJetNjets{cutoff}'][mask] -
             (mumatch[mask] &
-             (df.SoftActivityJet.pt > cutoff)[mask]).sum()).flatten()
+            (df.SoftActivityJet.pt > cutoff)[mask]).sum()).flatten()
         nsoftjets[mask1j] = (
             df[f'SoftActivityJetNjets{cutoff}'][mask1j] -
             ((mumatch[mask1j] | j1match[mask1j_]) &
-             (df.SoftActivityJet.pt > cutoff)[mask1j]).sum()).flatten()
+            (df.SoftActivityJet.pt > cutoff)[mask1j]).sum()).flatten()
         nsoftjets[mask2j] = (
             df[f'SoftActivityJetNjets{cutoff}'][mask2j] -
-           ((mumatch[mask2j] | j1match[mask2j__] | j2match[mask2j_]) &
+            ((mumatch[mask2j] | j1match[mask2j__] | j2match[mask2j_]) &
             (df.SoftActivityJet.pt > cutoff)[mask2j]).sum()).flatten()
 
         saj_filter = (mumatch[mask2j] | j1match[mask2j__] |
@@ -1530,15 +1521,16 @@ class DimuonProcessor(processor.ProcessorABC):
         if footprintSAJ.shape[0] > 0:
             htsoft[mask2j] =\
                 df[f'SoftActivityJetHT{cutoff}'][mask2j] -\
-                    (footprintSAJ.pt * (footprintSAJ.pt > cutoff)).sum()
+                (footprintSAJ.pt * (footprintSAJ.pt > cutoff)).sum()
         return nsoftjets, htsoft
 
     def get_regions(self, mass):
         regions = {
-            "z-peak": ((mass>76) & (mass<106)),
-            "h-sidebands": ((mass>110) & (mass<115.03)) |\
-                ((mass>135.03) & (mass<150)),
-            "h-peak": ((mass>115.03) & (mass<135.03)),
+            "z-peak": ((mass > 76) & (mass < 106)),
+            "h-sidebands": (
+                (mass > 110) & (mass < 115.03)) |
+                ((mass > 135.03) & (mass < 150)),
+            "h-peak": ((mass > 115.03) & (mass < 135.03)),
         }
         return regions
 

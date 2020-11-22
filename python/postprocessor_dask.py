@@ -10,7 +10,7 @@ from config.variables import variables_lookup, Variable
 
 stderr = sys.stderr
 sys.stderr = open(os.devnull, 'w')
-import keras # noqa: E402
+import keras  # noqa: E402
 sys.stderr = stderr
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 
