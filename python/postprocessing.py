@@ -1739,7 +1739,7 @@ def make_datacards(var, args, shift_signal=False):
                            " (DYJ2|DYJ01|ggH_hmm|TT+ST|VV) * "
                            "qgl_wgt  QGLweightPY \n")
             datacard.write("nuisance edit rename EWK * qgl_wgt"
-                            " QGLweightHER \n")
+                           " QGLweightHER \n")
             datacard.write("nuisance edit rename qqH_hmm * qgl_wgt"
                            " QGLweightPYDIPOLE \n")
             datacard.close()
@@ -1816,8 +1816,8 @@ def plot(var, hists, edges, args, r='', save=True, blind=True,
                 'bkg_sumw2': bkg_sumw2}
 
     ret_nominal = get_shapes_for_option(hist, 'nominal', 'wgt_nominal')
-    ret_nnlops_off = get_shapes_for_option(
-        hist, 'nominal', 'wgt_nnlops_off')
+    # ret_nnlops_off = get_shapes_for_option(
+    #     hist, 'nominal', 'wgt_nnlops_off')
     data = ret_nominal['data']
     data_sumw2 = ret_nominal['data_sumw2'][1:]
 
@@ -1828,7 +1828,7 @@ def plot(var, hists, edges, args, r='', save=True, blind=True,
 
     vbf = ret_nominal['vbf']
     # vbf_sumw2 = ret_nominal['vbf_sumw2'][1:]
-    # ggh = ret_nominal['ggh']
+    ggh = ret_nominal['ggh']
     # ggh_sumw2 = ret_nominal['ggh_sumw2'][1:]
 
     # ggh_nnlops_off = ret_nnlops_off['ggh']
@@ -1921,7 +1921,7 @@ def plot(var, hists, edges, args, r='', save=True, blind=True,
 
     if ggh.sum():
         hep.histplot(ggh, edges, label='ggH', histtype='step',
-                              **{'linewidth': 3, 'color': 'lime'})
+                     **{'linewidth': 3, 'color': 'lime'})
     # if ggh_nnlops_off.sum():
     #     ax_ggh = hep.histplot(ggh_nnlops_off, edges,
     #                           label='ggH NNLOPS off', histtype='step',
@@ -1929,16 +1929,16 @@ def plot(var, hists, edges, args, r='', save=True, blind=True,
 
     if vbf.sum():
         hep.histplot(vbf, edges, label='VBF', histtype='step',
-                              **{'linewidth': 3, 'color': 'aqua'})
+                     **{'linewidth': 3, 'color': 'aqua'})
     if data.sum():
         hep.histplot(data, edges_data, label='Data',
-                               histtype='errorbar', yerr=np.sqrt(data),
-                               **data_opts)
+                     histtype='errorbar', yerr=np.sqrt(data),
+                     **data_opts)
 
     max_variation_up = bkg_total.sum()
     max_variation_down = bkg_total.sum()
-    max_var_up_name = ''
-    max_var_down_name = ''
+    # max_var_up_name = ''
+    # max_var_down_name = ''
     for v in hist.v.unique():
         for w in hist.w.unique():
             continue
@@ -1957,8 +1957,8 @@ def plot(var, hists, edges, args, r='', save=True, blind=True,
             ret = get_shapes_for_option(hist, v, w)
             if ret['bkg_total'].sum():
                 hep.histplot(ret['bkg_total'].values, edges,
-                                      histtype='step',
-                                      **{'linewidth': 3})
+                             histtype='step',
+                             **{'linewidth': 3})
                 if (ret['bkg_total'].values.sum() > max_variation_up):
                     max_variation_up = ret['bkg_total'].values.sum()
                     # max_var_up_name = f'{v},{w}'
@@ -1968,10 +1968,10 @@ def plot(var, hists, edges, args, r='', save=True, blind=True,
 
             if ret['ggh'].sum():
                 hep.histplot(ret['ggh'], edges, histtype='step',
-                                      **{'linewidth': 3})
+                             **{'linewidth': 3})
             if ret['vbf'].sum():
                 hep.histplot(ret['vbf'], edges, histtype='step',
-                                      **{'linewidth': 3})
+                             **{'linewidth': 3})
 
     lbl = hep.cms.label(ax=plt1, data=True, paper=False, year=year)
 
@@ -2037,8 +2037,8 @@ def plot(var, hists, edges, args, r='', save=True, blind=True,
             syst_ratio[bkg_total != 0] =\
                 np.array(ret['bkg_total'].values[bkg_total != 0] /
                          bkg_total[bkg_total != 0])
-            ax = hep.histplot(syst_ratio, edges, histtype='step',
-                              label=lbl, **{'linewidth': 3})
+            hep.histplot(syst_ratio, edges, histtype='step',
+                         label=lbl, **{'linewidth': 3})
             plt2.legend(prop={'size': 'xx-small'})
 
     plot_all_systematics = False
@@ -2069,10 +2069,10 @@ def plot(var, hists, edges, args, r='', save=True, blind=True,
         ratio_up[mask] = 1 + np.sqrt(total_err2_up)[mask]
         ratio_down[mask] = 1 - np.sqrt(total_err2_down)[mask]
         hep.histplot(ratio_up, edges, histtype='step',
-                             label='Total syst. unc.',
-                             **{'linewidth': 3, 'color': 'red'})
+                     label='Total syst. unc.',
+                     **{'linewidth': 3, 'color': 'red'})
         hep.histplot(ratio_down, edges, histtype='step',
-                               **{'linewidth': 3, 'color': 'red'})
+                     **{'linewidth': 3, 'color': 'red'})
         plt2.legend(prop={'size': 'xx-small'})
 
     plt2.axhline(1, ls='--')
@@ -2086,8 +2086,8 @@ def plot(var, hists, edges, args, r='', save=True, blind=True,
         ratio[bkg_total != 0] = np.array(pisa_hist[bkg_total != 0] /
                                          bkg_total[bkg_total != 0])
         hep.histplot(ratio, edges, label='Pisa/Purdue MC',
-                          histtype='step', **{'linewidth': 3,
-                                              'color': 'red'})
+                     histtype='step', **{'linewidth': 3,
+                                         'color': 'red'})
         plt2.legend(prop={'size': 'small'})
         plt2.set_ylim([0.8, 1.2])
 
@@ -2096,8 +2096,8 @@ def plot(var, hists, edges, args, r='', save=True, blind=True,
         ratio_data[data != 0] = np.array(pisa_data_hist[data != 0] /
                                          data[data != 0])
         hep.histplot(ratio_data, edges,
-                          label='Pisa/Purdue Data', histtype='step',
-                          **{'linewidth': 3, 'color': 'blue'})
+                     label='Pisa/Purdue Data', histtype='step',
+                     **{'linewidth': 3, 'color': 'blue'})
         plt2.legend(prop={'size': 'small'})
         plt2.set_ylim([0.8, 1.2])
 
