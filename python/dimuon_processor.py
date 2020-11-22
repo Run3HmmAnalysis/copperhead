@@ -514,8 +514,8 @@ class DimuonProcessor(processor.ProcessorABC):
                 muTrig.i1.eta,
                 muTrig.i0.phi,
                 muTrig.i1.phi)
-            has_matched_trigmuon = (
-                dr < self.parameters["muon_trigmatch_dr"]).any()
+            # has_matched_trigmuon = (
+            #     dr < self.parameters["muon_trigmatch_dr"]).any()
 
             # Events where there is a trigger object
             # matched to a tight-ID tight-Iso muon passing leading pT cut
@@ -1505,15 +1505,15 @@ class DimuonProcessor(processor.ProcessorABC):
         nsoftjets[mask] = (
             df[f'SoftActivityJetNjets{cutoff}'][mask] -
             (mumatch[mask] &
-            (df.SoftActivityJet.pt > cutoff)[mask]).sum()).flatten()
+             (df.SoftActivityJet.pt > cutoff)[mask]).sum()).flatten()
         nsoftjets[mask1j] = (
             df[f'SoftActivityJetNjets{cutoff}'][mask1j] -
             ((mumatch[mask1j] | j1match[mask1j_]) &
-            (df.SoftActivityJet.pt > cutoff)[mask1j]).sum()).flatten()
+             (df.SoftActivityJet.pt > cutoff)[mask1j]).sum()).flatten()
         nsoftjets[mask2j] = (
             df[f'SoftActivityJetNjets{cutoff}'][mask2j] -
             ((mumatch[mask2j] | j1match[mask2j__] | j2match[mask2j_]) &
-            (df.SoftActivityJet.pt > cutoff)[mask2j]).sum()).flatten()
+             (df.SoftActivityJet.pt > cutoff)[mask2j]).sum()).flatten()
 
         saj_filter = (mumatch[mask2j] | j1match[mask2j__] |
                       j2match[mask2j_] | outer | inner)
