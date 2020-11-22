@@ -17,8 +17,9 @@ def p4_sum(obj1, obj2):
             px_ = obj['__fast_pt'] * np.cos(obj['__fast_phi'])
             py_ = obj['__fast_pt'] * np.sin(obj['__fast_phi'])
             pz_ = obj['__fast_pt'] * np.sinh(obj['__fast_eta'])
-            e_ = np.sqrt(px_**2 + py_**2 + pz_**2 +
-                          obj['__fast_mass']**2)
+            e_ = np.sqrt(
+                px_**2 + py_**2 + pz_**2 +
+                obj['__fast_mass']**2)
         px = px + px_
         py = py + py_
         pz = pz + pz_
@@ -116,6 +117,7 @@ def rotate_axes(newX, newY, newZ):
     return([[newX[0], newY[0], newZ[0]],
             [newX[1], newY[1], newZ[1]],
             [newX[2], newY[2], newZ[2]]])
+
 
 # https://root.cern.ch/doc/master/classTRotation
 # .html#afe12d186ccecf5d71adea56765021f5c
