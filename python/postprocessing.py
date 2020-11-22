@@ -1329,8 +1329,8 @@ def save_shapes(hist, model, args, mva_bins):
                             for dec_syst, decorr in\
                                     decorrelation_scheme.items():
                                 if dec_syst in vwname:
-                                    for dec_group, proc_groups in
-                                    decorr.items():
+                                    for dec_group, proc_groups in\
+                                            decorr.items():
                                         if (dec_group in vwname) and\
                                           (g not in proc_groups):
                                             decor_ok = False
@@ -1392,9 +1392,9 @@ def save_shapes(hist, model, args, mva_bins):
                                             histo_ud = variations[iud]
                                             sumw2_ud =\
                                                 np.array(
-                                                    [0] +
-                                                    list(sumw2[1:] *
-                                                    variations[iud]))
+                                                    [0] + list(
+                                                        sumw2[1:] *
+                                                        variations[iud]))
                                             name =\
                                                 f'{r_names[r]}'\
                                                 f'_{args["year"]}'\
