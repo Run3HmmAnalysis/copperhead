@@ -1,20 +1,20 @@
-import os, sys
-import time
+import os
+import sys
 from functools import partial
 
 import dask.dataframe as dd
 import pandas as pd
 import numpy as np
 from hist import Hist
+from config.variables import variables_lookup, Variable
 
 stderr = sys.stderr
 sys.stderr = open(os.devnull, 'w')
 import keras
 sys.stderr = stderr
-os.environ['TF_CPP_MIN_LOG_LEVEL']='2'
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 
-from config.variables import variables_lookup, Variable
-from python.timer import Timer
+__all__ = ['keras']
 
 training_features = ['dimuon_mass', 'dimuon_pt', 'dimuon_pt_log',
                      'dimuon_eta', 'dimuon_mass_res',
@@ -23,7 +23,7 @@ training_features = ['dimuon_mass', 'dimuon_pt', 'dimuon_pt_log',
                      'jet1_qgl', 'jet2_pt', 'jet2_eta', 'jet2_phi',
                      'jet2_qgl', 'jj_mass', 'jj_mass_log', 'jj_dEta',
                      'rpt', 'll_zstar_log', 'mmj_min_dEta', 'nsoftjets5',
-                     'htsoft2'] 
+                     'htsoft2']
 
 grouping = {
     'data_A': 'Data',
@@ -63,15 +63,15 @@ grouping = {
 }
 
 decorrelation_scheme = {
-    'LHERen': {'DY':['DY'], 'EWK':['EWK'], 'ggH':['ggH'],
-               'TT+ST':['TT+ST']},
-    'LHEFac': {'DY':['DY'], 'EWK':['EWK'], 'ggH':['ggH'],
-               'TT+ST':['TT+ST']},
-    'pdf_2rms': {'DY':['DY'], 'ggH':['ggH'], 'VBF':['VBF']},
-    'pdf_mcreplica': {'DY':['DY'], 'ggH':['ggH'], 'VBF':['VBF']},
+    'LHERen': {'DY': ['DY'], 'EWK': ['EWK'], 'ggH': ['ggH'],
+               'TT+ST': ['TT+ST']},
+    'LHEFac': {'DY': ['DY'], 'EWK': ['EWK'], 'ggH': ['ggH'],
+               'TT+ST': ['TT+ST']},
+    'pdf_2rms': {'DY': ['DY'], 'ggH': ['ggH'], 'VBF': ['VBF']},
+    'pdf_mcreplica': {'DY': ['DY'], 'ggH': ['ggH'], 'VBF': ['VBF']},
     # 'LHERen': {'DY':['DY_filter', 'DY_nofilter'], 'EWK':['EWK'],
     #            'ggH':['ggH'], 'TT+ST':['TT+ST']},
-    # 'LHEFac': {'DY':['DY_filter', 'DY_nofilter'], 'EWK':['EWK'], 
+    # 'LHEFac': {'DY':['DY_filter', 'DY_nofilter'], 'EWK':['EWK'],
     #            'ggH':['ggH'], 'TT+ST':['TT+ST']},
     # 'pdf_2rms': {'DY':['DY_filter', 'DY_nofilter'],
     #             'ggH':['ggH'], 'VBF':['VBF']},
@@ -92,7 +92,7 @@ def workflow(client, paths, parameters, timer):
     df.reset_index(inplace=True, drop=True)
     df = dd.from_pandas(df, npartitions=npart)
     df = df.repartition(npartitions=parameters['ncpus'])
-    timer.add_checkpoint(f"Combined into a single Dask DataFrame")
+    timer.add_checkpoint("Combined into a single Dask DataFrame")
 
     keep_columns = ['s', 'year', 'r']
     keep_columns += [f'c {v}' for v in parameters['syst_variations']]
@@ -121,7 +121,7 @@ def workflow(client, paths, parameters, timer):
     df = df.compute()
     df.dropna(axis=1, inplace=True)
     df.reset_index(inplace=True)
-    timer.add_checkpoint(f"Prepared for histogramming")
+    timer.add_checkpoint("Prepared for histogramming")
 
     # Make histograms
     hist_futures = client.map(
@@ -131,7 +131,7 @@ def workflow(client, paths, parameters, timer):
     hists = {}
     for h in hists_:
         hists.update(h)
-    timer.add_checkpoint(f"Histogramming")
+    timer.add_checkpoint("Histogramming")
     return df, hists
 
 
@@ -158,14 +158,13 @@ def prepare_features(df, parameters, variation='nominal', add_year=True):
 
 
 def dnn_evaluation(df, variation, model, parameters):
-    import keras.backend as K
     import tensorflow as tf
     from tensorflow.keras.models import load_model
     config = tf.compat.v1.ConfigProto(
                         intra_op_parallelism_threads=1,
                         inter_op_parallelism_threads=1,
                         allow_soft_placement=True,
-                        device_count = {'CPU': 1})
+                        device_count={'CPU': 1})
     tf.compat.v1.logging.set_verbosity(tf.compat.v1.logging.ERROR)
     sess = tf.compat.v1.Session(config=config)
     if parameters['do_massscan']:
@@ -174,7 +173,7 @@ def dnn_evaluation(df, variation, model, parameters):
     score_name = f'score_{model} {variation}'
     try:
         df = df.compute()
-    except:
+    except Exception:
         pass
     df[score_name] = 0
     with sess:
@@ -183,8 +182,8 @@ def dnn_evaluation(df, variation, model, parameters):
             # FIXME
             label = f"allyears_jul7_{i}"
 
-            train_folds = [(i + f) % nfolds for f in [0,1]]
-            val_folds = [(i + f) % nfolds for f in [2]]
+            # train_folds = [(i + f) % nfolds for f in [0, 1]]
+            # val_folds = [(i + f) % nfolds for f in [2]]
             eval_folds = [(i + f) % nfolds for f in [3]]
 
             eval_filter = df.event.mod(nfolds).isin(eval_folds)
@@ -195,18 +194,17 @@ def dnn_evaluation(df, variation, model, parameters):
             model_path =\
                 f"{parameters['models_path']}/{model}/dnn_{label}.h5"
             dnn_model = load_model(model_path)
-            df_i = df.loc[eval_filter,:]
-            df_i.loc[df_i.r != 'h-peak','dimuon_mass'] = 125.0
+            df_i = df.loc[eval_filter, :]
+            df_i.loc[df_i.r != 'h-peak', 'dimuon_mass'] = 125.0
             if parameters['do_massscan']:
                 df_i['dimuon_mass'] = df_i['dimuon_mass'] - mass_shift
             df_i = (df_i[features] - scalers[0]) / scalers[1]
             prediction = np.array(dnn_model.predict(df_i)).ravel()
-            df.loc[eval_filter,score_name] = np.arctanh((prediction))
+            df.loc[eval_filter, score_name] = np.arctanh((prediction))
     return df[score_name]
 
 
 def bdt_evaluation(df, variation, model, parameters):
-    import xgboost as xgb
     import pickle
     if parameters['do_massscan']:
         mass_shift = parameters['mass'] - 125.0
@@ -214,7 +212,7 @@ def bdt_evaluation(df, variation, model, parameters):
     score_name = f'score_{model} {variation}'
     try:
         df = df.compute()
-    except:
+    except Exception:
         pass
     df[score_name] = 0
     nfolds = 4
@@ -222,8 +220,8 @@ def bdt_evaluation(df, variation, model, parameters):
         # FIXME
         label = f"2016_jul7_{i}"
 
-        train_folds = [(i + f) % nfolds for f in [0,1]]
-        val_folds = [(i + f) % nfolds for f in [2]]
+        # train_folds = [(i + f) % nfolds for f in [0, 1]]
+        # val_folds = [(i + f) % nfolds for f in [2]]
         eval_folds = [(i + f) % nfolds for f in [3]]
 
         eval_filter = df.event.mod(nfolds).isin(eval_folds)
@@ -232,11 +230,11 @@ def bdt_evaluation(df, variation, model, parameters):
         scalers = np.load(scalers_path)
         model_path =\
             f"{parameters['models_path']}/{model}/"\
-            f"BDT_model_earlystop50_{label}.pkl"   
+            f"BDT_model_earlystop50_{label}.pkl"
 
         bdt_model = pickle.load(open(model_path, "rb"))
         df_i = df[eval_filter]
-        df_i.loc[df_i.r!='h-peak','dimuon_mass'] = 125.0
+        df_i.loc[df_i.r != 'h-peak', 'dimuon_mass'] = 125.0
         if parameters['do_massscan']:
             df_i['dimuon_mass'] = df_i['dimuon_mass'] - mass_shift
         df_i = (df_i[features] - scalers[0])/scalers[1]
@@ -263,7 +261,7 @@ def histogram(var, df=pd.DataFrame(), parameters={}):
     categories = parameters['categories']
     syst_variations = parameters['syst_variations']
     wgt_variations = [w for w in df.columns if ('wgt_' in w)]
-    
+
     regions = [r for r in regions if r in df.r.unique()]
     categories = [c for c in categories if c in df['c nominal'].unique()]
 
@@ -273,7 +271,7 @@ def histogram(var, df=pd.DataFrame(), parameters={}):
     for year in years:
         if ('score' in var.name):
             bins = parameters['mva_bins'][
-                var.name.replace('score_','')][f'{year}']
+                var.name.replace('score_', '')][f'{year}']
             h[year] = (
               Hist.new
               .StrCat(samples, name="dataset")
@@ -293,10 +291,11 @@ def histogram(var, df=pd.DataFrame(), parameters={}):
               .StrCat(categories, name="category")
               .StrCat(syst_variations, name="variation")
               .StrCat(['value', 'sumw2'], name='val_sumw2')
-              .Reg(var.nbins, var.xmin, var.xmax, name=var.name, label=var.caption)
+              .Reg(var.nbins, var.xmin, var.xmax,
+                   name=var.name, label=var.caption)
               .Double()
             )
-            nbins = var.nbins
+            # nbins = var.nbins
 
         for s in samples:
             for r in regions:

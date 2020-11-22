@@ -5,9 +5,9 @@ from coffea.lookup_tools import dense_lookup
 # Mjj700, Mjj1000, Mjj1500,  25, JET01
 stxs_acc = {
  200: [0.07, 0, 0, 0, 0, 0, 0, 0, 0, 0],
- 201: [0.0744, 0, 0, 0, 0, 0, 0, 0, 0, -0.1649 ], 
+ 201: [0.0744, 0, 0, 0, 0, 0, 0, 0, 0, -0.1649],
  # Jet0
- 202: [0.3367, 0, 0, 0, 0, 0, 0, 0, 0, -0.7464 ], 
+ 202: [0.3367, 0, 0, 0, 0, 0, 0, 0, 0, -0.7464],
  # Jet1
  203: [0.0092, 0, -0.6571, 0, 0, 0, 0, 0, -0.0567, 0.0178],
  # Mjj 0-60, PTHjj 0-25
@@ -67,12 +67,12 @@ stxs_acc = {
        -0.0223, 0.0070],
  # Mjj 1500-inf, PTHjj 0-25, pTH 200-inf
  224: [0.0081, -0.2062, 0.016, 0.0168, 0.0223, 0.0376, 0.0578, 0.1149,
-       0.0223, 0.0155] 
- # Mjj 1500-inf, PTHjj 25-inf, pTH 200-inf 
+       0.0223, 0.0155]
+ # Mjj 1500-inf, PTHjj 25-inf, pTH 200-inf
 }
 uncert_deltas = [14.867, 0.394, 9.762, 6.788, 7.276, 3.645, 2.638, 1.005,
                  20.073, 18.094]
-powheg_xsec = {  
+powheg_xsec = {
    200:  273.952,
    201:  291.030,
    202: 1317.635,
@@ -115,7 +115,7 @@ def stxs_lookups():
         [np.array(list(powheg_xsec.keys()))])
     powheg_xsec_lookup._axes = powheg_xsec_lookup._axes[0]
     return stxs_acc_lookups, powheg_xsec_lookup
-        
+
 
 def vbf_uncert_stage_1_1(source, event_STXS, Nsigma,
                          stxs_acc_lookups, powheg_xsec_lookup):
@@ -123,6 +123,7 @@ def vbf_uncert_stage_1_1(source, event_STXS, Nsigma,
     if(source < 10):
         delta_var = stxs_acc_lookups[source](event_STXS) *\
             uncert_deltas[source]
-        return  np.ones(len(event_STXS), dtype=float) +\
+        return np.ones(len(event_STXS), dtype=float) +\
             Nsigma * (delta_var/powheg_xsec_lookup(event_STXS))
-    else: return np.zeros(len(event_STXS), dtype=float)
+    else:
+        return np.zeros(len(event_STXS), dtype=float)
