@@ -299,7 +299,7 @@ def to_pandas(args):
             continue
         # possibility to ignore weight variations
         if ((not args['wgt_variations']) and
-               ('wgt_' in var) and ('nominal' not in var)):
+                ('wgt_' in var) and ('nominal' not in var)):
             continue
         # for JES/JER systematic variations do not consider weight variations
         if ((v != 'nominal') and ('wgt_' in var) and
@@ -538,7 +538,7 @@ def dnn_training(df, args, model):
         util.save(
             history.history,
             f"output/trained_models/{model}/history_{label}.coffea")
-        dnn.save(f"output/trained_models/{model}/dnn_{label}.h5")        
+        dnn.save(f"output/trained_models/{model}/dnn_{label}.h5")
 
 
 def evaluation(df, args):
@@ -1326,8 +1326,8 @@ def save_shapes(hist, model, args, mva_bins):
                             # if args['do_massscan'] and (g in sig):
                             #     continue
                             decor_ok = True
-                            for dec_syst, decorr in
-                            decorrelation_scheme.items():
+                            for dec_syst, decorr in\
+                                    decorrelation_scheme.items():
                                 if dec_syst in vwname:
                                     for dec_group, proc_groups in
                                     decorr.items():
@@ -1379,7 +1379,7 @@ def save_shapes(hist, model, args, mva_bins):
                             for groupname, var_items in
                             variations_by_group.items():
                                 if ((groupname == g) &
-                                    (vwname == 'nominal')):
+                                        (vwname == 'nominal')):
                                     for variname, variations in
                                     var_items.items():
                                         for iud, ud in
@@ -1391,9 +1391,10 @@ def save_shapes(hist, model, args, mva_bins):
                                             #    histo*variations[iud]
                                             histo_ud = variations[iud]
                                             sumw2_ud =\
-                                            np.array([0] +
-                                                     list(sumw2[1:] *
-                                                     variations[iud]))
+                                                np.array(
+                                                    [0] +
+                                                    list(sumw2[1:] *
+                                                    variations[iud]))
                                             name =\
                                                 f'{r_names[r]}'\
                                                 f'_{args["year"]}'\
