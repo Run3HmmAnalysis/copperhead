@@ -229,11 +229,11 @@ class DimuonProcessor(processor.ProcessorABC):
         self.do_jecunc = False
         self.do_jerunc = False
         for ptvar in self.pt_variations:
-            if (ptvar.replace('_up', '').replace('_down', '') in
-              self.parameters["jec_unc_to_consider"]):
+            ptvar_ = ptvar.replace('_up', '').replace('_down', '')
+            if (ptvar_ in self.parameters["jec_unc_to_consider"]):
                 self.do_jecunc = True
-            if (ptvar.replace('_up', '').replace('_down', '') in
-              ['jer1', 'jer2', 'jer3', 'jer4', 'jer5', 'jer6']):
+            jers = ['jer1', 'jer2', 'jer3', 'jer4', 'jer5', 'jer6']
+            if (ptvar_ in jers):
                 self.do_jerunc = True
 
     @property
@@ -704,12 +704,14 @@ class DimuonProcessor(processor.ProcessorABC):
                     df.Jet['mass'] = jets.mass
                 if self.do_jecunc:
                     for junc_name in self.jet_unc_names:
-                        if (junc_name not in
-                          self.parameters["jec_unc_to_consider"]):
+                        juncs = self.parameters["jec_unc_to_consider"]
+                        if (junc_name not in juncs):
                             continue
-                        if ((f"{junc_name}_up" not in self.pt_variations)
-                          and (f"{junc_name}_down" not in
-                          self.pt_variations)):
+                        up_ = (f"{junc_name}_up" not in
+                                 self.pt_variations)
+                        dn_ = (f"{junc_name}_down" not in
+                                 self.pt_variations)
+                        if (up_ and dn_):
                             continue
                         jec_up_down = get_jec_unc(
                             junc_name, df.Jet.pt, df.Jet.eta,
@@ -795,8 +797,9 @@ class DimuonProcessor(processor.ProcessorABC):
             }
             for jer_unc_name, jer_cut in jer_categories.items():
                 jer_cut = jer_cut & (jets.ptGenJet > 0)
-                if ((f"{jer_unc_name}_up" not in self.pt_variations) and
-                  (f"{jer_unc_name}_down" not in self.pt_variations)):
+                up_ = (f"{jer_unc_name}_up" not in self.pt_variations)
+                dn_ = (f"{jer_unc_name}_down" not in self.pt_variations)
+                if (up_ and dn_):
                     continue
                 pt_name_up = f"pt_{jer_unc_name}_up"
                 pt_name_down = f"pt_{jer_unc_name}_down"
@@ -922,9 +925,10 @@ class DimuonProcessor(processor.ProcessorABC):
                 except Exception:
                     pass
 
-            if (('vbf' in dataset) and
-              ('dy' not in dataset) and
-              ('nominal' in self.pt_variations)):
+            do_thu = (('vbf' in dataset) and
+                      ('dy' not in dataset) and
+                      ('nominal' in self.pt_variations))
+            if do_thu:
                 for i, name in enumerate(self.sths_names):
                     wgt_up = vbf_uncert_stage_1_1(
                         i, df.HTXS.stage1_1_fine_cat_pTjet30GeV, 1.,
@@ -988,9 +992,10 @@ class DimuonProcessor(processor.ProcessorABC):
 
         if self.do_pdf and is_mc and ('nominal' in self.pt_variations):
             pdf_rms = np.zeros(numevents, dtype=float)
-            if (("dy" in dataset or "ewk" in dataset or
-              "ggh" in dataset or "vbf" in dataset) and
-              ('mg' not in dataset)):
+            do_pdf = (("dy" in dataset or "ewk" in dataset or
+                       "ggh" in dataset or "vbf" in dataset) and
+                      ('mg' not in dataset))
+            if do_pdf:
                 pdf_wgts = df.LHEPdfWeight[
                     :, 0:self.parameters["n_pdf_variations"]]
                 if '2016' in self.year:
@@ -1025,18 +1030,22 @@ class DimuonProcessor(processor.ProcessorABC):
                 for wgt in weights.df.columns:
                     var_map[f'wgt_{wgt}'] = weights.get_weight(wgt)
                 for v in var_map:
-                    if ((v not in self.vars_unbin) and
-                      ('wgt_' not in v) and
-                      ('mcreplica' not in v)):
+                    skip = ((v not in self.vars_unbin) and
+                            ('wgt_' not in v) and
+                            ('mcreplica' not in v))
+                    if skip:
                         continue
                     for cname in self.channels:
                         ccut = (categ == cname)
                         for rname, rcut in regions.items():
-                            if (('dy_m105_160_vbf_amc' in dataset) and
-                              ('vbf' in cname)):
+                            vbf_filter = (('dy_m105_160_vbf_amc' in
+                                           dataset) and
+                                          ('vbf' in cname))
+                            novbf = (('dy_m105_160_amc' in dataset) and
+                                     ('vbf' in cname))
+                            if vbf_filter:
                                 ccut = ccut & (genJetMass > 350.)
-                            if (('dy_m105_160_amc' in dataset) and
-                              ('vbf' in cname)):
+                            if novbf:
                                 ccut = ccut & (genJetMass <= 350.)
                             value = np.array(
                                 var_map[v][rcut & ccut]).ravel()
@@ -1504,16 +1513,16 @@ class DimuonProcessor(processor.ProcessorABC):
 
         nsoftjets[mask] = (
             df[f'SoftActivityJetNjets{cutoff}'][mask] -
-             ((mumatch[mask] &
-              (df.SoftActivityJet.pt > cutoff[mask]).sum()).flatten()
+            (mumatch[mask] &
+             (df.SoftActivityJet.pt > cutoff)[mask]).sum()).flatten()
         nsoftjets[mask1j] = (
             df[f'SoftActivityJetNjets{cutoff}'][mask1j] -
-             ((mumatch[mask1j]|j1match[mask1j_]) &
-              (df.SoftActivityJet.pt>cutoff)[mask1j]).sum()).flatten()
+            ((mumatch[mask1j] | j1match[mask1j_]) &
+             (df.SoftActivityJet.pt > cutoff)[mask1j]).sum()).flatten()
         nsoftjets[mask2j] = (
-            df[f'SoftActivityJetNjets{cutoff}'][mask2j]-
-             ((mumatch[mask2j] | j1match[mask2j__] | j2match[mask2j_]) &
-              (df.SoftActivityJet.pt > cutoff)[mask2j]).sum()).flatten()
+            df[f'SoftActivityJetNjets{cutoff}'][mask2j] -
+           ((mumatch[mask2j] | j1match[mask2j__] | j2match[mask2j_]) &
+            (df.SoftActivityJet.pt > cutoff)[mask2j]).sum()).flatten()
 
         saj_filter = (mumatch[mask2j] | j1match[mask2j__] |
                       j2match[mask2j_] | outer | inner)

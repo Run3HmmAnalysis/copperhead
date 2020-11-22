@@ -10,7 +10,7 @@ from config.variables import variables_lookup, Variable
 
 stderr = sys.stderr
 sys.stderr = open(os.devnull, 'w')
-import keras
+import keras # noqa: E402
 sys.stderr = stderr
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 
@@ -282,7 +282,7 @@ def histogram(var, df=pd.DataFrame(), parameters={}):
               .Var(bins, name=var.name)
               .Double()
             )
-            nbins = len(bins) - 1
+            # nbins = len(bins) - 1
         else:
             h[year] = (
               Hist.new
