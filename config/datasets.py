@@ -2,7 +2,7 @@ datasets = {
     "2016": {
         "data_B":
             "/store/group/local/hmm/FSRNANO2016DATAV8a/SingleMuon/"
-            "RunIIData17_FSRNANO2016DATAV8a_un2016B-17Jul2018_ver2-v1/", 
+            "RunIIData17_FSRNANO2016DATAV8a_un2016B-17Jul2018_ver2-v1/",
         "data_C":
             "/store/group/local/hmm/FSRNANO2016DATAV8a/SingleMuon/"
             "RunIIData17_FSRNANO2016DATAV8a_Run2016C-17Jul2018-v1/",
@@ -21,7 +21,7 @@ datasets = {
         "data_H":
             "/store/group/local/hmm/FSRNANO2016DATAV8a/SingleMuon/"
             "RunIIData17_FSRNANO2016DATAV8a_Run2016H-17Jul2018-v1/",
-        
+
         "dy":
             "/store/mc/RunIISummer16NanoAODv6/"
             "DYJetsToLL_M-50_TuneCUETP8M1_13TeV-amcatnloFXFX-pythia8/",
@@ -145,7 +145,7 @@ datasets = {
             "/store/mc/RunIISummer16NanoAODv6/"
             "WplusH_HToMuMu_WToAll_M125_TuneCP5_PSweights_13TeV_"
             "powheg_pythia8/",
-        "tth": 
+        "tth":
             "/store/mc/RunIISummer16NanoAODv6/"
             "ttHToMuMu_M125_TuneCP5_PSweights_13TeV-"
             "powheg-pythia8/",
@@ -159,7 +159,7 @@ datasets = {
             "/store/group/local/hmm/nanoAODv6_private/"
             "FSRmyNanoProdData2017_NANOV4/SingleMuon/"
             "RunIISummer16MiniAODv3_FSRmyNanoProdData2017_"
-            "NANOV4_un2017B-31Mar2018-v1/",    
+            "NANOV4_un2017B-31Mar2018-v1/",
         "data_C":
         "/store/group/local/hmm/nanoAODv6_private/"
             "FSRmyNanoProdData2017_NANOV4/SingleMuon/"
@@ -448,7 +448,7 @@ datasets = {
         "ewk_lljj_mll105_160_py":
             "/store/mc/RunIIAutumn18NanoAODv6/"
             "EWK_LLJJ_MLL_105-160_SM_5f_LO_TuneCP5_PSweights_13TeV-"
-            "madgraph-pythia8/", 
+            "madgraph-pythia8/",
         "ewk_lljj_mll105_160_ptj0":
             "/store/group/local/hmm/FSRnano18MC_NANOV10b/"
             "EWK_LLJJ_MLL_105-160_SM_5f_LO_TuneCH3_13TeV-"
@@ -465,7 +465,7 @@ datasets = {
             "/store/group/local/hmm/FSRnano18MC_NANOV10b/"
             "GluGluHToMuMu_M-125_TuneCP5_PSweights_13TeV_"
             "powheg_pythia8/",
-        "vbf_powheg":"",
+        "vbf_powheg": "",
         "vbf_powhegPS":
             "/store/group/local/hmm/FSRnano18MC_NANOV10b/"
             "VBFHToMuMu_M-125_TuneCP5_PSweights_13TeV_"
@@ -476,12 +476,11 @@ datasets = {
         "vbf_powheg_dipole":
             "/store/group/local/hmm/FSRnano18MC_NANOV10b/"
             "VBFHToMuMu_M-125_TuneCP5_13TeV-powheg-pythia_dipole_fixed/",
-        
     }
 }
 
 lumi_data = {
-    "2016": {'lumi': 35860., 'events': 804026710}, # to be verified
-    "2017": {'lumi': 41900., 'events': 769080716}, # to be verified
-    "2018": {'lumi': 59900., 'events': 985425574} # to be verified
+    "2016": {'lumi': 35860., 'events': 804026710},  # to be verified
+    "2017": {'lumi': 41900., 'events': 769080716},  # to be verified
+    "2018": {'lumi': 59900., 'events': 985425574}   # to be verified
 }

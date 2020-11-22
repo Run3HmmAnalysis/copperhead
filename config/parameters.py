@@ -66,7 +66,7 @@ parameters["muSFFileList_old"] = {
              "efficienciesDATA/abseta_pt_DATA",
              "IsoMu24_OR_IsoTkMu24_PtEtaBins/"
              "efficienciesMC/abseta_pt_MC"),
-         'scale' : 20.1 / 36.4},
+         'scale': 20.1 / 36.4},
         {'id': (
             "data/muon_sf/mu2016/"
             "EfficienciesStudies_2016_legacy_rereco_"
