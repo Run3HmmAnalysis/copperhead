@@ -299,7 +299,7 @@ def to_pandas(args):
             continue
         # possibility to ignore weight variations
         if ((not args['wgt_variations']) and
-            ('wgt_' in var) and ('nominal' not in var)):
+               ('wgt_' in var) and ('nominal' not in var)):
             continue
         # for JES/JER systematic variations do not consider weight variations
         if ((v != 'nominal') and ('wgt_' in var) and
@@ -475,7 +475,7 @@ def dnn_training(df, args, model):
                              smp, 'wgt_nominal'].values.mean()
             df_val.loc[df_val.s == smp, 'smp_avg_wgt'] =\
                 df_val.loc[df_val.s == smp, 'wgt_nominal'].values.mean()
-            print(f"{train_evts} training events in class {cls}")     
+            print(f"{train_evts} training events in class {cls}")
 
         # df_train['training_wgt'] =\
         #     df_train['wgt_nominal']/df_train['cls_avg_wgt']
@@ -542,7 +542,8 @@ def dnn_training(df, args, model):
 
 
 def evaluation(df, args):
-    if df.shape[0] == 0: return df
+    if df.shape[0] == 0:
+        return df
     for model in args['dnn_models']:
         df = dnn_evaluation(df, model, args)
     for model in args['bdt_models']:
@@ -558,7 +559,7 @@ def dnn_evaluation(df, model, args):
                         intra_op_parallelism_threads=1,
                         inter_op_parallelism_threads=1,
                         allow_soft_placement=True,
-                        device_count = {'CPU': 1})
+                        device_count={'CPU': 1})
     tf.compat.v1.logging.set_verbosity(tf.compat.v1.logging.ERROR)
     sess = tf.compat.v1.Session(config=config)
     if args['do_massscan']:
@@ -663,11 +664,11 @@ def rebin(df, model, args):
                  0.542333, 0.550233, 0.562859, 0.572253, 0.582248,
                  0.588619, 0.596933, 0.606919],
         '2017': [0.460468, 0.559333, 0.578999, 0.578019, 0.580368,
-                0.585521, 0.576521, 0.597367, 0.593959, 0.59949,
-                0.595802, 0.596376, 0.57163],
+                 0.585521, 0.576521, 0.597367, 0.593959, 0.59949,
+                 0.595802, 0.596376, 0.57163],
         '2018': [0.351225, 1.31698, 1.25503, 1.18703, 1.12262,
-                  1.06208, 0.995618, 0.935661, 0.86732, 0.80752,
-                  0.73571, 0.670533, 0.608029]
+                 1.06208, 0.995618, 0.935661, 0.86732, 0.80752,
+                 0.73571, 0.670533, 0.608029]
     }
     target_yields['combined'] = []
     for i in range(len(target_yields['2016'])):
@@ -684,7 +685,7 @@ def rebin(df, model, args):
                 boundaries = []
                 idx_left = 0
                 idx_right = len(target_yields[year]) - 1
-                if year=='combined':
+                if year == 'combined':
                     filter = (df.c == c) & (df.v == v)
                 else:
                     filter = (df.c == c) & (df.v == v) &\
@@ -771,7 +772,7 @@ def overlap_study(df, args, model):
     purdue_bins = rebin(df, model, args)[args['year']]['vbf']['nominal']
     varname = f'score_{model}'
     if args['year'] == '2016':
-        df = df[(df.s == 'vbf_powheg_herwig') & (df.r == 'h-peak')]    
+        df = df[(df.s == 'vbf_powheg_herwig') & (df.r == 'h-peak')]
     else:
         df = df[(df.s == 'vbf_powhegPS') & (df.r == 'h-peak')]
     pisa_files = {
@@ -779,7 +780,7 @@ def overlap_study(df, args, model):
         '2017': '/depot/cms/hmm/pisa/vbfHmm_2017POWPYSnapshot.root',
         '2018': '/depot/cms/hmm/pisa/vbfHmm_2018POWPYSnapshot.root',
     }
-    
+
     pisa_bins = {
         '2016': [0, 0.846666666667, 1.30333333333, 1.575, 1.815,
                  2.03833333333, 2.23666666667, 2.41, 2.575, 2.74,
@@ -834,10 +835,11 @@ def overlap_study(df, args, model):
         for i in range(len(purdue_bins) - 1):
             ibin = (df_combined.pisa_score >=
                     pisa_bins[args['year']][i]) &\
-            (df_combined.pisa_score < pisa_bins[args['year']][i + 1])
+                    (df_combined.pisa_score <
+                     pisa_bins[args['year']][i + 1])
             if opt_name == 'analysis':
                 df_combined.loc[ibin, 'weight'] =\
-                1 / df_combined[ibin].shape[0]
+                    1 / df_combined[ibin].shape[0]
             else:
                 df_combined.loc[ibin, 'weight'] = 1.
         H, xedges, yedges = np.histogram2d(
@@ -849,7 +851,7 @@ def overlap_study(df, args, model):
         fig.set_size_inches(10, 10)
         plt.rcParams.update({'font.size': 15})
         ax = hep.hist2dplot(H, xedges, yedges)
-        
+
         if opt_name == 'analysis':
             for i in range(len(yedges) - 1):
                 for j in range(len(xedges) - 1):
@@ -1006,7 +1008,7 @@ def get_hists(df, var, args, mva_bins=[]):
         if len(mcreplicas) > 0:
             wgts = [wgt for wgt in wgts if ('pdf_2rms' not in wgt)]
         if len(mcreplicas) > 0 and ('wgt_nominal' in df.columns) and\
-          (s in grouping.keys()):
+                (s in grouping.keys()):
             decor = decorrelation_scheme['pdf_mcreplica']
             for decor_group, proc_groups in decor.items():
                 for imcr, mcr in enumerate(mcreplicas):
@@ -1014,7 +1016,7 @@ def get_hists(df, var, args, mva_bins=[]):
                     if grouping[s] in proc_groups:
                         df.loc[:,
                                f'pdf_mcreplica{imcr}_{decor_group}'] =\
-                            np.multiply(df.wgt_nominal,df[mcr])
+                            np.multiply(df.wgt_nominal, df[mcr])
                     else:
                         df.loc[:,
                                f'pdf_mcreplica{imcr}_{decor_group}'] =\
@@ -1061,7 +1063,7 @@ def get_hists(df, var, args, mva_bins=[]):
                             's': [s], 'r': [r], 'c': [c], 'v': [v],
                             'w': [w], 'var': [var.name],
                             'integral': integral})
-                        contents['g'] = grouping[s] if s in
+                        contents['g'] = grouping[s] if s in\
                             grouping.keys() else f"{s}"
                         row = pd.DataFrame(contents)
                         df_out = pd.concat(
@@ -1071,8 +1073,8 @@ def get_hists(df, var, args, mva_bins=[]):
         bin_names = [n for n in df_out.columns if 'bin' in n]
         sumw2_names = [n for n in df_out.columns if 'sumw2' in n]
         pdf_names = [n for n in df_out.w.unique() if ("mcreplica" in n)]
-        for decor_group, proc_groups in
-          decorrelation_scheme['pdf_mcreplica'].items():
+        for decor_group, proc_groups in\
+                decorrelation_scheme['pdf_mcreplica'].items():
             if len(pdf_names) == 0:
                 continue
             for r in regions:
@@ -1109,13 +1111,13 @@ def get_hists(df, var, args, mva_bins=[]):
                     row_down = {}
                     row_down.update({
                         f'bin{i}': [nom_bins[i] - rms[i]] for i in
-                            range(nbins)})
+                        range(nbins)})
                     row_down.update({
                         f'sumw2_{i}': [nom_sumw2[i]] for i in
-                            range(nbins + 1)})
+                        range(nbins + 1)})
                     row_down.update({
                         f'sumw2_{i + 1}': [sumw2[i]] for i in
-                            range(nbins)})
+                        range(nbins)})
                     row_down.update({
                         's': [s], 'r': [r], 'c': [c], 'v': ['nominal'],
                         'w': [f'pdf_mcreplica_{decor_group}_down'],
@@ -1241,7 +1243,8 @@ def save_shapes(hist, model, args, mva_bins):
             for v in hist.v.unique():
                 for w in hist.w.unique():
                     vwname = get_vwname(v, w)
-                    if vwname == '': continue
+                    if vwname == '':
+                        continue
                     if ('2016' in args['year']) and\
                             ('pdf_2rms' in vwname):
                         continue
@@ -1251,7 +1254,7 @@ def save_shapes(hist, model, args, mva_bins):
                     if vwname == 'nominal':
                         data_obs = hist[hist.s.isin(data_names) &
                                         (hist.r == r) &
-                                        (hist.c.isin(cc))]           
+                                        (hist.c.isin(cc))]
                         data_obs_hist = data_obs[
                             bin_columns].sum(axis=0).values
                         data_obs_sumw2 = data_obs[
@@ -1276,8 +1279,8 @@ def save_shapes(hist, model, args, mva_bins):
                                         bin_columns].values[0],
                                     dtype=float)
                         variations_by_group = {}
-                        for smp_var_name, smp_var_items in
-                          sample_variations.items():
+                        for smp_var_name, smp_var_items in\
+                                sample_variations.items():
                             if vwname != 'nominal':
                                 continue
                             if c != 'vbf':
@@ -1285,11 +1288,11 @@ def save_shapes(hist, model, args, mva_bins):
                             for gr, samples in smp_var_items.items():
                                 if len(samples) != 2:
                                     continue
-                                if samples[0] not in
-                                  variated_shapes.keys():
+                                if samples[0] not in\
+                                        variated_shapes.keys():
                                     continue
-                                if samples[1] not in
-                                  variated_shapes.keys():
+                                if samples[1] not in\
+                                        variated_shapes.keys():
                                     continue
                                 variation_up =\
                                     variated_shapes[samples[0]] -\
@@ -1332,12 +1335,13 @@ def save_shapes(hist, model, args, mva_bins):
                                           (g not in proc_groups):
                                             decor_ok = False
 
-                            if not decor_ok: continue
+                            if not decor_ok:
+                                continue
                             histo = np.array(
                                 mc_hist[mc_hist.g == g][
                                     bin_columns].values.sum(axis=0),
                                 dtype=float)
-                            if len(histo)==0:
+                            if len(histo) == 0:
                                 continue
                             sumw2 = np.array(mc_hist[mc_hist.g == g][
                                 sumw2_columns].values.sum(axis=0),
@@ -1371,24 +1375,25 @@ def save_shapes(hist, model, args, mva_bins):
                                 os.mkdir(f'{tdir}/{g}')
                             except Exception:
                                 pass
-                            np.save(f'{tdir}/{g}/{name}', [histo,sumw2])
+                            np.save(f'{tdir}/{g}/{name}', [histo, sumw2])
                             for groupname, var_items in
                             variations_by_group.items():
-                                if (groupname == g) &
-                                  (vwname == 'nominal'):
-                                    for variname,variations in
+                                if ((groupname == g) &
+                                    (vwname == 'nominal')):
+                                    for variname, variations in
                                     var_items.items():
                                         for iud, ud in
-                                        enumerate(['Up','Down']):
+                                        enumerate(['Up', 'Down']):
                                             if len(variations[iud]) == 0:
-                                                    variations[iud] =\
-                                                      np.ones(len(histo))
+                                                variations[iud] =\
+                                                    np.ones(len(histo))
                                             # histo_ud =\
                                             #    histo*variations[iud]
                                             histo_ud = variations[iud]
-                                            sumw2_ud = np.array(
-                                                [0] + list(sumw2[1:] *\
-                                                    variations[iud]))
+                                            sumw2_ud =\
+                                            np.array([0] +
+                                                     list(sumw2[1:] *
+                                                     variations[iud]))
                                             name =\
                                                 f'{r_names[r]}'\
                                                 f'_{args["year"]}'\
@@ -1400,7 +1405,7 @@ def save_shapes(hist, model, args, mva_bins):
             try:
                 os.mkdir(f'{tdir}/Data/')
             except Exception:
-                pass  
+                pass
             name = f'{r_names[r]}_{args["year"]}_data_obs'
             np.save(f'{tdir}/Data/{name}',
                     [data_obs_hist, data_obs_sumw2])
@@ -1603,7 +1608,7 @@ def get_numbers(var, cc, r, bin_name, args, shift_signal=False):
                 nominal_shape =\
                     f'{tdir}/{g}/{r}_{args["year"]}_{g}_{c}.npy'
                 if ((g in sig) and args['do_massscan'] and
-                    not shift_signal):
+                        not shift_signal):
                     nominal_shape = f'{tdir_nominal}/{g}/'\
                         f'{r}_{args["year"]}_{g}_{c}.npy'
                 try:
@@ -1626,9 +1631,9 @@ def get_numbers(var, cc, r, bin_name, args, shift_signal=False):
                                 for dec_group, proc_groups in
                                 decorr.items():
                                     if dec_group in syst:
-                                        if (g in proc_groups)\
-                                        and (syst in
-                                          shape_systs_by_group[g]):
+                                        if ((g in proc_groups) and
+                                            (syst in
+                                             shape_systs_by_group[g])):
                                             systematics.loc[
                                                 syst, gcname] = '1.0'
                                         else:
@@ -2090,7 +2095,7 @@ def plot(var, hists, edges, args, r='', save=True, blind=True,
     if compare_with_pisa and pisa_data_hist.sum():
         ratio_data = np.zeros(len(bkg_total))
         ratio_data[data != 0] = np.array(pisa_data_hist[data != 0] /
-                                       data[data != 0])
+                                         data[data != 0])
         ax = hep.histplot(ratio_data, edges,
                           label='Pisa/Purdue Data', histtype='step',
                           **{'linewidth': 3, 'color': 'blue'})

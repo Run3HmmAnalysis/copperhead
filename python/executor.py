@@ -25,7 +25,7 @@ from coffea.nanoaod import NanoEvents
 from coffea.util import _hash
 
 try:
-    from collections.abc import Mapping, Sequence
+    from collections.abc import Mapping
 except ImportError:
     from collections import Mapping
 
@@ -301,8 +301,8 @@ def _work_function(item, processor_instance, flatten=False,
                 metrics['entries'] = value_accumulator(int, df.size)
                 metrics['processtime'] = value_accumulator(float,
                                                            toc - tic)
-            wrapped_out = dict_accumulator({'out': out,
-                                            'metrics': metrics})
+            # wrapped_out = dict_accumulator({'out': out,
+            #                                 'metrics': metrics})
             file.source.close()
             break
         # catch xrootd errors and optionally skip

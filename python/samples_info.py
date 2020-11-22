@@ -143,8 +143,8 @@ class SamplesInfo(object):
                     data_entries += tree.numentries
                 else:
                     tree = uproot.open(f)['Runs']
-                    if ('NanoAODv6' in self.paths[sample]) or\
-                    ('NANOV10' in self.paths[sample]):
+                    if (('NanoAODv6' in self.paths[sample]) or
+                        ('NANOV10' in self.paths[sample])):
                         sumGenWgts += tree.array('genEventSumw_')[0]
                         nGenEvts += tree.array('genEventCount_')[0]
                     else:
