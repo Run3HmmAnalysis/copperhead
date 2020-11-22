@@ -1,8 +1,8 @@
 import os
 import sys
 import copy
-
-import awkward, uproot
+import awkward
+import uproot
 import numpy as np
 # np.set_printoptions(threshold=sys.maxsize)
 import pandas as pd
@@ -10,8 +10,13 @@ import pandas as pd
 from coffea import hist, util
 from coffea.analysis_objects import JaggedCandidateArray
 import coffea.processor as processor
-from coffea.lookup_tools import extractor, dense_lookup, txt_converters, rochester_lookup
-from coffea.jetmet_tools import FactorizedJetCorrector, JetCorrectionUncertainty, JetTransformer, JetResolution, JetResolutionScaleFactor
+from coffea.lookup_tools import extractor, dense_lookup
+from coffea.lookup_tools import txt_converters, rochester_lookup
+from coffea.jetmet_tools import FactorizedJetCorrector
+from coffea.jetmet_tools import JetCorrectionUncertainty
+from coffea.jetmet_tools import JetTransformer
+from coffea.jetmet_tools import JetResolution
+from coffea.jetmet_tools import JetResolutionScaleFactor
 from coffea.btag_tools import BTagScaleFactor
 from coffea.lumi_tools import LumiMask
 
@@ -136,7 +141,7 @@ class DimuonProcessor(processor.ProcessorABC):
         self.Jet_transformer_JER = JetTransformer(
             jec=None, jer=JER, jersf=JERsf)
         self.Jet_transformer = JetTransformer(
-            jec=JECcorrector,junc=JECuncertainties)
+            jec=JECcorrector, junc=JECuncertainties)
         self.JECcorrector_Data = {}
         self.Jet_transformer_data = {}
         self.data_runs = list(
@@ -146,7 +151,7 @@ class DimuonProcessor(processor.ProcessorABC):
                 **{name: Jetevaluator[name] for name in
                    self.parameters['jec_names_data'][run]})
             JECuncertainties_Data = JetCorrectionUncertainty(
-                **{name:Jetevaluator[name] for name in
+                **{name: Jetevaluator[name] for name in
                    self.parameters['junc_names_data'][run]})
             self.Jet_transformer_data[run] = JetTransformer(
                 jec=self.JECcorrector_Data[run],
@@ -162,7 +167,7 @@ class DimuonProcessor(processor.ProcessorABC):
         self.do_jecunc = False
         self.do_jerunc = False
         for ptvar in self.pt_variations:
-            ptvar_ = ptvar.replace('_up','').replace('_down','')
+            ptvar_ = ptvar.replace('_up', '').replace('_down', '')
             if ptvar_ in self.parameters["jec_unc_to_consider"]:
                 self.do_jecunc = True
             jers = ['jer1', 'jer2', 'jer3', 'jer4', 'jer5', 'jer6']
@@ -190,7 +195,7 @@ class DimuonProcessor(processor.ProcessorABC):
         is_mc = 'data' not in dataset
 
         # ------------------------------------------------------------#
-        # Apply HLT, lumimask, genweights, PU weights 
+        # Apply HLT, lumimask, genweights, PU weights
         # and L1 prefiring weights
         # ------------------------------------------------------------#
 
@@ -373,7 +378,7 @@ class DimuonProcessor(processor.ProcessorABC):
                  self.parameters["muon_pt_cut"]) &
                 (self.muons_all.pfRelIso04_all <
                  self.parameters["muon_iso_cut"]) &
-                 self.muons_all[
+                self.muons_all[
                  self.parameters["muon_id"]].astype(np.bool)]
 
             two_os_muons = ((muons.counts == 2) &
@@ -680,7 +685,7 @@ class DimuonProcessor(processor.ProcessorABC):
             pt_gen_jet = np.zeros(len(df.Jet.flatten()))
             pt_gen_jet[
                 df.Jet.matched_genjet.pt.flatten(
-                    axis=0).counts > 0] =\
+                    axis=0).counts > 0] =
                     df.Jet.matched_genjet.pt.flatten().flatten()
             pt_gen_jet[df.Jet.matched_genjet.pt.flatten(
                 axis=0).counts <= 0] = 0
@@ -692,14 +697,14 @@ class DimuonProcessor(processor.ProcessorABC):
                 jets, forceStochastic=False)
             jet_pt_jec_jer = jets.pt
             jet_pt_gen = jets.ptGenJet
-            jer_sf = (jet_pt_jec_jer - jet_pt_gen) / \
-                     (jet_pt_jec - jet_pt_gen +
-                     (jet_pt_jec == jet_pt_gen) *
-                     (jet_pt_jec_jer - jet_pt_jec))
-            jer_down_sf = (jets.pt_jer_down - jet_pt_gen) /\
-                     (jet_pt_jec - jet_pt_gen +
-                     (jet_pt_jec == jet_pt_gen) * 10.)
-            jet_pt_jer_down = jet_pt_gen + (jet_pt_jec - jet_pt_gen) *
+            jer_sf = ((jet_pt_jec_jer - jet_pt_gen) /
+                      (jet_pt_jec - jet_pt_gen +
+                       (jet_pt_jec == jet_pt_gen) *
+                       (jet_pt_jec_jer - jet_pt_jec)))
+            jer_down_sf = ((jets.pt_jer_down - jet_pt_gen) /
+                           (jet_pt_jec - jet_pt_gen +
+                           (jet_pt_jec == jet_pt_gen) * 10.))
+            jet_pt_jer_down = jet_pt_gen + (jet_pt_jec - jet_pt_gen) *\
                      (jer_down_sf / jer_sf)
             jer_categories = {
                 'jer1': (abs(jets.eta) < 1.93),
