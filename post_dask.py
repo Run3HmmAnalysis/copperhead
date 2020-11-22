@@ -1,4 +1,5 @@
 import dask
+from dask.distributed import Client
 
 from python.timer import Timer
 from python.postprocessor_dask import workflow
@@ -79,7 +80,7 @@ if __name__ == "__main__":
     if use_local_cluster:
         print(f"Creating local cluster with {ncpus_local} workers."
               f" Dashboard address: {dashboard_address}")
-        client = dask.distributed.Client(
+        client = Client(
                     processes=True,
                     dashboard_address=dashboard_address,
                     n_workers=ncpus_local,
@@ -88,7 +89,7 @@ if __name__ == "__main__":
     else:
         print(f"Creating Slurm cluster at {slurm_cluster_ip}."
               f"Dashboard address: {dashboard_address}")
-        client = dask.distributed.Client(parameters['slurm_cluster_ip'])
+        client = Client(parameters['slurm_cluster_ip'])
 
     samples = [
         # 'ggh_amcPS',
