@@ -4,6 +4,8 @@ from dask.distributed import Client
 from python.timer import Timer
 from python.postprocessor_dask import workflow
 
+__all__ = ['dask']
+
 use_local_cluster = True
 # is False, will use Slurm cluster (requires manual setup of the cluster)
 
