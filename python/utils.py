@@ -12,18 +12,18 @@ def p4_sum(obj1, obj2):
             px_ = obj.pt * np.cos(obj.phi)
             py_ = obj.pt * np.sin(obj.phi)
             pz_ = obj.pt * np.sinh(obj.eta)
-            e_  = np.sqrt(px_**2 + py_**2 + pz_**2 + obj.mass**2)
-        except:
+            e_ = np.sqrt(px_**2 + py_**2 + pz_**2 + obj.mass**2)
+        except Exception:
             px_ = obj['__fast_pt'] * np.cos(obj['__fast_phi'])
             py_ = obj['__fast_pt'] * np.sin(obj['__fast_phi'])
             pz_ = obj['__fast_pt'] * np.sinh(obj['__fast_eta'])
-            e_  = np.sqrt(px_**2 + py_**2 + pz_**2 +
+            e_ = np.sqrt(px_**2 + py_**2 + pz_**2 +
                           obj['__fast_mass']**2)
         px = px + px_
         py = py + py_
         pz = pz + pz_
         e = e + e_
-        
+
     pt = np.sqrt(px**2 + py**2)
     eta = np.arcsinh(pz / pt)
     phi = np.arctan2(py, px)
@@ -37,17 +37,17 @@ def rapidity(obj):
         px = obj.pt*np.cos(obj.phi)
         py = obj.pt*np.sin(obj.phi)
         pz = obj.pt*np.sinh(obj.eta)
-        e  = np.sqrt(px**2 + py**2 + pz**2 + obj.mass**2)
-    except:
+        e = np.sqrt(px**2 + py**2 + pz**2 + obj.mass**2)
+    except Exception:
         px = obj['__fast_pt'] * np.cos(obj['__fast_phi'])
         py = obj['__fast_pt'] * np.sin(obj['__fast_phi'])
         pz = obj['__fast_pt'] * np.sinh(obj['__fast_eta'])
-        e  = np.sqrt(px**2 + py**2 + pz**2 + obj['__fast_mass']**2)
+        e = np.sqrt(px**2 + py**2 + pz**2 + obj['__fast_mass']**2)
     rap = 0.5 * np.log((e + pz) / (e - pz))
     return rap
 
 
-def cs_variables_old(mu1,mu2,two_muons):
+def cs_variables_old(mu1, mu2, two_muons):
     dphi = abs(np.mod(mu1.phi[two_muons] -
                       mu2.phi[two_muons] + np.pi,
                       2 * np.pi) - np.pi)
@@ -59,11 +59,11 @@ def cs_variables_old(mu1,mu2,two_muons):
 
 # https://root.cern.ch/doc/master/classTVector3
 # .html#a5fcc2bc19cf8c84215eb8e50cedae08f
-def angle(vec1,vec2):
+def angle(vec1, vec2):
     ptot2_1 = vec1[0] * vec1[0] + vec1[1] * vec1[1] + vec1[2] * vec1[2]
     ptot2_2 = vec2[0] * vec2[0] + vec2[1] * vec2[1] + vec2[2] * vec2[2]
     ptot2 = ptot2_1 * ptot2_2
-    ptot2[ptot2 <=0 ] = 0.0
+    ptot2[ptot2 <= 0] = 0.0
     arg = (vec1[0] * vec2[0] + vec1[1] * vec2[1] +
            vec1[2] * vec2[2]) / np.sqrt(ptot2)
     arg[arg > 1.0] = 1.0
@@ -82,7 +82,7 @@ def unit(vec):
 
 # https://root.cern.ch/doc/master/classTVector3
 # .html#ad4464ec846c85cadce7afe9c09c7e245
-def cross(vec1,vec2): 
+def cross(vec1, vec2):
     return [vec1[1] * vec2[2] - vec2[1] * vec1[2],
             vec1[2] * vec2[0] - vec2[2] * vec1[0],
             vec1[0] * vec2[1] - vec2[0] * vec1[1]]
@@ -90,7 +90,7 @@ def cross(vec1,vec2):
 
 # https://root.cern.ch/doc/master/classTLorentzVector
 # .html#a8d77f01dc7f409b237937012c382fbfb
-def boost(vector,boost_vector):
+def boost(vector, boost_vector):
     x = vector[0]
     y = vector[1]
     z = vector[2]
@@ -102,7 +102,7 @@ def boost(vector,boost_vector):
     gamma = 1.0 / np.sqrt(1.0 - b2)
     bp = bx * x + by * y + bz * z
     gamma2 = np.zeros(len(x))
-    gamma2[b2>0] = (gamma - 1.0) / b2
+    gamma2[b2 > 0] = (gamma - 1.0) / b2
     x = x + gamma2 * bp * bx + gamma * bx * t
     y = y + gamma2 * bp * by + gamma * by * t
     z = z + gamma2 * bp * bz + gamma * bz * t
@@ -119,7 +119,7 @@ def rotate_axes(newX, newY, newZ):
 
 # https://root.cern.ch/doc/master/classTRotation
 # .html#afe12d186ccecf5d71adea56765021f5c
-def multiply_mtx(mtx1,mtx2):
+def multiply_mtx(mtx1, mtx2):
     return [[mtx1[0][0] * mtx2[0][0] +
              mtx1[0][1] * mtx2[1][0] +
              mtx1[0][2] * mtx2[2][0],
@@ -149,7 +149,8 @@ def multiply_mtx(mtx1,mtx2):
              mtx1[2][2] * mtx2[2][2]]]
 
 
-#https://root.cern.ch/doc/master/TVector3_8cxx.html#aa655a3991b6dd7812fb64735670090c1
+# https://root.cern.ch/doc/master/TVector3_8cxx
+# .html#aa655a3991b6dd7812fb64735670090c1
 def multiply_mtx_vec(mtx, vec):
     return [mtx[0][0] * vec[0] + mtx[0][1] * vec[1] + mtx[0][2] * vec[2],
             mtx[1][0] * vec[0] + mtx[1][1] * vec[1] + mtx[1][2] * vec[2],
@@ -171,12 +172,12 @@ def cs_variables(mu1, mu2, two_muons):
     mu1_py = mu1.pt[two_muons] * np.sin(mu1.phi[two_muons]).flatten()
     mu1_pz = mu1.pt[two_muons] * np.sinh(mu1.eta[two_muons]).flatten()
     mu1_e = np.sqrt(mu1_px**2 + mu1_py**2 + mu1_pz**2 +
-                     mu1.mass[two_muons]**2).flatten()
+                    mu1.mass[two_muons]**2).flatten()
     mu2_px = mu2.pt[two_muons] * np.cos(mu2.phi[two_muons]).flatten()
     mu2_py = mu2.pt[two_muons] * np.sin(mu2.phi[two_muons]).flatten()
     mu2_pz = mu2.pt[two_muons] * np.sinh(mu2.eta[two_muons]).flatten()
     mu2_e = np.sqrt(mu2_px**2 + mu2_py**2 + mu2_pz**2 +
-                     mu2.mass[two_muons]**2).flatten()
+                    mu2.mass[two_muons]**2).flatten()
     px = (mu1_px + mu2_px).flatten()
     py = (mu1_py + mu2_py).flatten()
     pz = (mu1_pz + mu2_pz).flatten()
