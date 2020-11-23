@@ -856,8 +856,8 @@ class DimuonProcessor(processor.ProcessorABC):
             do_thu = (('vbf' in dataset) and
                       ('dy' not in dataset) and
                       ('nominal' in self.pt_variations))
+            do_thu = False
             if do_thu:
-                pass
                 for i, name in enumerate(self.sths_names):
                     wgt_up = vbf_uncert_stage_1_1(
                         i, df.HTXS.stage1_1_fine_cat_pTjet30GeV, 1.,
