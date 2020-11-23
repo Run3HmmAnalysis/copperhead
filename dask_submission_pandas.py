@@ -136,15 +136,13 @@ def submit_job(arg_set, parameters):
     if parameters['save_output']:
         try:
             os.mkdir(parameters['out_dir'])
-        except Exception as e:
+        except Exception:
             pass
-            # raise Exception(e)
         out_dir_ = f"{parameters['out_dir']}/nominal/"
         try:
             os.mkdir(out_dir_)
-        except Exception as e:
+        except Exception:
             pass
-            # raise Exception(e)
         for ds in output.s.unique():
             out_path_ = f"{out_dir_}/{ds}/"
             dd.to_parquet(df=output[output.s == ds], path=out_path_)
