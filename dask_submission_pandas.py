@@ -62,8 +62,8 @@ parameters = {
     'server': 'root://xrootd.rcac.purdue.edu/',
     'datasets_from': 'purdue',
     # 'pt_variations': ['nominal', 'jer1_up', 'jer1_down'],
-    'pt_variations': ['nominal', 'Absolute2016_up'],
-    # 'pt_variations': ['nominal'],
+    # 'pt_variations': ['nominal', 'Absolute2016_up'],
+    'pt_variations': ['nominal'],
     # 'pt_variations': all_pt_variations,
     'chunksize': int(args.chunksize),
     'maxchunks': mch,  # None to process all
@@ -137,12 +137,14 @@ def submit_job(arg_set, parameters):
         try:
             os.mkdir(parameters['out_dir'])
         except Exception as e:
-            raise Exception(e)
+            pass
+            # raise Exception(e)
         out_dir_ = f"{parameters['out_dir']}/nominal/"
         try:
             os.mkdir(out_dir_)
         except Exception as e:
-            raise Exception(e)
+            pass
+            # raise Exception(e)
         for ds in output.s.unique():
             out_path_ = f"{out_dir_}/{ds}/"
             dd.to_parquet(df=output[output.s == ds], path=out_path_)
@@ -164,8 +166,8 @@ if __name__ == "__main__":
             'data_H',
             ],
         'signal': [
-            # 'ggh_amcPS',
-            # 'vbf_powhegPS',
+            'ggh_amcPS',
+            'vbf_powhegPS',
             'vbf_powheg_herwig',
             'vbf_powheg_dipole'
             ],
