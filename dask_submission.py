@@ -112,7 +112,7 @@ def submit_job(arg_set, parameters):
         }
     else:
         executor = iterative_executor
-        executor_args = {'schema': processor.NanoAODSchema,}
+        executor_args = {'schema': processor.NanoAODSchema}
 
     try:
         output = processor.run_uproot_job(
