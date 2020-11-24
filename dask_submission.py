@@ -106,14 +106,13 @@ def submit_job(arg_set, parameters):
             workers_to_use = list(client.scheduler_info()['workers'])
         executor = dask_executor
         executor_args = {
-            'nano': True,
             'client': client,
+            'schema': processor.NanoAODSchema,
             'workers_to_use': workers_to_use,
-            'secede_rejoin': False
         }
     else:
         executor = iterative_executor
-        executor_args = {'nano': True}
+        executor_args = {'schema': processor.NanoAODSchema,}
 
     try:
         output = processor.run_uproot_job(

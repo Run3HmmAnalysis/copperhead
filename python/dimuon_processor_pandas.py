@@ -218,19 +218,18 @@ class DimuonProcessor(processor.ProcessorABC):
             genweight = df.genWeight.flatten()
             weights.add_weight('genwgt', genweight)
             if self.auto_pu:
-                pu_distribution = df.Pileup.nTrueInt
                 self.pu_lookup = pu_lookup(
-                    self.parameters, 'nom', auto=pu_distribution)
+                    self.parameters, 'nom', auto=nTrueInt)
                 self.pu_lookup_up = pu_lookup(
-                    self.parameters, 'up', auto=pu_distribution)
+                    self.parameters, 'up', auto=nTrueInt)
                 self.pu_lookup_down = pu_lookup(
-                    self.parameters, 'down', auto=pu_distribution)
+                    self.parameters, 'down', auto=nTrueInt)
             pu_weight = pu_evaluator(
-                self.pu_lookup, numevents, df.Pileup.nTrueInt)
+                self.pu_lookup, numevents, nTrueInt)
             pu_weight_up = pu_evaluator(
-                self.pu_lookup_up, numevents, df.Pileup.nTrueInt)
+                self.pu_lookup_up, numevents, nTrueInt)
             pu_weight_down = pu_evaluator(
-                self.pu_lookup_down, numevents, df.Pileup.nTrueInt)
+                self.pu_lookup_down, numevents, nTrueInt)
             weights.add_weight_with_variations(
                 'pu_wgt', pu_weight, pu_weight_up, pu_weight_down)
             weights.add_weight('lumi', self.lumi_weights[dataset])
@@ -281,47 +280,49 @@ class DimuonProcessor(processor.ProcessorABC):
 
         if True:  # reserved for loop over muon pT variations
             # for
-            fsr_offsets = awkward.JaggedArray.counts2offsets(
-                df.FsrPhoton.counts)
-            muons_offsets = awkward.JaggedArray.counts2offsets(
-                df.Muon.counts)
-            fsr_pt = np.array(df.FsrPhoton.pt.flatten(), dtype=float)
-            fsr_eta = np.array(df.FsrPhoton.eta.flatten(), dtype=float)
-            fsr_phi = np.array(df.FsrPhoton.phi.flatten(), dtype=float)
-            fsr_iso = np.array(
-                df.FsrPhoton.relIso03.flatten(), dtype=float)
-            fsr_drEt2 = np.array(
-                df.FsrPhoton.dROverEt2.flatten(), dtype=float)
-            has_fsr = np.zeros(len(df.Muon.pt.flatten()), dtype=bool)
-            pt_fsr, eta_fsr, phi_fsr, mass_fsr, iso_fsr, has_fsr =\
-                fsr_evaluator(
-                    muons_offsets, fsr_offsets,
-                    np.array(df.Muon.pt.flatten(), dtype=float),
-                    np.array(df.Muon.eta.flatten(), dtype=float),
-                    np.array(df.Muon.phi.flatten(), dtype=float),
-                    np.array(df.Muon.mass.flatten(), dtype=float),
-                    np.array(
-                        df.Muon.pfRelIso04_all.flatten(),
-                        dtype=float),
-                    np.array(
-                        df.Muon.fsrPhotonIdx.flatten(),
-                        dtype=int),
-                    fsr_pt, fsr_eta, fsr_phi,
-                    fsr_iso, fsr_drEt2, has_fsr)
-            df.Muon['pt'] = awkward.JaggedArray.fromcounts(
-                df.Muon.counts, pt_fsr)
-            df.Muon['eta'] = awkward.JaggedArray.fromcounts(
-                df.Muon.counts, eta_fsr)
-            df.Muon['phi'] = awkward.JaggedArray.fromcounts(
-                df.Muon.counts, phi_fsr)
-            df.Muon['mass'] = awkward.JaggedArray.fromcounts(
-                df.Muon.counts, mass_fsr)
-            df.Muon['pfRelIso04_all'] = awkward.JaggedArray.fromcounts(
-                df.Muon.counts, iso_fsr)
+            if False:  # fsr recovery
+                fsr_offsets = awkward.JaggedArray.counts2offsets(
+                    df.FsrPhoton.counts)
+                muons_offsets = awkward.JaggedArray.counts2offsets(
+                    df.Muon.counts)
+                fsr_pt = np.array(df.FsrPhoton.pt.flatten(), dtype=float)
+                fsr_eta = np.array(df.FsrPhoton.eta.flatten(), dtype=float)
+                fsr_phi = np.array(df.FsrPhoton.phi.flatten(), dtype=float)
+                fsr_iso = np.array(
+                    df.FsrPhoton.relIso03.flatten(), dtype=float)
+                fsr_drEt2 = np.array(
+                    df.FsrPhoton.dROverEt2.flatten(), dtype=float)
+                has_fsr = np.zeros(len(df.Muon.pt.flatten()), dtype=bool)
+                pt_fsr, eta_fsr, phi_fsr, mass_fsr, iso_fsr, has_fsr =\
+                    fsr_evaluator(
+                        muons_offsets, fsr_offsets,
+                        np.array(df.Muon.pt.flatten(), dtype=float),
+                        np.array(df.Muon.eta.flatten(), dtype=float),
+                        np.array(df.Muon.phi.flatten(), dtype=float),
+                        np.array(df.Muon.mass.flatten(), dtype=float),
+                        np.array(
+                            df.Muon.pfRelIso04_all.flatten(),
+                            dtype=float),
+                        np.array(
+                            df.Muon.fsrPhotonIdx.flatten(),
+                            dtype=int),
+                        fsr_pt, fsr_eta, fsr_phi,
+                        fsr_iso, fsr_drEt2, has_fsr)
+                df.Muon['pt'] = awkward.JaggedArray.fromcounts(
+                    df.Muon.counts, pt_fsr)
+                df.Muon['eta'] = awkward.JaggedArray.fromcounts(
+                    df.Muon.counts, eta_fsr)
+                df.Muon['phi'] = awkward.JaggedArray.fromcounts(
+                    df.Muon.counts, phi_fsr)
+                df.Muon['mass'] = awkward.JaggedArray.fromcounts(
+                    df.Muon.counts, mass_fsr)
+                df.Muon['pfRelIso04_all'] = awkward.JaggedArray.fromcounts(
+                    df.Muon.counts, iso_fsr)
+                if self.timer:
+                    self.timer.add_checkpoint("FSR recovery")
+
             df.Muon['pt_fsr'] = df.Muon.pt
 
-            if self.timer:
-                self.timer.add_checkpoint("FSR recovery")
 
             # GeoFit correction
             if False:  # 'dxybs' in df.Muon.columns:

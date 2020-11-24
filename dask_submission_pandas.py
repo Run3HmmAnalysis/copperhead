@@ -3,6 +3,7 @@ import os
 import argparse
 import traceback
 
+import coffea.processor as processor
 from python.executor import dask_executor, run_uproot_job
 from python.dimuon_processor_pandas import DimuonProcessor
 from python.samples_info import SamplesInfo
@@ -111,8 +112,8 @@ def load_samples(datasets, parameters):
 def submit_job(arg_set, parameters):
     executor = dask_executor
     executor_args = {
-        'nano': True,
         'client': parameters['client'],
+        'schema': processor.NanoAODSchema,
         'compression': None
     }
 
@@ -164,9 +165,9 @@ if __name__ == "__main__":
             'data_H',
             ],
         'signal': [
-            'ggh_amcPS',
-            'vbf_powhegPS',
-            'vbf_powheg_herwig',
+            # 'ggh_amcPS',
+            # 'vbf_powhegPS',
+            # 'vbf_powheg_herwig',
             'vbf_powheg_dipole'
             ],
         'main_mc': [
