@@ -323,7 +323,6 @@ class DimuonProcessor(processor.ProcessorABC):
 
             df.Muon['pt_fsr'] = df.Muon.pt
 
-
             # GeoFit correction
             if False:  # 'dxybs' in df.Muon.columns:
                 muons_dxybs = df.Muon.dxybs.flatten()
