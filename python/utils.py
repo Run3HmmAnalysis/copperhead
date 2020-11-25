@@ -2,11 +2,11 @@ import numpy as np
 
 
 def p4_sum(obj1, obj2):
-    assert(obj1.shape == obj2.shape)
-    px = np.zeros(obj1.shape[0])
-    py = np.zeros(obj1.shape[0])
-    pz = np.zeros(obj1.shape[0])
-    e = np.zeros(obj1.shape[0])
+    assert(len(obj1) == len(obj2))
+    px = np.zeros(len(obj1))
+    py = np.zeros(len(obj1))
+    pz = np.zeros(len(obj1))
+    e = np.zeros(len(obj1))
     for obj in [obj1, obj2]:
         try:
             px_ = obj.pt * np.cos(obj.phi)
@@ -24,7 +24,6 @@ def p4_sum(obj1, obj2):
         py = py + py_
         pz = pz + pz_
         e = e + e_
-
     pt = np.sqrt(px**2 + py**2)
     eta = np.arcsinh(pz / pt)
     phi = np.arctan2(py, px)
@@ -168,22 +167,22 @@ def invert(rot):
 
 
 # https://github.com/arizzi/PisaHmm/blob/master/boost_to_CS.h
-def cs_variables(mu1, mu2, two_muons):
-    multiplier = mu2.charge[two_muons].flatten()
-    mu1_px = mu1.pt[two_muons] * np.cos(mu1.phi[two_muons]).flatten()
-    mu1_py = mu1.pt[two_muons] * np.sin(mu1.phi[two_muons]).flatten()
-    mu1_pz = mu1.pt[two_muons] * np.sinh(mu1.eta[two_muons]).flatten()
+def cs_variables(mu1, mu2):
+    multiplier = mu2.charge
+    mu1_px = mu1.pt * np.cos(mu1.phi)
+    mu1_py = mu1.pt * np.sin(mu1.phi)
+    mu1_pz = mu1.pt * np.sinh(mu1.eta)
     mu1_e = np.sqrt(mu1_px**2 + mu1_py**2 + mu1_pz**2 +
-                    mu1.mass[two_muons]**2).flatten()
-    mu2_px = mu2.pt[two_muons] * np.cos(mu2.phi[two_muons]).flatten()
-    mu2_py = mu2.pt[two_muons] * np.sin(mu2.phi[two_muons]).flatten()
-    mu2_pz = mu2.pt[two_muons] * np.sinh(mu2.eta[two_muons]).flatten()
+                    mu1.mass**2)
+    mu2_px = mu2.pt * np.cos(mu2.phi)
+    mu2_py = mu2.pt * np.sin(mu2.phi)
+    mu2_pz = mu2.pt * np.sinh(mu2.eta)
     mu2_e = np.sqrt(mu2_px**2 + mu2_py**2 + mu2_pz**2 +
-                    mu2.mass[two_muons]**2).flatten()
-    px = (mu1_px + mu2_px).flatten()
-    py = (mu1_py + mu2_py).flatten()
-    pz = (mu1_pz + mu2_pz).flatten()
-    e = (mu1_e + mu2_e).flatten()
+                    mu2.mass**2)
+    px = (mu1_px + mu2_px)
+    py = (mu1_py + mu2_py)
+    pz = (mu1_pz + mu2_pz)
+    e = (mu1_e + mu2_e)
 
     mu1_kin = [mu1_px, mu1_py, mu1_pz, mu1_e]
     mu2_kin = [mu2_px, mu2_py, mu2_pz, mu2_e]

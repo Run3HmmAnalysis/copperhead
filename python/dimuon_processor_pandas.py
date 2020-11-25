@@ -1,5 +1,6 @@
 import copy
 import awkward
+import awkward1 as ak
 import numpy as np
 # np.set_printoptions(threshold=sys.maxsize)
 import pandas as pd
@@ -193,19 +194,18 @@ class DimuonProcessor(processor.ProcessorABC):
         # and L1 prefiring weights
         # ------------------------------------------------------------#
 
-        numevents = df.shape[0]
+        numevents = len(df)
         weights = Weights(df)
 
         if is_mc:
-            nTrueInt = df.Pileup.nTrueInt.flatten()
+            nTrueInt = df.Pileup.nTrueInt
         else:
             nTrueInt = np.zeros(numevents, dtype=bool)
-        output = pd.DataFrame()
-        output['run'] = df.run.flatten()
-        output['event'] = df.event.flatten()
-        output['npv'] = df.PV.npvs.flatten()
+        output = pd.DataFrame({'run': df.run, 'event': df.event})
+        output.index.name = 'entry'
+        output['npv'] = df.PV.npvs
         output['nTrueInt'] = nTrueInt
-        output['met'] = df.MET.pt.flatten()
+        output['met'] = df.MET.pt
 
         if is_mc:
             mask = np.ones(numevents, dtype=bool)
@@ -215,8 +215,9 @@ class DimuonProcessor(processor.ProcessorABC):
             # L1 prefiring weights
             # --------------------------------------------------------#
 
-            genweight = df.genWeight.flatten()
+            genweight = df.genWeight
             weights.add_weight('genwgt', genweight)
+            nTrueInt = np.array(nTrueInt)
             if self.auto_pu:
                 self.pu_lookup = pu_lookup(
                     self.parameters, 'nom', auto=nTrueInt)
@@ -236,20 +237,17 @@ class DimuonProcessor(processor.ProcessorABC):
             if self.parameters["do_l1prefiring_wgts"]:
                 weights.add_weight_with_variations(
                     'l1prefiring_wgt',
-                    df.L1PreFiringWeight.Nom.flatten(),
-                    df.L1PreFiringWeight.Up.flatten(),
-                    df.L1PreFiringWeight.Dn.flatten())
+                    df.L1PreFiringWeight.Nom,
+                    df.L1PreFiringWeight.Up,
+                    df.L1PreFiringWeight.Dn)
 
         else:
             lumi_info = LumiMask(self.parameters['lumimask'])
             mask = lumi_info(
                 df.run.flatten(), df.luminosityBlock.flatten())
 
-        hlt = np.zeros(df.shape[0], dtype=bool)
-        for hlt_path in self.parameters['hlt']:
-            if hlt_path in df.HLT.columns:
-                hlt = hlt | df.HLT[hlt_path]
-        mask = mask & hlt
+        hlt = ak.to_pandas(df.HLT)
+        hlt = hlt[self.parameters["hlt"]].sum(axis=1)
 
         if self.timer:
             self.timer.add_checkpoint("Applied HLT and lumimask")
@@ -260,17 +258,24 @@ class DimuonProcessor(processor.ProcessorABC):
         # Raw pT and eta are stored to be used in event selection
         # ------------------------------------------------------------#
 
-        df.Muon['pt_raw'] = df.Muon.pt
-        df.Muon['eta_raw'] = df.Muon.eta
-        df.Muon['phi_raw'] = df.Muon.phi
-        df.Muon['pfRelIso04_all_raw'] = df.Muon.pfRelIso04_all
+        # awkward0 implementation
+        # df.Muon['pt_raw'] = df.Muon.pt
+        # df.Muon['eta_raw'] = df.Muon.eta
+        # df.Muon['phi_raw'] = df.Muon.phi
+        # df.Muon['pfRelIso04_all_raw'] = df.Muon.pfRelIso04_all
 
-        roch_corr, roch_err = roccor_evaluator(
-            self.roccor_lookup, is_mc, df.Muon)
-        df.Muon['pt'] = df.Muon.pt*roch_corr
+        df.Muon = ak.with_field(df.Muon, df.Muon.pt, 'pt_raw')
+        df.Muon = ak.with_field(df.Muon, df.Muon.eta, 'eta_raw')
+        df.Muon = ak.with_field(df.Muon, df.Muon.phi, 'phi_raw')
+        df.Muon = ak.with_field(df.Muon, df.Muon.pfRelIso04_all, 'pfRelIso04_all_raw')
 
-        if self.timer:
-            self.timer.add_checkpoint("Rochester correction")
+        # TODO: implement Rochester correction in awkward1
+        # roch_corr, roch_err = roccor_evaluator(
+        #     self.roccor_lookup, is_mc, df.Muon)
+        # df.Muon['pt'] = df.Muon.pt*roch_corr
+
+        # if self.timer:
+        #     self.timer.add_checkpoint("Rochester correction")
 
         # df.Muon['pt_scale_up'] = df.Muon.pt+df.Muon.pt*roch_err
         # df.Muon['pt_scale_down'] = df.Muon.pt-df.Muon.pt*roch_err
@@ -278,8 +283,13 @@ class DimuonProcessor(processor.ProcessorABC):
         # 'scale_up':df.Muon.pt_scale_up,
         # 'scale_down':df.Muon.pt_scale_down}
 
+        # print(df.Muon)
+        # print(df.Muon.matched_fsrPhoton)
+        # hasfsr = ~np.isnan(df.Muon.matched_fsrPhoton.pt.fillna(np.nan))
+        # print(df.Muon.matched_fsrPhoton[hasfsr])
         if True:  # reserved for loop over muon pT variations
             # for
+            # TODO: implement FSR recovery in a way compatible with awkward1
             if False:  # fsr recovery
                 fsr_offsets = awkward.JaggedArray.counts2offsets(
                     df.FsrPhoton.counts)
@@ -338,8 +348,7 @@ class DimuonProcessor(processor.ProcessorABC):
                 if self.timer:
                     self.timer.add_checkpoint("GeoFit correction")
 
-            self.muons_all = df.Muon
-            muons = df.Muon
+            muons = ak.to_pandas(df.Muon)
 
             # --------------------------------------------------------#
             # Select muons that pass pT, eta, isolation cuts,
@@ -348,49 +357,56 @@ class DimuonProcessor(processor.ProcessorABC):
             # passing quality cuts and at least one good PV
             # --------------------------------------------------------#
 
-            pass_event_flags = np.ones(numevents, dtype=bool)
-            for flag in self.parameters["event_flags"]:
-                pass_event_flags = pass_event_flags &\
-                    df.Flag[flag].astype(np.bool)
+            flags = ak.to_pandas(df.Flag)
+            flags = flags[self.parameters["event_flags"]].product(axis=1)
 
-            pass_muon_flags = np.ones(df.shape[0], dtype=bool)
-            for flag in self.parameters["muon_flags"]:
-                pass_muon_flags = pass_muon_flags &\
-                    muons[flag].astype(np.bool)
+            muons['pass_flags'] = True
+            if self.parameters["muon_flags"]:
+                muons['pass_flags'] = muons[
+                    self.parameters["muon_flags"]
+                ].product(axis=1)
 
-            muons = muons[
+            muons['selection'] = (
                 (muons.pt_raw > self.parameters["muon_pt_cut"]) &
                 (abs(muons.eta_raw) <
                  self.parameters["muon_eta_cut"]) &
                 (muons.pfRelIso04_all <
                  self.parameters["muon_iso_cut"]) &
-                muons[self.parameters["muon_id"]].astype(np.bool) &
-                pass_muon_flags]
+                muons[self.parameters["muon_id"]] &
+                muons.pass_flags
+            )
 
-            self.muons_all = self.muons_all[
-                (self.muons_all.pt_fsr >
+            muons['selection_all'] = (
+                (muons.pt_fsr >
                  self.parameters["muon_pt_cut"]) &
-                (self.muons_all.pfRelIso04_all <
+                (muons.pfRelIso04_all <
                  self.parameters["muon_iso_cut"]) &
-                self.muons_all[
-                 self.parameters["muon_id"]].astype(np.bool)]
+                muons[self.parameters["muon_id"]]
+            )
 
-            two_os_muons = ((muons.counts == 2) &
-                            (muons['charge'].prod() == -1))
+            nmuons = muons[muons.selection].reset_index()\
+                .groupby('entry')['subentry'].nunique()
+            mm_charge = muons.loc[muons.selection,'charge']\
+                .groupby('entry').prod()
 
             electrons = df.Electron[
                 (df.Electron.pt > self.parameters["electron_pt_cut"]) &
                 (abs(df.Electron.eta) <
                  self.parameters["electron_eta_cut"]) &
                 (df.Electron[self.parameters["electron_id"]] == 1)]
+            electron_veto = ak.to_numpy(ak.count(electrons.pt, axis=1) == 0)
 
-            electron_veto = (electrons.counts == 0)
-            good_pv = (df.PV.npvsGood > 0)
+            good_pv = ak.to_pandas(df.PV).npvsGood > 0
 
-            event_filter = (pass_event_flags & two_os_muons &
-                            electron_veto & good_pv).flatten()
-
-            mask = mask & event_filter & hlt
+            output['two_muons'] = (nmuons == 2)
+            output['event_selection'] = (
+                (hlt > 0) &
+                (flags > 0) &
+                (nmuons == 2) &
+                (mm_charge == -1) &
+                electron_veto &
+                good_pv
+            )
 
             if self.timer:
                 self.timer.add_checkpoint("Selected events and muons")
@@ -399,8 +415,12 @@ class DimuonProcessor(processor.ProcessorABC):
             # Initialize muon variables
             # --------------------------------------------------------#
 
-            mu1 = muons[muons.pt.argmax()]
-            mu2 = muons[muons.pt.argmin()]
+            muons = muons[muons.selection & (nmuons == 2)]
+
+            mu1 = muons.loc[muons.pt.groupby('entry').idxmax()]
+            mu2 = muons.loc[muons.pt.groupby('entry').idxmin()]
+            mu1.index = mu1.index.droplevel('subentry')
+            mu2.index = mu2.index.droplevel('subentry')
 
             mu1_variable_names = ['mu1_pt', 'mu1_pt_over_mass',
                                   'mu1_eta', 'mu1_phi', 'mu1_iso']
@@ -417,7 +437,8 @@ class DimuonProcessor(processor.ProcessorABC):
                                      'dimuon_cos_theta_cs',
                                      'dimuon_phi_cs']
 
-            for n in (mu1_variable_names + mu2_variable_names +
+            for n in (mu1_variable_names +
+                      mu2_variable_names +
                       dimuon_variable_names):
                 output[n] = 0.0
 
@@ -427,41 +448,13 @@ class DimuonProcessor(processor.ProcessorABC):
             # --------------------------------------------------------#
 
             # Events where there is at least one muon passing
-            # leading muon pT cut (redundant selection)
-            pass_leading_pt = np.zeros(numevents, dtype=bool)
-            pass_leading_pt[muons.counts > 0] = (
-                mu1.pt_raw > self.parameters["muon_leading_pt"]
-            ).flatten()
-
-            # All L3 trigger muons
-            df.TrigObj['mass'] = df.TrigObj.zeros_like()
-            df.TrigObj = df.TrigObj[(df.TrigObj.id == 13) |
-                                    (df.TrigObj.id == -13)]
-
-            # Muons that pass tight id and iso as well as
             # leading muon pT cut
-            # mu_for_trigmatch = muons[(
-            #     muons.pt_raw > self.parameters["muon_leading_pt"])
-            #     &(df.Muon.pfRelIso04_all <
-            #     self.parameters["muon_trigmatch_iso"]) &
-            #     df.Muon[self.parameters["muon_trigmatch_id"]]
-            #    ]
+            pass_leading_pt =\
+                mu1.pt_raw > self.parameters["muon_leading_pt"]
 
-            # For every such muon check if there is
-            # a L3 object within dR<0.1
-            # muTrig = mu_for_trigmatch.cross(df.TrigObj, nested=True)
-            # _, _, dr = delta_r(
-            #     muTrig.i0.eta_raw, muTrig.i1.eta,
-            #     muTrig.i0.phi, muTrig.i1.phi)
-            # has_matched_trigmuon = (
-            #     dr < self.parameters["muon_trigmatch_dr"]).any()
-
-            # Events where there is a trigger object matched to
-            # a tight-ID tight-Iso muon passing leading pT cut
-            # event_passing_trig_match = (mu_for_trigmatch[
-            #     has_matched_trigmuon].counts > 0).flatten()
-
-            mask = mask & pass_leading_pt  # & event_passing_trig_match
+            output['pass_leading_pt'] = pass_leading_pt
+            output['event_selection'] =\
+                output.event_selection & output.pass_leading_pt
 
             if self.timer:
                 self.timer.add_checkpoint("Applied trigger matching")
@@ -470,66 +463,58 @@ class DimuonProcessor(processor.ProcessorABC):
             # Fill dimuon and muon variables
             # --------------------------------------------------------#
 
-            two_muons = muons.counts == 2
+            mm_pt, mm_eta, mm_phi, mm_mass, mm_rap = p4_sum(mu1, mu2)
 
-            mm_pt, mm_eta, mm_phi, mm_mass, mm_rap = p4_sum(
-                mu1[two_muons], mu2[two_muons])
-            output['dimuon_pt'][two_muons] = mm_pt.flatten()
-            output['dimuon_pt_log'] = np.log(output['dimuon_pt'])
-            output['dimuon_eta'][two_muons] = mm_eta.flatten()
-            output['dimuon_phi'][two_muons] = mm_phi.flatten()
-            output['dimuon_mass'][two_muons] = mm_mass.flatten()
-            output['dimuon_rap'][two_muons] = mm_rap.flatten()
+            output['dimuon_pt'] = mm_pt
+            output['dimuon_pt_log'] = np.log(output.dimuon_pt)
+            output['dimuon_eta'] = mm_eta
+            output['dimuon_phi'] = mm_phi
+            output['dimuon_mass'] = mm_mass
+            output['dimuon_rap'] = mm_rap
 
             mm_deta, mm_dphi, mm_dr = delta_r(
-                mu1[two_muons].eta.flatten(),
-                mu2[two_muons].eta.flatten(),
-                mu1[two_muons].phi.flatten(),
-                mu2[two_muons].phi.flatten())
+                mu1.eta,
+                mu2.eta,
+                mu1.phi,
+                mu2.phi
+            )
 
-            output['dimuon_dEta'][two_muons] = mm_deta.flatten()
-            output['dimuon_dPhi'][two_muons] = mm_dphi.flatten()
-            output['dimuon_dR'][two_muons] = mm_dr.flatten()
+            output['dimuon_dEta'] = mm_deta
+            output['dimuon_dPhi'] = mm_dphi
+            output['dimuon_dR'] = mm_dr
 
-            output['dimuon_ebe_mass_res'][two_muons] =\
+            output['mu1_pt'] = mu1.pt
+            output['mu1_ptErr'] = mu1.ptErr
+            output['mu1_eta'] = mu1.eta
+            output['mu1_phi'] = mu1.phi
+            output['mu1_iso'] = mu1.pfRelIso04_all
+            output['mu1_pt_over_mass'] = output.mu1_pt / output.dimuon_mass
+
+            output['mu2_pt'] = mu2.pt
+            output['mu2_ptErr'] = mu2.ptErr
+            output['mu2_eta'] = mu2.eta
+            output['mu2_phi'] = mu2.phi
+            output['mu2_iso'] = mu2.pfRelIso04_all
+            output['mu2_pt_over_mass'] = output.mu2_pt / output.dimuon_mass
+
+            output['dimuon_ebe_mass_res'] =\
                 mass_resolution_purdue(
-                    is_mc, self.evaluator, mu1, mu2,
-                    output['dimuon_mass'], two_muons, self.year)
-            output['dimuon_ebe_mass_res_rel'][two_muons] =\
-                output['dimuon_mass_res'][two_muons] /\
-                output['dimuon_mass'][two_muons]
+                    is_mc,
+                    self.evaluator,
+                    output,
+                    self.year
+                )
+            output['dimuon_ebe_mass_res_rel'] =\
+                output.dimuon_ebe_mass_res / output.dimuon_mass
 
-            output['dimuon_mass_res_rel'][two_muons] =\
-                mass_resolution_pisa(
-                    self.extractor, mu1, mu2, two_muons)
-            output['dimuon_mass_res'][two_muons] =\
-                output['dimuon_mass_res_rel'][two_muons] *\
-                output['dimuon_mass'][two_muons]
+            output.dimuon_mass_res_rel =\
+                mass_resolution_pisa(self.extractor, output)
 
-            cos_theta_cs, phi_cs = cs_variables(mu1, mu2, two_muons)
-            output['dimuon_cos_theta_cs'][two_muons] =\
-                cos_theta_cs.flatten()
-            output['dimuon_phi_cs'][two_muons] = phi_cs.flatten()
+            output.dimuon_mass_res =\
+                output.dimuon_mass_res_rel * output.dimuon_mass
 
-            output['mu1_pt'][two_muons] = mu1[two_muons].pt.flatten()
-            output['mu1_eta'][two_muons] = mu1[two_muons].eta.flatten()
-            output['mu1_phi'][two_muons] = mu1[two_muons].phi.flatten()
-            output['mu1_iso'][two_muons] =\
-                mu1[two_muons].pfRelIso04_all.flatten()
-            output['mu1_pt_over_mass'][two_muons] =\
-                np.divide(
-                    mu1[two_muons].pt.flatten(),
-                    output['dimuon_mass'][two_muons])
-
-            output['mu2_pt'][two_muons] = mu2[two_muons].pt.flatten()
-            output['mu2_eta'][two_muons] = mu2[two_muons].eta.flatten()
-            output['mu2_phi'][two_muons] = mu2[two_muons].phi.flatten()
-            output['mu2_iso'][two_muons] =\
-                mu2[two_muons].pfRelIso04_all.flatten()
-            output['mu2_pt_over_mass'][two_muons] =\
-                np.divide(
-                    mu2[two_muons].pt.flatten(),
-                    output['dimuon_mass'][two_muons])
+            output['dimuon_cos_theta_cs'], output['dimuon_phi_cs'] =\
+                cs_variables(mu1, mu2)
 
             if self.timer:
                 self.timer.add_checkpoint("Filled muon variables")
@@ -545,9 +530,11 @@ class DimuonProcessor(processor.ProcessorABC):
         # (df.Jet.matched_muons.mediumId)&
         # (df.Jet.matched_muons.pfRelIso04_all<0.25)).any()
         jet = df.Jet[df.Jet.pt > 0]
-        jet_has_matched_muon = (jet.matched_muons.pt > 0).any()
-        jwmm = df.Jet[jet_has_matched_muon].flatten()
-        mm = jwmm.matched_muons[:, 0]
+        jet_has_matched_muon = ak.any(jet.matched_muons.pt > 0, axis=2)
+        # jet_has_matched_muon = (jet.matched_muons.pt > 0).any()
+        # mm = jwmm.matched_muons[:, 0]
+        jwmm = df.Jet[jet_has_matched_muon]
+        mm = ak.firsts(jwmm.matched_muons, axis=2)
 
         _, _, dr_mujet = delta_r(jwmm.eta, mm.eta, jwmm.phi, mm.phi)
 

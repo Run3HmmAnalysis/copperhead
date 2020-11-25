@@ -1,5 +1,5 @@
 import numpy as np
-import awkward
+import awkward1 as awkward
 import uproot
 import numba
 
@@ -45,6 +45,7 @@ class NNLOPS_Evaluator(object):
         return result
 
 
+# awkward0 implementation!
 def roccor_evaluator(rochester, is_mc, muons):
     if is_mc:
         mc_rand = np.random.rand(*muons.pt.flatten().shape)
@@ -323,6 +324,7 @@ def checkIntegral(wgt1, wgt2, ref):
 def pu_evaluator(lookup, numevents, ntrueint):
     pu_weight = np.ones(numevents)
     pu_weight = lookup(ntrueint)
+    pu_weight = np.array(pu_weight)
     pu_weight[ntrueint > 100] = 1
     pu_weight[ntrueint < 1] = 1
     return pu_weight
