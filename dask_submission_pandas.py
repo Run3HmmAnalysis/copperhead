@@ -4,7 +4,7 @@ import argparse
 import traceback
 
 import coffea.processor as processor
-from python.executor import dask_executor, run_uproot_job
+from coffea_replacement.executor import dask_executor, run_uproot_job
 from python.dimuon_processor_pandas import DimuonProcessor
 from python.samples_info import SamplesInfo
 
@@ -114,7 +114,7 @@ def submit_job(arg_set, parameters):
     executor_args = {
         'client': parameters['client'],
         'schema': processor.NanoAODSchema,
-        'compression': None
+        'use_dataframes': True,
     }
 
     try:

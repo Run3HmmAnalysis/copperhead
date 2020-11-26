@@ -5,7 +5,7 @@ import numpy as np
 # np.set_printoptions(threshold=sys.maxsize)
 import pandas as pd
 
-from coffea.analysis_objects import JaggedCandidateArray
+# from coffea.analysis_objects import JaggedCandidateArray
 import coffea.processor as processor
 from coffea.lookup_tools import extractor
 from coffea.lookup_tools import txt_converters, rochester_lookup
@@ -22,8 +22,8 @@ from python.timer import Timer
 from python.weights import Weights
 from python.corrections import musf_lookup, musf_evaluator, pu_lookup
 from python.corrections import pu_evaluator, NNLOPS_Evaluator
-from python.corrections import roccor_evaluator, get_jec_unc
-from python.corrections import qgl_weights, puid_weights, btag_weights
+# from python.corrections import roccor_evaluator, get_jec_unc
+from python.corrections import qgl_weights, puid_weights  # , btag_weights
 from python.corrections import geofit_evaluator, fsr_evaluator
 from python.stxs_uncert import vbf_uncert_stage_1_1, stxs_lookups
 from python.mass_resolution import mass_resolution_purdue, mass_resolution_pisa
@@ -274,7 +274,9 @@ class DimuonProcessor(processor.ProcessorABC):
         df.Muon = ak.with_field(df.Muon, df.Muon.pt, 'pt_raw')
         df.Muon = ak.with_field(df.Muon, df.Muon.eta, 'eta_raw')
         df.Muon = ak.with_field(df.Muon, df.Muon.phi, 'phi_raw')
-        df.Muon = ak.with_field(df.Muon, df.Muon.pfRelIso04_all, 'pfRelIso04_all_raw')
+        df.Muon = ak.with_field(
+            df.Muon, df.Muon.pfRelIso04_all, 'pfRelIso04_all_raw'
+        )
 
         # TODO: implement Rochester correction in awkward1
         # roch_corr, roch_err = roccor_evaluator(
@@ -393,7 +395,7 @@ class DimuonProcessor(processor.ProcessorABC):
 
             nmuons = muons[muons.selection].reset_index()\
                 .groupby('entry')['subentry'].nunique()
-            mm_charge = muons.loc[muons.selection,'charge']\
+            mm_charge = muons.loc[muons.selection, 'charge']\
                 .groupby('entry').prod()
 
             electrons = df.Electron[
@@ -530,7 +532,7 @@ class DimuonProcessor(processor.ProcessorABC):
         # ------------------------------------------------------------#
         # Prepare jets
         # ------------------------------------------------------------#
-        
+
         """
         df.Jet['ptRaw'] = df.Jet.pt * (1 - df.Jet.rawFactor)
         df.Jet['massRaw'] = df.Jet.mass * (1 - df.Jet.rawFactor)
@@ -733,7 +735,7 @@ class DimuonProcessor(processor.ProcessorABC):
         """
 
         # for some reason jets are doubled, so need additional filter
-        jets = ak.to_pandas(df.Jet).loc[pd.IndexSlice[:, :, 0],:]
+        jets = ak.to_pandas(df.Jet).loc[pd.IndexSlice[:, :, 0], :]
         jets.index = jets.index.droplevel('subsubentry')
 
         if self.timer:
@@ -775,6 +777,7 @@ class DimuonProcessor(processor.ProcessorABC):
                     )
                 weights.add_weight('nnlops', nnlopsw)
 
+            """
             if ('dy' in dataset) and False:  # disable for now
                 zpt_weight = np.ones(numevents, dtype=float)
                 zpt_weight[two_muons] =\
@@ -782,6 +785,7 @@ class DimuonProcessor(processor.ProcessorABC):
                         output['dimuon_pt'][two_muons]
                     ).flatten()
                 weights.add_weight('zpt_wgt', zpt_weight)
+            """
 
             sf = musf_evaluator(
                 self.musf_lookup,
@@ -1099,7 +1103,7 @@ class DimuonProcessor(processor.ProcessorABC):
         # ------------------------------------------------------------#
         # Fill jet-related variables
         # ------------------------------------------------------------#
-        
+
         njets = jets[jets.selection].reset_index()\
             .groupby('entry')['subentry'].nunique()
 
@@ -1289,7 +1293,7 @@ class DimuonProcessor(processor.ProcessorABC):
         # ------------------------------------------------------------#
         # Calculate btag SF and apply btag veto
         # ------------------------------------------------------------#
-        
+
         # TODO: fix
         """
         bjet_sel_mask = output.event_selection & two_jets & vbf_cut
@@ -1358,10 +1362,14 @@ class DimuonProcessor(processor.ProcessorABC):
                 (jet1.matched_genjet.counts > 0)[two_jets[one_jet]]
             matched2 = (jet2.matched_genjet.counts > 0)
             two_jets_matched[two_jets] = matched1 & matched2
-            category[mask & two_jets &
-                     vbf_cut & (~two_jets_matched)] = 'vbf_01j'
-            category[mask & two_jets &
-                     vbf_cut & two_jets_matched] = 'vbf_2j'
+            variables.c[
+                output.event_selection &
+                (output.njets >= 2) &
+                vbf_cut & (~two_jets_matched)] = 'vbf_01j'
+            variables.c[
+                output.event_selection &
+                (output.njets >= 2) &
+                vbf_cut & two_jets_matched] = 'vbf_2j'
 
         # --------------------------------------------------------------#
         # Fill outputs

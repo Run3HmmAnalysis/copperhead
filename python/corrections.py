@@ -1,6 +1,7 @@
 import numpy as np
 import pandas as pd
 import awkward1 as ak
+import awkward
 import uproot
 import numba
 
@@ -226,7 +227,7 @@ def musf_evaluator(lookups, year, numevents, mu1, mu2):
         # denom = ((1 - (1. - muTrig_mc).prod()))
         # denom_up = ((1 - (1. - muTrig_mc - muTrigerr_mc).prod()) != 0)
         # denom_dn = ((1 - (1. - muTrig_mc + muTrigerr_mc).prod()) != 0)
-    
+
         # muTrig[denom != 0] = (
         #     (1 - (1. - muTrig_data).prod())[denom != 0] / denom[denom != 0])
         # muTrig_up[denom_up != 0] = (
