@@ -1,5 +1,5 @@
 import numpy as np
-import awkward1 as ak
+
 
 def mass_resolution_purdue(is_mc, evaluator, df, year):
     # Returns absolute mass resolution!
