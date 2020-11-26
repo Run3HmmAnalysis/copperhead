@@ -1,5 +1,6 @@
 import numpy as np
-import awkward1 as awkward
+import pandas as pd
+import awkward1 as ak
 import uproot
 import numba
 
@@ -175,75 +176,74 @@ def musf_lookup(parameters):
                             mu_trig_err_mc,
                             mu_trig_edges)
 
-    return (mu_id_sf, mu_id_err, mu_iso_sf,
-            mu_iso_err, mu_trig_eff_data,
-            mu_trig_eff_mc, mu_trig_err_data, mu_trig_err_mc)
+    return {
+        'mu_id_sf': mu_id_sf,
+        'mu_id_err': mu_id_err,
+        'mu_iso_sf': mu_iso_sf,
+        'mu_iso_err': mu_iso_err,
+        'mu_trig_eff_data': mu_trig_eff_data,
+        'mu_trig_eff_mc': mu_trig_eff_mc,
+        'mu_trig_err_data': mu_trig_err_data,
+        'mu_trig_err_mc': mu_trig_err_mc
+    }
 
 
-def musf_evaluator(lookups, year, numevents, muons):
-    mu_id_sf, mu_id_err, mu_iso_sf,\
-        mu_iso_err, mu_trig_eff_data,\
-        mu_trig_eff_mc, mu_trig_err_data,\
-        mu_trig_err_mc = lookups
-    pt = muons.pt_raw.compact()
-    eta = muons.eta_raw.compact()
-    abs_eta = abs(muons.eta_raw.compact())
-    muID = np.ones(len(muons.flatten()), dtype=float)
-    muIso = np.ones(len(muons.flatten()), dtype=float)
-    muTrig = np.ones(numevents, dtype=float)
-    muIDerr = np.zeros(len(muons.flatten()), dtype=float)
-    muIsoerr = np.zeros(len(muons.flatten()), dtype=float)
-    muTrig_up = np.ones(numevents, dtype=float)
-    muTrig_down = np.ones(numevents, dtype=float)
+def musf_evaluator(lookups, year, numevents, mu1, mu2):
+    # TODO: fix implementation of trig SF
+    sf = pd.DataFrame(
+        index=mu1.index,
+        columns=[
+            'muID', 'muID_up', 'muID_down',
+            'muIso', 'muIso_up', 'muIso_down',
+            'muTrig', 'muTrig_up', 'muTrig_down',
+        ]
+    )
+    sf = sf.fillna(1.0)
 
-    if '2016' in year:
-        muID = mu_id_sf(eta, pt)
-        muIso = mu_iso_sf(eta, pt)
-        muIDerr = mu_id_err(eta, pt)
-        muIsoerr = mu_iso_err(eta, pt)
-        muTrig_data = mu_trig_eff_data(abs_eta, pt)
-        muTrig_mc = mu_trig_eff_mc(abs_eta, pt)
-        muTrigerr_data = mu_trig_err_data(abs_eta, pt)
-        muTrigerr_mc = mu_trig_err_mc(abs_eta, pt)
-    else:
-        muID = mu_id_sf(pt, abs_eta)
-        muIso = mu_iso_sf(pt, abs_eta)
-        muIDerr = mu_id_err(pt, abs_eta)
-        muIsoerr = mu_iso_err(pt, abs_eta)
-        muTrig_data = mu_trig_eff_data(abs_eta, pt)
-        muTrig_mc = mu_trig_eff_mc(abs_eta, pt)
-        muTrigerr_data = mu_trig_err_data(abs_eta, pt)
-        muTrigerr_mc = mu_trig_err_mc(abs_eta, pt)
+    for mu in [mu1, mu2]:
+        pt = mu.pt_raw
+        eta = mu.eta_raw
+        abs_eta = abs(mu.eta_raw)
+        if '2016' in year:
+            muID_ = lookups['mu_id_sf'](eta, pt)
+            muIso_ = lookups['mu_iso_sf'](eta, pt)
+            muIDerr = lookups['mu_id_err'](eta, pt)
+            muIsoerr = lookups['mu_iso_err'](eta, pt)
+            # muTrig_data = lookups['mu_trig_eff_data'](abs_eta, pt)
+            # muTrig_mc = lookups['mu_trig_eff_mc'](abs_eta, pt)
+            # muTrigerr_data = lookups['mu_trig_err_data'](abs_eta, pt)
+            # muTrigerr_mc = lookups['mu_trig_err_mc'](abs_eta, pt)
+        else:
+            muID_ = lookups['mu_id_sf'](pt, abs_eta)
+            muIso_ = lookups['mu_iso_sf'](pt, abs_eta)
+            muIDerr = lookups['mu_id_err'](pt, abs_eta)
+            muIsoerr = lookups['mu_iso_err'](pt, abs_eta)
+            # muTrig_data = lookups['mu_trig_eff_data'](abs_eta, pt)
+            # muTrig_mc = lookups['mu_trig_eff_mc'](abs_eta, pt)
+            # muTrigerr_data = lookups['mu_trig_err_data'](abs_eta, pt)
+            # muTrigerr_mc = lookups['mu_trig_err_mc'](abs_eta, pt)
 
-    denom = ((1 - (1. - muTrig_mc).prod()))
-    denom_up = ((1 - (1. - muTrig_mc - muTrigerr_mc).prod()) != 0)
-    denom_dn = ((1 - (1. - muTrig_mc + muTrigerr_mc).prod()) != 0)
+        # denom = ((1 - (1. - muTrig_mc).prod()))
+        # denom_up = ((1 - (1. - muTrig_mc - muTrigerr_mc).prod()) != 0)
+        # denom_dn = ((1 - (1. - muTrig_mc + muTrigerr_mc).prod()) != 0)
+    
+        # muTrig[denom != 0] = (
+        #     (1 - (1. - muTrig_data).prod())[denom != 0] / denom[denom != 0])
+        # muTrig_up[denom_up != 0] = (
+        #     (1 - (1. - muTrig_data - muTrigerr_data).prod())[denom_up != 0] /
+        #     denom_up[denom_up != 0])
+        # muTrig_down[denom_dn != 0] = (
+        #     (1 - (1. - muTrig_data + muTrigerr_data).prod())[denom_dn != 0] /
+        #     denom_dn[denom_dn != 0])
 
-    muTrig[denom != 0] = (
-        (1 - (1. - muTrig_data).prod())[denom != 0] / denom[denom != 0])
-    muTrig_up[denom_up != 0] = (
-        (1 - (1. - muTrig_data - muTrigerr_data).prod())[denom_up != 0] /
-        denom_up[denom_up != 0])
-    muTrig_down[denom_dn != 0] = (
-        (1 - (1. - muTrig_data + muTrigerr_data).prod())[denom_dn != 0] /
-        denom_dn[denom_dn != 0])
+        sf['muID'] = sf['muID']*ak.to_numpy(muID_)
+        sf['muID_up'] = sf['muID_up']*ak.to_numpy(muID_ + muIDerr)
+        sf['muID_down'] = sf['muID_down']*ak.to_numpy(muID_ - muIDerr)
+        sf['muIso'] = sf['muIso']*ak.to_numpy(muIso_)
+        sf['muIso_up'] = sf['muIso_up']*ak.to_numpy(muIso_ + muIsoerr)
+        sf['muIso_down'] = sf['muIso_down']*ak.to_numpy(muIso_ - muIsoerr)
 
-    # muSF = (muID*muIso).prod()*muTrig
-    # muSF_up = ((muID + muIDerr) * (muIso + muIsoerr) * muTrig_up).prod()
-    # muSF_down = ((muID - muIDerr) *
-    # (muIso - muIsoerr) * muTrig_down).prod()
-    # return muSF, muSF_up, muSF_down
-
-    muID_up = (muID + muIDerr).prod()
-    muID_down = (muID - muIDerr).prod()
-    muIso_up = (muIso + muIsoerr).prod()
-    muIso_down = (muIso - muIsoerr).prod()
-    muID = muID.prod()
-    muIso = muIso.prod()
-
-    return muID, muID_up, muID_down, muIso,\
-        muIso_up, muIso_down, muTrig,\
-        muTrig_up, muTrig_down
+    return sf
 
 
 def pu_lookup(parameters, mode='nom', auto=[]):
@@ -543,37 +543,49 @@ def puid_weights(evaluator, year, jets, pt_name,
 
 
 def qgl_weights(jet, isHerwig):
-    weights = np.ones(len(jet.qgl), dtype=float)
-    wgt_mask = (jet.partonFlavour != 0) &\
-        (abs(jet.eta) < 2) & (jet.qgl > 0)
+    df = pd.DataFrame(index=jet.index, columns=['weights'])
+
+    wgt_mask = (
+        (jet.partonFlavour != 0) &
+        (abs(jet.eta) < 2) &
+        (jet.qgl > 0)
+    )
     light = wgt_mask & (abs(jet.partonFlavour) < 4)
     gluon = wgt_mask & (jet.partonFlavour == 21)
 
     qgl = jet.qgl
 
     if isHerwig:
-        weights[light] = 1.16636 * qgl[light]**3 -\
-            2.45101 * qgl[light]**2 +\
+        df.weights[light] = (
+            1.16636 * qgl[light]**3 -
+            2.45101 * qgl[light]**2 +
             1.86096 * qgl[light] + 0.596896
-        weights[gluon] = -63.2397 * qgl[gluon]**7 +\
-            111.455 * qgl[gluon]**6 -\
-            16.7487 * qgl[gluon]**5 -\
-            72.8429 * qgl[gluon]**4 +\
-            56.7714 * qgl[gluon]**3 -\
-            19.2979 * qgl[gluon]**2 +\
+        )
+        df.weights[gluon] = (
+            -63.2397 * qgl[gluon]**7 +
+            111.455 * qgl[gluon]**6 -
+            16.7487 * qgl[gluon]**5 -
+            72.8429 * qgl[gluon]**4 +
+            56.7714 * qgl[gluon]**3 -
+            19.2979 * qgl[gluon]**2 +
             3.41825 * qgl[gluon] + 0.919838
+        )
     else:
-        weights[light] = -0.666978 * qgl[light]**3 +\
-            0.929524 * qgl[light]**2 -\
+        df.weights[light] = (
+            -0.666978 * qgl[light]**3 +
+            0.929524 * qgl[light]**2 -
             0.255505 * qgl[light] + 0.981581
-        weights[gluon] = -55.7067 * qgl[gluon]**7 +\
-            113.218 * qgl[gluon]**6 -\
-            21.1421 * qgl[gluon]**5 -\
-            99.927 * qgl[gluon]**4 +\
-            92.8668 * qgl[gluon]**3 -\
-            34.3663 * qgl[gluon]**2 +\
+        )
+        df.weights[gluon] = (
+            -55.7067 * qgl[gluon]**7 +
+            113.218 * qgl[gluon]**6 -
+            21.1421 * qgl[gluon]**5 -
+            99.927 * qgl[gluon]**4 +
+            92.8668 * qgl[gluon]**3 -
+            34.3663 * qgl[gluon]**2 +
             6.27 * qgl[gluon] + 0.612992
-    return weights
+        )
+    return df.weights
 
 
 def geofit_evaluator(muons_pt, muons_eta, muons_dxybs,

@@ -4,14 +4,14 @@ import numpy as np
 
 class Weights(object):
     def __init__(self, data):
-        self.df = pd.DataFrame(1., index=data.event, columns=['nominal'])
-        self.wgts = pd.DataFrame(index=data.event)
+        self.df = pd.DataFrame(1., index=data.index, columns=['nominal'])
+        self.wgts = pd.DataFrame(index=data.index)
         self.variations = []
 
     def add_weight(self, name, wgt):
         columns = self.df.columns
         self.df[f'{name}_off'] = self.df['nominal']
-        self.df[columns] = self.df[columns].multiply(wgt, axis=0)
+        self.df[columns] = self.df[columns].multiply(np.array(wgt), axis=0)
         self.variations.append(name)
         self.wgts[name] = wgt
 

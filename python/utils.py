@@ -1,7 +1,37 @@
 import numpy as np
+import pandas as pd
 
 
 def p4_sum(obj1, obj2):
+    result = pd.DataFrame(
+        index=obj1.index.union(obj2.index),
+        columns=[
+            'px', 'py', 'pz', 'e',
+            'pt', 'eta', 'phi', 'mass', 'rap'
+        ]
+    ).fillna(0.0)
+    for obj in [obj1, obj2]:
+        px_ = obj.pt * np.cos(obj.phi)
+        py_ = obj.pt * np.sin(obj.phi)
+        pz_ = obj.pt * np.sinh(obj.eta)
+        e_ = np.sqrt(px_**2 + py_**2 + pz_**2 + obj.mass**2)
+        result.px += px_
+        result.py += py_
+        result.pz += pz_
+        result.e += e_
+    result.pt = np.sqrt(result.px**2 + result.py**2)
+    result.eta = np.arcsinh(result.pz / result.pt)
+    result.phi = np.arctan2(result.py, result.px)
+    result.mass = np.sqrt(
+        result.e**2 - result.px**2 - result.py**2 - result.pz**2
+    )
+    result.rap = 0.5 * np.log(
+        (result.e + result.pz) / (result.e - result.pz)
+    )
+    return result
+
+
+def p4_sum_(obj1, obj2):
     assert(len(obj1) == len(obj2))
     px = np.zeros(len(obj1))
     py = np.zeros(len(obj1))
