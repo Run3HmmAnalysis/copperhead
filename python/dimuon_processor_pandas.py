@@ -265,19 +265,11 @@ class DimuonProcessor(processor.ProcessorABC):
         # Raw pT and eta are stored to be used in event selection
         # ------------------------------------------------------------#
 
-        # awkward0 implementation
-        # df.Muon['pt_raw'] = df.Muon.pt
-        # df.Muon['eta_raw'] = df.Muon.eta
-        # df.Muon['phi_raw'] = df.Muon.phi
-        # df.Muon['pfRelIso04_all_raw'] = df.Muon.pfRelIso04_all
-
-        df.Muon = ak.with_field(df.Muon, df.Muon.pt, 'pt_raw')
-        df.Muon = ak.with_field(df.Muon, df.Muon.eta, 'eta_raw')
-        df.Muon = ak.with_field(df.Muon, df.Muon.phi, 'phi_raw')
-        df.Muon = ak.with_field(
-            df.Muon, df.Muon.pfRelIso04_all, 'pfRelIso04_all_raw'
-        )
-
+        df['Muon', 'pt_raw'] = df.Muon.pt
+        df['Muon', 'eta_raw'] = df.Muon.eta
+        df['Muon', 'phi_raw'] = df.Muon.phi
+        df['Muon', 'pfRelIso04_all_raw'] = df.Muon.pfRelIso04_all
+        
         # TODO: implement Rochester correction in awkward1
         # roch_corr, roch_err = roccor_evaluator(
         #     self.roccor_lookup, is_mc, df.Muon)
@@ -340,7 +332,7 @@ class DimuonProcessor(processor.ProcessorABC):
                 if self.timer:
                     self.timer.add_checkpoint("FSR recovery")
 
-            df.Muon['pt_fsr'] = df.Muon.pt
+            df['Muon', 'pt_fsr'] = df.Muon.pt
 
             # GeoFit correction
             if False:  # 'dxybs' in df.Muon.columns:
@@ -432,24 +424,30 @@ class DimuonProcessor(processor.ProcessorABC):
             mu1.index = mu1.index.droplevel('subentry')
             mu2.index = mu2.index.droplevel('subentry')
 
-            mu1_variable_names = ['mu1_pt', 'mu1_pt_over_mass',
-                                  'mu1_eta', 'mu1_phi', 'mu1_iso']
-            mu2_variable_names = ['mu2_pt', 'mu2_pt_over_mass',
-                                  'mu2_eta', 'mu2_phi', 'mu2_iso']
-            dimuon_variable_names = ['dimuon_mass', 'dimuon_mass_res',
-                                     'dimuon_mass_res_rel',
-                                     'dimuon_ebe_mass_res',
-                                     'dimuon_ebe_mass_res_rel',
-                                     'dimuon_pt', 'dimuon_pt_log',
-                                     'dimuon_eta', 'dimuon_phi',
-                                     'dimuon_dEta', 'dimuon_dPhi',
-                                     'dimuon_dR', 'dimuon_rap',
-                                     'dimuon_cos_theta_cs',
-                                     'dimuon_phi_cs']
+            mu1_variable_names = [
+                'mu1_pt', 'mu1_pt_over_mass',
+                'mu1_eta', 'mu1_phi', 'mu1_iso'
+            ]
+            mu2_variable_names = [
+                'mu2_pt', 'mu2_pt_over_mass',
+                'mu2_eta', 'mu2_phi', 'mu2_iso'
+            ]
+            dimuon_variable_names = [
+                'dimuon_mass',
+                'dimuon_mass_res', 'dimuon_mass_res_rel',
+                'dimuon_ebe_mass_res', 'dimuon_ebe_mass_res_rel',
+                'dimuon_pt', 'dimuon_pt_log',
+                'dimuon_eta', 'dimuon_phi',
+                'dimuon_dEta', 'dimuon_dPhi',
+                'dimuon_dR', 'dimuon_rap',
+                'dimuon_cos_theta_cs', 'dimuon_phi_cs'
+            ]
 
-            for n in (mu1_variable_names +
-                      mu2_variable_names +
-                      dimuon_variable_names):
+            for n in (
+                mu1_variable_names +
+                mu2_variable_names +
+                dimuon_variable_names
+            ):
                 output[n] = 0.0
 
             # --------------------------------------------------------#
@@ -865,20 +863,25 @@ class DimuonProcessor(processor.ProcessorABC):
                         np.full(
                             output.shape[0], np.nan, dtype='float64'))
 
-            do_thu = (('vbf' in dataset) and
-                      ('dy' not in dataset) and
-                      ('nominal' in self.pt_variations))
+            do_thu = (
+                ('vbf' in dataset) and
+                ('dy' not in dataset) and
+                ('nominal' in self.pt_variations)
+            )
             do_thu = False
             if do_thu:
                 for i, name in enumerate(self.sths_names):
                     wgt_up = vbf_uncert_stage_1_1(
                         i, df.HTXS.stage1_1_fine_cat_pTjet30GeV, 1.,
-                        self.stxs_acc_lookups, self.powheg_xsec_lookup)
+                        self.stxs_acc_lookups, self.powheg_xsec_lookup
+                    )
                     wgt_down = vbf_uncert_stage_1_1(
                         i, df.HTXS.stage1_1_fine_cat_pTjet30GeV, -1.,
-                        self.stxs_acc_lookups, self.powheg_xsec_lookup)
+                        self.stxs_acc_lookups, self.powheg_xsec_lookup
+                    )
                     weights.add_only_variations(
-                        "THU_VBF_"+name, wgt_up, wgt_down)
+                        "THU_VBF_"+name, wgt_up, wgt_down
+                    )
 
         if self.timer:
             self.timer.add_checkpoint("Computed event weights")
@@ -1002,28 +1005,26 @@ class DimuonProcessor(processor.ProcessorABC):
         # Initialize jet-related variables
         # ------------------------------------------------------------#
 
-        variable_names = ['jet1_pt', 'jet1_eta', 'jet1_rap',
-                          'jet1_phi', 'jet1_qgl', 'jet1_id',
-                          'jet1_puid', 'jet1_has_matched_muon',
-                          'jet1_matched_muon_dr',
-                          'jet1_matched_muon_pt',
-                          'jet1_matched_muon_iso',
-                          'jet1_matched_muon_id',
-                          'jet2_pt', 'jet2_eta', 'jet2_rap',
-                          'jet2_phi', 'jet2_qgl', 'jet2_id',
-                          'jet2_puid', 'jet2_has_matched_muon',
-                          'jet2_matched_muon_dr',
-                          'jet2_matched_muon_pt',
-                          'jet2_matched_muon_iso',
-                          'jet2_matched_muon_id',
-                          'jj_mass', 'jj_mass_log', 'jj_pt',
-                          'jj_eta', 'jj_phi', 'jj_dEta', 'jj_dPhi',
-                          'mmj1_dEta', 'mmj1_dPhi', 'mmj1_dR',
-                          'mmj2_dEta', 'mmj2_dPhi', 'mmj2_dR',
-                          'mmj_min_dEta', 'mmj_min_dPhi', 'mmjj_pt',
-                          'mmjj_eta', 'mmjj_phi', 'mmjj_mass', 'rpt',
-                          'zeppenfeld', 'll_zstar_log', 'nsoftjets2',
-                          'nsoftjets5', 'htsoft2', 'htsoft5']
+        variable_names = [
+            'jet1_pt', 'jet1_eta', 'jet1_rap', 'jet1_phi', 'jet1_qgl',
+            'jet1_id', 'jet1_puid',
+            'jet1_has_matched_muon', 'jet1_matched_muon_dr',
+            'jet1_matched_muon_pt', 'jet1_matched_muon_iso',
+            'jet1_matched_muon_id',
+            'jet2_pt', 'jet2_eta', 'jet2_rap', 'jet2_phi', 'jet2_qgl',
+            'jet2_id', 'jet2_puid',
+            'jet2_has_matched_muon', 'jet2_matched_muon_dr',
+            'jet2_matched_muon_pt', 'jet2_matched_muon_iso',
+            'jet2_matched_muon_id',
+            'jj_mass', 'jj_mass_log', 'jj_pt', 'jj_eta', 'jj_phi',
+            'jj_dEta', 'jj_dPhi',
+            'mmj1_dEta', 'mmj1_dPhi', 'mmj1_dR',
+            'mmj2_dEta', 'mmj2_dPhi', 'mmj2_dR',
+            'mmj_min_dEta', 'mmj_min_dPhi', 'mmjj_pt',
+            'mmjj_eta', 'mmjj_phi', 'mmjj_mass', 'rpt',
+            'zeppenfeld', 'll_zstar_log', 'nsoftjets2',
+            'nsoftjets5', 'htsoft2', 'htsoft5'
+        ]
 
         variables = pd.DataFrame(index=output.index, columns=variable_names)
         variables = variables.fillna(-999.)
@@ -1118,29 +1119,24 @@ class DimuonProcessor(processor.ProcessorABC):
 
         if is_mc:
             qgl = pd.DataFrame(
-                index=output.index, columns=['qgl_wgt', 'qgl_down']
+                index=output.index, columns=['wgt', 'wgt_down']
             )
             qgl = qgl.fillna(1.0)
 
             isHerwig = ('herwig' in dataset)
             qgl1 = qgl_weights(jet1, isHerwig).fillna(1.0)
-            qgl.qgl_wgt *= qgl1
+            qgl.wgt *= qgl1
 
             qgl2 = qgl_weights(jet2, isHerwig).fillna(1.0)
-            qgl.qgl_wgt *= qgl2
+            qgl.wgt *= qgl2
 
-            qgl.qgl_wgt[output.njets == 1] = 1.
-            qgl.qgl_wgt =\
-                qgl.qgl_wgt / qgl.qgl_wgt[
-                    output.event_selection &
-                    (output.njets > 2)
-                ].mean()
+            qgl.wgt[output.njets == 1] = 1.
+            selected = output.event_selection & (output.njets > 2)
+            qgl.wgt = qgl.wgt / qgl.wgt[selected].mean()
 
             weights.add_weight_with_variations(
-                'qgl_wgt',
-                qgl.qgl_wgt,
-                up=qgl.qgl_wgt*qgl.qgl_wgt,
-                down=qgl.qgl_down
+                'qgl_wgt', qgl.wgt,
+                up=qgl.wgt*qgl.wgt, down=qgl.wgt_down
             )
 
         # Fill flat arrays of fixed length (numevents)
@@ -1336,9 +1332,6 @@ class DimuonProcessor(processor.ProcessorABC):
             (output.nBtagMedium < 1)
         )
 
-        # mass = (output['dimuon_mass'] > 115) &\
-        #        (output['dimuon_mass'] < 135)
-
         if self.timer:
             self.timer.add_checkpoint(
                 "Applied b-jet SF and b-tag veto")
@@ -1375,8 +1368,7 @@ class DimuonProcessor(processor.ProcessorABC):
         # Fill outputs
         # --------------------------------------------------------------#
 
-        # variables.update({'njets': df.Jet.counts.flatten()})
-        # variables.update({'c': category, 'two_jets': two_jets})
+        variables.update({'njets': output.njets})
         variables.update({'wgt_nominal': weights.get_weight('nominal')})
 
         # All variables are affected by jet pT because of jet selections:
