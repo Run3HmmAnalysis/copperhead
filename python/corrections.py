@@ -3,7 +3,6 @@ import pandas as pd
 import awkward1 as ak
 import awkward
 import uproot
-import numba
 
 from coffea.lookup_tools import dense_lookup
 
@@ -331,84 +330,53 @@ def pu_evaluator(lookup, numevents, ntrueint):
     return pu_weight
 
 
-# https://github.com/jpata/hepaccelerate-cms/blob/
-# f5965648f8a7861cb9856d0b5dd34a53ed42c027/tests/
-# hmm/hmumu_utils.py#L1396
-@numba.njit(parallel=True, cache=True)
-def fsr_evaluator(muons_offsets, fsr_offsets,
-                  muons_pt, muons_eta, muons_phi,
-                  muons_mass, muons_iso, muons_fsrIndex,
-                  fsr_pt, fsr_eta, fsr_phi, fsr_iso,
-                  fsr_drEt2, has_fsr):
-    for iev in numba.prange(len(muons_offsets) - 1):
-        # loop over muons in event
-        mu_first = muons_offsets[iev]
-        mu_last = muons_offsets[iev + 1]
-        for imu in range(mu_first, mu_last):
-            # relative FSR index in the event
-            fsr_idx_relative = muons_fsrIndex[imu]
+def fsr_recovery(df):
+    mask = (
+        (df.Muon.fsrPhotonIdx >= 0) &
+        (df.Muon.matched_fsrPhoton.relIso03 < 1.8) &
+        (df.Muon.matched_fsrPhoton.dROverEt2 < 0.012) &
+        (df.Muon.matched_fsrPhoton.pt / df.Muon.pt < 0.4) &
+        (abs(df.Muon.matched_fsrPhoton.eta) < 2.4)
+    )
+    mask = ak.fill_none(mask, False)
 
-            if (fsr_idx_relative >= 0):
-                # absolute index in the full FSR vector for all events
-                ifsr = fsr_offsets[iev] + fsr_idx_relative
-                mu_kin = {
-                    "pt": muons_pt[imu],
-                    "eta": muons_eta[imu],
-                    "phi": muons_phi[imu],
-                    "mass": muons_mass[imu]}
-                fsr_kin = {
-                    "pt": fsr_pt[ifsr],
-                    "eta": fsr_eta[ifsr],
-                    "phi": fsr_phi[ifsr],
-                    "mass": 0.}
+    px = ak.zeros_like(df.Muon.pt)
+    py = ak.zeros_like(df.Muon.pt)
+    pz = ak.zeros_like(df.Muon.pt)
+    e = ak.zeros_like(df.Muon.pt)
 
-                if fsr_iso[ifsr] > 1.8:
-                    continue
-                if fsr_drEt2[ifsr] > 0.012:
-                    continue
-                if fsr_pt[ifsr] / muons_pt[imu] > 0.4:
-                    continue
-                if abs(fsr_eta[ifsr]) > 2.4:
-                    continue
+    fsr = {
+        "pt": df.Muon.matched_fsrPhoton.pt,
+        "eta": df.Muon.matched_fsrPhoton.eta,
+        "phi": df.Muon.matched_fsrPhoton.phi,
+        "mass": 0.
+    }
 
-                has_fsr[imu] = True
+    for obj in [df.Muon, fsr]:
+        px_ = obj["pt"] * np.cos(obj["phi"])
+        py_ = obj["pt"] * np.sin(obj["phi"])
+        pz_ = obj["pt"] * np.sinh(obj["eta"])
+        e_ = np.sqrt(px_**2 + py_**2 + pz_**2 + obj["mass"]**2)
 
-                # compute and set corrected momentum
-                px_total = 0
-                py_total = 0
-                pz_total = 0
-                e_total = 0
-                for obj in [mu_kin, fsr_kin]:
-                    px = obj["pt"] * np.cos(obj["phi"])
-                    py = obj["pt"] * np.sin(obj["phi"])
-                    pz = obj["pt"] * np.sinh(obj["eta"])
-                    e = np.sqrt(px**2 + py**2 + pz**2 + obj["mass"]**2)
-                    px_total += px
-                    py_total += py
-                    pz_total += pz
-                    e_total += e
-                out_pt = np.sqrt(px_total**2 + py_total**2)
-                out_eta = np.arcsinh(pz_total / out_pt)
-                out_phi = np.arctan2(py_total, px_total)
-                out_mass = np.sqrt(e_total**2 -
-                                   px_total**2 -
-                                   py_total**2 -
-                                   pz_total**2)
+        px = px + px_
+        py = py + py_
+        pz = pz + pz_
+        e = e + e_
 
-                # reference:
-                # https://gitlab.cern.ch/uhh-cmssw/
-                # fsr-photon-recovery/tree/master
-                muons_iso[imu] = (muons_iso[imu] *
-                                  muons_pt[imu] -
-                                  fsr_pt[ifsr]) / out_pt
+    pt = np.sqrt(px**2 + py**2)
+    eta = np.arcsinh(pz / pt)
+    phi = np.arctan2(py, px)
+    mass = np.sqrt(e**2 - px**2 - py**2 - pz**2)
+    iso = (
+        df.Muon.pfRelIso04_all * df.Muon.pt - df.Muon.matched_fsrPhoton.pt
+    ) / pt
 
-                muons_pt[imu] = out_pt
-                muons_eta[imu] = out_eta
-                muons_phi[imu] = out_phi
-                muons_mass[imu] = out_mass
-
-    return muons_pt, muons_eta, muons_phi,\
-        muons_mass, muons_iso, has_fsr
+    df['Muon', 'pt_fsr'] = ak.where(mask, pt, df.Muon.pt)
+    df['Muon', 'eta_fsr'] = ak.where(mask, eta, df.Muon.eta)
+    df['Muon', 'phi_fsr'] = ak.where(mask, phi, df.Muon.phi)
+    df['Muon', 'mass_fsr'] = ak.where(mask, mass, df.Muon.mass)
+    df['Muon', 'iso_fsr'] = ak.where(mask, iso, df.Muon.pfRelIso04_all)
+    return mask
 
 
 def btag_weights(processor, lookup, systs, jets,
@@ -587,6 +555,47 @@ def qgl_weights(jet, isHerwig):
             6.27 * qgl[gluon] + 0.612992
         )
     return df.weights
+
+
+def apply_geofit(df, year, mask):
+    d0_BS_charge = np.multiply(df.Muon.dxybs, df.Muon.charge)
+    mask = mask & (np.abs(d0_BS_charge) < 999999.)
+
+    pt = df.Muon.pt
+    eta = df.Muon.eta
+
+    cuts = {
+        'eta_1': (np.abs(eta) < 0.9),
+        'eta_2': ((np.abs(eta) < 1.7) & (np.abs(eta) >= 0.9)),
+        'eta_3': (np.abs(eta) >= 1.7)
+    }
+
+    factors = {
+        '2016': {
+            'eta_1': 411.34,
+            'eta_2': 673.40,
+            'eta_3': 1099.0,
+        },
+        '2017': {
+            'eta_1': 582.32,
+            'eta_2': 974.05,
+            'eta_3': 1263.4,
+        },
+        '2018': {
+            'eta_1': 650.84,
+            'eta_2': 988.37,
+            'eta_3': 1484.6,
+        }
+    }
+    pt_corr = pt
+    for eta_i in ['eta_1', 'eta_2', 'eta_3']:
+        value = (
+            factors[year][eta_i] *
+            d0_BS_charge * pt * pt / 10000.0
+        )
+        pt_corr = ak.where(cuts[eta_i], value, pt_corr)
+    df['Muon', 'pt_gf'] = ak.where(mask, pt - pt_corr, pt)
+    return
 
 
 def geofit_evaluator(muons_pt, muons_eta, muons_dxybs,

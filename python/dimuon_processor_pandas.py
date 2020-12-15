@@ -24,7 +24,7 @@ from python.corrections import musf_lookup, musf_evaluator, pu_lookup
 from python.corrections import pu_evaluator, NNLOPS_Evaluator
 # from python.corrections import roccor_evaluator, get_jec_unc
 from python.corrections import qgl_weights, puid_weights  # , btag_weights
-from python.corrections import geofit_evaluator, fsr_evaluator
+from python.corrections import fsr_recovery, apply_geofit
 from python.stxs_uncert import vbf_uncert_stage_1_1, stxs_lookups
 from python.mass_resolution import mass_resolution_purdue, mass_resolution_pisa
 
@@ -46,6 +46,8 @@ class DimuonProcessor(processor.ProcessorABC):
         self.debug = debug
         self.save_unbin = save_unbin
         self.pt_variations = pt_variations
+        self.do_fsr = True
+        self.do_geofit = True
         self.do_pdf = do_pdf
         self.do_btag_syst = do_btag_syst
         self.parameters = {
@@ -269,7 +271,7 @@ class DimuonProcessor(processor.ProcessorABC):
         df['Muon', 'eta_raw'] = df.Muon.eta
         df['Muon', 'phi_raw'] = df.Muon.phi
         df['Muon', 'pfRelIso04_all_raw'] = df.Muon.pfRelIso04_all
-        
+
         # TODO: implement Rochester correction in awkward1
         # roch_corr, roch_err = roccor_evaluator(
         #     self.roccor_lookup, is_mc, df.Muon)
@@ -290,61 +292,24 @@ class DimuonProcessor(processor.ProcessorABC):
         # print(df.Muon.matched_fsrPhoton[hasfsr])
         if True:  # reserved for loop over muon pT variations
             # for
-            # TODO: implement FSR recovery in a way compatible with awkward1
-            if False:  # fsr recovery
-                fsr_offsets = awkward.JaggedArray.counts2offsets(
-                    df.FsrPhoton.counts)
-                muons_offsets = awkward.JaggedArray.counts2offsets(
-                    df.Muon.counts)
-                fsr_pt = np.array(df.FsrPhoton.pt.flatten(), dtype=float)
-                fsr_eta = np.array(df.FsrPhoton.eta.flatten(), dtype=float)
-                fsr_phi = np.array(df.FsrPhoton.phi.flatten(), dtype=float)
-                fsr_iso = np.array(
-                    df.FsrPhoton.relIso03.flatten(), dtype=float)
-                fsr_drEt2 = np.array(
-                    df.FsrPhoton.dROverEt2.flatten(), dtype=float)
-                has_fsr = np.zeros(len(df.Muon.pt.flatten()), dtype=bool)
-                pt_fsr, eta_fsr, phi_fsr, mass_fsr, iso_fsr, has_fsr =\
-                    fsr_evaluator(
-                        muons_offsets, fsr_offsets,
-                        np.array(df.Muon.pt.flatten(), dtype=float),
-                        np.array(df.Muon.eta.flatten(), dtype=float),
-                        np.array(df.Muon.phi.flatten(), dtype=float),
-                        np.array(df.Muon.mass.flatten(), dtype=float),
-                        np.array(
-                            df.Muon.pfRelIso04_all.flatten(),
-                            dtype=float),
-                        np.array(
-                            df.Muon.fsrPhotonIdx.flatten(),
-                            dtype=int),
-                        fsr_pt, fsr_eta, fsr_phi,
-                        fsr_iso, fsr_drEt2, has_fsr)
-                df.Muon['pt'] = awkward.JaggedArray.fromcounts(
-                    df.Muon.counts, pt_fsr)
-                df.Muon['eta'] = awkward.JaggedArray.fromcounts(
-                    df.Muon.counts, eta_fsr)
-                df.Muon['phi'] = awkward.JaggedArray.fromcounts(
-                    df.Muon.counts, phi_fsr)
-                df.Muon['mass'] = awkward.JaggedArray.fromcounts(
-                    df.Muon.counts, mass_fsr)
-                df.Muon['pfRelIso04_all'] = awkward.JaggedArray.fromcounts(
-                    df.Muon.counts, iso_fsr)
+
+            # FSR recovery
+            if self.do_fsr:
+                has_fsr = fsr_recovery(df)
+                df['Muon', 'pt'] = df.Muon.pt_fsr
+                df['Muon', 'eta'] = df.Muon.eta_fsr
+                df['Muon', 'phi'] = df.Muon.phi_fsr
+                df['Muon', 'pfRelIso04_all'] = df.Muon.iso_fsr
+
                 if self.timer:
                     self.timer.add_checkpoint("FSR recovery")
 
             df['Muon', 'pt_fsr'] = df.Muon.pt
 
             # GeoFit correction
-            if False:  # 'dxybs' in df.Muon.columns:
-                muons_dxybs = df.Muon.dxybs.flatten()
-                muons_charge = df.Muon.charge.flatten()
-                muons_pt_gf = geofit_evaluator(
-                    df.Muon.pt.flatten(),
-                    df.Muon.eta.flatten(),
-                    muons_dxybs,
-                    muons_charge, self.year, ~has_fsr).flatten()
-                df.Muon['pt'] = awkward.JaggedArray.fromcounts(
-                    df.Muon.counts, muons_pt_gf)
+            if self.do_geofit and ('dxybs' in df.Muon.fields):
+                apply_geofit(df, self.year, ~has_fsr)
+                df['Muon', 'pt'] = df.Muon.pt_fsr
 
                 if self.timer:
                     self.timer.add_checkpoint("GeoFit correction")
