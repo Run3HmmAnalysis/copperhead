@@ -121,9 +121,13 @@ def vbf_uncert_stage_1_1(source, event_STXS, Nsigma,
                          stxs_acc_lookups, powheg_xsec_lookup):
     # return a single weight for a given souce
     if(source < 10):
-        delta_var = stxs_acc_lookups[source](event_STXS) *\
-            uncert_deltas[source]
-        return np.ones(len(event_STXS), dtype=float) +\
+        delta_var = (
+            stxs_acc_lookups[source](event_STXS) * uncert_deltas[source]
+        )
+        ret = (
+            np.ones(len(event_STXS), dtype=float) +
             Nsigma * (delta_var/powheg_xsec_lookup(event_STXS))
+        )
+        return ret
     else:
         return np.zeros(len(event_STXS), dtype=float)

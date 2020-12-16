@@ -254,203 +254,64 @@ parameters["jec_unc_to_consider"] = {
              'EC2', 'EC22018', 'HF', 'HF2018', 'RelativeBal',
              'RelativeSample2018', 'FlavorQCD']}
 
-parameters['jec_weight_sets'] = {
-    '2016': [
-        "* * data/jec/Summer16_07Aug2017_V11_MC_"
-        "L1FastJet_AK4PFchs.jec.txt",
-        "* * data/jec/Summer16_07Aug2017_V11_MC_"
-        "L2Relative_AK4PFchs.jec.txt",
-        "* * data/jec/Summer16_07Aug2017_V11_MC_"
-        "L2L3Residual_AK4PFchs.jec.txt",
-        "* * data/jec/Summer16_07Aug2017_V11_MC_"
-        "L3Absolute_AK4PFchs.jec.txt",
-        "* * data/jec/Summer16_07Aug2017_V11_MC_"
-        "Uncertainty_AK4PFchs.junc.txt",
-        "* * data/jec/Summer16_25nsV1_MC_"
-        "PtResolution_AK4PFchs.jr.txt",
-        "* * data/jec/Summer16_25nsV1_MC_"
-        "SF_AK4PFchs.jersf.txt",
-        "* * data/jec/Summer16_07Aug2017_V11_MC_"
-        "UncertaintySources_AK4PFchs.junc.txt",
-        "* * data/jec/Summer16_07Aug2017BCD_V11_DATA_"
-        "L1FastJet_AK4PFchs.jec.txt",
-        "* * data/jec/Summer16_07Aug2017BCD_V11_DATA_"
-        "L2Relative_AK4PFchs.jec.txt",
-        "* * data/jec/Summer16_07Aug2017BCD_V11_DATA_"
-        "L2L3Residual_AK4PFchs.jec.txt",
-        "* * data/jec/Summer16_07Aug2017BCD_V11_DATA_"
-        "L3Absolute_AK4PFchs.jec.txt",
-        "* * data/jec/Summer16_07Aug2017BCD_V11_DATA_"
-        "UncertaintySources_AK4PFchs.junc.txt",
-        "* * data/jec/Summer16_07Aug2017BCD_V11_DATA_"
-        "Uncertainty_AK4PFchs.junc.txt",
-        "* * data/jec/Summer16_07Aug2017EF_V11_DATA_"
-        "L1FastJet_AK4PFchs.jec.txt",
-        "* * data/jec/Summer16_07Aug2017EF_V11_DATA_"
-        "L2Relative_AK4PFchs.jec.txt",
-        "* * data/jec/Summer16_07Aug2017EF_V11_DATA_"
-        "L2L3Residual_AK4PFchs.jec.txt",
-        "* * data/jec/Summer16_07Aug2017EF_V11_DATA_"
-        "L3Absolute_AK4PFchs.jec.txt",
-        "* * data/jec/Summer16_07Aug2017EF_V11_DATA_"
-        "UncertaintySources_AK4PFchs.junc.txt",
-        "* * data/jec/Summer16_07Aug2017EF_V11_DATA_"
-        "Uncertainty_AK4PFchs.junc.txt",
-        "* * data/jec/Summer16_07Aug2017GH_V11_DATA_"
-        "L1FastJet_AK4PFchs.jec.txt",
-        "* * data/jec/Summer16_07Aug2017GH_V11_DATA_"
-        "L2Relative_AK4PFchs.jec.txt",
-        "* * data/jec/Summer16_07Aug2017GH_V11_DATA_"
-        "L2L3Residual_AK4PFchs.jec.txt",
-        "* * data/jec/Summer16_07Aug2017GH_V11_DATA_"
-        "L3Absolute_AK4PFchs.jec.txt",
-        "* * data/jec/Summer16_07Aug2017GH_V11_DATA_"
-        "UncertaintySources_AK4PFchs.junc.txt",
-        "* * data/jec/Summer16_07Aug2017GH_V11_DATA_"
-        "Uncertainty_AK4PFchs.junc.txt"],
-    '2017': [
-        "* * data/jec/Fall17_17Nov2017_V32_MC_"
-        "L1FastJet_AK4PFchs.jec.txt",
-        "* * data/jec/Fall17_17Nov2017_V32_MC_"
-        "L2Relative_AK4PFchs.jec.txt",
-        "* * data/jec/Fall17_17Nov2017_V32_MC_"
-        "Uncertainty_AK4PFchs.junc.txt",
-        "* * data/jec/Fall17_17Nov2017_V32_MC_"
-        "L2L3Residual_AK4PFchs.jec.txt",
-        "* * data/jec/Fall17_17Nov2017_V32_MC_"
-        "L3Absolute_AK4PFchs.jec.txt",
-        "* * data/jec/Fall17_V3_MC_"
-        "PtResolution_AK4PFchs.jr.txt",
-        "* * data/jec/Fall17_V3_MC_"
-        "SF_AK4PFchs.jersf.txt",
-        "* * data/jec/Fall17_17Nov2017_V32_MC_"
-        "UncertaintySources_AK4PFchs.junc.txt",
-        "* * data/jec/Fall17_17Nov2017B_V32_DATA_"
-        "L1FastJet_AK4PFchs.jec.txt",
-        "* * data/jec/Fall17_17Nov2017B_V32_DATA_"
-        "L2Relative_AK4PFchs.jec.txt",
-        "* * data/jec/Fall17_17Nov2017B_V32_DATA_"
-        "L2L3Residual_AK4PFchs.jec.txt",
-        "* * data/jec/Fall17_17Nov2017B_V32_DATA_"
-        "L3Absolute_AK4PFchs.jec.txt",
-        "* * data/jec/Fall17_17Nov2017B_V32_DATA_"
-        "UncertaintySources_AK4PFchs.junc.txt",
-        "* * data/jec/Fall17_17Nov2017B_V32_DATA_"
-        "Uncertainty_AK4PFchs.junc.txt",
-        "* * data/jec/Fall17_17Nov2017C_V32_DATA_"
-        "L1FastJet_AK4PFchs.jec.txt",
-        "* * data/jec/Fall17_17Nov2017C_V32_DATA_"
-        "L2Relative_AK4PFchs.jec.txt",
-        "* * data/jec/Fall17_17Nov2017C_V32_DATA_"
-        "L2L3Residual_AK4PFchs.jec.txt",
-        "* * data/jec/Fall17_17Nov2017C_V32_DATA_"
-        "L3Absolute_AK4PFchs.jec.txt",
-        "* * data/jec/Fall17_17Nov2017C_V32_DATA_"
-        "UncertaintySources_AK4PFchs.junc.txt",
-        "* * data/jec/Fall17_17Nov2017C_V32_DATA_"
-        "Uncertainty_AK4PFchs.junc.txt",
-        "* * data/jec/Fall17_17Nov2017DE_V32_DATA_"
-        "L1FastJet_AK4PFchs.jec.txt",
-        "* * data/jec/Fall17_17Nov2017DE_V32_DATA_"
-        "L2Relative_AK4PFchs.jec.txt",
-        "* * data/jec/Fall17_17Nov2017DE_V32_DATA_"
-        "L2L3Residual_AK4PFchs.jec.txt",
-        "* * data/jec/Fall17_17Nov2017DE_V32_DATA_"
-        "L3Absolute_AK4PFchs.jec.txt",
-        "* * data/jec/Fall17_17Nov2017DE_V32_DATA_"
-        "UncertaintySources_AK4PFchs.junc.txt",
-        "* * data/jec/Fall17_17Nov2017DE_V32_DATA_"
-        "Uncertainty_AK4PFchs.junc.txt",
-        "* * data/jec/Fall17_17Nov2017F_V32_DATA_"
-        "L1FastJet_AK4PFchs.jec.txt",
-        "* * data/jec/Fall17_17Nov2017F_V32_DATA_"
-        "L2Relative_AK4PFchs.jec.txt",
-        "* * data/jec/Fall17_17Nov2017F_V32_DATA_"
-        "L2L3Residual_AK4PFchs.jec.txt",
-        "* * data/jec/Fall17_17Nov2017F_V32_DATA_"
-        "L3Absolute_AK4PFchs.jec.txt",
-        "* * data/jec/Fall17_17Nov2017F_V32_DATA_"
-        "UncertaintySources_AK4PFchs.junc.txt",
-        "* * data/jec/Fall17_17Nov2017F_V32_DATA_"
-        "Uncertainty_AK4PFchs.junc.txt"],
-    '2018': [
-        "* * data/jec/Autumn18_V19_MC_"
-        "L1FastJet_AK4PFchs.jec.txt",
-        "* * data/jec/Autumn18_V19_MC_"
-        "L2Relative_AK4PFchs.jec.txt",
-        "* * data/jec/Autumn18_V19_MC_"
-        "L2L3Residual_AK4PFchs.jec.txt",
-        "* * data/jec/Autumn18_V19_MC_"
-        "L3Absolute_AK4PFchs.jec.txt",
-        "* * data/jec/Autumn18_V19_MC_"
-        "Uncertainty_AK4PFchs.junc.txt",
-        "* * data/jec/Autumn18_V7_MC_"
-        "PtResolution_AK4PFchs.jr.txt",
-        "* * data/jec/Autumn18_V7_MC_"
-        "SF_AK4PFchs.jersf.txt",
-        "* * data/jec/Autumn18_V19_MC_"
-        "UncertaintySources_AK4PFchs.junc.txt",
-        "* * data/jec/Autumn18_RunA_V19_DATA_"
-        "L1FastJet_AK4PFchs.jec.txt",
-        "* * data/jec/Autumn18_RunA_V19_DATA_"
-        "L2Relative_AK4PFchs.jec.txt",
-        "* * data/jec/Autumn18_RunA_V19_DATA_"
-        "L2L3Residual_AK4PFchs.jec.txt",
-        "* * data/jec/Autumn18_RunA_V19_DATA_"
-        "L3Absolute_AK4PFchs.jec.txt",
-        "* * data/jec/Autumn18_RunA_V19_DATA_"
-        "UncertaintySources_AK4PFchs.junc.txt",
-        "* * data/jec/Autumn18_RunA_V19_DATA_"
-        "Uncertainty_AK4PFchs.junc.txt",
-        "* * data/jec/Autumn18_RunB_V19_DATA_"
-        "L1FastJet_AK4PFchs.jec.txt",
-        "* * data/jec/Autumn18_RunB_V19_DATA_"
-        "L2Relative_AK4PFchs.jec.txt",
-        "* * data/jec/Autumn18_RunB_V19_DATA_"
-        "L2L3Residual_AK4PFchs.jec.txt",
-        "* * data/jec/Autumn18_RunB_V19_DATA_"
-        "L3Absolute_AK4PFchs.jec.txt",
-        "* * data/jec/Autumn18_RunB_V19_DATA_"
-        "UncertaintySources_AK4PFchs.junc.txt",
-        "* * data/jec/Autumn18_RunB_V19_DATA_"
-        "Uncertainty_AK4PFchs.junc.txt",
-        "* * data/jec/Autumn18_RunC_V19_DATA_"
-        "L1FastJet_AK4PFchs.jec.txt",
-        "* * data/jec/Autumn18_RunC_V19_DATA_"
-        "L2Relative_AK4PFchs.jec.txt",
-        "* * data/jec/Autumn18_RunC_V19_DATA_"
-        "L2L3Residual_AK4PFchs.jec.txt",
-        "* * data/jec/Autumn18_RunC_V19_DATA_"
-        "L3Absolute_AK4PFchs.jec.txt",
-        "* * data/jec/Autumn18_RunC_V19_DATA_"
-        "UncertaintySources_AK4PFchs.junc.txt",
-        "* * data/jec/Autumn18_RunC_V19_DATA_"
-        "Uncertainty_AK4PFchs.junc.txt",
-        "* * data/jec/Autumn18_RunD_V19_DATA_"
-        "L1FastJet_AK4PFchs.jec.txt",
-        "* * data/jec/Autumn18_RunD_V19_DATA_"
-        "L2Relative_AK4PFchs.jec.txt",
-        "* * data/jec/Autumn18_RunD_V19_DATA_"
-        "L2L3Residual_AK4PFchs.jec.txt",
-        "* * data/jec/Autumn18_RunD_V19_DATA_"
-        "L3Absolute_AK4PFchs.jec.txt",
-        "* * data/jec/Autumn18_RunD_V19_DATA_"
-        "UncertaintySources_AK4PFchs.junc.txt",
-        "* * data/jec/Autumn18_RunD_V19_DATA_"
-        "Uncertainty_AK4PFchs.junc.txt"]}
-
 parameters['jec_names'] = {
     y: [f"{jec_tag[y]}_{level}_AK4PFchs"
         for level in jec_levels_mc]
-    for y in ['2016', '2017', '2018']}
+    for y in ['2016', '2017', '2018']
+}
+
+parameters['jer_names'] = {
+    '2016': ['Summer16_25nsV1_MC_PtResolution_AK4PFchs'],
+    '2017': ['Fall17_V3_MC_PtResolution_AK4PFchs'],
+    '2018': ['Autumn18_V7_MC_PtResolution_AK4PFchs']
+}
+
+parameters['jersf_names'] = {
+    '2016': ['Summer16_25nsV1_MC_SF_AK4PFchs'],
+    '2017': ['Fall17_V3_MC_SF_AK4PFchs'],
+    '2018': ['Autumn18_V7_MC_SF_AK4PFchs']
+}
 
 parameters['junc_names'] = {
     y: [f"{jec_tag[y]}_Uncertainty_AK4PFchs"]
     for y in ['2016', '2017', '2018']}
 
 parameters['jec_unc_sources'] = {
-    y: f"{jec_tag[y]}_UncertaintySources_AK4PFchs"
-    for y in ['2016', '2017', '2018']}
+    y: [f"{jec_tag[y]}_UncertaintySources_AK4PFchs"]
+    for y in ['2016', '2017', '2018']
+}
+
+parameters['jec_weight_sets'] = {}
+for y in ['2016', '2017', '2018']:
+    parameters['jec_weight_sets'][y] = []
+    parameters['jec_weight_sets'][y].extend(
+        [f"* * data/jec/{name}.jec.txt"
+         for name in parameters['jec_names'][y]]
+    )
+    parameters['jec_weight_sets'][y].extend(
+        [f"* * data/jec/{name}.jr.txt"
+         for name in parameters['jer_names'][y]]
+    )
+    parameters['jec_weight_sets'][y].extend(
+        [f"* * data/jec/{name}.jersf.txt"
+         for name in parameters['jersf_names'][y]]
+    )
+    parameters['jec_weight_sets'][y].extend(
+        [f"* * data/jec/{name}.junc.txt"
+         for name in parameters['junc_names'][y]]
+    )
+    parameters['jec_weight_sets'][y].extend(
+        [f"* * data/jec/{name}.junc.txt"
+         for name in parameters['jec_unc_sources'][y]]
+    )
+
+parameters['jec_stack'] = {}
+for y in ['2016', '2017', '2018']:
+    parameters['jec_stack'][y] = []
+    parameters['jec_stack'][y].extend(parameters['jec_names'][y])
+    parameters['jec_stack'][y].extend(parameters['jer_names'][y])
+    parameters['jec_stack'][y].extend(parameters['jersf_names'][y])
+    parameters['jec_stack'][y].extend(parameters['junc_names'][y])
 
 parameters['jec_names_data'] = {
     '2016': {
@@ -487,7 +348,9 @@ parameters['jec_names_data'] = {
         'C': [f"Autumn18_RunC_V19_DATA_{level}_AK4PFchs"
               for level in jec_levels_data],
         'D': [f"Autumn18_RunD_V19_DATA_{level}_AK4PFchs"
-              for level in jec_levels_data]}}
+              for level in jec_levels_data]
+    }
+}
 
 parameters['junc_names_data'] = {
     '2016': {
@@ -508,19 +371,11 @@ parameters['junc_names_data'] = {
         'A': ["Autumn18_RunA_V19_DATA_Uncertainty_AK4PFchs"],
         'B': ["Autumn18_RunB_V19_DATA_Uncertainty_AK4PFchs"],
         'C': ["Autumn18_RunC_V19_DATA_Uncertainty_AK4PFchs"],
-        'D': ["Autumn18_RunD_V19_DATA_Uncertainty_AK4PFchs"]}}
+        'D': ["Autumn18_RunD_V19_DATA_Uncertainty_AK4PFchs"]
+    }
+}
 
-parameters['jer_names'] = {
-    '2016': ['Summer16_25nsV1_MC_PtResolution_AK4PFchs'],
-    '2017': ['Fall17_V3_MC_PtResolution_AK4PFchs'],
-    '2018': ['Autumn18_V7_MC_PtResolution_AK4PFchs']}
-
-parameters['jersf_names'] = {
-    '2016': ['Summer16_25nsV1_MC_SF_AK4PFchs'],
-    '2017': ['Fall17_V3_MC_SF_AK4PFchs'],
-    '2018': ['Autumn18_V7_MC_SF_AK4PFchs']}
-
-parameters['jec_unc_names_data'] = {
+parameters['junc_sources_data'] = {
     '2016': {
         'B': [
             "Summer16_07Aug2017BCD_V11_DATA_UncertaintySources_AK4PFchs"],
@@ -551,6 +406,49 @@ parameters['jec_unc_names_data'] = {
         'D': ["Autumn18_RunD_V19_DATA_UncertaintySources_AK4PFchs"],
     }
 }
+
+parameters['jec_weight_sets_data'] = {}
+parameters['junc_sources_data_all'] = {}
+for y in ['2016', '2017', '2018']:
+    parameters['jec_weight_sets_data'][y] = []
+    jec_data = []
+    for run, items in parameters['jec_names_data'][y].items():
+        jec_data.extend(items)
+    jec_data = list(set(jec_data))
+    parameters['jec_weight_sets_data'][y].extend(
+        [f"* * data/jec/{name}.jec.txt" for name in jec_data]
+    )
+
+    junc_data = []
+    for run, items in parameters['junc_names_data'][y].items():
+        junc_data.extend(items)
+    junc_data = list(set(junc_data))
+    parameters['jec_weight_sets_data'][y].extend(
+        [f"* * data/jec/{name}.junc.txt" for name in junc_data]
+    )
+
+    junc_src_data = []
+    for run, items in parameters['junc_sources_data'][y].items():
+        junc_src_data.extend(items)
+    junc_src_data = list(set(junc_src_data))
+    parameters['junc_sources_data_all'][y] = junc_src_data
+    parameters['jec_weight_sets'][y].extend(
+        [f"* * data/jec/{name}.junc.txt" for name in junc_src_data]
+    )
+
+parameters['jec_stack_data'] = {}
+for y in ['2016', '2017', '2018']:
+    parameters['jec_stack_data'][y] = []
+    jec_data = []
+    for run, items in parameters['jec_names_data'][y].items():
+        jec_data.extend(items)
+    jec_data = list(set(jec_data))
+    parameters['jec_stack_data'][y].extend(jec_data)
+    junc_data = []
+    for run, items in parameters['junc_names_data'][y].items():
+        junc_data.extend(items)
+    junc_data = list(set(junc_data))
+    parameters['jec_stack_data'][y].extend(junc_data)
 
 parameters['zpt_weights_file'] =\
     for_all_years("data/zpt/zpt_weights.histo.json")

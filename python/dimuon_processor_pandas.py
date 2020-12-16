@@ -9,11 +9,12 @@ import pandas as pd
 import coffea.processor as processor
 from coffea.lookup_tools import extractor
 from coffea.lookup_tools import txt_converters, rochester_lookup
-from coffea.jetmet_tools import FactorizedJetCorrector
-from coffea.jetmet_tools import JetCorrectionUncertainty
-from coffea.jetmet_tools import JetTransformer
-from coffea.jetmet_tools import JetResolution
-from coffea.jetmet_tools import JetResolutionScaleFactor
+#from coffea.jetmet_tools import FactorizedJetCorrector
+#from coffea.jetmet_tools import JetCorrectionUncertainty
+#from coffea.jetmet_tools import JetTransformer
+#from coffea.jetmet_tools import JetResolution
+#from coffea.jetmet_tools import JetResolutionScaleFactor
+from coffea.jetmet_tools import CorrectedJetsFactory, CorrectedMETFactory, JECStack
 from coffea.btag_tools import BTagScaleFactor
 from coffea.lumi_tools import LumiMask
 
@@ -24,7 +25,7 @@ from python.corrections import musf_lookup, musf_evaluator, pu_lookup
 from python.corrections import pu_evaluator, NNLOPS_Evaluator
 # from python.corrections import roccor_evaluator, get_jec_unc
 from python.corrections import qgl_weights, puid_weights  # , btag_weights
-from python.corrections import fsr_recovery, apply_geofit
+from python.corrections import apply_roccor, fsr_recovery, apply_geofit
 from python.stxs_uncert import vbf_uncert_stage_1_1, stxs_lookups
 from python.mass_resolution import mass_resolution_purdue, mass_resolution_pisa
 
@@ -46,8 +47,10 @@ class DimuonProcessor(processor.ProcessorABC):
         self.debug = debug
         self.save_unbin = save_unbin
         self.pt_variations = pt_variations
+        self.do_roccor = True
         self.do_fsr = True
         self.do_geofit = True
+        self.do_nnlops = True
         self.do_pdf = do_pdf
         self.do_btag_syst = do_btag_syst
         self.parameters = {
@@ -121,8 +124,72 @@ class DimuonProcessor(processor.ProcessorABC):
         # Prepare evaluators for JEC, JER and their systematics
         jetext = extractor()
         jetext.add_weight_sets(self.parameters['jec_weight_sets'])
+        jetext.add_weight_sets(self.parameters['jec_weight_sets_data'])
         jetext.finalize()
-        Jetevaluator = jetext.make_evaluator()
+        jet_evaluator = jetext.make_evaluator()
+
+        jec_inputs = {
+            name: jet_evaluator[name]
+            for name in self.parameters['jec_stack']
+        }
+
+        for src in self.parameters['jec_unc_sources']:
+            for key in jet_evaluator.keys():
+                if src in key:
+                    jec_inputs[key] = jet_evaluator[key]
+        jec_stack = JECStack(jec_inputs)
+        name_map = jec_stack.blank_name_map
+        name_map['JetPt'] = 'pt'
+        name_map['JetMass'] = 'mass'
+        name_map['JetEta'] = 'eta'
+        name_map['JetA'] = 'area'
+        name_map['ptGenJet'] = 'pt_gen'
+        name_map['ptRaw'] = 'pt_raw'
+        name_map['massRaw'] = 'mass_raw'
+        name_map['Rho'] = 'rho'
+        self.jet_factory = CorrectedJetsFactory(
+            name_map, jec_stack
+        )
+
+
+        """
+        self.data_runs = list(
+            self.parameters['junc_sources_data'].keys()
+        )
+        self.jec_factories_data = {}
+        for run in self.data_runs:
+            jec_inputs_data = {}
+            jec_inputs_data.update(
+                {name: jet_evaluator[name]
+                for name in self.parameters['jec_names_data'][run]
+                }
+            )
+            jec_inputs_data.update(
+                {name: jet_evaluator[name]
+                for name in self.parameters['junc_names_data'][run]
+                }
+            )
+            for src in self.parameters['junc_sources_data'][run]:
+                for key in jet_evaluator.keys():
+                    if src in key:
+                        jec_inputs_data[key] = jet_evaluator[key]
+
+            jec_stack_data = JECStack(jec_inputs_data)
+            name_map = jec_stack_data.blank_name_map
+            name_map['JetPt'] = 'pt'
+            name_map['JetMass'] = 'mass'
+            name_map['JetEta'] = 'eta'
+            name_map['JetA'] = 'area'
+            name_map['ptGenJet'] = 'pt_gen'
+            name_map['ptRaw'] = 'pt_raw'
+            name_map['massRaw'] = 'mass_raw'
+            name_map['Rho'] = 'rho'
+            self.jet_factories_data[run] = CorrectedJetsFactory(
+                name_map, jec_stack_data
+            )
+        """
+        
+        '''
         JECcorrector = FactorizedJetCorrector(
             **{name: Jetevaluator[name] for name in
                self.parameters['jec_names']})
@@ -160,7 +227,7 @@ class DimuonProcessor(processor.ProcessorABC):
         self.JECuncertaintySources = JetCorrectionUncertainty(
             **{name: Jetevaluator[name] for name in all_jec_names})
         self.jet_unc_names = list(self.JECuncertaintySources.levels)
-
+        '''
         self.do_jecunc = False
         self.do_jerunc = False
         for ptvar in self.pt_variations:
@@ -276,6 +343,15 @@ class DimuonProcessor(processor.ProcessorABC):
         # roch_corr, roch_err = roccor_evaluator(
         #     self.roccor_lookup, is_mc, df.Muon)
         # df.Muon['pt'] = df.Muon.pt*roch_corr
+
+        # Rochester correction
+        if self.do_roccor:
+            # waiting for awkward 1.0.1 integration
+            pass
+            #apply_roccor(df, self.roccor_lookup, is_mc)
+            #print(df.Muon.pt)
+            #print(df.Muon.pt_roch)
+            #df['Muon', 'pt'] = df.Muon.pt_roch
 
         # if self.timer:
         #     self.timer.add_checkpoint("Rochester correction")
@@ -496,6 +572,15 @@ class DimuonProcessor(processor.ProcessorABC):
         # Prepare jets
         # ------------------------------------------------------------#
 
+        df['Jet', 'pt_raw'] = (1 - df.Jet.rawFactor) * df.Jet.pt
+        df['Jet', 'mass_raw'] = (1 - df.Jet.rawFactor) * df.Jet.mass
+        df['Jet', 'pt_gen'] = ak.values_astype(
+            ak.fill_none(df.Jet.matched_gen.pt, 0), np.float32
+        )
+        df['Jet', 'rho'] = ak.broadcast_arrays(
+            df.fixedGridRhoFastjetAll, df.Jet.pt
+        )[0]
+
         """
         df.Jet['ptRaw'] = df.Jet.pt * (1 - df.Jet.rawFactor)
         df.Jet['massRaw'] = df.Jet.mass * (1 - df.Jet.rawFactor)
@@ -551,11 +636,23 @@ class DimuonProcessor(processor.ProcessorABC):
 
         if self.timer:
             self.timer.add_checkpoint("Prepared jets")
-
+        """
         # ------------------------------------------------------------#
         # Apply JEC, get JEC variations
         # ------------------------------------------------------------#
 
+        self.do_jec = True
+        if self.do_jec:
+            corrected_jets = self.jet_factory.build(
+                df.Jet, lazy_cache=df.caches[0]
+            )
+            # print(df.Jet.pt)
+            # print(corrected_jets.pt_orig)
+            # print(corrected_jets.pt_jec)
+            # print(corrected_jets.pt_jer)
+            # print(self.jet_factory.uncertainties())
+
+        """
         # self.do_jec = True
         self.do_jec = False
         if ('data' in dataset) and ('2018' in self.year):
@@ -727,7 +824,7 @@ class DimuonProcessor(processor.ProcessorABC):
         # ------------------------------------------------------------#
 
         if is_mc:
-            if ('ggh' in dataset):
+            if self.do_nnlops and ('ggh' in dataset):
                 nnlops = NNLOPS_Evaluator('data/NNLOPS_reweight.root')
                 nnlopsw = np.ones(numevents, dtype=float)
                 if 'amc' in dataset:
@@ -833,16 +930,22 @@ class DimuonProcessor(processor.ProcessorABC):
                 ('dy' not in dataset) and
                 ('nominal' in self.pt_variations)
             )
-            do_thu = False
-            if do_thu:
+
+            if do_thu and ('stage1_1_fine_cat_pTjet30GeV' in df.HTXS.fields):
                 for i, name in enumerate(self.sths_names):
                     wgt_up = vbf_uncert_stage_1_1(
-                        i, df.HTXS.stage1_1_fine_cat_pTjet30GeV, 1.,
-                        self.stxs_acc_lookups, self.powheg_xsec_lookup
+                        i,
+                        ak.to_numpy(df.HTXS.stage1_1_fine_cat_pTjet30GeV),
+                        1.,
+                        self.stxs_acc_lookups,
+                        self.powheg_xsec_lookup
                     )
                     wgt_down = vbf_uncert_stage_1_1(
-                        i, df.HTXS.stage1_1_fine_cat_pTjet30GeV, -1.,
-                        self.stxs_acc_lookups, self.powheg_xsec_lookup
+                        i,
+                        ak.to_numpy(df.HTXS.stage1_1_fine_cat_pTjet30GeV),
+                        -1.,
+                        self.stxs_acc_lookups,
+                        self.powheg_xsec_lookup
                     )
                     weights.add_only_variations(
                         "THU_VBF_"+name, wgt_up, wgt_down
