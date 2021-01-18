@@ -171,11 +171,11 @@ class SamplesInfo(object):
         ret = {}
         tree = uproot.open(f)['Runs']
         if ('NanoAODv6' in f) or ('NANOV10' in f):
-            ret['sumGenWgts'] = tree.array('genEventSumw_')[0]
-            ret['nGenEvts'] = tree.array('genEventCount_')[0]
+            ret['sumGenWgts'] = tree['genEventSumw_'].array()[0]
+            ret['nGenEvts'] = tree['genEventCount_'].array()[0]
         else:
-            ret['sumGenWgts'] = tree.array('genEventSumw')[0]
-            ret['nGenEvts'] = tree.array('genEventCount')[0]
+            ret['sumGenWgts'] = tree['genEventSumw'].array()[0]
+            ret['nGenEvts'] = tree['genEventCount'].array()[0]
         return ret
 
     def finalize(self):

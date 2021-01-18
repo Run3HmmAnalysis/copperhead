@@ -1,6 +1,6 @@
 import copy
 import awkward
-import awkward1 as ak
+import awkward as ak
 import numpy as np
 # np.set_printoptions(threshold=sys.maxsize)
 import pandas as pd
@@ -101,8 +101,9 @@ class DimuonProcessor(processor.ProcessorABC):
         self.extractor = extractor()
         self.extractor.add_weight_sets([f"* * {zpt_filename}"])
         self.extractor.add_weight_sets([f"* * {puid_filename}"])
-        self.extractor.add_weight_sets(
-            ["* * data/mass_res_pisa/muonresolution.root"])
+        # Doesn't work with uproot4 so far
+        #self.extractor.add_weight_sets(
+        #    ["* * data/mass_res_pisa/muonresolution.root"])
 
         for mode in ["Data", "MC"]:
             label = f"res_calib_{mode}_{self.year}"
@@ -556,11 +557,12 @@ class DimuonProcessor(processor.ProcessorABC):
             output['dimuon_ebe_mass_res_rel'] =\
                 output.dimuon_ebe_mass_res / output.dimuon_mass
 
-            output.dimuon_mass_res_rel =\
-                mass_resolution_pisa(self.extractor, output)
-
-            output.dimuon_mass_res =\
-                output.dimuon_mass_res_rel * output.dimuon_mass
+            # Doesn't work with uproot4 yet
+            #output.dimuon_mass_res_rel =\
+            #    mass_resolution_pisa(self.extractor, output)
+            #
+            #output.dimuon_mass_res =\
+            #    output.dimuon_mass_res_rel * output.dimuon_mass
 
             output['dimuon_cos_theta_cs'], output['dimuon_phi_cs'] =\
                 cs_variables(mu1, mu2)

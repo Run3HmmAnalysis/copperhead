@@ -1,6 +1,6 @@
 import numpy as np
 import pandas as pd
-import awkward1 as ak
+import awkward as ak
 import awkward
 import uproot
 
@@ -210,32 +210,41 @@ def musf_lookup(parameters):
         iso_file = uproot.open(scaleFactors['iso'][0])
         trig_file = uproot.open(scaleFactors['trig'][0])
         mu_id_vals +=\
-            id_file[scaleFactors['id'][1]].values *\
+            id_file[scaleFactors['id'][1]].values() *\
             scaleFactors['scale']
         mu_id_err +=\
-            id_file[scaleFactors['id'][1]].variances**0.5 *\
+            id_file[scaleFactors['id'][1]].variances()**0.5 *\
             scaleFactors['scale']
-        mu_id_edges = id_file[scaleFactors['id'][1]].edges
+        mu_id_edges = [
+            id_file[scaleFactors['id'][1]].axis(0).edges(),
+            id_file[scaleFactors['id'][1]].axis(1).edges()
+        ]
         mu_iso_vals +=\
-            iso_file[scaleFactors['iso'][1]].values *\
+            iso_file[scaleFactors['iso'][1]].values() *\
             scaleFactors['scale']
         mu_iso_err +=\
-            iso_file[scaleFactors['iso'][1]].variances**0.5 *\
+            iso_file[scaleFactors['iso'][1]].variances()**0.5 *\
             scaleFactors['scale']
-        mu_iso_edges = iso_file[scaleFactors['iso'][1]].edges
+        mu_iso_edges = [
+            iso_file[scaleFactors['iso'][1]].axis(0).edges(),
+            iso_file[scaleFactors['iso'][1]].axis(1).edges()
+        ]
         mu_trig_vals_data +=\
-            trig_file[scaleFactors['trig'][1]].values *\
+            trig_file[scaleFactors['trig'][1]].values() *\
             scaleFactors['scale']
         mu_trig_vals_mc +=\
-            trig_file[scaleFactors['trig'][2]].values *\
+            trig_file[scaleFactors['trig'][2]].values() *\
             scaleFactors['scale']
         mu_trig_err_data +=\
-            trig_file[scaleFactors['trig'][1]].variances**0.5 *\
+            trig_file[scaleFactors['trig'][1]].variances()**0.5 *\
             scaleFactors['scale']
         mu_trig_err_mc +=\
-            trig_file[scaleFactors['trig'][2]].variances**0.5 *\
+            trig_file[scaleFactors['trig'][2]].variances()**0.5 *\
             scaleFactors['scale']
-        mu_trig_edges = trig_file[scaleFactors['trig'][1]].edges
+        mu_trig_edges = [
+            trig_file[scaleFactors['trig'][1]].axis(0).edges(),
+            trig_file[scaleFactors['trig'][1]].axis(1).edges()
+        ]
 
     mu_id_sf = dense_lookup.dense_lookup(mu_id_vals, mu_id_edges)
     mu_id_err = dense_lookup.dense_lookup(mu_id_err, mu_id_edges)
@@ -280,9 +289,10 @@ def musf_evaluator(lookups, year, numevents, mu1, mu2):
     sf = sf.fillna(1.0)
 
     for mu in [mu1, mu2]:
-        pt = mu.pt_raw
-        eta = mu.eta_raw
-        abs_eta = abs(mu.eta_raw)
+        pt = mu.pt_raw.values
+        eta = mu.eta_raw.values
+        abs_eta = abs(mu.eta_raw.values)
+
         if '2016' in year:
             muID_ = lookups['mu_id_sf'](eta, pt)
             muIso_ = lookups['mu_iso_sf'](eta, pt)
@@ -328,13 +338,13 @@ def musf_evaluator(lookups, year, numevents, mu1, mu2):
 def pu_lookup(parameters, mode='nom', auto=[]):
     if mode == 'nom':
         pu_hist_data = uproot.open(
-                        parameters['pu_file_data'])['pileup']
+                        parameters['pu_file_data'])['pileup'].values()
     elif mode == 'up':
         pu_hist_data = uproot.open(
-                        parameters['pu_file_data'])['pileup_plus']
+                        parameters['pu_file_data'])['pileup_plus'].values()
     elif mode == 'down':
         pu_hist_data = uproot.open(
-                        parameters['pu_file_data'])['pileup_minus']
+                        parameters['pu_file_data'])['pileup_minus'].values()
     else:
         print("PU lookup: incorrect mode ", mode)
         return
@@ -343,7 +353,7 @@ def pu_lookup(parameters, mode='nom', auto=[]):
     edges = [[i for i in range(nbins)]]
     # pu_hist_mc = load("data/pileup/pisa_lookup_2018.coffea")(range(102))
     if len(auto) == 0:
-        pu_hist_mc = uproot.open(parameters['pu_file_mc'])['pu_mc']
+        pu_hist_mc = uproot.open(parameters['pu_file_mc'])['pu_mc'].values()
     else:
         pu_hist_mc = np.histogram(auto, bins=range(nbins + 1))[0]
 
