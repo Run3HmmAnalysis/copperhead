@@ -11,7 +11,11 @@ def mass_resolution_purdue(is_mc, evaluator, df, year):
     else:
         label = f"res_calib_Data_{year}"
     calibration = np.array(
-        evaluator[label](df.mu1_pt.values, abs(df.mu1_eta.values), abs(df.mu2_eta.values))
+        evaluator[label](
+            df.mu1_pt.values,
+            abs(df.mu1_eta.values),
+            abs(df.mu2_eta.values)
+        )
     )
 
     return np.sqrt(dpt1 * dpt1 + dpt2 * dpt2) * calibration

@@ -9,12 +9,13 @@ import pandas as pd
 import coffea.processor as processor
 from coffea.lookup_tools import extractor
 from coffea.lookup_tools import txt_converters, rochester_lookup
-#from coffea.jetmet_tools import FactorizedJetCorrector
-#from coffea.jetmet_tools import JetCorrectionUncertainty
-#from coffea.jetmet_tools import JetTransformer
-#from coffea.jetmet_tools import JetResolution
-#from coffea.jetmet_tools import JetResolutionScaleFactor
-from coffea.jetmet_tools import CorrectedJetsFactory, CorrectedMETFactory, JECStack
+# from coffea.jetmet_tools import FactorizedJetCorrector
+# from coffea.jetmet_tools import JetCorrectionUncertainty
+# from coffea.jetmet_tools import JetTransformer
+# from coffea.jetmet_tools import JetResolution
+# from coffea.jetmet_tools import JetResolutionScaleFactor
+from coffea.jetmet_tools import CorrectedJetsFactory, JECStack
+# CorrectedMETFactory,
 from coffea.btag_tools import BTagScaleFactor
 from coffea.lumi_tools import LumiMask
 
@@ -27,7 +28,7 @@ from python.corrections import pu_evaluator, NNLOPS_Evaluator
 from python.corrections import qgl_weights, puid_weights  # , btag_weights
 from python.corrections import apply_roccor, fsr_recovery, apply_geofit
 from python.stxs_uncert import vbf_uncert_stage_1_1, stxs_lookups
-from python.mass_resolution import mass_resolution_purdue, mass_resolution_pisa
+from python.mass_resolution import mass_resolution_purdue # , mass_resolution_pisa
 
 from config.parameters import parameters
 from config.variables import variables
@@ -105,8 +106,8 @@ class DimuonProcessor(processor.ProcessorABC):
         self.extractor.add_weight_sets([f"* * {zpt_filename}"])
         self.extractor.add_weight_sets([f"* * {puid_filename}"])
         # Doesn't work with uproot4 so far
-        #self.extractor.add_weight_sets(
-        #    ["* * data/mass_res_pisa/muonresolution.root"])
+        # self.extractor.add_weight_sets(
+        #     ["* * data/mass_res_pisa/muonresolution.root"])
 
         for mode in ["Data", "MC"]:
             label = f"res_calib_{mode}_{self.year}"
@@ -156,7 +157,6 @@ class DimuonProcessor(processor.ProcessorABC):
             name_map, jec_stack
         )
 
-
         """
         self.data_runs = list(
             self.parameters['junc_sources_data'].keys()
@@ -193,7 +193,7 @@ class DimuonProcessor(processor.ProcessorABC):
                 name_map, jec_stack_data
             )
         """
-        
+
         '''
         JECcorrector = FactorizedJetCorrector(
             **{name: Jetevaluator[name] for name in
@@ -351,7 +351,7 @@ class DimuonProcessor(processor.ProcessorABC):
             df['Muon', 'pt'] = df.Muon.pt_roch
 
             if self.timer:
-                 self.timer.add_checkpoint("Rochester correction")
+                self.timer.add_checkpoint("Rochester correction")
 
             # variations will be in branches pt_roch_up and pt_roch_down
 
@@ -554,14 +554,14 @@ class DimuonProcessor(processor.ProcessorABC):
             )
 
             # Doesn't work with uproot4 yet
-            #output.dimuon_mass_res_rel =\
-            #    mass_resolution_pisa(self.extractor, output)
+            # output.dimuon_mass_res_rel =\
+            #     mass_resolution_pisa(self.extractor, output)
             #
-            #output.dimuon_mass_res =\
-            #    output.dimuon_mass_res_rel * output.dimuon_mass
+            # output.dimuon_mass_res =\
+            #     output.dimuon_mass_res_rel * output.dimuon_mass
 
             output['dimuon_cos_theta_cs'],\
-            output['dimuon_phi_cs'] = cs_variables(mu1, mu2)
+                output['dimuon_phi_cs'] = cs_variables(mu1, mu2)
 
             if self.timer:
                 self.timer.add_checkpoint("Filled muon variables")
@@ -586,11 +586,11 @@ class DimuonProcessor(processor.ProcessorABC):
         # Apply JEC, get JEC variations
         # ------------------------------------------------------------#
 
-        self.do_jec = True
-        if self.do_jec:
-            corrected_jets = self.jet_factory.build(
-                df.Jet, lazy_cache=df.caches[0]
-            )
+        # self.do_jec = True
+        # if self.do_jec:
+            # corrected_jets = self.jet_factory.build(
+            #     df.Jet, lazy_cache=df.caches[0]
+            # )
             # print(df.Jet.pt)
             # print(corrected_jets.pt_orig)
             # print(corrected_jets.pt_jec)
@@ -912,7 +912,7 @@ class DimuonProcessor(processor.ProcessorABC):
                     (abs(df.GenPart.pdgId) == 15)
             ]
             gl_pair = ak.cartesian(
-                {'jet': gjets, 'lepton':gleptons},
+                {'jet': gjets, 'lepton': gleptons},
                 axis=1,
                 nested=True
             )
@@ -1478,3 +1478,4 @@ class DimuonProcessor(processor.ProcessorABC):
 
     def postprocess(self, accumulator):
         return accumulator
+
