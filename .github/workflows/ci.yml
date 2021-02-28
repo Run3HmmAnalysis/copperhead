@@ -29,6 +29,4 @@ jobs:
         run: flake8 ./*py
       - name: flake8 - check python/*py
         run: flake8 python/*py
-      - name: flake8 - check config/*py
-        run: flake8 config/*py
 
