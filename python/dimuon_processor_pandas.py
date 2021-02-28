@@ -28,7 +28,8 @@ from python.corrections import pu_evaluator, NNLOPS_Evaluator
 from python.corrections import qgl_weights, puid_weights  # , btag_weights
 from python.corrections import apply_roccor, fsr_recovery, apply_geofit
 from python.stxs_uncert import vbf_uncert_stage_1_1, stxs_lookups
-from python.mass_resolution import mass_resolution_purdue # , mass_resolution_pisa
+from python.mass_resolution import mass_resolution_purdue
+# , mass_resolution_pisa
 
 from config.parameters import parameters
 from config.variables import variables
@@ -1478,4 +1479,3 @@ class DimuonProcessor(processor.ProcessorABC):
 
     def postprocess(self, accumulator):
         return accumulator
-
