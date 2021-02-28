@@ -47,82 +47,64 @@ class NNLOPS_Evaluator(object):
 
 
 def apply_roccor(df, rochester, is_mc):
-    return
     if is_mc:
+        hasgen = ~np.isnan(ak.fill_none(df.Muon.matched_gen.pt, np.nan))
         mc_rand = np.random.rand(
             *ak.to_numpy(ak.flatten(df.Muon.pt)).shape
         )
-        print(mc_rand)
-        # wait for implementation of awkward 1.0.1
         mc_rand = ak.unflatten(mc_rand, ak.num(df.Muon.pt, axis=1))
-        print(mc_rand)
 
-        mc_rand = awkward.JaggedArray.fromoffsets(
-                        muons.pt.offsets,
-                        mc_rand)
-
-        # hasgen = ~np.isnan(
-        #    copy.deepcopy(muons.matched_gen.pt).fillna(np.nan))
-        hasgen = ~np.isnan(muons.matched_gen.pt.fillna(np.nan))
-        mc_rand = awkward.JaggedArray.fromoffsets(
-                    hasgen.offsets,
-                    mc_rand)._content
-
-        corrections = np.ones_like(muons.pt.flatten())
-        errors = np.ones_like(muons.pt.flatten())
+        corrections = np.array(ak.flatten(ak.ones_like(df.Muon.pt)))
+        errors = np.array(ak.flatten(ak.ones_like(df.Muon.pt)))
 
         mc_kspread = rochester.kSpreadMC(
-                        muons.charge[hasgen],
-                        muons.pt[hasgen],
-                        muons.eta[hasgen],
-                        muons.phi[hasgen],
-                        muons.matched_gen.pt[hasgen])
+                        df.Muon.charge[hasgen],
+                        df.Muon.pt[hasgen],
+                        df.Muon.eta[hasgen],
+                        df.Muon.phi[hasgen],
+                        df.Muon.matched_gen.pt[hasgen])
         mc_ksmear = rochester.kSmearMC(
-                        muons.charge[~hasgen],
-                        muons.pt[~hasgen],
-                        muons.eta[~hasgen],
-                        muons.phi[~hasgen],
-                        muons.nTrackerLayers[~hasgen],
+                        df.Muon.charge[~hasgen],
+                        df.Muon.pt[~hasgen],
+                        df.Muon.eta[~hasgen],
+                        df.Muon.phi[~hasgen],
+                        df.Muon.nTrackerLayers[~hasgen],
                         mc_rand[~hasgen])
-        errspread = rochester.kSpreadMCerror(
-                        muons.charge[hasgen],
-                        muons.pt[hasgen],
-                        muons.eta[hasgen],
-                        muons.phi[hasgen],
-                        muons.matched_gen.pt[hasgen])
-        errsmear = rochester.kSmearMCerror(
-                        muons.charge[~hasgen],
-                        muons.pt[~hasgen],
-                        muons.eta[~hasgen],
-                        muons.phi[~hasgen],
-                        muons.nTrackerLayers[~hasgen],
-                        mc_rand[~hasgen])
+        # TODO: fix errors
+        #errspread = rochester.kSpreadMCerror(
+        #                df.Muon.charge[hasgen],
+        #                df.Muon.pt[hasgen],
+        #                df.Muon.eta[hasgen],
+        #                df.Muon.phi[hasgen],
+        #                df.Muon.matched_gen.pt[hasgen])
+        #errsmear = rochester.kSmearMCerror(
+        #                df.Muon.charge[~hasgen],
+        #                df.Muon.pt[~hasgen],
+        #                df.Muon.eta[~hasgen],
+        #                df.Muon.phi[~hasgen],
+        #                df.Muon.nTrackerLayers[~hasgen],
+        #                mc_rand[~hasgen])
 
-        corrections[hasgen.flatten()] = mc_kspread.flatten()
-        corrections[~hasgen.flatten()] = mc_ksmear.flatten()
-        errors[hasgen.flatten()] = errspread.flatten()
-        errors[~hasgen.flatten()] = errsmear.flatten()
+        corrections[np.array(ak.flatten(hasgen))] = np.array(ak.flatten(mc_kspread))
+        corrections[~np.array(ak.flatten(hasgen))] = np.array(ak.flatten(mc_ksmear))
+        #errors[hasgen.flatten()] = np.array(ak.flatten(errspread))
+        #errors[~hasgen.flatten()] = np.array(ak.flatten(errsmear))
 
     else:
         corrections = rochester.kScaleDT(
-                        muons.charge,
-                        muons.pt,
-                        muons.eta,
-                        muons.phi)
-        errors = rochester.kScaleDTerror(
-                        muons.charge,
-                        muons.pt,
-                        muons.eta,
-                        muons.phi)
-    corrections_jagged = awkward.JaggedArray.fromcounts(
-                        muons.counts,
-                        corrections.flatten())
-    errors_jagged = awkward.JaggedArray.fromcounts(
-                        muons.counts,
-                        errors.flatten())
-    df['Muon', 'pt_roch'] = df.Muon.pt*correction
-    df['Muon', 'pt_roch_up'] = df.Muon.pt_roch + df.Muon.pt*error
-    df['Muon', 'pt_roch_down'] = df.Muon.pt_roch - df.Muon.pt*error
+                        df.Muon.charge,
+                        df.Muon.pt,
+                        df.Muon.eta,
+                        df.Muon.phi)
+        #errors = rochester.kScaleDTerror(
+        #                df.Muon.charge,
+        #                df.Muon.pt,
+        #                df.Muon.eta,
+        #                df.Muon.phi)
+
+    df['Muon', 'pt_roch'] = df.Muon.pt*ak.unflatten(corrections, ak.num(df.Muon.pt, axis=1))
+    #df['Muon', 'pt_roch_up'] = df.Muon.pt_roch + df.Muon.pt*error
+    #df['Muon', 'pt_roch_down'] = df.Muon.pt_roch - df.Muon.pt*error
 
 
 # awkward0 implementation!
