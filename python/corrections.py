@@ -728,4 +728,3 @@ def get_jec_unc(name, jet_pt, jet_eta, jecunc):
     func_args = tuple([args[s] for s in function_signature])
     jec_unc_vec = jec_unc_func(*func_args)
     return awkward.JaggedArray.fromcounts(counts, jec_unc_vec)
-
