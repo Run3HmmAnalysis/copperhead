@@ -162,12 +162,16 @@ for y in ['2016', '2017', '2018']:
     )
 
 parameters['jec_stack'] = {}
+parameters['jer_stack'] = {}
+parameters['jec_unc_stack'] = {}
 for y in ['2016', '2017', '2018']:
     parameters['jec_stack'][y] = []
+    parameters['jer_stack'][y] = []
+    parameters['jec_unc_stack'][y] = []
     parameters['jec_stack'][y].extend(parameters['jec_names'][y])
-    parameters['jec_stack'][y].extend(parameters['jer_names'][y])
-    parameters['jec_stack'][y].extend(parameters['jersf_names'][y])
-    parameters['jec_stack'][y].extend(parameters['junc_names'][y])
+    parameters['jer_stack'][y].extend(parameters['jer_names'][y])
+    parameters['jer_stack'][y].extend(parameters['jersf_names'][y])
+    parameters['jec_unc_stack'][y].extend(parameters['junc_names'][y])
 
 parameters['jec_names_data'] = {
     '2016': {

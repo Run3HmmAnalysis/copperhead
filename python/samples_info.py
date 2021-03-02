@@ -140,7 +140,7 @@ class SamplesInfo(object):
             for f in all_files:
                 if 'data' in sample:
                     tree = uproot.open(f)['Events']
-                    data_entries += tree.numentries
+                    data_entries += tree.num_entries
                 else:
                     tree = uproot.open(f)['Runs']
                     if (('NanoAODv6' in self.paths[sample]) or
@@ -164,7 +164,7 @@ class SamplesInfo(object):
         ret = {}
         file = uproot.open(f)
         tree = file['Events']
-        ret['data_entries'] = tree.numentries
+        ret['data_entries'] = tree.num_entries
         return ret
 
     def get_mc(self, f):

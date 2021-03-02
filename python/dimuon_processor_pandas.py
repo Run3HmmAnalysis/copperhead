@@ -19,7 +19,7 @@ from coffea.jetmet_tools import CorrectedJetsFactory, JECStack
 from coffea.btag_tools import BTagScaleFactor
 from coffea.lumi_tools import LumiMask
 
-from python.utils import p4_sum, p4_sum_alt, delta_r, rapidity, cs_variables
+from python.utils import p4_sum, delta_r, rapidity, cs_variables
 from python.timer import Timer
 from python.weights import Weights
 from python.corrections import musf_lookup, musf_evaluator, pu_lookup
@@ -37,9 +37,8 @@ from config.variables import variables
 
 class DimuonProcessor(processor.ProcessorABC):
     def __init__(self, samp_info, do_timer=False, save_unbin=True,
-                 do_jecunc=False, do_jerunc=False, do_pdf=True,
-                 do_btag_syst=True, auto_pu=True, debug=False,
-                 pt_variations=['nominal']):
+                 do_pdf=True, do_btag_syst=True, auto_pu=True,
+                 debug=False, pt_variations=['nominal']):
         if not samp_info:
             print("Samples info missing!")
             return
@@ -135,30 +134,41 @@ class DimuonProcessor(processor.ProcessorABC):
         jetext.finalize()
         jet_evaluator = jetext.make_evaluator()
 
-        jec_inputs = {
+        jec_input_options = {}
+        self.jet_factory = {}
+
+        jec_input_options['jec'] = {
             name: jet_evaluator[name]
             for name in self.parameters['jec_stack']
         }
-
+        jec_input_options['junc'] = {
+                name: jet_evaluator[name]
+                for name in self.parameters['jec_unc_stack']
+        }
         for src in self.parameters['jec_unc_sources']:
             for key in jet_evaluator.keys():
                 if src in key:
-                    jec_inputs[key] = jet_evaluator[key]
-        jec_stack = JECStack(jec_inputs)
-        name_map = jec_stack.blank_name_map
-        name_map['JetPt'] = 'pt'
-        name_map['JetMass'] = 'mass'
-        name_map['JetEta'] = 'eta'
-        name_map['JetA'] = 'area'
-        name_map['ptGenJet'] = 'pt_gen'
-        name_map['ptRaw'] = 'pt_raw'
-        name_map['massRaw'] = 'mass_raw'
-        name_map['Rho'] = 'rho'
-        self.jet_factory = CorrectedJetsFactory(
-            name_map, jec_stack
-        )
+                    jec_input_options['junc'][key] = jet_evaluator[key]
+        jec_input_options['jer'] = {
+                name: jet_evaluator[name]
+                for name in self.parameters['jer_stack']
+        }
 
-        """
+        for opt in ['jec', 'junc', 'jer']:
+            stack = JECStack(jec_input_options[opt])
+            name_map = stack.blank_name_map
+            name_map['JetPt'] = 'pt'
+            name_map['JetMass'] = 'mass'
+            name_map['JetEta'] = 'eta'
+            name_map['JetA'] = 'area'
+            name_map['ptGenJet'] = 'pt_gen'
+            name_map['ptRaw'] = 'pt_raw'
+            name_map['massRaw'] = 'mass_raw'
+            name_map['Rho'] = 'rho'
+            self.jet_factory[opt] = CorrectedJetsFactory(
+                name_map, stack
+            )
+
         self.data_runs = list(
             self.parameters['junc_sources_data'].keys()
         )
@@ -190,52 +200,15 @@ class DimuonProcessor(processor.ProcessorABC):
             name_map['ptRaw'] = 'pt_raw'
             name_map['massRaw'] = 'mass_raw'
             name_map['Rho'] = 'rho'
-            self.jet_factories_data[run] = CorrectedJetsFactory(
+            self.jec_factories_data[run] = CorrectedJetsFactory(
                 name_map, jec_stack_data
             )
-        """
 
-        '''
-        JECcorrector = FactorizedJetCorrector(
-            **{name: Jetevaluator[name] for name in
-               self.parameters['jec_names']})
-        JECuncertainties = JetCorrectionUncertainty(
-            **{name: Jetevaluator[name] for name in
-               self.parameters['junc_names']})
-        JER = JetResolution(
-            **{name: Jetevaluator[name] for name in
-               self.parameters['jer_names']})
-        JERsf = JetResolutionScaleFactor(
-            **{name: Jetevaluator[name] for name in
-               self.parameters['jersf_names']})
-        self.Jet_transformer_JER = JetTransformer(
-            jec=None, jer=JER, jersf=JERsf)
-        self.Jet_transformer = JetTransformer(
-            jec=JECcorrector, junc=JECuncertainties)
-        self.JECcorrector_Data = {}
-        self.Jet_transformer_data = {}
-        self.data_runs = list(
-            self.parameters['jec_unc_names_data'].keys())
-        for run in self.data_runs:
-            self.JECcorrector_Data[run] = FactorizedJetCorrector(
-                **{name: Jetevaluator[name] for name in
-                   self.parameters['jec_names_data'][run]})
-            JECuncertainties_Data = JetCorrectionUncertainty(
-                **{name: Jetevaluator[name] for name in
-                   self.parameters['junc_names_data'][run]})
-            self.Jet_transformer_data[run] = JetTransformer(
-                jec=self.JECcorrector_Data[run],
-                junc=JECuncertainties_Data)
-
-        all_jec_names = [
-            name for name in dir(Jetevaluator) if
-            self.parameters['jec_unc_sources'] in name]
-        self.JECuncertaintySources = JetCorrectionUncertainty(
-            **{name: Jetevaluator[name] for name in all_jec_names})
-        self.jet_unc_names = list(self.JECuncertaintySources.levels)
-        '''
         self.do_jecunc = False
         self.do_jerunc = False
+
+        # Look at variation names and see if we need to enable
+        # calculation of JEC or JER uncertainties
         for ptvar in self.pt_variations:
             ptvar_ = ptvar.replace('_up', '').replace('_down', '')
             if ptvar_ in self.parameters["jec_unc_to_consider"]:
@@ -243,6 +216,16 @@ class DimuonProcessor(processor.ProcessorABC):
             jers = ['jer1', 'jer2', 'jer3', 'jer4', 'jer5', 'jer6']
             if ptvar_ in jers:
                 self.do_jerunc = True
+
+        # If both are enabled, only compute JEC variations,
+        # because otherwise processing freezes
+        if self.do_jecunc and self.do_jerunc:
+            print(
+                'Disabling JER variations; currently they cannot be '
+                'considered together with JEC variations - eating '
+                'too much memory for some reason.\n'
+            )
+            self.do_jerunc = False
 
     @property
     def accumulator(self):
@@ -257,9 +240,12 @@ class DimuonProcessor(processor.ProcessorABC):
         # Filter out events not passing HLT or having
         # less than 2 muons.
         # ------------------------------------------------------------#
+        
         if self.timer:
+            # Initialize timer
             self.timer.update()
 
+        # Dataset name (see definitions in config/datasets.py)
         dataset = df.metadata['dataset']
 
         is_mc = 'data' not in dataset
@@ -275,12 +261,17 @@ class DimuonProcessor(processor.ProcessorABC):
             nTrueInt = df.Pileup.nTrueInt
         else:
             nTrueInt = np.zeros(numevents, dtype=bool)
+
+        # All variables that we want to save
+        # will be collected into the 'output' dataframe
         output = pd.DataFrame({'run': df.run, 'event': df.event})
         output.index.name = 'entry'
         output['npv'] = df.PV.npvs
         output['nTrueInt'] = nTrueInt
         output['met'] = df.MET.pt
 
+        # Separate dataframe to keep track on weights
+        # and their systematic variations
         weights = Weights(output)
 
         if is_mc:
@@ -325,9 +316,7 @@ class DimuonProcessor(processor.ProcessorABC):
 
         else:
             lumi_info = LumiMask(self.parameters['lumimask'])
-            mask = lumi_info(
-                df.run.flatten(), df.luminosityBlock.flatten()
-            )
+            mask = lumi_info(df.run, df.luminosityBlock)
 
         hlt = ak.to_pandas(df.HLT)
         hlt = hlt[self.parameters["hlt"]].sum(axis=1)
@@ -341,6 +330,7 @@ class DimuonProcessor(processor.ProcessorABC):
         # Raw pT and eta are stored to be used in event selection
         # ------------------------------------------------------------#
 
+        # Save raw kinematic variables before computing any corrections
         df['Muon', 'pt_raw'] = df.Muon.pt
         df['Muon', 'eta_raw'] = df.Muon.eta
         df['Muon', 'phi_raw'] = df.Muon.phi
@@ -455,7 +445,6 @@ class DimuonProcessor(processor.ProcessorABC):
             # --------------------------------------------------------#
 
             muons = muons[muons.selection & (nmuons == 2)]
-
             mu1 = muons.loc[muons.pt.groupby('entry').idxmax()]
             mu2 = muons.loc[muons.pt.groupby('entry').idxmin()]
             mu1.index = mu1.index.droplevel('subentry')
@@ -510,39 +499,31 @@ class DimuonProcessor(processor.ProcessorABC):
             # Fill dimuon and muon variables
             # --------------------------------------------------------#
 
-            mm = p4_sum(mu1, mu2)
+            # Fill single muon variables
+            for v in ['pt', 'ptErr', 'eta', 'phi']:
+                output[f'mu1_{v}'] = mu1[v]
+                output[f'mu2_{v}'] = mu2[v]
 
-            output['dimuon_pt'] = mm.pt
+            output['mu1_iso'] = mu1.pfRelIso04_all
+            output['mu2_iso'] = mu2.pfRelIso04_all
+            output['mu1_pt_over_mass'] = output.mu1_pt / output.dimuon_mass
+            output['mu2_pt_over_mass'] = output.mu2_pt / output.dimuon_mass
+
+            # Fill dimuon variables
+            mm = p4_sum(mu1, mu2)
+            for v in ['pt', 'eta', 'phi', 'mass', 'rap']:
+                output[f'dimuon_{v}'] = mm[v]
+
             output['dimuon_pt_log'] = np.log(output.dimuon_pt)
-            output['dimuon_eta'] = mm.eta
-            output['dimuon_phi'] = mm.phi
-            output['dimuon_mass'] = mm.mass
-            output['dimuon_rap'] = mm.rap
 
             mm_deta, mm_dphi, mm_dr = delta_r(
-                mu1.eta,
-                mu2.eta,
-                mu1.phi,
-                mu2.phi
+                mu1.eta, mu2.eta,
+                mu1.phi, mu2.phi
             )
 
             output['dimuon_dEta'] = mm_deta
             output['dimuon_dPhi'] = mm_dphi
             output['dimuon_dR'] = mm_dr
-
-            output['mu1_pt'] = mu1.pt
-            output['mu1_ptErr'] = mu1.ptErr
-            output['mu1_eta'] = mu1.eta
-            output['mu1_phi'] = mu1.phi
-            output['mu1_iso'] = mu1.pfRelIso04_all
-            output['mu1_pt_over_mass'] = output.mu1_pt / output.dimuon_mass
-
-            output['mu2_pt'] = mu2.pt
-            output['mu2_ptErr'] = mu2.ptErr
-            output['mu2_eta'] = mu2.eta
-            output['mu2_phi'] = mu2.phi
-            output['mu2_iso'] = mu2.pfRelIso04_all
-            output['mu2_pt_over_mass'] = output.mu2_pt / output.dimuon_mass
 
             output['dimuon_ebe_mass_res'] = mass_resolution_purdue(
                                                 is_mc,
@@ -573,108 +554,75 @@ class DimuonProcessor(processor.ProcessorABC):
 
         df['Jet', 'pt_raw'] = (1 - df.Jet.rawFactor) * df.Jet.pt
         df['Jet', 'mass_raw'] = (1 - df.Jet.rawFactor) * df.Jet.mass
-        df['Jet', 'pt_gen'] = ak.values_astype(
-            ak.fill_none(df.Jet.matched_gen.pt, 0), np.float32
-        )
         df['Jet', 'rho'] = ak.broadcast_arrays(
             df.fixedGridRhoFastjetAll, df.Jet.pt
         )[0]
+        
+        if is_mc:
+            df['Jet', 'pt_gen'] = ak.values_astype(
+                ak.fill_none(df.Jet.matched_gen.pt, 0), np.float32
+            )
 
         if self.timer:
             self.timer.add_checkpoint("Prepared jets")
 
         # ------------------------------------------------------------#
-        # Apply JEC, get JEC variations
+        # Apply JEC, get JEC and JER variations
         # ------------------------------------------------------------#
+        jets = df.Jet
 
-        # self.do_jec = True
-        # if self.do_jec:
-            # corrected_jets = self.jet_factory.build(
-            #     df.Jet, lazy_cache=df.caches[0]
-            # )
-            # print(df.Jet.pt)
-            # print(corrected_jets.pt_orig)
-            # print(corrected_jets.pt_jec)
-            # print(corrected_jets.pt_jer)
-            # print(self.jet_factory.uncertainties())
-
-        """
-        # self.do_jec = True
         self.do_jec = False
         if ('data' in dataset) and ('2018' in self.year):
             self.do_jec = True
-        jet_variation_names = ['nominal'] if\
-            ('nominal' in self.pt_variations) else []
 
-        if self.do_jec or self.do_jecunc:
+        if self.do_jec:
             if is_mc:
-                if self.do_jec:
-                    jets = JaggedCandidateArray.candidatesfromcounts(
-                        df.Jet.counts,
-                        **{c: df.Jet[c].flatten() for c in
-                           df.Jet.columns if 'matched' not in c})
-                    if self.timer:
-                        self.timer.add_checkpoint(
-                            "Converted jets to JCA")
-                    self.Jet_transformer.transform(
-                        jets, forceStochastic=False)
-                    df.Jet['pt'] = jets.pt
-                    df.Jet['eta'] = jets.eta
-                    df.Jet['phi'] = jets.phi
-                    df.Jet['mass'] = jets.mass
-                if self.do_jecunc:
-                    for junc_name in self.jet_unc_names:
-                        juncs = self.parameters["jec_unc_to_consider"]
-                        if junc_name not in juncs:
-                            continue
-                        up_ = (f"{junc_name}_up" not in
-                               self.pt_variations)
-                        dn_ = (f"{junc_name}_down" not in
-                               self.pt_variations)
-                        if up_ and dn_:
-                            continue
-                        jec_up_down = get_jec_unc(
-                            junc_name, df.Jet.pt,
-                            df.Jet.eta, self.JECuncertaintySources)
-                        jec_corr_up, jec_corr_down =\
-                            jec_up_down[:, :, 0], jec_up_down[:, :, 1]
-                        pt_name_up = f"pt_{junc_name}_up"
-                        pt_name_down = f"pt_{junc_name}_down"
-                        df.Jet[pt_name_up] = df.Jet.pt * jec_corr_up
-                        df.Jet[pt_name_down] =\
-                            df.Jet.pt * jec_corr_down
-                        if (f"{junc_name}_up" in self.pt_variations):
-                            jet_variation_names += [f"{junc_name}_up"]
-                        if (f"{junc_name}_down" in self.pt_variations):
-                            jet_variation_names +=\
-                                [f"{junc_name}_down"]
-
-            elif self.do_jec:
+                factory = self.jet_factory['jec']
+            else:
                 for run in self.data_runs:
-                    # 'A', 'B', 'C', 'D', etc...
                     if run in dataset:
-                        # dataset name is something like 'data_B'
-                        jets =\
-                            JaggedCandidateArray.candidatesfromcounts(
-                                df.Jet.counts,
-                                **{c: df.Jet[c].flatten() for c in
-                                   df.Jet.columns
-                                   if 'matched' not in c})
-                        if self.timer:
-                            self.timer.add_checkpoint(
-                                "Converted jets to JCA")
+                        factory = self.jec_factories_data[run]
+            jets = factory.build(df.Jet, lazy_cache=df.caches[0])
 
-                        self.Jet_transformer_data[run].transform(
-                                jets, forceStochastic=False)
-                        df.Jet['pt'] = jets.pt
-                        df.Jet['eta'] = jets.eta
-                        df.Jet['phi'] = jets.phi
-                        df.Jet['mass'] = jets.mass
-            if self.timer:
-                self.timer.add_checkpoint("Applied JEC")
+        if is_mc and self.do_jecunc:
+            jets = self.jet_factory['junc'].build(
+                jets, lazy_cache=df.caches[0]
+            )
+
         if is_mc and self.do_jerunc:
-            # for c in df.Jet.columns:
-            #     print(c, len(df.Jet[c].flatten()))
+            jets = self.jet_factory['jer'].build(
+                jets, lazy_cache=df.caches[0]
+            )
+
+        # TODO: only consider nuisances that are defined in run parameters
+
+        # for some reason jets are doubled, so we need additional filter
+        jets = ak.to_pandas(jets).loc[pd.IndexSlice[:, :, 0], :]
+        jets.index = jets.index.droplevel('subsubentry')
+        
+        new_columns = []
+        for v in jets.columns.values:
+            if type(v) is tuple:
+                new_columns.append(v)
+            else:
+                new_columns.append(('nominal','', v))
+        jets.columns = new_columns
+        jets.columns = pd.MultiIndex.from_tuples(
+            jets.columns, names=['Variation','Up/Down', 'Variable']
+        )
+
+        if self.do_jec:
+            jets[('nominal', '', 'pt')] = jets[('nominal', '', 'pt_jec')]
+            jets[('nominal', '', 'mass')] = jets[('nominal', '', 'mass_jec')]
+
+        if self.do_jerunc:
+            # We use JER corrections only for systematics, not actually applying JER
+            jets[('nominal', '', 'pt')] = jets[('nominal', '', 'pt_orig')]
+            jets[('nominal', '', 'mass')] = jets[('nominal', '', 'mass_orig')]
+
+        # TODO: JER nuisances
+        """
+        if is_mc and self.do_jerunc:
             jetarrays = {c: df.Jet[c].flatten() for c in
                          df.Jet.columns if 'matched' not in c}
             pt_gen_jet = df.Jet['matched_genjet'].pt.flatten(axis=0)
@@ -736,34 +684,38 @@ class DimuonProcessor(processor.ProcessorABC):
             if self.timer:
                 self.timer.add_checkpoint("Computed JER nuisances")
 
-        df.Jet['pt_nominal'] = df.Jet.pt
-        df.Jet = df.Jet[df.Jet.pt.argsort()]
         """
-
-        # for some reason jets are doubled, so need additional filter
-        jets = ak.to_pandas(df.Jet).loc[pd.IndexSlice[:, :, 0], :]
-        jets.index = jets.index.droplevel('subsubentry')
-
         if self.timer:
             self.timer.add_checkpoint("Applied JEC/JER (if enabled)")
 
         # ------------------------------------------------------------#
         # Apply jetID
         # ------------------------------------------------------------#
+        jet_id = jets[('nominal', '', 'jetId')]
+        jet_qgl = jets[('nominal', '', 'qgl')]
+
+        pass_jet_id = np.ones_like(jet_id, dtype=bool)
 
         if "loose" in self.parameters["jet_id"]:
-            jet_id = (jets.jetId >= 1)
+            pass_jet_id = (jet_id >= 1)
         elif "tight" in self.parameters["jet_id"]:
             if '2016' in self.year:
-                jet_id = (jets.jetId >= 3)
+                pass_jet_id = (jet_id >= 3)
             else:
-                jet_id = (jets.jetId >= 2)
-        else:
-            jet_id = np.ones(len(jets), dtype=bool)
+                pass_jet_id = (jet_id >= 2)
 
-        good_jet_id = jet_id & (jets.qgl > -2)
-
-        jets = jets[good_jet_id]
+        jets = jets[pass_jet_id & (jet_qgl > -2)]
+        
+        # TODO: clean jets from muons
+        """
+        mujet = df.Jet.cross(self.muons_all, nested=True)
+        _, _, deltar_mujet = delta_r(
+            mujet.i0.eta, mujet.i1.eta_raw, mujet.i0.phi,
+            mujet.i1.phi_raw)
+        deltar_mujet_ok = (
+            deltar_mujet > self.parameters["min_dr_mu_jet"]).all()
+        jets = jets[deltar_mujet_ok]
+        """
 
         # ------------------------------------------------------------#
         # Calculate other event weights
@@ -946,10 +898,12 @@ class DimuonProcessor(processor.ProcessorABC):
             [output.columns, ['']], names=['Variable', 'Variation']
         )
         for v_name in self.pt_variations:
-            output = self.jec_loop(
+            output_updated = self.jec_loop(
                 v_name, is_mc, df, dataset, mask, muons,
                 mu1, mu2, jets, weights, numevents, output
             )
+            if output_updated is not None:
+                output = output_updated
         if self.timer:
             self.timer.add_checkpoint("Completed JEC loop")
 
@@ -1027,15 +981,28 @@ class DimuonProcessor(processor.ProcessorABC):
     def jec_loop(self, variation, is_mc, df, dataset, mask, muons,
                  mu1, mu2, jets, weights, numevents, output):
         weights = copy.deepcopy(weights)
+        
+        # What is done here:
+        # for each systematic variation of jet pT (including nominal)
+        # - selection (with pt cut)
+        # - puID depends on pt
+        # - picking two highest-pT jets
+        # - variables for the jet pair
+        # - QGL weights
+        # - Soft activity variables
+        # - B-tag weighs
+        # - Category definitions
+        # - Matching jets to genjets
+        
         # ------------------------------------------------------------#
         # Initialize jet-related variables
         # ------------------------------------------------------------#
 
         variable_names = [
             'jet1_pt', 'jet1_eta', 'jet1_rap', 'jet1_phi', 'jet1_qgl',
-            'jet1_id', 'jet1_puid',
+            'jet1_jetId', 'jet1_puId',
             'jet2_pt', 'jet2_eta', 'jet2_rap', 'jet2_phi', 'jet2_qgl',
-            'jet2_id', 'jet2_puid',
+            'jet2_jetId', 'jet2_puId',
             'jj_mass', 'jj_mass_log', 'jj_pt', 'jj_eta', 'jj_phi',
             'jj_dEta', 'jj_dPhi',
             'mmj1_dEta', 'mmj1_dPhi', 'mmj1_dR',
@@ -1043,7 +1010,7 @@ class DimuonProcessor(processor.ProcessorABC):
             'mmj_min_dEta', 'mmj_min_dPhi', 'mmjj_pt',
             'mmjj_eta', 'mmjj_phi', 'mmjj_mass', 'rpt',
             'zeppenfeld', 'll_zstar_log', 'nsoftjets2',
-            'nsoftjets5', 'htsoft2', 'htsoft5'
+            'nsoftjets5', 'htsoft2', 'htsoft5', 'selection'
         ]
 
         variables = pd.DataFrame(index=output.index, columns=variable_names)
@@ -1052,25 +1019,25 @@ class DimuonProcessor(processor.ProcessorABC):
         # ------------------------------------------------------------#
         # Select jets for certain pT variation
         # ------------------------------------------------------------#
-
-        if is_mc and variation != 'nominal':
-            pt_name = f'pt_{variation}'
+        if '_up' in variation:
+            unc_name = 'JES_'+variation.replace('_up', '')
+            jets = jets.loc[:, ([unc_name], ['up'], slice(None))]
+        elif '_down' in variation:
+            unc_name = variation.replace('_down', '')
+            jets = jets.loc[:, ([unc_name], ['down'], slice(None))]
         else:
-            pt_name = 'pt'
+            jets = jets.loc[:, (['nominal'], slice(None), slice(None))]
+        
+        jets.columns = jets.columns.droplevel('Variation')
+        jets.columns = jets.columns.droplevel('Up/Down')
 
-        """
-        mujet = df.Jet.cross(self.muons_all, nested=True)
-        _, _, deltar_mujet = delta_r(
-            mujet.i0.eta, mujet.i1.eta_raw, mujet.i0.phi,
-            mujet.i1.phi_raw)
-        deltar_mujet_ok = (
-            deltar_mujet > self.parameters["min_dr_mu_jet"]).all()
-        """
+        if jets.count().sum()==0:
+            return
+
         jet_selection = (
-            (jets[pt_name] > self.parameters["jet_pt_cut"]) &
+            (jets.pt > self.parameters["jet_pt_cut"]) &
             (abs(jets.eta) < self.parameters["jet_eta_cut"])
         )
-        # & deltar_mujet_ok
 
         # ------------------------------------------------------------#
         # Calculate PUID scale factors and apply PUID
@@ -1080,36 +1047,29 @@ class DimuonProcessor(processor.ProcessorABC):
         jet_puid_opt = self.parameters["jet_puid"]
         puId = jets.puId17 if self.year == "2017" else jets.puId
         jet_puid_wps = {
-            "loose": (puId >= 4) | (jets[pt_name] > 50),
-            "medium": (puId >= 6) | (jets[pt_name] > 50),
-            "tight": (puId >= 7) | (jets[pt_name] > 50),
+            "loose": (puId >= 4) | (jets.pt > 50),
+            "medium": (puId >= 6) | (jets.pt > 50),
+            "tight": (puId >= 7) | (jets.pt > 50),
         }
-
+        jet_puid = np.ones_like(jets.pt.values)
         if jet_puid_opt in ["loose", "medium", "tight"]:
             jet_puid = jet_puid_wps[jet_puid_opt]
         elif "2017corrected" in jet_puid_opt:
             eta_window = (
-                (abs(jets.eta) > 2.6) &
-                (abs(jets.eta) < 3.0)
-            )
-            not_eta_window = (
-                (abs(jets.eta) < 2.6) |
-                (abs(jets.eta) > 3.0)
+                (abs(jets.eta) > 2.6) & (abs(jets.eta) < 3.0)
             )
             jet_puid = (
                 (eta_window & (puId >= 7)) |
-                (not_eta_window & jet_puid_wps['loose'])
+                ((~eta_window) & jet_puid_wps['loose'])
             )
-        else:
-            jet_puid = jets.pt.ones_like()
 
         # Jet PUID scale factors
-        if is_mc and False:  # disable for now
-            puid_weight = puid_weights(
-                self.evaluator, self.year, df.Jet, pt_name,
-                jet_puid_opt, jet_puid, numevents
-            )
-            weights.add_weight('puid_wgt', puid_weight)
+        #if is_mc and False:  # disable for now
+        #    puid_weight = puid_weights(
+        #        self.evaluator, self.year, jets, pt_name,
+        #        jet_puid_opt, jet_puid, numevents
+        #    )
+        #    weights.add_weight('puid_wgt', puid_weight)
 
         jets['selection'] = jet_selection & jet_puid
 
@@ -1122,62 +1082,39 @@ class DimuonProcessor(processor.ProcessorABC):
 
         njets = jets[jets.selection].reset_index()\
             .groupby('entry')['subentry'].nunique()
+        variables['njets'] = njets
 
-        output['njets'] = njets
         one_jet = (jets.selection & (njets > 0))
-        two_jets = (jets.selection & (njets > 2))
+        two_jets = (jets.selection & (njets > 1))
 
+        # Sort jets by pT and reset their numbering in an event
+        jets = jets.sort_values(['entry','pt'], ascending=[True,False])
+        jets.index = pd.MultiIndex.from_arrays(
+            [
+                jets.index.get_level_values(0),
+                jets.groupby(level=0).cumcount()
+            ],
+            names=['entry', 'subentry']
+        )
+
+        # Select two jets with highest pT
         jet1 = jets.loc[pd.IndexSlice[:, 0], :]
         jet2 = jets.loc[pd.IndexSlice[:, 1], :]
         jet1.index = jet1.index.droplevel('subentry')
         jet2.index = jet2.index.droplevel('subentry')
 
-        if is_mc:
-            qgl = pd.DataFrame(
-                index=output.index, columns=['wgt', 'wgt_down']
-            )
-            qgl = qgl.fillna(1.0)
+        # Fill single jet variables
+        for v in ['pt','eta','phi','qgl', 'jetId', 'puId']:
+            variables[f'jet1_{v}'] = jet1[v]
+            variables[f'jet2_{v}'] = jet2[v]
 
-            isHerwig = ('herwig' in dataset)
-            qgl1 = qgl_weights(jet1, isHerwig).fillna(1.0)
-            qgl.wgt *= qgl1
-
-            qgl2 = qgl_weights(jet2, isHerwig).fillna(1.0)
-            qgl.wgt *= qgl2
-
-            qgl.wgt[output.njets == 1] = 1.
-            selected = output.event_selection & (output.njets > 2)
-            qgl.wgt = qgl.wgt / qgl.wgt[selected].mean()
-
-            weights.add_weight_with_variations(
-                'qgl_wgt', qgl.wgt,
-                up=qgl.wgt*qgl.wgt, down=qgl.wgt_down
-            )
-
-        # Fill flat arrays of fixed length (numevents)
-
-        variables.jet1_pt = jet1[pt_name]
-        variables.jet1_eta = jet1.eta
         variables.jet1_rap = rapidity(jet1)
-        variables.jet1_phi = jet1.phi
-        variables.jet1_qgl = jet1.qgl
-        variables.jet1_id = jet1.jetId
-        variables.jet1_puid = jet1.puId
-
-        variables.jet2_pt = jet2[pt_name]
-        variables.jet2_eta = jet2.eta
         variables.jet2_rap = rapidity(jet2)
-        variables.jet2_phi = jet2.phi
-        variables.jet2_qgl = jet2.qgl
-        variables.jet2_id = jet2.jetId
-        variables.jet2_puid = jet2.puId
 
+        # Fill dijet variables
         jj = p4_sum(jet1, jet2)
-
-        variables.jj_pt = jj.pt
-        variables.jj_eta = jj.eta
-        variables.jj_phi = jj.phi
-        variables.jj_mass = jj.mass
+        for v in ['pt','eta','phi','mass']:
+            variables[f'jj_{v}'] = jj[v]
 
         variables.jj_mass_log = np.log(variables.jj_mass)
 
@@ -1188,27 +1125,31 @@ class DimuonProcessor(processor.ProcessorABC):
             variables.jet2_phi
         )
 
-        # Definition with rapidity would be different
+        # Fill dimuon-dijet system variables
+        mm_columns = [
+            'dimuon_pt', 'dimuon_eta', 'dimuon_phi', 'dimuon_mass'
+        ]
+        jj_columns = [
+            'jj_pt', 'jj_eta', 'jj_phi', 'jj_mass'
+        ]
+
+        dimuons = output.loc[:, mm_columns]
+        dijets = variables.loc[:, jj_columns]
+
+        # careful with renaming
+        dimuons.columns = ['mass', 'pt', 'eta', 'phi']
+        dijets.columns = ['pt', 'eta', 'phi', 'mass']
+
+        mmjj = p4_sum(dimuons, dijets)
+        for v in ['pt','eta','phi','mass']:
+            variables[f'mmjj_{v}'] = mmjj[v]
+
         variables.zeppenfeld = (
             output.dimuon_eta - 0.5 * (
                 variables.jet1_eta +
                 variables.jet2_eta
             )
         )
-
-        variables.mmjj_pt,\
-            variables.mmjj_eta,\
-            variables.mmjj_phi,\
-            variables.mmjj_mass = p4_sum_alt(
-                output.dimuon_pt,
-                output.dimuon_eta,
-                output.dimuon_phi,
-                output.dimuon_mass,
-                variables.jj_pt,
-                variables.jj_eta,
-                variables.jj_phi,
-                variables.jj_mass
-            )
 
         variables.rpt = variables.mmjj_pt / (
             output.dimuon_pt +
@@ -1278,13 +1219,15 @@ class DimuonProcessor(processor.ProcessorABC):
         #         jet1, jet2, two_muons, one_jet, two_jets
         #     )
 
-        if self.timer:
-            self.timer.add_checkpoint("Calculated SA variables")
+        # if self.timer:
+        #     self.timer.add_checkpoint("Calculated SA variables")
 
         # ------------------------------------------------------------#
         # Apply remaining cuts
         # ------------------------------------------------------------#
 
+        # Cut has to be defined here because we will use it in
+        # b-tag weights calculation
         vbf_cut = (
             (variables.jj_mass > 400) &
             (variables.jj_dEta > 2.5) &
@@ -1292,8 +1235,28 @@ class DimuonProcessor(processor.ProcessorABC):
         )
 
         # ------------------------------------------------------------#
-        # Calculate btag SF and apply btag veto
+        # Calculate QGL weights, btag SF and apply btag veto
         # ------------------------------------------------------------#
+
+        if is_mc:
+            isHerwig = ('herwig' in dataset)
+
+            qgl = pd.DataFrame(
+                index=output.index, columns=['wgt', 'wgt_down']
+            ).fillna(1.0)
+
+            qgl1 = qgl_weights(jet1, isHerwig).fillna(1.0)
+            qgl2 = qgl_weights(jet2, isHerwig).fillna(1.0)
+            qgl.wgt *= qgl1 * qgl2
+
+            qgl.wgt[variables.njets == 1] = 1.
+            selected = output.event_selection & (njets > 2)
+            qgl.wgt = qgl.wgt / qgl.wgt[selected].mean()
+
+            weights.add_weight_with_variations(
+                'qgl_wgt', qgl.wgt,
+                up=qgl.wgt*qgl.wgt, down=qgl.wgt_down
+            )
 
         # TODO: fix
         """
@@ -1317,42 +1280,43 @@ class DimuonProcessor(processor.ProcessorABC):
         """
 
         # Separate from ttH and VH phase space
-        output['nBtagLoose'] = jets[
+        variables['nBtagLoose'] = jets[
             jets.selection &
             (jets.btagDeepB > self.parameters["btag_loose_wp"]) &
             (abs(jets.eta) < 2.5)
         ].reset_index().groupby('entry')['subentry'].nunique()
 
-        output['nBtagMedium'] = jets[
+        variables['nBtagMedium'] = jets[
             jets.selection &
             (jets.btagDeepB > self.parameters["btag_medium_wp"]) &
             (abs(jets.eta) < 2.5)
         ].reset_index().groupby('entry')['subentry'].nunique()
-        output.nBtagLoose = output.nBtagLoose.fillna(0.0)
-        output.nBtagMedium = output.nBtagMedium.fillna(0.0)
+        variables.nBtagLoose = variables.nBtagLoose.fillna(0.0)
+        variables.nBtagMedium = variables.nBtagMedium.fillna(0.0)
 
-        output.event_selection = (
+        variables.selection = (
             output.event_selection &
-            (output.nBtagLoose < 2) &
-            (output.nBtagMedium < 1)
+            (variables.nBtagLoose < 2) &
+            (variables.nBtagMedium < 1)
         )
 
         if self.timer:
             self.timer.add_checkpoint(
-                "Applied b-jet SF and b-tag veto")
+                "Applied b-jet SF and b-tag veto"
+            )
 
         # ------------------------------------------------------------#
         # Define categories
         # ------------------------------------------------------------#
         variables['c'] = ''
         variables.c[
-            output.event_selection & (output.njets < 2)] = 'ggh_01j'
+            variables.selection & (variables.njets < 2)] = 'ggh_01j'
         variables.c[
-            output.event_selection &
-            (output.njets >= 2) & (~vbf_cut)] = 'ggh_2j'
+            variables.selection &
+            (variables.njets >= 2) & (~vbf_cut)] = 'ggh_2j'
         variables.c[
-            output.event_selection &
-            (output.njets >= 2) & vbf_cut] = 'vbf'
+            variables.selection &
+            (variables.njets >= 2) & vbf_cut] = 'vbf'
 
         if 'dy' in dataset:
             two_jets_matched = np.zeros(numevents, dtype=bool)
@@ -1361,19 +1325,18 @@ class DimuonProcessor(processor.ProcessorABC):
             matched2 = (jet2.matched_genjet.counts > 0)
             two_jets_matched[two_jets] = matched1 & matched2
             variables.c[
-                output.event_selection &
-                (output.njets >= 2) &
+                variables.selection &
+                (variables.njets >= 2) &
                 vbf_cut & (~two_jets_matched)] = 'vbf_01j'
             variables.c[
-                output.event_selection &
-                (output.njets >= 2) &
+                variables.selection &
+                (variables.njets >= 2) &
                 vbf_cut & two_jets_matched] = 'vbf_2j'
 
         # --------------------------------------------------------------#
         # Fill outputs
         # --------------------------------------------------------------#
 
-        variables.update({'njets': output.njets})
         variables.update({'wgt_nominal': weights.get_weight('nominal')})
 
         # All variables are affected by jet pT because of jet selections:
@@ -1405,7 +1368,7 @@ class DimuonProcessor(processor.ProcessorABC):
 
         j1_two_jets = two_jets[one_jet]
 
-        sj_j = softjets.cross(df.Jet, nested=True)
+        sj_j = softjets.cross(jets, nested=True)
         sj_mu = softjets.cross(muons, nested=True)
 
         _, _, dr_sj_j = delta_r(
