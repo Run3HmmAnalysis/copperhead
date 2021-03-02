@@ -1059,7 +1059,7 @@ class DimuonProcessor(processor.ProcessorABC):
             .groupby('entry')['subentry'].nunique()
         variables['njets'] = njets
 
-        one_jet = (njets > 0)
+        # one_jet = (njets > 0)
         two_jets = (njets > 1)
 
         # Sort jets by pT and reset their numbering in an event
