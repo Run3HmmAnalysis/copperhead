@@ -17,7 +17,7 @@ from python.timer import Timer
 from python.weights import Weights
 from python.corrections import musf_lookup, musf_evaluator, pu_lookup
 from python.corrections import pu_evaluator, NNLOPS_Evaluator
-from python.corrections import qgl_weights, puid_weights , btag_weights
+from python.corrections import qgl_weights, btag_weights  # puid_weights
 from python.corrections import apply_roccor, fsr_recovery, apply_geofit
 from python.stxs_uncert import vbf_uncert_stage_1_1, stxs_lookups
 from python.mass_resolution import mass_resolution_purdue

@@ -462,7 +462,7 @@ def btag_weights(processor, lookup, systs, jets,
 
     btag = pd.DataFrame(index=bjet_sel_mask.index)
     jets = jets[abs(jets.eta) < 2.4]
-    jets.loc[jets.pt>1000., 'pt'] = 1000.
+    jets.loc[jets.pt > 1000., 'pt'] = 1000.
 
     jets['btag_wgt'] = lookup.eval(
         'central',
@@ -519,7 +519,6 @@ def btag_weights(processor, lookup, systs, jets,
             btag[f'{sys}_up'],
             btag[f'{sys}_down']
         ]
-
 
     sum_before = weights.df['nominal'][bjet_sel_mask].sum()
     sum_after = weights.df['nominal'][bjet_sel_mask].multiply(
