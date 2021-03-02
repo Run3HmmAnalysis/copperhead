@@ -89,7 +89,7 @@ def apply_roccor(df, rochester, is_mc):
         corrections[~hasgen_flat] = np.array(ak.flatten(mc_ksmear))
         # errors[hasgen.flatten()] = np.array(ak.flatten(errspread))
         # errors[~hasgen.flatten()] = np.array(ak.flatten(errsmear))
-        
+
         corrections = ak.unflatten(
             corrections, ak.num(df.Muon.pt, axis=1)
         )
@@ -108,7 +108,7 @@ def apply_roccor(df, rochester, is_mc):
         #                 df.Muon.phi)
 
     df['Muon', 'pt_roch'] = (
-        df.Muon.pt * corrections  
+        df.Muon.pt * corrections
     )
     # df['Muon', 'pt_roch_up'] = df.Muon.pt_roch + df.Muon.pt*error
     # df['Muon', 'pt_roch_down'] = df.Muon.pt_roch - df.Muon.pt*error

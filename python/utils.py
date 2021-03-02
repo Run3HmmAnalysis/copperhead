@@ -228,6 +228,7 @@ def cs_variables(mu1, mu2):
     phi_cs = np.arctan2(muminus[1], muminus[0])
     return cos_theta_cs, phi_cs
 
+
 def delta_r(eta1, eta2, phi1, phi2):
     deta = abs(eta1 - eta2)
     dphi = abs(np.mod(phi1 - phi2 + np.pi, 2*np.pi) - np.pi)
