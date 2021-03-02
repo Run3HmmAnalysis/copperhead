@@ -755,68 +755,48 @@ class DimuonProcessor(processor.ProcessorABC):
             #     'muTrig', muTrig['nom'], muTrig['up'], muTrig['down'])
 
             if ('nominal' in self.pt_variations):
-                try:
-                    if (('dy_m105_160_amc' in dataset) and
-                        (('2017' in self.year) or
-                         ('2018' in self.year))):
-                        lhefactor = 2.
-                    else:
-                        lhefactor = 1.
-                    nLHEScaleWeight = df.LHEScaleWeight.counts
+                if (
+                    ('dy_m105_160_amc' in dataset) and
+                    (('2017' in self.year) or ('2018' in self.year))
+                ):
+                    lhefactor = 2.
+                else:
+                    lhefactor = 1.
+                nLHEScaleWeight = ak.count(df.LHEScaleWeight, axis=1)
+                lhe_df = pd.DataFrame(
+                    data=ak.to_numpy(nLHEScaleWeight),
+                    index=output.index,
+                    columns=['nLHEScaleWeight']
+                )
+                for i in [1, 3, 4, 5, 6, 7, 15, 24, 34]:
+                    cut = lhe_df.nLHEScaleWeight > i
+                    cut_ak = nLHEScaleWeight > i
+                    lhe_df[f'LHE{i}'] = 1.0
+                    lhe_df.loc[cut, f'LHE{i}'] =\
+                        ak.to_numpy(df.LHEScaleWeight[cut_ak][:, i])
 
-                    lhe_ren_up = np.full(
-                        numevents, df.LHEScaleWeight[:, 6] * lhefactor,
-                        dtype=float)
-                    lhe_ren_up[nLHEScaleWeight > 8] =\
-                        df.LHEScaleWeight[
-                            nLHEScaleWeight > 8][:, 7] * lhefactor
-                    lhe_ren_up[nLHEScaleWeight > 30] =\
-                        df.LHEScaleWeight[
-                            nLHEScaleWeight > 30][:, 34] * lhefactor
-                    lhe_ren_down = np.full(
-                        numevents, df.LHEScaleWeight[:, 1] * lhefactor,
-                        dtype=float)
-                    lhe_ren_down[nLHEScaleWeight > 8] =\
-                        df.LHEScaleWeight[
-                            nLHEScaleWeight > 8][:, 1] * lhefactor
-                    lhe_ren_down[nLHEScaleWeight > 30] =\
-                        df.LHEScaleWeight[
-                            nLHEScaleWeight > 30][:, 5] * lhefactor
-                    weights.add_only_variations(
-                        'LHERen', lhe_ren_up, lhe_ren_down)
-                    lhe_fac_up = np.full(
-                        numevents, df.LHEScaleWeight[:, 4] * lhefactor,
-                        dtype=float)
-                    lhe_fac_up[nLHEScaleWeight > 8] =\
-                        df.LHEScaleWeight[
-                            nLHEScaleWeight > 8][:, 5] * lhefactor
-                    lhe_fac_up[nLHEScaleWeight > 30] =\
-                        df.LHEScaleWeight[
-                            nLHEScaleWeight > 30][:, 24] * lhefactor
-                    lhe_fac_down = np.full(
-                        numevents, df.LHEScaleWeight[:, 3] * lhefactor,
-                        dtype=float)
-                    lhe_fac_down[nLHEScaleWeight > 8] =\
-                        df.LHEScaleWeight[
-                            nLHEScaleWeight > 8][:, 3] * lhefactor
-                    lhe_fac_down[nLHEScaleWeight > 30] =\
-                        df.LHEScaleWeight[
-                            nLHEScaleWeight > 30][:, 15] * lhefactor
-                    weights.add_only_variations(
-                        'LHEFac', lhe_fac_up, lhe_fac_down)
-                except Exception:
-                    weights.add_only_variations(
-                        'LHEFac',
-                        np.full(
-                            output.shape[0], np.nan, dtype='float64'),
-                        np.full(
-                            output.shape[0], np.nan, dtype='float64'))
-                    weights.add_only_variations(
-                        'LHERen',
-                        np.full(
-                            output.shape[0], np.nan, dtype='float64'),
-                        np.full(
-                            output.shape[0], np.nan, dtype='float64'))
+                cut8 = lhe_df.nLHEScaleWeight > 8
+                cut30 = lhe_df.nLHEScaleWeight > 30
+                lhe_ren_up = lhe_df.LHE6 * lhefactor
+                lhe_ren_up[cut8] = lhe_df.LHE7 * lhefactor
+                lhe_ren_up[cut30] = lhe_df.LHE34 * lhefactor
+                lhe_ren_down = lhe_df.LHE1 * lhefactor
+                lhe_ren_down[cut8] = lhe_df.LHE1 * lhefactor
+                lhe_ren_down[cut30] = lhe_df.LHE5 * lhefactor
+
+                lhe_fac_up = lhe_df.LHE4 * lhefactor
+                lhe_fac_up[cut8] = lhe_df.LHE5 * lhefactor
+                lhe_fac_up[cut30] = lhe_df.LHE24 * lhefactor
+                lhe_fac_down = lhe_df.LHE3 * lhefactor
+                lhe_fac_down[cut8] = lhe_df.LHE3 * lhefactor
+                lhe_fac_down[cut30] = lhe_df.LHE15 * lhefactor
+
+                weights.add_only_variations(
+                        'LHERen', lhe_ren_up, lhe_ren_down
+                )
+                weights.add_only_variations(
+                        'LHEFac', lhe_fac_up, lhe_fac_down
+                )
 
             do_thu = (
                 ('vbf' in dataset) and
@@ -1312,20 +1292,20 @@ class DimuonProcessor(processor.ProcessorABC):
             variables.selection &
             (variables.njets >= 2) & vbf_cut] = 'vbf'
 
-        if 'dy' in dataset:
-            two_jets_matched = np.zeros(numevents, dtype=bool)
-            matched1 =\
-                (jet1.matched_genjet.counts > 0)[two_jets[one_jet]]
-            matched2 = (jet2.matched_genjet.counts > 0)
-            two_jets_matched[two_jets] = matched1 & matched2
-            variables.c[
-                variables.selection &
-                (variables.njets >= 2) &
-                vbf_cut & (~two_jets_matched)] = 'vbf_01j'
-            variables.c[
-                variables.selection &
-                (variables.njets >= 2) &
-                vbf_cut & two_jets_matched] = 'vbf_2j'
+        # if 'dy' in dataset:
+        #     two_jets_matched = np.zeros(numevents, dtype=bool)
+        #     matched1 =\
+        #         (jet1.matched_genjet.counts > 0)[two_jets[one_jet]]
+        #     matched2 = (jet2.matched_genjet.counts > 0)
+        #     two_jets_matched[two_jets] = matched1 & matched2
+        #     variables.c[
+        #         variables.selection &
+        #         (variables.njets >= 2) &
+        #         vbf_cut & (~two_jets_matched)] = 'vbf_01j'
+        #     variables.c[
+        #         variables.selection &
+        #         (variables.njets >= 2) &
+        #         vbf_cut & two_jets_matched] = 'vbf_2j'
 
         # --------------------------------------------------------------#
         # Fill outputs
