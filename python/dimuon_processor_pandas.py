@@ -748,11 +748,17 @@ class DimuonProcessor(processor.ProcessorABC):
             )
 
             weights.add_weight_with_variations(
-                'muID', sf['muID'], sf['muID_up'], sf['muID_down'])
+                'muID', sf['muID_nom'],
+                sf['muID_up'], sf['muID_down']
+            )
             weights.add_weight_with_variations(
-                'muIso', sf['muIso'], sf['muIso_up'], sf['muIso_down'])
-            # weights.add_weight_with_variations(
-            #     'muTrig', muTrig['nom'], muTrig['up'], muTrig['down'])
+                'muIso', sf['muIso_nom'],
+                sf['muIso_up'], sf['muIso_down']
+            )
+            weights.add_weight_with_variations(
+                'muTrig', sf['muTrig_nom'],
+                sf['muTrig_up'], sf['muTrig_down']
+            )
 
             if ('nominal' in self.pt_variations):
                 if (

@@ -266,16 +266,19 @@ def musf_lookup(parameters):
 
 
 def musf_evaluator(lookups, year, numevents, mu1, mu2):
-    # TODO: fix implementation of trig SF
     sf = pd.DataFrame(
         index=mu1.index,
         columns=[
-            'muID', 'muID_up', 'muID_down',
-            'muIso', 'muIso_up', 'muIso_down',
-            'muTrig', 'muTrig_up', 'muTrig_down',
+            'muID_nom', 'muID_up', 'muID_down',
+            'muIso_nom', 'muIso_up', 'muIso_down',
+            'muTrig_nom', 'muTrig_up', 'muTrig_down',
         ]
     )
     sf = sf.fillna(1.0)
+
+    for how in ['nom', 'up', 'down']:
+        sf[f'trig_num_{how}'] = 1.0
+        sf[f'trig_denom_{how}'] = 1.0
 
     for mu in [mu1, mu2]:
         pt = mu.pt_raw.values
@@ -287,39 +290,47 @@ def musf_evaluator(lookups, year, numevents, mu1, mu2):
             muIso_ = lookups['mu_iso_sf'](eta, pt)
             muIDerr = lookups['mu_id_err'](eta, pt)
             muIsoerr = lookups['mu_iso_err'](eta, pt)
-            # muTrig_data = lookups['mu_trig_eff_data'](abs_eta, pt)
-            # muTrig_mc = lookups['mu_trig_eff_mc'](abs_eta, pt)
-            # muTrigerr_data = lookups['mu_trig_err_data'](abs_eta, pt)
-            # muTrigerr_mc = lookups['mu_trig_err_mc'](abs_eta, pt)
         else:
             muID_ = lookups['mu_id_sf'](pt, abs_eta)
             muIso_ = lookups['mu_iso_sf'](pt, abs_eta)
             muIDerr = lookups['mu_id_err'](pt, abs_eta)
             muIsoerr = lookups['mu_iso_err'](pt, abs_eta)
-            # muTrig_data = lookups['mu_trig_eff_data'](abs_eta, pt)
-            # muTrig_mc = lookups['mu_trig_eff_mc'](abs_eta, pt)
-            # muTrigerr_data = lookups['mu_trig_err_data'](abs_eta, pt)
-            # muTrigerr_mc = lookups['mu_trig_err_mc'](abs_eta, pt)
 
-        # denom = ((1 - (1. - muTrig_mc).prod()))
-        # denom_up = ((1 - (1. - muTrig_mc - muTrigerr_mc).prod()) != 0)
-        # denom_dn = ((1 - (1. - muTrig_mc + muTrigerr_mc).prod()) != 0)
+        muTrig_data = lookups['mu_trig_eff_data'](abs_eta, pt)
+        muTrig_mc = lookups['mu_trig_eff_mc'](abs_eta, pt)
+        muTrigerr_data = lookups['mu_trig_err_data'](abs_eta, pt)
+        muTrigerr_mc = lookups['mu_trig_err_mc'](abs_eta, pt)
 
-        # muTrig[denom != 0] = (
-        #     (1 - (1. - muTrig_data).prod())[denom != 0] / denom[denom != 0])
-        # muTrig_up[denom_up != 0] = (
-        #     (1 - (1. - muTrig_data - muTrigerr_data).prod())[denom_up != 0] /
-        #     denom_up[denom_up != 0])
-        # muTrig_down[denom_dn != 0] = (
-        #     (1 - (1. - muTrig_data + muTrigerr_data).prod())[denom_dn != 0] /
-        #     denom_dn[denom_dn != 0])
+        sf['trig_num_nom'] *= (1. - ak.to_numpy(muTrig_data))
+        sf['trig_num_up'] *= (
+            1. - ak.to_numpy(muTrig_data - muTrigerr_data)
+        )
+        sf['trig_num_down'] *= (
+            1. - ak.to_numpy(muTrig_data + muTrigerr_data)
+        )
+        sf['trig_denom_nom'] *= (1. - ak.to_numpy(muTrig_mc))
+        sf['trig_denom_up'] *= (
+            1. - ak.to_numpy(muTrig_mc - muTrigerr_mc)
+        )
+        sf['trig_denom_down'] *= (
+            1. - ak.to_numpy(muTrig_mc + muTrigerr_mc)
+        )
 
-        sf['muID'] = sf['muID']*ak.to_numpy(muID_)
-        sf['muID_up'] = sf['muID_up']*ak.to_numpy(muID_ + muIDerr)
-        sf['muID_down'] = sf['muID_down']*ak.to_numpy(muID_ - muIDerr)
-        sf['muIso'] = sf['muIso']*ak.to_numpy(muIso_)
-        sf['muIso_up'] = sf['muIso_up']*ak.to_numpy(muIso_ + muIsoerr)
-        sf['muIso_down'] = sf['muIso_down']*ak.to_numpy(muIso_ - muIsoerr)
+        sf['muID_nom'] *= ak.to_numpy(muID_)
+        sf['muID_up'] *= ak.to_numpy(muID_ + muIDerr)
+        sf['muID_down'] *= ak.to_numpy(muID_ - muIDerr)
+        sf['muIso_nom'] *= ak.to_numpy(muIso_)
+        sf['muIso_up'] *= ak.to_numpy(muIso_ + muIsoerr)
+        sf['muIso_down'] *= ak.to_numpy(muIso_ - muIsoerr)
+
+    for how in ['nom', 'up', 'down']:
+        sf[f'trig_num_{how}'] = (1 - sf[f'trig_num_{how}'])
+        sf[f'trig_denom_{how}'] = (1 - sf[f'trig_denom_{how}'])
+        cut = (sf[f'trig_denom_{how}'] != 0)
+        sf.loc[cut, f'muTrig_{how}'] = (
+            sf.loc[cut, f'trig_num_{how}'] /
+            sf.loc[cut, f'trig_denom_{how}']
+        )
 
     return sf
 
