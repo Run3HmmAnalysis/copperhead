@@ -17,7 +17,7 @@ from python.timer import Timer
 from python.weights import Weights
 from python.corrections import musf_lookup, musf_evaluator, pu_lookup
 from python.corrections import pu_evaluator, NNLOPS_Evaluator
-from python.corrections import qgl_weights  # , puid_weights , btag_weights
+from python.corrections import qgl_weights, puid_weights , btag_weights
 from python.corrections import apply_roccor, fsr_recovery, apply_geofit
 from python.stxs_uncert import vbf_uncert_stage_1_1, stxs_lookups
 from python.mass_resolution import mass_resolution_purdue
@@ -1079,8 +1079,8 @@ class DimuonProcessor(processor.ProcessorABC):
             .groupby('entry')['subentry'].nunique()
         variables['njets'] = njets
 
-        one_jet = (jets.selection & (njets > 0))
-        two_jets = (jets.selection & (njets > 1))
+        one_jet = (njets > 0)
+        two_jets = (njets > 1)
 
         # Sort jets by pT and reset their numbering in an event
         jets = jets.sort_values(
@@ -1255,10 +1255,8 @@ class DimuonProcessor(processor.ProcessorABC):
                 up=qgl.wgt*qgl.wgt, down=qgl.wgt_down
             )
 
-        # TODO: fix
-        """
+        # Btag weights
         bjet_sel_mask = output.event_selection & two_jets & vbf_cut
-        # Btag weight
         btag_wgt = np.ones(numevents)
         if is_mc:
             systs = self.btag_systs if 'nominal' in variation else []
@@ -1274,7 +1272,6 @@ class DimuonProcessor(processor.ProcessorABC):
                 weights.add_only_variations(
                     f'btag_wgt_{name}', up, down
                 )
-        """
 
         # Separate from ttH and VH phase space
         variables['nBtagLoose'] = jets[
