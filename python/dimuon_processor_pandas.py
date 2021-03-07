@@ -590,9 +590,22 @@ class DimuonProcessor(processor.ProcessorABC):
 
         # TODO: only consider nuisances that are defined in run parameters
 
+        # Find jets that have selected muons within dR<0.4 from them
+        matched_mu_pt = jets.matched_muons.pt_fsr
+        matched_mu_iso = jets.matched_muons.pfRelIso04_all
+        matched_mu_id = jets.matched_muons[self.parameters["muon_id"]]
+        matched_mu_pass = (
+            (matched_mu_pt > self.parameters["muon_pt_cut"]) &
+            (matched_mu_iso < self.parameters["muon_iso_cut"]) &
+            matched_mu_id
+        )
+        clean = ~(ak.to_pandas(matched_mu_pass).fillna(False)\
+                  .groupby(level=[0, 1]).sum())
+        
         # for some reason jets are doubled, so we need additional filter
         jets = ak.to_pandas(jets).loc[pd.IndexSlice[:, :, 0], :]
         jets.index = jets.index.droplevel('subsubentry')
+        jets['clean'] = clean
 
         new_columns = []
         for v in jets.columns.values:
@@ -688,6 +701,7 @@ class DimuonProcessor(processor.ProcessorABC):
         # ------------------------------------------------------------#
         jet_id = jets[('nominal', '', 'jetId')]
         jet_qgl = jets[('nominal', '', 'qgl')]
+        cleaned = jets[('nominal', '', 'clean')]
 
         pass_jet_id = np.ones_like(jet_id, dtype=bool)
 
@@ -699,18 +713,7 @@ class DimuonProcessor(processor.ProcessorABC):
             else:
                 pass_jet_id = (jet_id >= 2)
 
-        jets = jets[pass_jet_id & (jet_qgl > -2)]
-
-        # TODO: clean jets from muons
-        """
-        mujet = df.Jet.cross(self.muons_all, nested=True)
-        _, _, deltar_mujet = delta_r(
-            mujet.i0.eta, mujet.i1.eta_raw, mujet.i0.phi,
-            mujet.i1.phi_raw)
-        deltar_mujet_ok = (
-            deltar_mujet > self.parameters["min_dr_mu_jet"]).all()
-        jets = jets[deltar_mujet_ok]
-        """
+        jets = jets[pass_jet_id & (jet_qgl > -2) & cleaned]
 
         # ------------------------------------------------------------#
         # Calculate other event weights
@@ -1052,7 +1055,7 @@ class DimuonProcessor(processor.ProcessorABC):
         #     )
         #     weights.add_weight('puid_wgt', puid_weight)
 
-        jets['selection'] = jet_selection & jet_puid
+        jets = jets[jet_selection & jet_puid]
 
         if self.timer:
             self.timer.add_checkpoint("Selected jets")
@@ -1061,8 +1064,7 @@ class DimuonProcessor(processor.ProcessorABC):
         # Fill jet-related variables
         # ------------------------------------------------------------#
 
-        njets = jets[jets.selection].reset_index()\
-            .groupby('entry')['subentry'].nunique()
+        njets = jets.reset_index().groupby('entry')['subentry'].nunique()
         variables['njets'] = njets
 
         # one_jet = (njets > 0)
@@ -1261,13 +1263,11 @@ class DimuonProcessor(processor.ProcessorABC):
 
         # Separate from ttH and VH phase space
         variables['nBtagLoose'] = jets[
-            jets.selection &
             (jets.btagDeepB > self.parameters["btag_loose_wp"]) &
             (abs(jets.eta) < 2.5)
         ].reset_index().groupby('entry')['subentry'].nunique()
 
         variables['nBtagMedium'] = jets[
-            jets.selection &
             (jets.btagDeepB > self.parameters["btag_medium_wp"]) &
             (abs(jets.eta) < 2.5)
         ].reset_index().groupby('entry')['subentry'].nunique()
