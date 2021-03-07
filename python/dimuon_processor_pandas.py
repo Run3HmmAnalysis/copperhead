@@ -599,9 +599,9 @@ class DimuonProcessor(processor.ProcessorABC):
             (matched_mu_iso < self.parameters["muon_iso_cut"]) &
             matched_mu_id
         )
-        clean = ~(ak.to_pandas(matched_mu_pass).fillna(False)\
+        clean = ~(ak.to_pandas(matched_mu_pass).fillna(False)
                   .groupby(level=[0, 1]).sum())
-        
+
         # for some reason jets are doubled, so we need additional filter
         jets = ak.to_pandas(jets).loc[pd.IndexSlice[:, :, 0], :]
         jets.index = jets.index.droplevel('subsubentry')
