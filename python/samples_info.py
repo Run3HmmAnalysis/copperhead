@@ -22,12 +22,14 @@ def read_via_xrootd(server, path):
 class SamplesInfo(object):
     def __init__(self, year, out_path='/output/', xrootd=True,
                  server='root://xrootd.rcac.purdue.edu/',
+                 timeout=60,
                  datasets_from='purdue', debug=False):
 
         self.year = year
         self.out_path = out_path
         self.xrootd = xrootd
         self.debug = debug
+        self.timeout = timeout
 
         self.parameters = {k: v[self.year] for k, v in parameters.items()}
 
@@ -109,6 +111,8 @@ class SamplesInfo(object):
 
         if self.xrootd:
             all_files = read_via_xrootd(self.server, self.paths[sample])
+        elif self.paths[sample].endswith('.root'):
+            all_files = [self.paths[sample]]
         else:
             all_files = [self.server + f for f in
                          glob.glob(self.paths[sample]+'/**/**/*.root')]
@@ -162,14 +166,14 @@ class SamplesInfo(object):
 
     def get_data(self, f):
         ret = {}
-        file = uproot.open(f)
+        file = uproot.open(f, timeout=self.timeout)
         tree = file['Events']
         ret['data_entries'] = tree.num_entries
         return ret
 
     def get_mc(self, f):
         ret = {}
-        tree = uproot.open(f)['Runs']
+        tree = uproot.open(f, timeout=self.timeout)['Runs']
         if ('NanoAODv6' in f) or ('NANOV10' in f):
             ret['sumGenWgts'] = tree['genEventSumw_'].array()[0]
             ret['nGenEvts'] = tree['genEventCount_'].array()[0]
