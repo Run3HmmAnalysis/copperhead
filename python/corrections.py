@@ -29,20 +29,20 @@ class NNLOPS_Evaluator(object):
         njets = np.array(njets)
         result[njets == 0] = np.interp(
             np.minimum(hig_pt[njets == 0], 125.),
-            self.ratio_0jet[mode]._fX,
-            self.ratio_0jet[mode]._fY)
+            self.ratio_0jet[mode].member("fX"),
+            self.ratio_0jet[mode].member("fY"))
         result[njets == 1] = np.interp(
             np.minimum(hig_pt[njets == 1], 625.),
-            self.ratio_1jet[mode]._fX,
-            self.ratio_1jet[mode]._fY)
+            self.ratio_1jet[mode].member("fX"),
+            self.ratio_1jet[mode].member("fY"))
         result[njets == 2] = np.interp(
             np.minimum(hig_pt[njets == 2], 800.),
-            self.ratio_2jet[mode]._fX,
-            self.ratio_2jet[mode]._fY)
+            self.ratio_2jet[mode].member("fX"),
+            self.ratio_2jet[mode].member("fY"))
         result[njets > 2] = np.interp(
             np.minimum(hig_pt[njets > 2], 925.),
-            self.ratio_3jet[mode]._fX,
-            self.ratio_3jet[mode]._fY)
+            self.ratio_3jet[mode].member("fX"),
+            self.ratio_3jet[mode].member("fY"))
         return result
 
 
@@ -56,13 +56,13 @@ def apply_roccor(df, rochester, is_mc):
 
         corrections = np.array(ak.flatten(ak.ones_like(df.Muon.pt)))
         # errors = np.array(ak.flatten(ak.ones_like(df.Muon.pt)))
-
         mc_kspread = rochester.kSpreadMC(
                         df.Muon.charge[hasgen],
                         df.Muon.pt[hasgen],
                         df.Muon.eta[hasgen],
                         df.Muon.phi[hasgen],
                         df.Muon.matched_gen.pt[hasgen])
+
         mc_ksmear = rochester.kSmearMC(
                         df.Muon.charge[~hasgen],
                         df.Muon.pt[~hasgen],
@@ -70,6 +70,7 @@ def apply_roccor(df, rochester, is_mc):
                         df.Muon.phi[~hasgen],
                         df.Muon.nTrackerLayers[~hasgen],
                         mc_rand[~hasgen])
+
         # TODO: fix errors
         # errspread = rochester.kSpreadMCerror(
         #                 df.Muon.charge[hasgen],
