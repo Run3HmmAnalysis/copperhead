@@ -1398,95 +1398,15 @@ class DimuonProcessor(processor.ProcessorABC):
         res['footprint'] = res['footprint'].fillna(0.0)
         res['ht_corrected'] = res[ht_name] - res.footprint
         res.loc[res.ht_corrected < 0, 'ht_corrected'] = 0.0
-        res.loc[res.to_correct, nj_name] = res.loc[res.to_correct, 'njets_corrected']
-        res.loc[res.to_correct, ht_name] = res.loc[res.to_correct, 'ht_corrected']
 
-        """
-        nsoftjets = copy.deepcopy(
-            df[f'SoftActivityJetNjets{cutoff}'].flatten())
-        htsoft = copy.deepcopy(
-            df[f'SoftActivityJetHT{cutoff}'].flatten())
-        # TODO: sort out the masks (all have different dimensionality)
-        mask = two_muons
-        mask1j = two_muons & one_jet
-        mask1j_ = two_muons[one_jet]
-        mask2j = two_muons & two_jets
-        mask2j_ = two_muons[two_jets]
-        mask2j__ = two_muons[[one_jet]] & two_jets[one_jet]
+        res.loc[
+            res.to_correct, nj_name
+        ] = res.loc[res.to_correct, 'njets_corrected']
 
-        j1_two_jets = two_jets[one_jet]
+        res.loc[
+            res.to_correct, ht_name
+        ] = res.loc[res.to_correct, 'ht_corrected']
 
-        sj_j = softjets.cross(jets, nested=True)
-        sj_mu = softjets.cross(muons, nested=True)
-
-        _, _, dr_sj_j = delta_r(
-            sj_j.i0.eta, sj_j.i1.eta, sj_j.i0.phi, sj_j.i1.phi)
-        _, _, dr_sj_mu = delta_r(
-            sj_mu.i0.eta, sj_mu.i1.eta, sj_mu.i0.phi, sj_mu.i1.phi)
-
-        closest_jet = sj_j[
-            (dr_sj_j == dr_sj_j.min()) & (dr_sj_j < 0.4)].i1
-        closest_mu = sj_mu[
-            (dr_sj_mu == dr_sj_mu.min()) & (dr_sj_mu < 0.4)].i1
-
-        jet1_jagged = awkward.JaggedArray.fromcounts(
-            np.ones(len(jet1), dtype=int), jet1)
-        jet2_jagged = awkward.JaggedArray.fromcounts(
-            np.ones(len(jet2), dtype=int), jet2)
-
-        sj_j1 = closest_jet[one_jet].cross(jet1_jagged, nested=True)
-        sj_j2 = closest_jet[two_jets].cross(jet2_jagged, nested=True)
-        sj_mu1 = closest_mu.cross(mu1, nested=True)
-        sj_mu2 = closest_mu.cross(mu2, nested=True)
-
-        _, _, dr_sj_j1 = delta_r(
-            sj_j1.i0.eta, sj_j1.i1.eta, sj_j1.i0.phi, sj_j1.i1.phi)
-        _, _, dr_sj_j2 = delta_r(
-            sj_j2.i0.eta, sj_j2.i1.eta, sj_j2.i0.phi, sj_j2.i1.phi)
-        _, _, dr_sj_mu1 = delta_r(
-            sj_mu1.i0.eta, sj_mu1.i1.eta, sj_mu1.i0.phi, sj_mu1.i1.phi)
-        _, _, dr_sj_mu2 = delta_r(
-            sj_mu2.i0.eta, sj_mu2.i1.eta, sj_mu2.i0.phi, sj_mu2.i1.phi)
-
-        j1match = (dr_sj_j1 < 0.4).any().any()
-        j2match = (dr_sj_j2 < 0.4).any().any()
-        mumatch = ((dr_sj_mu1 < 0.4).any().any() |
-                   (dr_sj_mu2 < 0.4).any().any())
-
-        eta1cut1 = (sj_j1.i0.eta[j1_two_jets] >
-                    sj_j1.i1.eta[j1_two_jets]).any().any()
-        eta2cut1 = (sj_j2.i0.eta >
-                    sj_j2.i1.eta).any().any()
-        outer = (eta1cut1[mask2j_]) & (eta2cut1[mask2j_])
-        eta1cut2 = (sj_j1.i0.eta[j1_two_jets] <
-                    sj_j1.i1.eta[j1_two_jets]).any().any()
-        eta2cut2 = (sj_j2.i0.eta <
-                    sj_j2.i1.eta).any().any()
-        inner = (eta1cut2[mask2j_]) & (eta2cut2[mask2j_])
-
-        nsoftjets[mask] = (
-            df[f'SoftActivityJetNjets{cutoff}'][mask] -
-            (mumatch[mask] &
-             (df.SoftActivityJet.pt > cutoff)[mask]).sum()).flatten()
-        nsoftjets[mask1j] = (
-            df[f'SoftActivityJetNjets{cutoff}'][mask1j] -
-            ((mumatch[mask1j] | j1match[mask1j_]) &
-             (df.SoftActivityJet.pt > cutoff)[mask1j]).sum()).flatten()
-        nsoftjets[mask2j] = (
-            df[f'SoftActivityJetNjets{cutoff}'][mask2j] -
-            ((mumatch[mask2j] | j1match[mask2j__] | j2match[mask2j_]) &
-             (df.SoftActivityJet.pt > cutoff)[mask2j]).sum()).flatten()
-
-        saj_filter = (mumatch[mask2j] |
-                      j1match[mask2j__] |
-                      j2match[mask2j_] |
-                      outer | inner)
-        footprintSAJ = df.SoftActivityJet[mask2j][saj_filter]
-        if footprintSAJ.shape[0] > 0:
-            htsoft[mask2j] = df[f'SoftActivityJetHT{cutoff}'][mask2j] -\
-                        (footprintSAJ.pt *
-                         (footprintSAJ.pt > cutoff)).sum()
-        """
         return res
 
     def postprocess(self, accumulator):
