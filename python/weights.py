@@ -29,6 +29,25 @@ class Weights(object):
         self.df[f'{name}_down'] = self.df['nominal']*down
         self.variations.append(name)
 
+    def add_dummy_weight(self, name):
+        columns = self.df.columns
+        self.df[f'{name}_off'] = self.df['nominal']
+        self.variations.append(name)
+        self.wgts[name] = 1.
+
+    def add_dummy_weight_with_variations(self, name):
+        columns = self.df.columns
+        self.wgts[name] = 1.
+        self.df[f'{name}_off'] = self.df['nominal']
+        self.df[f'{name}_up'] = np.nan
+        self.df[f'{name}_down'] = np.nan
+        self.variations.append(name)
+
+    def add_dummy_variations(self, name):
+        self.df[f'{name}_up'] = np.nan
+        self.df[f'{name}_down'] = np.nan
+        self.variations.append(name)
+
     def get_weight(self, name, mask=np.array([])):
         if len(mask) == 0:
             mask = np.ones(self.df.shape[0], dtype=bool)
