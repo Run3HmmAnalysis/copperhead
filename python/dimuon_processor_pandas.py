@@ -346,10 +346,10 @@ class DimuonProcessor(processor.ProcessorABC):
             #     'roch_down':df.Muon.pt_roch_down
             # }
 
-        # for ... 
+        # for ...
         if True:  # indent reserved for loop over muon pT variations
             # According to HIG-19-006, these variations have negligible
-            # effect on significance, but it's better to have them 
+            # effect on significance, but it's better to have them
             # implemented in the future
 
             # FSR recovery
@@ -1368,16 +1368,19 @@ class DimuonProcessor(processor.ProcessorABC):
     def get_softjet_vars(self, df, output, variables, cutoff):
         saj_df = ak.to_pandas(df.SoftActivityJet)
         saj_df['mass'] = 0.0
+        nj_name = f'SoftActivityJetNjets{cutoff}'
+        ht_name = f'SoftActivityJetHT{cutoff}'
+        res = ak.to_pandas(df[[nj_name, ht_name]])
 
-        res = ak.to_pandas(df[[
-            f'SoftActivityJetNjets{cutoff}',
-            f'SoftActivityJetHT{cutoff}'
-        ]])
         res['to_correct'] = output.two_muons | (variables.njets > 0)
-        _, _, dR_m1 = delta_r(saj_df.eta, output.mu1_eta, saj_df.phi, output.mu1_phi)
-        _, _, dR_m2 = delta_r(saj_df.eta, output.mu2_eta, saj_df.phi, output.mu2_phi)
-        _, _, dR_j1 = delta_r(saj_df.eta, variables.jet1_eta, saj_df.phi, variables.jet1_phi)
-        _, _, dR_j2 = delta_r(saj_df.eta, variables.jet2_eta, saj_df.phi, variables.jet2_phi)
+        _, _, dR_m1 = delta_r(
+            saj_df.eta, output.mu1_eta, saj_df.phi, output.mu1_phi)
+        _, _, dR_m2 = delta_r(
+            saj_df.eta, output.mu2_eta, saj_df.phi, output.mu2_phi)
+        _, _, dR_j1 = delta_r(
+            saj_df.eta, variables.jet1_eta, saj_df.phi, variables.jet1_phi)
+        _, _, dR_j2 = delta_r(
+            saj_df.eta, variables.jet2_eta, saj_df.phi, variables.jet2_phi)
         saj_df['dR_m1'] = dR_m1 < 0.4
         saj_df['dR_m2'] = dR_m2 < 0.4
         saj_df['dR_j1'] = dR_j1 < 0.4
@@ -1388,14 +1391,15 @@ class DimuonProcessor(processor.ProcessorABC):
 
         saj_df_filtered = saj_df[(~saj_df.to_remove) & (saj_df.pt > cutoff)]
         footprint = saj_df[(saj_df.to_remove) & (saj_df.pt > cutoff)]
-        res['njets_corrected'] = saj_df_filtered.reset_index().groupby('entry')['subentry'].nunique()
+        res['njets_corrected'] = saj_df_filtered\
+            .reset_index().groupby('entry')['subentry'].nunique()
         res['njets_corrected'] = res['njets_corrected'].fillna(0).astype(int)
         res['footprint'] = footprint.pt.groupby(level=[0]).sum()
         res['footprint'] = res['footprint'].fillna(0.0)
-        res['ht_corrected'] = res[f'SoftActivityJetHT{cutoff}'] - res.footprint
+        res['ht_corrected'] = res[ht_name] - res.footprint
         res.loc[res.ht_corrected < 0, 'ht_corrected'] = 0.0
-        res.loc[res.to_correct, f'SoftActivityJetNjets{cutoff}'] = res.loc[res.to_correct, 'njets_corrected']
-        res.loc[res.to_correct, f'SoftActivityJetHT{cutoff}'] = res.loc[res.to_correct, 'ht_corrected']
+        res.loc[res.to_correct, nj_name] = res.loc[res.to_correct, 'njets_corrected']
+        res.loc[res.to_correct, ht_name] = res.loc[res.to_correct, 'ht_corrected']
 
         """
         nsoftjets = copy.deepcopy(
