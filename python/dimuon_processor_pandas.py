@@ -854,7 +854,6 @@ class DimuonProcessor(processor.ProcessorABC):
             for i, name in enumerate(self.sths_names):
                 weights.add_dummy_variations("THU_VBF_"+name)
 
-                
         if self.timer:
             self.timer.add_checkpoint("Computed event weights")
 

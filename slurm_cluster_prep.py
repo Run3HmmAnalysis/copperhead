@@ -16,6 +16,7 @@ __all__ = ['pytest', 'asyncio', 'dask',
 
 print('Dask version:', dask.__version__)
 
+
 async def f(scheduler_address):
     r = await Worker(scheduler_address,
                      resources={'processor': 0, 'reducer': 1},
