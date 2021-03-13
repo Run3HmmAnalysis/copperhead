@@ -11,7 +11,7 @@ from coffea.lookup_tools import txt_converters, rochester_lookup
 from coffea.jetmet_tools import CorrectedJetsFactory, JECStack
 from coffea.btag_tools import BTagScaleFactor
 from coffea.lumi_tools import LumiMask
-from cachetools import LRUCache
+# from cachetools import LRUCache
 
 from python.utils import p4_sum, delta_r, rapidity, cs_variables
 from python.timer import Timer
@@ -565,7 +565,7 @@ class DimuonProcessor(processor.ProcessorABC):
         if ('data' in dataset) and ('2018' in self.year):
             self.do_jec = True
 
-        #cache = LRUCache(1_000_000, lambda a: a.nbytes)
+        # cache = LRUCache(1_000_000, lambda a: a.nbytes)
         cache = df.caches[0]
 
         # Correct jets (w/o uncertainties)
@@ -590,8 +590,6 @@ class DimuonProcessor(processor.ProcessorABC):
             jets = self.jet_factory['jer'].build(
                 jets, lazy_cache=cache
             )
-
-
 
         # TODO: JER nuisances
         """
@@ -931,7 +929,7 @@ class DimuonProcessor(processor.ProcessorABC):
                  mu1, mu2, jets, weights, numevents, output):
         weights = copy.deepcopy(weights)
 
-        if not is_mc and variation!='nominal':
+        if not is_mc and variation != 'nominal':
             return
 
         variable_names = [
@@ -953,11 +951,11 @@ class DimuonProcessor(processor.ProcessorABC):
         variables = variables.fillna(-999.)
 
         jet_columns = [
-            'pt', 'eta', 'phi', 'jetId', 'qgl', 'puId', 'mass', 'btagDeepB', 
+            'pt', 'eta', 'phi', 'jetId', 'qgl', 'puId', 'mass', 'btagDeepB',
         ]
         if is_mc:
             jet_columns += ['partonFlavour', 'hadronFlavour']
-        if variation=='nominal':
+        if variation == 'nominal':
             if self.do_jec:
                 jet_columns += ['pt_jec', 'mass_jec']
             if is_mc and self.do_jerunc:
@@ -991,19 +989,20 @@ class DimuonProcessor(processor.ProcessorABC):
 
         # --- conversion from awkward to pandas --- #
         jets = ak.to_pandas(jets)
-        if jets.index.nlevels==3:
+        if jets.index.nlevels == 3:
             # sometimes there are duplicates?
             jets = jets.loc[pd.IndexSlice[:, :, 0], :]
             jets.index = jets.index.droplevel('subsubentry')
 
-        if variation=='nominal':
+        if variation == 'nominal':
             # Update pt and mass if JEC was applied
             if self.do_jec:
                 jets['pt'] = jets['pt_jec']
                 jets['mass'] = jets['mass_jec']
 
-            # We use JER corrections only for systematics, so we shouldn't update
-            # the kinematics. Use original values, unless JEC were applied.
+            # We use JER corrections only for systematics, so we shouldn't
+            # update the kinematics. Use original values,
+            # unless JEC were applied.
             if is_mc and self.do_jerunc and not self.do_jec:
                 jets['pt'] = jets['pt_orig']
                 jets['mass'] = jets['mass_orig']
@@ -1060,6 +1059,8 @@ class DimuonProcessor(processor.ProcessorABC):
             (jets.pt > self.parameters["jet_pt_cut"]) &
             (abs(jets.eta) < self.parameters["jet_eta_cut"])
         )
+
+        jets = jets[jet_selection]
 
         if self.timer:
             self.timer.add_checkpoint("Selected jets")
@@ -1225,7 +1226,7 @@ class DimuonProcessor(processor.ProcessorABC):
 
         bjet_sel_mask = output.event_selection & two_jets & vbf_cut
         btag_wgt = np.ones(numevents)
-        systs = self.btag_systs if variation=='nominal' else []
+        systs = self.btag_systs if variation == 'nominal' else []
 
         if is_mc:
             # --- QGL weights --- #
