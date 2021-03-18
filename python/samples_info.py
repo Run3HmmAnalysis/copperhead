@@ -80,16 +80,16 @@ class SamplesInfo(object):
         self.data_entries = res['data_entries']
 
         # if self.data_entries:
-            # print()
-            # data_entries_total = self.lumi_data[self.year]['events']
-            # print(f"Total events in {self.year}: {data_entries_total}")
+        #     print()
+        #     data_entries_total = self.lumi_data[self.year]['events']
+        #     print(f"Total events in {self.year}: {data_entries_total}")
 
-            # print(f"Loaded {self.data_entries} of {self.year} data events")
-            # prc = round(self.data_entries/data_entries_total*100, 2)
-            # print(f"This is ~ {prc}% of {self.year} data.")
+        #     print(f"Loaded {self.data_entries} of {self.year} data events")
+        #     prc = round(self.data_entries/data_entries_total*100, 2)
+        #     print(f"This is ~ {prc}% of {self.year} data.")
 
-            # print(f"Integrated luminosity: {self.lumi}/pb")
-            # print()
+        #     print(f"Integrated luminosity: {self.lumi}/pb")
+        #     print()
 
         # t1 = time.time()
         # dt = round(t1 - t0, 2)
