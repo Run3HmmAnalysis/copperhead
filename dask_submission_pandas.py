@@ -20,7 +20,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument("-sl", "--slurm", dest="slurm_port",
                     default=None, action='store',
                     help='Slurm cluster port (if not specified, '
-                        'will create a local cluster)')
+                    'will create a local cluster)')
 parser.add_argument("-y", "--year", dest="year", default='2016',
                     action='store',
                     help='Year to process (2016, 2017 or 2018)')
