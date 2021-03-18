@@ -28,24 +28,23 @@ from config.variables import variables
 
 
 class DimuonProcessor(processor.ProcessorABC):
-    def __init__(self, samp_info, do_timer=False, save_unbin=True,
-                 do_pdf=True, do_btag_syst=True, auto_pu=True,
-                 debug=False, pt_variations=['nominal']):
-        if not samp_info:
+    def __init__(self, **kwargs):
+        self.samp_info = kwargs.pop('samp_info', None)
+        do_timer = kwargs.pop('do_timer', False)
+        self.pt_variations = kwargs.pop('pt_variations', ['nominal'])
+        self.do_btag_syst = kwargs.pop('do_btag_syst', True)
+
+        if self.samp_info is None:
             print("Samples info missing!")
             return
-        self.auto_pu = auto_pu
-        self.samp_info = samp_info
+
+        self.auto_pu = True
         self.year = self.samp_info.year
-        self.debug = debug
-        self.save_unbin = save_unbin
-        self.pt_variations = pt_variations
         self.do_roccor = False
         self.do_fsr = True
         self.do_geofit = True
         self.do_nnlops = True
-        self.do_pdf = do_pdf
-        self.do_btag_syst = do_btag_syst
+        self.do_pdf = True
         self.parameters = {
             k: v[self.year] for k, v in parameters.items()}
 
@@ -256,10 +255,8 @@ class DimuonProcessor(processor.ProcessorABC):
         weights = Weights(output)
 
         if is_mc:
-            # --------------------------------------------------------#
             # For MC: Apply gen.weights, pileup weights, lumi weights,
             # L1 prefiring weights
-            # --------------------------------------------------------#
             mask = np.ones(numevents, dtype=bool)
             genweight = df.genWeight
             weights.add_weight('genwgt', genweight)
@@ -294,9 +291,7 @@ class DimuonProcessor(processor.ProcessorABC):
                 )
 
         else:
-            # --------------------------------------------------------#
             # For Data: apply Lumi mask
-            # --------------------------------------------------------#
             lumi_info = LumiMask(self.parameters['lumimask'])
             mask = lumi_info(df.run, df.luminosityBlock)
 
@@ -504,7 +499,9 @@ class DimuonProcessor(processor.ProcessorABC):
             # Fill dimuon variables
             mm = p4_sum(mu1, mu2)
             for v in ['pt', 'eta', 'phi', 'mass', 'rap']:
-                output[f'dimuon_{v}'] = mm[v]
+                name = f'dimuon_{v}'
+                output[name] = mm[v]
+                output[name] = output[name].fillna(-999.)
 
             output['dimuon_pt_log'] = np.log(output.dimuon_pt)
 
@@ -663,137 +660,151 @@ class DimuonProcessor(processor.ProcessorABC):
         # Calculate other event weights
         # ------------------------------------------------------------#
 
-        do_nnlops = is_mc and self.do_nnlops and ('ggh' in dataset)
-        # do_zpt = ('dy' in dataset)
-        do_musf = is_mc
-        do_lhe = is_mc and ('nominal' in self.pt_variations)
-        do_thu = (
-            is_mc and
-            ('vbf' in dataset) and
-            ('dy' not in dataset) and
-            ('nominal' in self.pt_variations) and
-            ('stage1_1_fine_cat_pTjet30GeV' in df.HTXS.fields)
-        )
-        do_pdf = (
-            self.do_pdf and
-            is_mc and
-            ('nominal' in self.pt_variations) and
-            ("dy" in dataset or
-             "ewk" in dataset or
-             "ggh" in dataset or
-             "vbf" in dataset) and
-            ('mg' not in dataset)
-        )
-
-        if do_nnlops:
-            nnlops = NNLOPS_Evaluator('data/NNLOPS_reweight.root')
-            nnlopsw = np.ones(numevents, dtype=float)
-            if 'amc' in dataset:
-                nnlopsw = nnlops.evaluate(
-                    df.HTXS.Higgs_pt, df.HTXS.njets30, "mcatnlo"
-                )
-            elif 'powheg' in dataset:
-                nnlopsw = nnlops.evaluate(
-                    df.HTXS.Higgs_pt, df.HTXS.njets30, "powheg"
-                )
-            weights.add_weight('nnlops', nnlopsw)
-
-        """
-        if do_zpt:
-            zpt_weight = np.ones(numevents, dtype=float)
-            zpt_weight[two_muons] =\
-                self.evaluator[self.zpt_path](
-                    output['dimuon_pt'][two_muons]
-                ).flatten()
-            weights.add_weight('zpt_wgt', zpt_weight)
-        """
-
-        if do_musf:
-            sf = musf_evaluator(
-                self.musf_lookup,
-                self.year,
-                numevents,
-                mu1, mu2
+        if is_mc:
+            do_nnlops = self.do_nnlops and ('ggh' in dataset)
+            # do_zpt = ('dy' in dataset)
+            do_musf = True
+            do_lhe = (
+                ('LHEScaleWeight' in df.fields) and
+                ('LHEPdfWeight' in df.fields) and
+                ('nominal' in self.pt_variations)
+            )
+            do_thu = (
+                ('vbf' in dataset) and
+                ('dy' not in dataset) and
+                ('nominal' in self.pt_variations) and
+                ('stage1_1_fine_cat_pTjet30GeV' in df.HTXS.fields)
+            )
+            do_pdf = (
+                self.do_pdf and
+                ('nominal' in self.pt_variations) and
+                ("dy" in dataset or
+                 "ewk" in dataset or
+                 "ggh" in dataset or
+                 "vbf" in dataset) and
+                ('mg' not in dataset)
             )
 
-            weights.add_weight_with_variations(
-                'muID', sf['muID_nom'],
-                sf['muID_up'], sf['muID_down']
-            )
-            weights.add_weight_with_variations(
-                'muIso', sf['muIso_nom'],
-                sf['muIso_up'], sf['muIso_down']
-            )
-            weights.add_weight_with_variations(
-                'muTrig', sf['muTrig_nom'],
-                sf['muTrig_up'], sf['muTrig_down']
-            )
-
-        if do_lhe:
-            if (
-                ('dy_m105_160_amc' in dataset) and
-                (('2017' in self.year) or ('2018' in self.year))
-            ):
-                lhefactor = 2.
+            if do_nnlops:
+                nnlops = NNLOPS_Evaluator('data/NNLOPS_reweight.root')
+                nnlopsw = np.ones(numevents, dtype=float)
+                if 'amc' in dataset:
+                    nnlopsw = nnlops.evaluate(
+                        df.HTXS.Higgs_pt, df.HTXS.njets30, "mcatnlo"
+                    )
+                elif 'powheg' in dataset:
+                    nnlopsw = nnlops.evaluate(
+                        df.HTXS.Higgs_pt, df.HTXS.njets30, "powheg"
+                    )
+                weights.add_weight('nnlops', nnlopsw)
             else:
-                lhefactor = 1.
-            nLHEScaleWeight = ak.count(df.LHEScaleWeight, axis=1)
-            lhe_df = pd.DataFrame(
-                data=ak.to_numpy(nLHEScaleWeight),
-                index=output.index,
-                columns=['nLHEScaleWeight']
-            )
-            for i in [1, 3, 4, 5, 6, 7, 15, 24, 34]:
-                cut = lhe_df.nLHEScaleWeight > i
-                cut_ak = nLHEScaleWeight > i
-                lhe_df[f'LHE{i}'] = 1.0
-                lhe_df.loc[cut, f'LHE{i}'] =\
-                    ak.to_numpy(df.LHEScaleWeight[cut_ak][:, i])
+                weights.add_dummy_weight('nnlops')
 
-            cut8 = lhe_df.nLHEScaleWeight > 8
-            cut30 = lhe_df.nLHEScaleWeight > 30
-            lhe_ren_up = lhe_df.LHE6 * lhefactor
-            lhe_ren_up[cut8] = lhe_df.LHE7 * lhefactor
-            lhe_ren_up[cut30] = lhe_df.LHE34 * lhefactor
-            lhe_ren_down = lhe_df.LHE1 * lhefactor
-            lhe_ren_down[cut8] = lhe_df.LHE1 * lhefactor
-            lhe_ren_down[cut30] = lhe_df.LHE5 * lhefactor
+            """
+            if do_zpt:
+                zpt_weight = np.ones(numevents, dtype=float)
+                zpt_weight[two_muons] =\
+                    self.evaluator[self.zpt_path](
+                        output['dimuon_pt'][two_muons]
+                    ).flatten()
+                weights.add_weight('zpt_wgt', zpt_weight)
+            """
 
-            lhe_fac_up = lhe_df.LHE4 * lhefactor
-            lhe_fac_up[cut8] = lhe_df.LHE5 * lhefactor
-            lhe_fac_up[cut30] = lhe_df.LHE24 * lhefactor
-            lhe_fac_down = lhe_df.LHE3 * lhefactor
-            lhe_fac_down[cut8] = lhe_df.LHE3 * lhefactor
-            lhe_fac_down[cut30] = lhe_df.LHE15 * lhefactor
-
-            weights.add_only_variations(
-                'LHERen', lhe_ren_up, lhe_ren_down
-            )
-            weights.add_only_variations(
-                'LHEFac', lhe_fac_up, lhe_fac_down
-            )
-
-        if do_thu:
-            for i, name in enumerate(self.sths_names):
-                wgt_up = vbf_uncert_stage_1_1(
-                    i,
-                    ak.to_numpy(df.HTXS.stage1_1_fine_cat_pTjet30GeV),
-                    1.,
-                    self.stxs_acc_lookups,
-                    self.powheg_xsec_lookup
+            if do_musf:
+                sf = musf_evaluator(
+                    self.musf_lookup,
+                    self.year,
+                    numevents,
+                    mu1, mu2
                 )
-                wgt_down = vbf_uncert_stage_1_1(
-                    i,
-                    ak.to_numpy(df.HTXS.stage1_1_fine_cat_pTjet30GeV),
-                    -1.,
-                    self.stxs_acc_lookups,
-                    self.powheg_xsec_lookup
+
+                weights.add_weight_with_variations(
+                    'muID', sf['muID_nom'],
+                    sf['muID_up'], sf['muID_down']
+                )
+                weights.add_weight_with_variations(
+                    'muIso', sf['muIso_nom'],
+                    sf['muIso_up'], sf['muIso_down']
+                )
+                weights.add_weight_with_variations(
+                    'muTrig', sf['muTrig_nom'],
+                    sf['muTrig_up'], sf['muTrig_down']
+                )
+            else:
+                weights.add_dummy_weight_with_variations('muID')
+                weights.add_dummy_weight_with_variations('muIso')
+                weights.add_dummy_weight_with_variations('muTrig')
+
+            if do_lhe:
+                if (
+                    ('dy_m105_160_amc' in dataset) and
+                    (('2017' in self.year) or ('2018' in self.year))
+                ):
+                    lhefactor = 2.
+                else:
+                    lhefactor = 1.
+                nLHEScaleWeight = ak.count(df.LHEScaleWeight, axis=1)
+                lhe_df = pd.DataFrame(
+                    data=ak.to_numpy(nLHEScaleWeight),
+                    index=output.index,
+                    columns=['nLHEScaleWeight']
+                )
+                for i in [1, 3, 4, 5, 6, 7, 15, 24, 34]:
+                    cut = lhe_df.nLHEScaleWeight > i
+                    cut_ak = nLHEScaleWeight > i
+                    lhe_df[f'LHE{i}'] = 1.0
+                    lhe_df.loc[cut, f'LHE{i}'] =\
+                        ak.to_numpy(df.LHEScaleWeight[cut_ak][:, i])
+
+                cut8 = lhe_df.nLHEScaleWeight > 8
+                cut30 = lhe_df.nLHEScaleWeight > 30
+                lhe_ren_up = lhe_df.LHE6 * lhefactor
+                lhe_ren_up[cut8] = lhe_df.LHE7 * lhefactor
+                lhe_ren_up[cut30] = lhe_df.LHE34 * lhefactor
+                lhe_ren_down = lhe_df.LHE1 * lhefactor
+                lhe_ren_down[cut8] = lhe_df.LHE1 * lhefactor
+                lhe_ren_down[cut30] = lhe_df.LHE5 * lhefactor
+
+                lhe_fac_up = lhe_df.LHE4 * lhefactor
+                lhe_fac_up[cut8] = lhe_df.LHE5 * lhefactor
+                lhe_fac_up[cut30] = lhe_df.LHE24 * lhefactor
+                lhe_fac_down = lhe_df.LHE3 * lhefactor
+                lhe_fac_down[cut8] = lhe_df.LHE3 * lhefactor
+                lhe_fac_down[cut30] = lhe_df.LHE15 * lhefactor
+
+                weights.add_only_variations(
+                    'LHERen', lhe_ren_up, lhe_ren_down
                 )
                 weights.add_only_variations(
-                    "THU_VBF_"+name, wgt_up, wgt_down
+                    'LHEFac', lhe_fac_up, lhe_fac_down
                 )
+            else:
+                weights.add_dummy_variations('LHERen')
+                weights.add_dummy_variations('LHEFac')
 
-        if do_pdf:
+            if do_thu:
+                for i, name in enumerate(self.sths_names):
+                    wgt_up = vbf_uncert_stage_1_1(
+                        i,
+                        ak.to_numpy(df.HTXS.stage1_1_fine_cat_pTjet30GeV),
+                        1.,
+                        self.stxs_acc_lookups,
+                        self.powheg_xsec_lookup
+                    )
+                    wgt_down = vbf_uncert_stage_1_1(
+                        i,
+                        ak.to_numpy(df.HTXS.stage1_1_fine_cat_pTjet30GeV),
+                        -1.,
+                        self.stxs_acc_lookups,
+                        self.powheg_xsec_lookup
+                    )
+                    weights.add_only_variations(
+                        "THU_VBF_"+name, wgt_up, wgt_down
+                    )
+            else:
+                for i, name in enumerate(self.sths_names):
+                    weights.add_dummy_variations("THU_VBF_"+name)
+
             if '2016' in self.year:
                 max_replicas = 0
                 if 'dy' in dataset:
@@ -802,23 +813,27 @@ class DimuonProcessor(processor.ProcessorABC):
                     max_replicas = 33
                 else:
                     max_replicas = 100
-                    pdf_wgts = df.LHEPdfWeight[
-                        :, 0:self.parameters["n_pdf_variations"]
-                    ]
+                    if do_pdf:
+                        pdf_wgts = df.LHEPdfWeight[
+                            :, 0:self.parameters["n_pdf_variations"]
+                        ]
                 for i in range(100):
-                    if (i < max_replicas):
+                    if (i < max_replicas) and do_pdf:
                         output[f"pdf_mcreplica{i}"] = pdf_wgts[:, i]
                     else:
                         output[f"pdf_mcreplica{i}"] = np.nan
             else:
-                pdf_wgts = df.LHEPdfWeight[
-                    :, 0:self.parameters["n_pdf_variations"]
-                ]
-                weights.add_only_variations(
-                    "pdf_2rms",
-                    (1 + 2 * pdf_wgts.std()),
-                    (1 - 2 * pdf_wgts.std())
-                )
+                if do_pdf:
+                    pdf_wgts = df.LHEPdfWeight[
+                        :, 0:self.parameters["n_pdf_variations"]
+                    ]
+                    weights.add_only_variations(
+                        "pdf_2rms",
+                        (1 + 2 * pdf_wgts.std()),
+                        (1 - 2 * pdf_wgts.std())
+                    )
+                else:
+                    weights.add_dummy_variations("pdf_2rms")
 
         if self.timer:
             self.timer.add_checkpoint("Computed event weights")
@@ -918,16 +933,21 @@ class DimuonProcessor(processor.ProcessorABC):
             ].isin(self.channels)
         ]
 
+        output.columns = [
+            ' '.join(col).strip() for col in output.columns.values
+        ]
+
         output = output[output.r.isin(self.regions)]
 
         if self.timer:
             self.timer.add_checkpoint("Filled outputs")
             self.timer.summary()
+
         return output
 
     def jet_loop(self, variation, is_mc, df, dataset, mask, muons,
                  mu1, mu2, jets, weights, numevents, output):
-        weights = copy.deepcopy(weights)
+        # weights = copy.deepcopy(weights)
 
         if not is_mc and variation != 'nominal':
             return
@@ -1197,16 +1217,19 @@ class DimuonProcessor(processor.ProcessorABC):
         # Fill soft activity jet variables
         # ------------------------------------------------------------#
 
-        sa2 = self.get_softjet_vars(df, output, variables, 2)
-        variables.nsoftjets2 = sa2['SoftActivityJetNjets2']
-        variables.htsoft2 = sa2['SoftActivityJetHT2']
+        # Effect of changes in jet acceptance should be negligible,
+        # no need to calcluate this for each jet pT variation
+        if variation == 'nominal':
+            sa2 = self.get_softjet_vars(df, output, variables, 2)
+            variables.nsoftjets2 = sa2['SoftActivityJetNjets2']
+            variables.htsoft2 = sa2['SoftActivityJetHT2']
 
-        sa5 = self.get_softjet_vars(df, output, variables, 5)
-        variables.nsoftjets5 = sa5['SoftActivityJetNjets5']
-        variables.htsoft5 = sa5['SoftActivityJetHT5']
+            sa5 = self.get_softjet_vars(df, output, variables, 5)
+            variables.nsoftjets5 = sa5['SoftActivityJetNjets5']
+            variables.htsoft5 = sa5['SoftActivityJetHT5']
 
-        if self.timer:
-            self.timer.add_checkpoint("Calculated SA variables")
+            if self.timer:
+                self.timer.add_checkpoint("Calculated SA variables")
 
         # ------------------------------------------------------------#
         # Apply remaining cuts
@@ -1224,11 +1247,7 @@ class DimuonProcessor(processor.ProcessorABC):
         # Calculate QGL weights, btag SF and apply btag veto
         # ------------------------------------------------------------#
 
-        bjet_sel_mask = output.event_selection & two_jets & vbf_cut
-        btag_wgt = np.ones(numevents)
-        systs = self.btag_systs if variation == 'nominal' else []
-
-        if is_mc:
+        if is_mc and variation == 'nominal':
             # --- QGL weights --- #
             isHerwig = ('herwig' in dataset)
 
@@ -1250,6 +1269,10 @@ class DimuonProcessor(processor.ProcessorABC):
             )
 
             # --- Btag weights --- #
+            bjet_sel_mask = output.event_selection & two_jets & vbf_cut
+            btag_wgt = np.ones(numevents)
+            systs = self.btag_systs
+
             btag_wgt, btag_syst = btag_weights(
                 self, self.btag_lookup, systs, jets,
                 weights, bjet_sel_mask, numevents
@@ -1321,9 +1344,7 @@ class DimuonProcessor(processor.ProcessorABC):
         variables.update({'wgt_nominal': weights.get_weight('nominal')})
 
         # All variables are affected by jet pT because of jet selections:
-        # a jet may or may not be selected depending on pT variation,
-        # so even variables that don't directly depend on jet pT
-        # (e.g. QGL) must be saved for all pT variations.
+        # a jet may or may not be selected depending on pT variation.
 
         for key, val in variables.items():
             output.loc[:, pd.IndexSlice[key, variation]] = val

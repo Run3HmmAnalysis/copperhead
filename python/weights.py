@@ -11,22 +11,26 @@ class Weights(object):
     def add_weight(self, name, wgt):
         columns = self.df.columns
         self.df[f'{name}_off'] = self.df['nominal']
-        self.df[columns] = self.df[columns].multiply(np.array(wgt), axis=0)
+        self.df[columns] = self.df[columns]\
+            .multiply(np.array(wgt), axis=0).astype(np.float64)
         self.variations.append(name)
         self.wgts[name] = wgt
 
     def add_weight_with_variations(self, name, wgt, up, down):
         columns = self.df.columns
         self.wgts[name] = wgt
-        self.df[f'{name}_off'] = self.df['nominal']
-        self.df[f'{name}_up'] = self.df['nominal']*up
-        self.df[f'{name}_down'] = self.df['nominal']*down
-        self.df[columns] = self.df[columns].multiply(wgt, axis=0)
+        nom = self.df['nominal']
+        self.df[f'{name}_off'] = nom
+        self.df[f'{name}_up'] = (nom*up).astype(np.float64)
+        self.df[f'{name}_down'] = (nom*down).astype(np.float64)
+        self.df[columns] = self.df[columns]\
+            .multiply(wgt, axis=0).astype(np.float64)
         self.variations.append(name)
 
     def add_only_variations(self, name, up, down):
-        self.df[f'{name}_up'] = self.df['nominal']*up
-        self.df[f'{name}_down'] = self.df['nominal']*down
+        nom = self.df['nominal']
+        self.df[f'{name}_up'] = (nom*up).astype(np.float64)
+        self.df[f'{name}_down'] = (nom*down).astype(np.float64)
         self.variations.append(name)
 
     def add_dummy_weight(self, name):
@@ -39,11 +43,19 @@ class Weights(object):
         self.df[f'{name}_off'] = self.df['nominal']
         self.df[f'{name}_up'] = np.nan
         self.df[f'{name}_down'] = np.nan
+        self.df[f'{name}_up'] =\
+            self.df[f'{name}_up'].astype(np.float64)
+        self.df[f'{name}_down'] =\
+            self.df[f'{name}_down'].astype(np.float64)
         self.variations.append(name)
 
     def add_dummy_variations(self, name):
         self.df[f'{name}_up'] = np.nan
         self.df[f'{name}_down'] = np.nan
+        self.df[f'{name}_up'] =\
+            self.df[f'{name}_up'].astype(np.float64)
+        self.df[f'{name}_down'] =\
+            self.df[f'{name}_down'].astype(np.float64)
         self.variations.append(name)
 
     def get_weight(self, name, mask=np.array([])):

@@ -108,7 +108,31 @@ parameters["jec_unc_to_consider"] = {
              'RelativeSample2017', 'FlavorQCD'],
     "2018": ['Absolute', 'Absolute2018', 'BBEC1', 'BBEC12018',
              'EC2', 'EC22018', 'HF', 'HF2018', 'RelativeBal',
-             'RelativeSample2018', 'FlavorQCD']}
+             'RelativeSample2018', 'FlavorQCD']
+}
+
+def jec_variations(year):
+    result = []
+    for v in parameters["jec_unc_to_consider"][year]:
+        result.append(v+"_up")
+        result.append(v+"_down")
+    return result
+
+parameters['jec_variations'] = {
+    year: jec_variations(year) for year in ['2016', '2017', '2018']
+}
+
+parameters['jer_variations'] = for_all_years(
+    [
+        'jer1_up', 'jer1_down',
+        'jer2_up', 'jer2_down',
+        'jer3_up', 'jer3_down',
+        'jer4_up', 'jer4_down',
+        'jer5_up', 'jer5_down',
+        'jer6_up', 'jer6_down',
+    ]
+)
+
 
 parameters['jec_names'] = {
     y: [f"{jec_tag[y]}_{level}_AK4PFchs"

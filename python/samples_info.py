@@ -20,16 +20,14 @@ def read_via_xrootd(server, path):
 
 
 class SamplesInfo(object):
-    def __init__(self, year, out_path='/output/', xrootd=True,
-                 server='root://xrootd.rcac.purdue.edu/',
-                 timeout=60,
-                 datasets_from='purdue', debug=False):
-
-        self.year = year
-        self.out_path = out_path
-        self.xrootd = xrootd
-        self.debug = debug
-        self.timeout = timeout
+    def __init__(self, **kwargs):
+        self.year = kwargs.pop('year', '2016')
+        self.out_path = kwargs.pop('out_path', '/output/')
+        self.xrootd = kwargs.pop('xrootd', True)
+        self.server = kwargs.pop('server', 'root://xrootd.rcac.purdue.edu/')
+        self.timeout = kwargs.pop('timeout', 60)
+        self.debug = kwargs.pop('debug', False)
+        datasets_from = kwargs.pop('datasets_from', 'purdue')
 
         self.parameters = {k: v[self.year] for k, v in parameters.items()}
 
@@ -39,8 +37,6 @@ class SamplesInfo(object):
             from config.datasets import datasets, lumi_data
         elif 'pisa' in datasets_from:
             from config.datasets_pisa import datasets, lumi_data
-
-        self.server = server
 
         self.paths = datasets[self.year]
         self.lumi_data = lumi_data
@@ -84,24 +80,24 @@ class SamplesInfo(object):
         self.data_entries = res['data_entries']
 
         if self.data_entries:
-            print()
+            # print()
             data_entries_total = self.lumi_data[self.year]['events']
-            print(f"Total events in {self.year}: {data_entries_total}")
+            # print(f"Total events in {self.year}: {data_entries_total}")
 
-            print(f"Loaded {self.data_entries} of {self.year} data events")
+            # print(f"Loaded {self.data_entries} of {self.year} data events")
             prc = round(self.data_entries/data_entries_total*100, 2)
-            print(f"This is ~ {prc}% of {self.year} data.")
+            # print(f"This is ~ {prc}% of {self.year} data.")
 
-            print(f"Integrated luminosity: {self.lumi}/pb")
-            print()
+            # print(f"Integrated luminosity: {self.lumi}/pb")
+            # print()
 
         t1 = time.time()
         dt = round(t1 - t0, 2)
-        print(f"Loading took {dt} s")
+        # print(f"Loading took {dt} s")
 
     def load_sample(self, sample, use_dask=False, client=None):
         if sample not in self.paths:
-            print(f"Couldn't load {sample}! Skipping.")
+            # print(f"Couldn't load {sample}! Skipping.")
             return {'sample': sample, 'metadata': {},
                     'files': {}, 'data_entries': 0, 'is_missing': True}
 
@@ -120,7 +116,7 @@ class SamplesInfo(object):
         if self.debug:
             all_files = [all_files[0]]
 
-        print(f"Loading {sample}: {len(all_files)} files")
+        # print(f"Loading {sample}: {len(all_files)} files")
 
         sumGenWgts = 0
         nGenEvts = 0
@@ -194,7 +190,7 @@ class SamplesInfo(object):
                 self.lumi_weights[self.sample] = xsec * self.lumi / N
             else:
                 self.lumi_weights[self.sample] = 0
-            print(f"{self.sample}: events={numevents}")
+            # print(f"{self.sample}: events={numevents}")
             return numevents
         else:
             return self.data_entries
