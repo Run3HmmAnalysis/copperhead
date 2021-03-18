@@ -65,7 +65,7 @@ class SamplesInfo(object):
         self.lumi_weights = {}
 
     def load(self, sample, use_dask, client=None):
-        t0 = time.time()
+        # t0 = time.time()
 
         if 'data' in sample:
             self.is_mc = False
@@ -79,9 +79,9 @@ class SamplesInfo(object):
         self.metadata = res['metadata']
         self.data_entries = res['data_entries']
 
-        if self.data_entries:
+        # if self.data_entries:
             # print()
-            data_entries_total = self.lumi_data[self.year]['events']
+            # data_entries_total = self.lumi_data[self.year]['events']
             # print(f"Total events in {self.year}: {data_entries_total}")
 
             # print(f"Loaded {self.data_entries} of {self.year} data events")
