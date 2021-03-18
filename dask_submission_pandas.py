@@ -5,7 +5,7 @@ import traceback
 import tqdm
 
 import coffea.processor as processor
-from coffea.processor import dask_executor, run_uproot_job, iterative_executor
+from coffea.processor import dask_executor, run_uproot_job
 from python.dimuon_processor_pandas import DimuonProcessor
 from python.samples_info import SamplesInfo
 from config.parameters import parameters as pars
@@ -17,17 +17,24 @@ dask.config.set({"temporary-directory": "/depot/cms/hmm/dask-temp/"})
 
 parser = argparse.ArgumentParser()
 # Slurm cluster IP to use. If not specified, will create a local cluster
-parser.add_argument("-sl", "--slurm", dest="slurm_port", default=None, action='store',
-                    help='Slurm cluster port (if not specified, will create a local cluster)')
-parser.add_argument("-y", "--year", dest="year", default='2016', action='store',
+parser.add_argument("-sl", "--slurm", dest="slurm_port",
+                    default=None, action='store',
+                    help='Slurm cluster port (if not specified, '
+                        'will create a local cluster)')
+parser.add_argument("-y", "--year", dest="year", default='2016',
+                    action='store',
                     help='Year to process (2016, 2017 or 2018)')
-parser.add_argument("-l", "--label", dest="label", default="test_march", action='store',
+parser.add_argument("-l", "--label", dest="label", default="test_march",
+                    action='store',
                     help='Unique run label (to create output path)')
-parser.add_argument("-ch", "--chunksize", dest="chunksize", default=100000, action='store',
+parser.add_argument("-ch", "--chunksize", dest="chunksize",
+                    default=100000, action='store',
                     help='Approximate chunk size')
-parser.add_argument("-mch", "--maxchunks", dest="maxchunks", default=-1, action='store',
+parser.add_argument("-mch", "--maxchunks", dest="maxchunks", default=-1,
+                    action='store',
                     help='Max. number of chunks')
-parser.add_argument("-jec", "--jec", dest="jec_unc", default=False, action='store_true',
+parser.add_argument("-jec", "--jec", dest="jec_unc", default=False,
+                    action='store_true',
                     help='Enable JEC/JER uncertainties')
 
 args = parser.parse_args()
@@ -74,7 +81,7 @@ parameters['out_dir'] = f"{parameters['global_out_path']}/"\
 
 
 def load_sample(dataset, parameters):
-    xrootd = not (dataset=='test_file')
+    xrootd = not (dataset == 'test_file')
     args = {
         'year': parameters['year'],
         'out_path': parameters['out_path'],
@@ -113,11 +120,13 @@ def load_samples(datasets, parameters):
         samp_info_total.samples.append(sample)
     return samp_info_total
 
+
 def mkdir(path):
     try:
         os.mkdir(path)
     except Exception:
         pass
+
 
 def submit_job(arg_set, parameters):
     executor = dask_executor
@@ -145,15 +154,15 @@ def submit_job(arg_set, parameters):
         return 'Failed: '+str(e)+' '+tb
 
     df = output.compute()
-    if df.count().sum()==0:
+    if df.count().sum() == 0:
         return 'Nothing to save!'
     print(df)
 
     if parameters['save_output']:
-        
+
         mkdir(parameters['out_dir'])
 
-        if parameters['pt_variations']==['nominal']:
+        if parameters['pt_variations'] == ['nominal']:
             out_dir = f"{parameters['out_dir']}/"
         else:
             out_dir = f"{parameters['out_dir']}_jec/"
@@ -162,8 +171,12 @@ def submit_job(arg_set, parameters):
 
         for ds in output.s.unique():
             out_path_ = f"{out_dir}/{ds}/"
-            print(f"Saving...")
-            dd.to_parquet(df=output[output.s == ds], path=out_path_, schema="infer")
+            print("Saving...")
+            dd.to_parquet(
+                df=output[output.s == ds],
+                path=out_path_,
+                schema="infer"
+            )
             print(f"Saved output to {out_path_}")
     return 'Success!'
 
@@ -171,9 +184,9 @@ def submit_job(arg_set, parameters):
 if __name__ == "__main__":
     tick = time.time()
     smp = {
-        #'single_file': [
-        #    'test_file',
-        #],
+        # 'single_file': [
+        #     'test_file',
+        # ],
         'data': [
             'data_A',
             'data_B',
@@ -226,11 +239,12 @@ if __name__ == "__main__":
     datasets_data = []
     for group, samples in smp.items():
         for sample in samples:
-            if sample!='vbf_powheg_dipole': continue
-            if group=='data':
+            if sample != 'vbf_powheg_dipole':
+                continue
+            if group == 'data':
                 datasets_data.append(sample)
             else:
-                datasets_mc.append(sample)            
+                datasets_mc.append(sample)
 
     timings = {}
 
@@ -239,7 +253,7 @@ if __name__ == "__main__":
         'DATA': datasets_data
     }
     for lbl, datasets in to_process.items():
-        if len(datasets)==0:
+        if len(datasets) == 0:
             continue
         print(f'Processing {lbl}')
         arg_sets = []
