@@ -85,14 +85,14 @@ class SamplesInfo(object):
             # print(f"Total events in {self.year}: {data_entries_total}")
 
             # print(f"Loaded {self.data_entries} of {self.year} data events")
-            prc = round(self.data_entries/data_entries_total*100, 2)
+            # prc = round(self.data_entries/data_entries_total*100, 2)
             # print(f"This is ~ {prc}% of {self.year} data.")
 
             # print(f"Integrated luminosity: {self.lumi}/pb")
             # print()
 
-        t1 = time.time()
-        dt = round(t1 - t0, 2)
+        # t1 = time.time()
+        # dt = round(t1 - t0, 2)
         # print(f"Loading took {dt} s")
 
     def load_sample(self, sample, use_dask=False, client=None):
