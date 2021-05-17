@@ -596,11 +596,9 @@ class DimuonProcessor(processor.ProcessorABC):
             if self.timer:
                 self.timer.add_checkpoint("Build JEC")
 
-
         # TODO: only consider nuisances that are defined in run parameters
         # Compute JEC uncertainties
         if is_mc and self.do_jecunc:
-        #if True:
             jets = self.jet_factory['junc'].build(
                 jets, lazy_cache=cache
             )
@@ -609,13 +607,11 @@ class DimuonProcessor(processor.ProcessorABC):
 
         # Compute JER uncertainties
         if is_mc and self.do_jerunc:
-        #if True:
             jets = self.jet_factory['jer'].build(
                 jets, lazy_cache=cache
             )
             if self.timer:
                 self.timer.add_checkpoint("Build JER")
-
 
         # TODO: JER nuisances
         """
@@ -946,10 +942,8 @@ class DimuonProcessor(processor.ProcessorABC):
 
         for wgt in weights.df.columns:
             if (('nominal' not in wgt) and
-                ('up' not in wgt) and
-                ('down' not in wgt)
-               ):
-                continue
+                ('up' not in wgt) and ('down' not in wgt)):
+                    continue
             output[f'wgt_{wgt}'] = weights.get_weight(wgt)
 
         columns_to_save = [c for c in output.columns
@@ -965,7 +959,7 @@ class DimuonProcessor(processor.ProcessorABC):
                     :, pd.IndexSlice['c', 'nominal']
                 ].isin(self.channels)
             ]
-        except:
+        except Exception:
             pass
 
         output.columns = [
@@ -1142,14 +1136,13 @@ class DimuonProcessor(processor.ProcessorABC):
             names=['entry', 'subentry']
         )
 
-
         # Select two jets with highest pT
         try:
             jet1 = jets.loc[pd.IndexSlice[:, 0], :]
             jet2 = jets.loc[pd.IndexSlice[:, 1], :]
             jet1.index = jet1.index.droplevel('subentry')
             jet2.index = jet2.index.droplevel('subentry')
-        except:
+        except Exception:
             return
 
         # Fill single jet variables
