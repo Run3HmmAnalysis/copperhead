@@ -941,9 +941,13 @@ class DimuonProcessor(processor.ProcessorABC):
         output['year'] = int(self.year)
 
         for wgt in weights.df.columns:
-            if (('nominal' not in wgt) and
-                ('up' not in wgt) and ('down' not in wgt)):
-                    continue
+            skip_saving = (
+                ('nominal' not in wgt) and
+                ('up' not in wgt) and
+                ('down' not in wgt)
+            )
+            if skip_saving:
+                continue
             output[f'wgt_{wgt}'] = weights.get_weight(wgt)
 
         columns_to_save = [c for c in output.columns
