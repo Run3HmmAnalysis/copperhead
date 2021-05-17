@@ -51,8 +51,10 @@ class DimuonProcessor(processor.ProcessorABC):
 
         self._columns = self.parameters["proc_columns"]
 
-        self.regions = self.samp_info.regions
-        self.channels = self.samp_info.channels
+        # --- Define regions and channels used in the analysis ---#
+        self.regions = ['z-peak', 'h-sidebands', 'h-peak']
+        # self.channels = ['ggh_01j', 'ggh_2j', 'vbf']
+        self.channels = ['vbf', 'vbf_01j', 'vbf_2j']
 
         self.lumi_weights = self.samp_info.lumi_weights
 
@@ -235,6 +237,7 @@ class DimuonProcessor(processor.ProcessorABC):
         # ------------------------------------------------------------#
 
         numevents = len(df)
+        # print(numevents)
 
         if is_mc:
             nTrueInt = df.Pileup.nTrueInt
@@ -252,6 +255,9 @@ class DimuonProcessor(processor.ProcessorABC):
         # Separate dataframe to keep track on weights
         # and their systematic variations
         weights = Weights(output)
+
+        if self.timer:
+            self.timer.add_checkpoint("Initialization")
 
         if is_mc:
             # For MC: Apply gen.weights, pileup weights, lumi weights,
@@ -283,11 +289,16 @@ class DimuonProcessor(processor.ProcessorABC):
                 'pu_wgt', pu_weight, pu_weight_up, pu_weight_down
             )
             weights.add_weight('lumi', self.lumi_weights[dataset])
-            l1pfw = ak.to_pandas(df.L1PreFiringWeight)
             if self.parameters["do_l1prefiring_wgts"]:
-                weights.add_weight_with_variations(
-                    'l1prefiring_wgt', l1pfw.Nom, l1pfw.Up, l1pfw.Dn
-                )
+                if 'L1PreFiringWeight' in df.fields:
+                    l1pfw = ak.to_pandas(df.L1PreFiringWeight)
+                    weights.add_weight_with_variations(
+                        'l1prefiring_wgt', l1pfw.Nom, l1pfw.Up, l1pfw.Dn
+                    )
+                else:
+                    weights.add_dummy_weight_with_variations(
+                        'l1prefiring_wgt'
+                    )
 
         else:
             # For Data: apply Lumi mask
@@ -295,7 +306,7 @@ class DimuonProcessor(processor.ProcessorABC):
             mask = lumi_info(df.run, df.luminosityBlock)
 
         # Apply HLT to both Data and MC
-        hlt = ak.to_pandas(df.HLT)
+        hlt = ak.to_pandas(df.HLT[self.parameters["hlt"]])
         hlt = hlt[self.parameters["hlt"]].sum(axis=1)
 
         if self.timer:
@@ -358,8 +369,11 @@ class DimuonProcessor(processor.ProcessorABC):
                     self.timer.add_checkpoint("GeoFit correction")
 
             # --- conversion from awkward to pandas --- #
-            # TODO: convert only relevant fields to improve memory usage
-            muons = ak.to_pandas(df.Muon)
+            muon_columns = [
+                'pt', 'pt_fsr', 'eta', 'phi', 'charge', 'ptErr',
+                'mass', 'pt_raw', 'eta_raw', 'pfRelIso04_all'
+            ]+[self.parameters["muon_id"]]
+            muons = ak.to_pandas(df.Muon[muon_columns])
 
             # --------------------------------------------------------#
             # Select muons that pass pT, eta, isolation cuts,
@@ -369,7 +383,7 @@ class DimuonProcessor(processor.ProcessorABC):
             # --------------------------------------------------------#
 
             # Apply event quality flags
-            flags = ak.to_pandas(df.Flag)
+            flags = ak.to_pandas(df.Flag[self.parameters["event_flags"]])
             flags = flags[self.parameters["event_flags"]].product(axis=1)
             muons['pass_flags'] = True
             if self.parameters["muon_flags"]:
@@ -427,11 +441,19 @@ class DimuonProcessor(processor.ProcessorABC):
             # --------------------------------------------------------#
 
             # Find pT-leading and subleading muons
+            # This is slow for large chunk size.
+            # Consider reimplementing using sort_values().groupby().nth()
+            # or sort_values().drop_duplicates()
+            # or using Numba
+            # https://stackoverflow.com/questions/50381064/select-the-max-row-per-group-pandas-performance-issue
             muons = muons[muons.selection & (nmuons == 2)]
             mu1 = muons.loc[muons.pt.groupby('entry').idxmax()]
             mu2 = muons.loc[muons.pt.groupby('entry').idxmin()]
             mu1.index = mu1.index.droplevel('subentry')
             mu2.index = mu2.index.droplevel('subentry')
+
+            if self.timer:
+                self.timer.add_checkpoint("Mu1 and Mu2")
 
             mu1_variable_names = [
                 'mu1_pt', 'mu1_pt_over_mass',
@@ -463,7 +485,7 @@ class DimuonProcessor(processor.ProcessorABC):
 
             # --------------------------------------------------------#
             # Select events with muons passing leading pT cut
-            # and trigger matching
+            # and trigger matching (trig match not done in final vrsn)
             # --------------------------------------------------------#
 
             # Events where there is at least one muon passing
@@ -477,9 +499,6 @@ class DimuonProcessor(processor.ProcessorABC):
             output['event_selection'] = (
                 output.event_selection & output.pass_leading_pt
             )
-
-            if self.timer:
-                self.timer.add_checkpoint("Applied trigger matching")
 
             # --------------------------------------------------------#
             # Fill dimuon and muon variables
@@ -572,20 +591,31 @@ class DimuonProcessor(processor.ProcessorABC):
                 for run in self.data_runs:
                     if run in dataset:
                         factory = self.jec_factories_data[run]
-            jets = factory.build(df.Jet, lazy_cache=cache)
+            jets = factory.build(jets, lazy_cache=cache)
+
+            if self.timer:
+                self.timer.add_checkpoint("Build JEC")
+
 
         # TODO: only consider nuisances that are defined in run parameters
         # Compute JEC uncertainties
         if is_mc and self.do_jecunc:
+        #if True:
             jets = self.jet_factory['junc'].build(
                 jets, lazy_cache=cache
             )
+            if self.timer:
+                self.timer.add_checkpoint("Build JECUNC")
 
         # Compute JER uncertainties
         if is_mc and self.do_jerunc:
+        #if True:
             jets = self.jet_factory['jer'].build(
                 jets, lazy_cache=cache
             )
+            if self.timer:
+                self.timer.add_checkpoint("Build JER")
+
 
         # TODO: JER nuisances
         """
@@ -652,8 +682,6 @@ class DimuonProcessor(processor.ProcessorABC):
                 self.timer.add_checkpoint("Computed JER nuisances")
 
         """
-        if self.timer:
-            self.timer.add_checkpoint("Applied JEC/JER (if enabled)")
 
         # ------------------------------------------------------------#
         # Calculate other event weights
@@ -812,10 +840,10 @@ class DimuonProcessor(processor.ProcessorABC):
                     max_replicas = 33
                 else:
                     max_replicas = 100
-                    if do_pdf:
-                        pdf_wgts = df.LHEPdfWeight[
-                            :, 0:self.parameters["n_pdf_variations"]
-                        ]
+                if do_pdf:
+                    pdf_wgts = df.LHEPdfWeight[
+                        :, 0:self.parameters["n_pdf_variations"]
+                    ]
                 for i in range(100):
                     if (i < max_replicas) and do_pdf:
                         output[f"pdf_mcreplica{i}"] = pdf_wgts[:, i]
@@ -825,7 +853,8 @@ class DimuonProcessor(processor.ProcessorABC):
                 if do_pdf:
                     pdf_wgts = df.LHEPdfWeight[
                         :, 0:self.parameters["n_pdf_variations"]
-                    ]
+                    ][0]
+                    pdf_wgts = np.array(pdf_wgts)
                     weights.add_only_variations(
                         "pdf_2rms",
                         (1 + 2 * pdf_wgts.std()),
@@ -861,28 +890,29 @@ class DimuonProcessor(processor.ProcessorABC):
                     gl_pair['lepton'].phi
             )
             isolated = ak.all((dr_gl > 0.3), axis=-1)
-            # TODO: convert only relevant fields!
-            gjet1 = ak.to_pandas(gjets[isolated]).loc[
-                pd.IndexSlice[:, 0], ['pt', 'eta', 'phi', 'mass']
-            ]
-            gjet2 = ak.to_pandas(gjets[isolated]).loc[
-                pd.IndexSlice[:, 1], ['pt', 'eta', 'phi', 'mass']
-            ]
-            gjet1.index = gjet1.index.droplevel('subentry')
-            gjet2.index = gjet2.index.droplevel('subentry')
+            if ak.count(gjets[isolated], axis=None) > 0:
+                # TODO: convert only relevant fields!
+                gjet1 = ak.to_pandas(gjets[isolated]).loc[
+                    pd.IndexSlice[:, 0], ['pt', 'eta', 'phi', 'mass']
+                ]
+                gjet2 = ak.to_pandas(gjets[isolated]).loc[
+                    pd.IndexSlice[:, 1], ['pt', 'eta', 'phi', 'mass']
+                ]
+                gjet1.index = gjet1.index.droplevel('subentry')
+                gjet2.index = gjet2.index.droplevel('subentry')
 
-            gjsum = p4_sum(gjet1, gjet2)
+                gjsum = p4_sum(gjet1, gjet2)
 
-            output['genJetPairMass'] = gjsum.mass
-            output['genJetPairMass'] = output['genJetPairMass'].fillna(0.0)
-            if ('dy_m105_160_vbf_amc' in dataset):
-                output.event_selection = (
-                    output.event_selection & (output.genJetPairMass > 350)
-                )
-            if ('dy_m105_160_amc' in dataset):
-                output.event_selection = (
-                    output.event_selection & (output.genJetPairMass <= 350)
-                )
+                output['genJetPairMass'] = gjsum.mass
+                output['genJetPairMass'] = output['genJetPairMass'].fillna(0.0)
+                if ('dy_m105_160_vbf_amc' in dataset):
+                    output.event_selection = (
+                        output.event_selection & (output.genJetPairMass > 350)
+                    )
+                if ('dy_m105_160_amc' in dataset):
+                    output.event_selection = (
+                        output.event_selection & (output.genJetPairMass <= 350)
+                    )
 
         # ------------------------------------------------------------#
         # Loop over JEC variations and fill jet variables
@@ -899,7 +929,7 @@ class DimuonProcessor(processor.ProcessorABC):
             if output_updated is not None:
                 output = output_updated
         if self.timer:
-            self.timer.add_checkpoint("Completed JEC loop")
+            self.timer.add_checkpoint("Completed jet loop")
 
         # ------------------------------------------------------------#
         # Fill outputs
@@ -915,7 +945,10 @@ class DimuonProcessor(processor.ProcessorABC):
         output['year'] = int(self.year)
 
         for wgt in weights.df.columns:
-            if ('up' not in wgt) and ('down' not in wgt):
+            if (('nominal' not in wgt) and
+                ('up' not in wgt) and
+                ('down' not in wgt)
+               ):
                 continue
             output[f'wgt_{wgt}'] = weights.get_weight(wgt)
 
@@ -926,11 +959,14 @@ class DimuonProcessor(processor.ProcessorABC):
         output = output.loc[output.event_selection, columns_to_save]
         output = output.reindex(sorted(output.columns), axis=1)
 
-        output = output[
-            output.loc[
-                :, pd.IndexSlice['c', 'nominal']
-            ].isin(self.channels)
-        ]
+        try:
+            output = output[
+                output.loc[
+                    :, pd.IndexSlice['c', 'nominal']
+                ].isin(self.channels)
+            ]
+        except:
+            pass
 
         output.columns = [
             ' '.join(col).strip() for col in output.columns.values
@@ -1106,11 +1142,15 @@ class DimuonProcessor(processor.ProcessorABC):
             names=['entry', 'subentry']
         )
 
+
         # Select two jets with highest pT
-        jet1 = jets.loc[pd.IndexSlice[:, 0], :]
-        jet2 = jets.loc[pd.IndexSlice[:, 1], :]
-        jet1.index = jet1.index.droplevel('subentry')
-        jet2.index = jet2.index.droplevel('subentry')
+        try:
+            jet1 = jets.loc[pd.IndexSlice[:, 0], :]
+            jet2 = jets.loc[pd.IndexSlice[:, 1], :]
+            jet1.index = jet1.index.droplevel('subentry')
+            jet2.index = jet2.index.droplevel('subentry')
+        except:
+            return
 
         # Fill single jet variables
         for v in ['pt', 'eta', 'phi', 'qgl', 'jetId', 'puId']:
@@ -1283,6 +1323,10 @@ class DimuonProcessor(processor.ProcessorABC):
                 weights.add_only_variations(
                     f'btag_wgt_{name}', up, down
                 )
+            if self.timer:
+                self.timer.add_checkpoint(
+                    "Applied QGL and B-tag weights"
+                )
 
         # Separate from ttH and VH phase space
         variables['nBtagLoose'] = jets[
@@ -1302,11 +1346,6 @@ class DimuonProcessor(processor.ProcessorABC):
             (variables.nBtagLoose < 2) &
             (variables.nBtagMedium < 1)
         )
-
-        if self.timer:
-            self.timer.add_checkpoint(
-                "Applied b-jet SF and b-tag veto"
-            )
 
         # ------------------------------------------------------------#
         # Define categories

@@ -57,11 +57,6 @@ class SamplesInfo(object):
         self.fileset = {}
         self.metadata = {}
 
-        # --- Define regions and channels used in the analysis ---#
-        self.regions = ['z-peak', 'h-sidebands', 'h-peak']
-        # self.channels = ['ggh_01j', 'ggh_2j', 'vbf']
-        self.channels = ['vbf', 'vbf_01j', 'vbf_2j']
-
         self.lumi_weights = {}
 
     def load(self, sample, use_dask, client=None):

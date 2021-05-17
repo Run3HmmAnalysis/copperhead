@@ -30,17 +30,42 @@ class Timer(object):
     def summary(self):
         columns = ["Action", "Time (s)", "Time (%)"]
         action_groups = []
-        muons = ["Selected events and muons",
-                 "Applied trigger matching",
-                 "Filled muon variables"]
-        jets = ["Prepared jets", "Applied JEC/JER (if enabled)",
-                "Selected jets", "Filled jet variables",
-                "Completed JEC loop"]
+        muons = [
+            "Filled muon variables",
+            "Mu1 and Mu2",
+            "Selected events and muons"
+        ]
+        jets = [
+            "Build JEC",
+            "Build JECUNC",
+            "Build JER",
+            "Filled jet variables",
+            "Completed jet loop",
+            "Prepared jets",
+            "Selected jets"
+        ]
+        corrections = [
+            "Applied QGL and B-tag weights",
+            "Computed event weights",
+            "FSR recovery",
+            "GeoFit correction"
+        ]
+        other = [
+            "Applied HLT and lumimask",
+            "Calculated SA variables",
+            "Filled outputs",
+            "Initialization"
+        ]
+
         for action in list(self.time_dict.keys()):
             if action in muons:
-                action_groups.append("Muon selection")
+                action_groups.append("Muons")
             elif action in jets:
-                action_groups.append("Jet selection")
+                action_groups.append("Jets")
+            elif action in corrections:
+                action_groups.append("Corrections")
+            elif action in other:
+                action_groups.append("Other")
             else:
                 action_groups.append(action)
         summary = pd.DataFrame(columns=columns)
