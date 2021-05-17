@@ -1,12 +1,11 @@
 import time
-import os
 import argparse
 import traceback
 
 import coffea.processor as processor
 from coffea.processor import dask_executor, run_uproot_job
 from python.dimuon_processor_pandas import DimuonProcessor
-from python.samples_info import SamplesInfo, load_samples
+from python.samples_info import load_samples
 from python.utils import mkdir
 from config.parameters import parameters as pars
 
@@ -176,7 +175,7 @@ if __name__ == "__main__":
     if parameters['local_cluster']:
         parameters['client'] = dask.distributed.Client(
                                     processes=True,
-                                    #n_workers=min(mch, 23),
+                                    # n_workers=min(mch, 23),
                                     n_workers=48,
                                     dashboard_address=dash_local,
                                     threads_per_worker=1,
@@ -192,9 +191,9 @@ if __name__ == "__main__":
     datasets_data = []
     for group, samples in smp.items():
         for sample in samples:
-            #if sample != 'data_B':
+            # if sample != 'data_B':
+            # if sample != 'dy_m105_160_amc':
             if sample != 'vbf_powheg_dipole':
-            #if sample != 'dy_m105_160_amc':
                 continue
             if group == 'data':
                 datasets_data.append(sample)
