@@ -1,11 +1,53 @@
 # import time
 import subprocess
 import glob
+import tqdm
 
 import uproot
 
 from config.parameters import parameters
 from config.cross_sections import cross_sections
+
+
+def load_sample(dataset, parameters):
+    xrootd = not (dataset == 'test_file')
+    args = {
+        'year': parameters['year'],
+        'out_path': parameters['out_path'],
+        'server': parameters['server'],
+        'datasets_from': 'purdue',
+        'debug': False,
+        'xrootd': xrootd,
+        'timeout': 120
+    }
+    samp_info = SamplesInfo(**args)
+    samp_info.load(dataset, use_dask=True, client=parameters['client'])
+    samp_info.finalize()
+    return {dataset: samp_info}
+
+
+def load_samples(datasets, parameters):
+    args = {
+        'year': parameters['year'],
+        'out_path': parameters['out_path'],
+        'server': parameters['server'],
+        'datasets_from': 'purdue',
+        'debug': False
+    }
+    samp_info_total = SamplesInfo(**args)
+    print("Loading lists of paths to ROOT files for these datasets:", datasets)
+    for d in tqdm.tqdm(datasets):
+        if d in samp_info_total.samples:
+            continue
+        si = load_sample(d, parameters)[d]
+        if 'files' not in si.fileset[d].keys():
+            continue
+        samp_info_total.data_entries += si.data_entries
+        samp_info_total.fileset.update(si.fileset)
+        samp_info_total.metadata.update(si.metadata)
+        samp_info_total.lumi_weights.update(si.lumi_weights)
+        samp_info_total.samples.append(si.sample)
+    return samp_info_total
 
 
 def read_via_xrootd(server, path):

@@ -2,12 +2,12 @@ import time
 import os
 import argparse
 import traceback
-import tqdm
 
 import coffea.processor as processor
 from coffea.processor import dask_executor, run_uproot_job
 from python.dimuon_processor_pandas import DimuonProcessor
-from python.samples_info import SamplesInfo
+from python.samples_info import SamplesInfo, load_samples
+from python.utils import mkdir
 from config.parameters import parameters as pars
 
 import dask
@@ -78,54 +78,6 @@ parameters = {
 
 parameters['out_dir'] = f"{parameters['global_out_path']}/"\
                         f"{parameters['out_path']}"
-
-
-def load_sample(dataset, parameters):
-    xrootd = not (dataset == 'test_file')
-    args = {
-        'year': parameters['year'],
-        'out_path': parameters['out_path'],
-        'server': parameters['server'],
-        'datasets_from': 'purdue',
-        'debug': False,
-        'xrootd': xrootd,
-        'timeout': 120
-    }
-    samp_info = SamplesInfo(**args)
-    samp_info.load(dataset, use_dask=True, client=parameters['client'])
-    samp_info.finalize()
-    return {dataset: samp_info}
-
-
-def load_samples(datasets, parameters):
-    args = {
-        'year': parameters['year'],
-        'out_path': parameters['out_path'],
-        'server': parameters['server'],
-        'datasets_from': 'purdue',
-        'debug': False
-    }
-    samp_info_total = SamplesInfo(**args)
-    print("Loading lists of paths to ROOT files for these datasets:", datasets)
-    for d in tqdm.tqdm(datasets):
-        if d in samp_info_total.samples:
-            continue
-        si = load_sample(d, parameters)[d]
-        if 'files' not in si.fileset[d].keys():
-            continue
-        samp_info_total.data_entries += si.data_entries
-        samp_info_total.fileset.update(si.fileset)
-        samp_info_total.metadata.update(si.metadata)
-        samp_info_total.lumi_weights.update(si.lumi_weights)
-        samp_info_total.samples.append(sample)
-    return samp_info_total
-
-
-def mkdir(path):
-    try:
-        os.mkdir(path)
-    except Exception:
-        pass
 
 
 def submit_job(arg_set, parameters):
@@ -224,10 +176,11 @@ if __name__ == "__main__":
     if parameters['local_cluster']:
         parameters['client'] = dask.distributed.Client(
                                     processes=True,
-                                    n_workers=40,
+                                    #n_workers=min(mch, 23),
+                                    n_workers=48,
                                     dashboard_address=dash_local,
                                     threads_per_worker=1,
-                                    memory_limit='8GB',
+                                    memory_limit='2.9GB',
                                 )
     else:
         parameters['client'] = Client(
@@ -239,7 +192,9 @@ if __name__ == "__main__":
     datasets_data = []
     for group, samples in smp.items():
         for sample in samples:
+            #if sample != 'data_B':
             if sample != 'vbf_powheg_dipole':
+            #if sample != 'dy_m105_160_amc':
                 continue
             if group == 'data':
                 datasets_data.append(sample)

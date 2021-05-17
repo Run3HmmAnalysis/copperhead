@@ -2,6 +2,13 @@ import numpy as np
 import pandas as pd
 
 
+def mkdir(path):
+    try:
+        os.mkdir(path)
+    except Exception:
+        pass
+
+
 def p4_sum(obj1, obj2):
     result = pd.DataFrame(
         index=obj1.index.union(obj2.index),
