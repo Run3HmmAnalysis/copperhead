@@ -110,7 +110,7 @@ if __name__ == "__main__":
     parameters['hist_vars'] += ['score_'+m for m in parameters['dnn_models']]
     parameters['hist_vars'] += ['score_'+m for m in parameters['bdt_models']]
 
-    #parameters['plot_vars'] = ['dimuon_mass']
+    # parameters['plot_vars'] = ['dimuon_mass']
     parameters['plot_vars'] = parameters['hist_vars']
 
     paths = []
