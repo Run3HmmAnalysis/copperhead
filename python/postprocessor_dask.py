@@ -148,7 +148,7 @@ def workflow(client, paths, parameters, timer):
         hists_to_plot
     )
 
-    plot_ret = client.gather(plot_futures)
+    client.gather(plot_futures)
 
     return df, hists
 
@@ -340,25 +340,26 @@ def histogram(var, df=pd.DataFrame(), parameters={}):
                             # (MC replicas)
     return {var.name: h}
 
+
 def plot(hist, df=pd.DataFrame(), parameters={}):
     if not hist.keys():
         return
     a_year = list(hist.keys())[0]
     var = hist[a_year].axes[-1]
 
-    stack_entries = []
+    # stack_entries = []
     step_entries = ['vbf_powheg_herwig', 'vbf_powheg_dipole']
-    errorbar_entries = []
+    # errorbar_entries = []
 
     plotsize = 8
     ratio_plot_size = 0.25
-    data_opts = {'color': 'k', 'marker': '.', 'markersize': 15}
-    stack_fill_opts = {'alpha': 0.8, 'edgecolor': (0, 0, 0)}
-    stat_err_opts = {'step': 'post', 'label': 'Stat. unc.',
-                     'hatch': '//////', 'facecolor': 'none',
-                     'edgecolor': (0, 0, 0, .5), 'linewidth': 0}
-    ratio_err_opts = {'step': 'post', 'facecolor': (0, 0, 0, 0.3),
-                      'linewidth': 0}
+    # data_opts = {'color': 'k', 'marker': '.', 'markersize': 15}
+    # stack_fill_opts = {'alpha': 0.8, 'edgecolor': (0, 0, 0)}
+    # stat_err_opts = {'step': 'post', 'label': 'Stat. unc.',
+    #                  'hatch': '//////', 'facecolor': 'none',
+    #                  'edgecolor': (0, 0, 0, .5), 'linewidth': 0}
+    # ratio_err_opts = {'step': 'post', 'facecolor': (0, 0, 0, 0.3),
+    #                   'linewidth': 0}
 
     fig = plt.figure()
     style = hep.style.CMS
@@ -377,13 +378,15 @@ def plot(hist, df=pd.DataFrame(), parameters={}):
         for entry in step_entries:
             if entry not in hist[year].axes["dataset"]:
                 continue
-            plottable = hist[year][entry, 'h-peak', 'vbf', 'nominal', 'value', :].project(var.name)
+            plottable = hist[year][
+                entry, 'h-peak', 'vbf', 'nominal', 'value', :
+            ].project(var.name)
             hep.histplot(plottable, label=entry, **{'linewidth': 3})
 
         plt1.set_yscale('log')
         plt1.set_ylim(0.01, 1e9)
         # plt1.set_xlim(var.xmin,var.xmax)
-        #plt1.set_xlim(edges[0], edges[-1])
+        # plt1.set_xlim(edges[0], edges[-1])
         plt1.set_xlabel('')
         plt1.tick_params(axis='x', labelbottom=False)
         plt1.legend(prop={'size': 'small'})
