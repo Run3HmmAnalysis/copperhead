@@ -11,6 +11,9 @@ from config.parameters import parameters as pars
 
 import dask
 import dask.dataframe as dd
+import pandas as pd
+from functools import partial
+
 from dask.distributed import Client
 dask.config.set({"temporary-directory": "/depot/cms/hmm/dask-temp/"})
 
@@ -27,7 +30,7 @@ parser.add_argument("-l", "--label", dest="label", default="test_march",
                     action='store',
                     help='Unique run label (to create output path)')
 parser.add_argument("-ch", "--chunksize", dest="chunksize",
-                    default=100000, action='store',
+                    default=10000, action='store',
                     help='Approximate chunk size')
 parser.add_argument("-mch", "--maxchunks", dest="maxchunks", default=-1,
                     action='store',
@@ -79,12 +82,36 @@ parameters['out_dir'] = f"{parameters['global_out_path']}/"\
                         f"{parameters['out_path']}"
 
 
+def saving_func(output, out_dir):
+    from dask.distributed import get_worker
+    name = None
+    for key, task in get_worker().tasks.items():
+        if task.state=="executing":
+            name = key[-32:]
+    if not name:
+        return
+    for ds in output.s.unique():
+        df = output[output.s == ds]
+        if df.shape[0]==0:
+            return
+        df.to_parquet(
+            path=f'{out_dir}/{ds}/{name}.parquet',
+        )
+
 def submit_job(arg_set, parameters):
+    mkdir(parameters['out_dir'])
+    if parameters['pt_variations'] == ['nominal']:
+        out_dir = f"{parameters['out_dir']}/"
+    else:
+        out_dir = f"{parameters['out_dir']}_jec/"
+    mkdir(out_dir)
+    
     executor = dask_executor
     executor_args = {
         'client': parameters['client'],
         'schema': processor.NanoAODSchema,
         'use_dataframes': True,
+        'apply_to_output': partial(saving_func, out_dir=out_dir),
         'retries': 0
     }
     processor_args = {
@@ -104,22 +131,14 @@ def submit_job(arg_set, parameters):
         tb = traceback.format_exc()
         return 'Failed: '+str(e)+' '+tb
 
+    return 'Success!'
+    
     df = output.compute()
     if df.count().sum() == 0:
         return 'Nothing to save!'
     print(df)
 
     if parameters['save_output']:
-
-        mkdir(parameters['out_dir'])
-
-        if parameters['pt_variations'] == ['nominal']:
-            out_dir = f"{parameters['out_dir']}/"
-        else:
-            out_dir = f"{parameters['out_dir']}_jec/"
-
-        mkdir(out_dir)
-
         for ds in output.s.unique():
             out_path_ = f"{out_dir}/{ds}/"
             print("Saving...")
@@ -176,7 +195,7 @@ if __name__ == "__main__":
         parameters['client'] = dask.distributed.Client(
                                     processes=True,
                                     # n_workers=min(mch, 23),
-                                    n_workers=48,
+                                    n_workers=40,
                                     dashboard_address=dash_local,
                                     threads_per_worker=1,
                                     memory_limit='2.9GB',
@@ -193,7 +212,8 @@ if __name__ == "__main__":
         for sample in samples:
             # if sample != 'data_B':
             # if sample != 'dy_m105_160_amc':
-            if sample != 'vbf_powheg_dipole':
+            if (sample != 'vbf_powheg_dipole') and (sample != 'vbf_powheg_herwig'):
+            #if sample != 'vbf_powheg_dipole':
                 continue
             if group == 'data':
                 datasets_data.append(sample)
