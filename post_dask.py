@@ -3,13 +3,14 @@ from dask.distributed import Client
 
 from python.timer import Timer
 from python.postprocessor_dask import workflow
+import glob
 
 __all__ = ['dask']
 
 use_local_cluster = True
 # is False, will use Slurm cluster (requires manual setup of the cluster)
 
-ncpus_local = 16  # number of cores to use. Each one will start with 4GB
+ncpus_local = 20  # number of cores to use. Each one will start with 4GB
 
 # only if Slurm cluster is used:
 slurm_cluster_ip = ''  # '128.211.149.133:34003'
@@ -35,11 +36,15 @@ if not use_local_cluster:
 parameters = {
     'slurm_cluster_ip': slurm_cluster_ip,
     'ncpus': ncpus_local,
-    'label': 'test',
+    'label': 'test_march',
     'path': '/depot/cms/hmm/coffea/',
+    'plots_path': './plots_test/',
     'models_path': '/depot/cms/hmm/trained_models/',
     'dnn_models': ['dnn_allyears_128_64_32'],
-    'bdt_models': ['bdt_nest10000_weightCorrAndShuffle_2Aug'],
+    # keep in mind - xgboost version for evaluation 
+    # should be exactly the same as the one used for training!
+    # 'bdt_models': ['bdt_nest10000_weightCorrAndShuffle_2Aug'],
+    'bdt_models': [],
     'do_massscan': False,
     'years': ['2016'],
     'syst_variations': ['nominal'],
@@ -99,21 +104,27 @@ if __name__ == "__main__":
         # 'vbf_powheg_herwig',
         'vbf_powheg_dipole'
         # 'dy_m105_160_amc'
-              ]
+    ]
 
     parameters['hist_vars'] = ['dimuon_mass']
-    # parameters['hist_vars'] += ['score_'+m for m in parameters['dnn_models']]
-    # parameters['hist_vars'] += ['score_'+m for m in parameters['bdt_models']]
+    parameters['hist_vars'] += ['score_'+m for m in parameters['dnn_models']]
+    parameters['hist_vars'] += ['score_'+m for m in parameters['bdt_models']]
+
+    #parameters['plot_vars'] = ['dimuon_mass']
+    parameters['plot_vars'] = parameters['hist_vars']
 
     paths = []
     for y in parameters['years']:
         for s in samples:
-            paths.append(f"{parameters['path']}/"
+            #paths.append(f"{parameters['path']}/"
+            #             f"{y}_{parameters['label']}/"
+            #             f"nominal/{s}/")
+            paths.append(glob.glob(f"{parameters['path']}/"
                          f"{y}_{parameters['label']}/"
-                         f"nominal/{s}/")
+                         f"{s}/*.parquet"))
 
     df, hists = workflow(client, paths, parameters, timer)
 
-    print(df)
-    print(hists['dimuon_mass'][2016].project('dimuon_mass'))
+#    print(df)
+#    print(hists['dimuon_mass'][2016].project('dimuon_mass'))
     timer.summary()

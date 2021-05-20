@@ -5,6 +5,8 @@ from functools import partial
 import dask.dataframe as dd
 import pandas as pd
 import numpy as np
+import matplotlib.pyplot as plt
+import mplhep as hep
 from hist import Hist
 from config.variables import variables_lookup, Variable
 
@@ -101,20 +103,24 @@ def workflow(client, paths, parameters, timer):
 
     # Evaluate classifiers
     # TODO: outsource to GPUs
-    evaluate_mva = False
+    evaluate_mva = True
     if evaluate_mva:
         for v in parameters['syst_variations']:
             for model in parameters['dnn_models']:
                 score_name = f'score_{model} {v}'
                 keep_columns += [score_name]
                 df[score_name] = df.map_partitions(
-                    dnn_evaluation, v, model, parameters)
+                    dnn_evaluation, v, model, parameters,
+                    meta=(score_name, float)
+                )
                 timer.add_checkpoint(f"Evaluated {model} {v}")
             for model in parameters['bdt_models']:
                 score_name = f'score_{model} {v}'
                 keep_columns += [score_name]
                 df[score_name] = df.map_partitions(
-                    bdt_evaluation, v, model, parameters)
+                    bdt_evaluation, v, model, parameters,
+                    meta=(score_name, float)
+                )
                 timer.add_checkpoint(f"Evaluated {model} {v}")
     df = df[[c for c in keep_columns if c in df.columns]]
 
@@ -126,12 +132,24 @@ def workflow(client, paths, parameters, timer):
     # Make histograms
     hist_futures = client.map(
         partial(histogram, df=df, parameters=parameters),
-        parameters['hist_vars'])
+        parameters['hist_vars']
+    )
     hists_ = client.gather(hist_futures)
     hists = {}
     for h in hists_:
         hists.update(h)
     timer.add_checkpoint("Histogramming")
+
+    # Plot histograms
+    hists_to_plot = [hist for var, hist in hists.items()
+                     if var in parameters['plot_vars']]
+    plot_futures = client.map(
+        partial(plot, df=df, parameters=parameters),
+        hists_to_plot
+    )
+
+    plot_ret = client.gather(plot_futures)
+
     return df, hists
 
 
@@ -321,3 +339,67 @@ def histogram(var, df=pd.DataFrame(), parameters={}):
                             # TODO: add treatment of PDF systematics
                             # (MC replicas)
     return {var.name: h}
+
+def plot(hist, df=pd.DataFrame(), parameters={}):
+    if not hist.keys():
+        return
+    a_year = list(hist.keys())[0]
+    var = hist[a_year].axes[-1]
+
+    stack_entries = []
+    step_entries = ['vbf_powheg_herwig', 'vbf_powheg_dipole']
+    errorbar_entries = []
+
+    plotsize = 8
+    ratio_plot_size = 0.25
+    data_opts = {'color': 'k', 'marker': '.', 'markersize': 15}
+    stack_fill_opts = {'alpha': 0.8, 'edgecolor': (0, 0, 0)}
+    stat_err_opts = {'step': 'post', 'label': 'Stat. unc.',
+                     'hatch': '//////', 'facecolor': 'none',
+                     'edgecolor': (0, 0, 0, .5), 'linewidth': 0}
+    ratio_err_opts = {'step': 'post', 'facecolor': (0, 0, 0, 0.3),
+                      'linewidth': 0}
+
+    fig = plt.figure()
+    style = hep.style.CMS
+    style['mathtext.fontset'] = 'cm'
+    style['mathtext.default'] = 'rm'
+    plt.style.use(style)
+    for year in hist.keys():
+        fig.clf()
+        fig.set_size_inches(plotsize*1.2, plotsize * (1 + ratio_plot_size))
+        gs = fig.add_gridspec(2, 1, height_ratios=[
+            (1 - ratio_plot_size), ratio_plot_size], hspace=.07)
+
+        # Top panel: Data/MC
+        plt1 = fig.add_subplot(gs[0])
+
+        for entry in step_entries:
+            if entry not in hist[year].axes["dataset"]:
+                continue
+            plottable = hist[year][entry, 'h-peak', 'vbf', 'nominal', 'value', :].project(var.name)
+            hep.histplot(plottable, label=entry, **{'linewidth': 3})
+
+        plt1.set_yscale('log')
+        plt1.set_ylim(0.01, 1e9)
+        # plt1.set_xlim(var.xmin,var.xmax)
+        #plt1.set_xlim(edges[0], edges[-1])
+        plt1.set_xlabel('')
+        plt1.tick_params(axis='x', labelbottom=False)
+        plt1.legend(prop={'size': 'small'})
+
+        # Bottom panel: Data/MC ratio plot
+        plt2 = fig.add_subplot(gs[1], sharex=plt1)
+
+        plt2.axhline(1, ls='--')
+        plt2.set_ylim([0.5, 1.5])
+        plt2.set_ylabel('Data/MC', loc='center')
+        plt2.set_xlabel(var.label, loc='right')
+
+        hep.cms.label(ax=plt1, data=True, paper=False, year=year)
+
+        path = parameters['plots_path']
+        out_name = f'{path}/{var.name}_{year}.png'
+        fig.savefig(out_name)
+        print(f'Saved: {out_name}')
+    return
