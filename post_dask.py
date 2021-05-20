@@ -41,7 +41,7 @@ parameters = {
     'plots_path': './plots_test/',
     'models_path': '/depot/cms/hmm/trained_models/',
     'dnn_models': ['dnn_allyears_128_64_32'],
-    # keep in mind - xgboost version for evaluation 
+    # keep in mind - xgboost version for evaluation
     # should be exactly the same as the one used for training!
     # 'bdt_models': ['bdt_nest10000_weightCorrAndShuffle_2Aug'],
     'bdt_models': [],
@@ -116,12 +116,16 @@ if __name__ == "__main__":
     paths = []
     for y in parameters['years']:
         for s in samples:
-            #paths.append(f"{parameters['path']}/"
-            #             f"{y}_{parameters['label']}/"
-            #             f"nominal/{s}/")
-            paths.append(glob.glob(f"{parameters['path']}/"
-                         f"{y}_{parameters['label']}/"
-                         f"{s}/*.parquet"))
+            # paths.append(f"{parameters['path']}/"
+            #              f"{y}_{parameters['label']}/"
+            #              f"nominal/{s}/")
+            paths.append(
+                glob.glob(
+                    f"{parameters['path']}/"
+                    f"{y}_{parameters['label']}/"
+                    f"{s}/*.parquet"
+                )
+            )
 
     df, hists = workflow(client, paths, parameters, timer)
 
