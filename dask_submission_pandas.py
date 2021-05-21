@@ -11,7 +11,6 @@ from config.parameters import parameters as pars
 
 import dask
 import dask.dataframe as dd
-import pandas as pd
 from functools import partial
 
 from dask.distributed import Client
@@ -86,17 +85,18 @@ def saving_func(output, out_dir):
     from dask.distributed import get_worker
     name = None
     for key, task in get_worker().tasks.items():
-        if task.state=="executing":
+        if task.state == "executing":
             name = key[-32:]
     if not name:
         return
     for ds in output.s.unique():
         df = output[output.s == ds]
-        if df.shape[0]==0:
+        if df.shape[0] == 0:
             return
         df.to_parquet(
             path=f'{out_dir}/{ds}/{name}.parquet',
         )
+
 
 def submit_job(arg_set, parameters):
     mkdir(parameters['out_dir'])
@@ -105,7 +105,7 @@ def submit_job(arg_set, parameters):
     else:
         out_dir = f"{parameters['out_dir']}_jec/"
     mkdir(out_dir)
-    
+
     executor = dask_executor
     executor_args = {
         'client': parameters['client'],
@@ -132,7 +132,7 @@ def submit_job(arg_set, parameters):
         return 'Failed: '+str(e)+' '+tb
 
     return 'Success!'
-    
+
     df = output.compute()
     if df.count().sum() == 0:
         return 'Nothing to save!'
@@ -212,8 +212,7 @@ if __name__ == "__main__":
         for sample in samples:
             # if sample != 'data_B':
             # if sample != 'dy_m105_160_amc':
-            if (sample != 'vbf_powheg_dipole') and (sample != 'vbf_powheg_herwig'):
-            #if sample != 'vbf_powheg_dipole':
+            if sample != 'vbf_powheg_dipole':
                 continue
             if group == 'data':
                 datasets_data.append(sample)
