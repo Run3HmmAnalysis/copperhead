@@ -50,13 +50,18 @@ def load_samples(datasets, parameters):
     return samp_info_total
 
 
-def read_via_xrootd(server, path):
-    command = f"xrdfs {server} ls -R {path} | grep '.root'"
+def read_via_xrootd(server, path, from_das=False):
+    if from_das:
+        command = f'dasgoclient --query=="file dataset={path}"'
+    else:
+        command = f"xrdfs {server} ls -R {path} | grep '.root'"
     proc = subprocess.Popen(command, stdout=subprocess.PIPE,
                             stderr=subprocess.PIPE, shell=True)
     result = proc.stdout.readlines()
     if proc.stderr.readlines():
-        print("Loading error! Check VOMS proxy.")
+        print("Loading error! This may help:")
+        print("    voms-proxy-init --voms cms")
+        print("    source /cvmfs/cms.cern.ch/cmsset_default.sh")
     result = [server + r.rstrip().decode("utf-8") for r in result]
     return result
 
@@ -182,11 +187,11 @@ class SamplesInfo(object):
                     tree = uproot.open(f)['Runs']
                     if (('NanoAODv6' in self.paths[sample]) or
                             ('NANOV10' in self.paths[sample])):
-                        sumGenWgts += tree.array('genEventSumw_')[0]
-                        nGenEvts += tree.array('genEventCount_')[0]
+                        sumGenWgts += tree['genEventSumw_'].array()[0]
+                        nGenEvts += tree['genEventCount_'].array()[0]
                     else:
-                        sumGenWgts += tree.array('genEventSumw')[0]
-                        nGenEvts += tree.array('genEventCount')[0]
+                        sumGenWgts += tree['genEventSumw'].array()[0]
+                        nGenEvts += tree['genEventCount'].array()[0]
         metadata['sumGenWgts'] = sumGenWgts
         metadata['nGenEvts'] = nGenEvts
 
