@@ -1,6 +1,7 @@
 from coffea.jetmet_tools import CorrectedJetsFactory, JECStack
 from coffea.lookup_tools import extractor
-from config.jec_parameters import *
+from config.jec_parameters import runs, jec_levels_mc, jec_levels_data
+from config.jec_parameters import jec_tags, jer_tags, jec_data_tags
 
 
 def jec_names_and_sources(year):
@@ -45,7 +46,7 @@ def jec_weight_sets(year):
         'junc_names': 'junc',
         'junc_sources': 'junc',
     }
-    
+
     weight_sets['jec_weight_sets'] = []
     weight_sets['jec_weight_sets_data'] = []
 
@@ -86,10 +87,10 @@ def jec_factories(year):
 
     weight_sets = jec_weight_sets(year)
     names = jec_names_and_sources(year)
-    
+
     jec_factories = {}
     jec_factories_data = {}
-    
+
     # Prepare evaluators for JEC, JER and their systematics
     jetext = extractor()
     jetext.add_weight_sets(weight_sets['jec_weight_sets'])
@@ -114,7 +115,7 @@ def jec_factories(year):
         jec_input_options[opt] = {
             name: jet_evaluator[name]
             for name in stacks[f'{opt}_stack']
-        }        
+        }
 
     for src in names['junc_sources']:
         for key in jet_evaluator.keys():
@@ -145,5 +146,5 @@ def jec_factories(year):
         jec_factories_data[run] = CorrectedJetsFactory(
             get_name_map(jec_stack_data), jec_stack_data
         )
-    
+
     return jec_factories, jec_factories_data
