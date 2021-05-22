@@ -87,11 +87,14 @@ def apply_roccor(df, rochester, is_mc):
         hasgen_flat = np.array(ak.flatten(hasgen))
         corrections[hasgen_flat] = np.array(ak.flatten(mc_kspread))
         corrections[~hasgen_flat] = np.array(ak.flatten(mc_ksmear))
-        errors[hasgen.flatten()] = np.array(ak.flatten(errspread))
-        errors[~hasgen.flatten()] = np.array(ak.flatten(errsmear))
+        errors[hasgen_flat] = np.array(ak.flatten(errspread))
+        errors[~hasgen_flat] = np.array(ak.flatten(errsmear))
 
         corrections = ak.unflatten(
             corrections, ak.num(df.Muon.pt, axis=1)
+        )
+        errors = ak.unflatten(
+            errors, ak.num(df.Muon.pt, axis=1)
         )
 
     else:
