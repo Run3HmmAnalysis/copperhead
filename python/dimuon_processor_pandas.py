@@ -7,10 +7,8 @@ import pandas as pd
 import coffea.processor as processor
 from coffea.lookup_tools import extractor
 from coffea.lookup_tools import txt_converters, rochester_lookup
-#from coffea.jetmet_tools import CorrectedJetsFactory, JECStack
 from coffea.btag_tools import BTagScaleFactor
 from coffea.lumi_tools import LumiMask
-# from cachetools import LRUCache
 
 from python.utils import p4_sum, delta_r, rapidity, cs_variables
 from python.timer import Timer
