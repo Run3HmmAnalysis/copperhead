@@ -13,8 +13,9 @@ from coffea.lumi_tools import LumiMask
 from python.utils import p4_sum, delta_r, rapidity, cs_variables
 from python.timer import Timer
 from python.weights import Weights
-from python.corrections import musf_lookup, musf_evaluator, pu_lookup
-from python.corrections import pu_evaluator, NNLOPS_Evaluator
+from python.corrections import musf_lookup, musf_evaluator
+from python.corrections import pu_lookups, pu_evaluator
+from python.corrections import NNLOPS_Evaluator
 from python.corrections import qgl_weights, btag_weights  # puid_weights
 from python.corrections import apply_roccor, fsr_recovery, apply_geofit
 from python.stxs_uncert import vbf_uncert_stage_1_1, stxs_lookups
@@ -36,16 +37,17 @@ class DimuonProcessor(processor.ProcessorABC):
             print("Samples info missing!")
             return
 
-        self.auto_pu = True
         self.year = self.samp_info.year
-        self.do_roccor = False
-        self.do_fsr = True
-        self.do_geofit = True
-        self.do_nnlops = True
-        self.do_pdf = True
         self.parameters = {
             k: v[self.year] for k, v in parameters.items()
         }
+
+        self.do_roccor = True
+        self.do_fsr = True
+        self.do_geofit = True
+        self.auto_pu = True
+        self.do_nnlops = True
+        self.do_pdf = True
 
         self.timer = Timer('global') if do_timer else None
 
@@ -79,9 +81,7 @@ class DimuonProcessor(processor.ProcessorABC):
             rochester_data
         )
         self.musf_lookup = musf_lookup(self.parameters)
-        self.pu_lookup = pu_lookup(self.parameters)
-        self.pu_lookup_up = pu_lookup(self.parameters, 'up')
-        self.pu_lookup_down = pu_lookup(self.parameters, 'down')
+        self.pu_lookups = pu_lookups(self.parameters)
 
         self.btag_lookup = BTagScaleFactor(
             self.parameters["btag_sf_csv"],
@@ -118,11 +118,11 @@ class DimuonProcessor(processor.ProcessorABC):
 
         self.jec_factories,\
             self.jec_factories_data = jec_factories(self.year)
-        self.do_jecunc = False
-        self.do_jerunc = False
 
         # Look at variation names and see if we need to enable
         # calculation of JEC or JER uncertainties
+        self.do_jecunc = False
+        self.do_jerunc = False
         for ptvar in self.pt_variations:
             ptvar_ = ptvar.replace('_up', '').replace('_down', '')
             if ptvar_ in self.parameters["jec_unc_to_consider"]:
@@ -140,39 +140,25 @@ class DimuonProcessor(processor.ProcessorABC):
         return self._columns
 
     def process(self, df):
-        # ------------------------------------------------------------#
-        # Filter out events not passing HLT or having
-        # less than 2 muons.
-        # ------------------------------------------------------------#
-
         # Initialize timer
         if self.timer:
             self.timer.update()
 
         # Dataset name (see definitions in config/datasets.py)
         dataset = df.metadata['dataset']
-
         is_mc = 'data' not in dataset
+        numevents = len(df)
 
         # ------------------------------------------------------------#
         # Apply HLT, lumimask, genweights, PU weights
         # and L1 prefiring weights
         # ------------------------------------------------------------#
 
-        numevents = len(df)
-        # print(numevents)
-
-        if is_mc:
-            nTrueInt = df.Pileup.nTrueInt
-        else:
-            nTrueInt = np.zeros(numevents, dtype=np.float32)
-
         # All variables that we want to save
         # will be collected into the 'output' dataframe
         output = pd.DataFrame({'run': df.run, 'event': df.event})
         output.index.name = 'entry'
         output['npv'] = df.PV.npvs
-        output['nTrueInt'] = nTrueInt
         output['met'] = df.MET.pt
 
         # Separate dataframe to keep track on weights
@@ -188,30 +174,21 @@ class DimuonProcessor(processor.ProcessorABC):
             mask = np.ones(numevents, dtype=bool)
             genweight = df.genWeight
             weights.add_weight('genwgt', genweight)
-            nTrueInt = np.array(nTrueInt)
+            weights.add_weight('lumi', self.lumi_weights[dataset])
+
             if self.auto_pu:
-                self.pu_lookup = pu_lookup(
-                    self.parameters, 'nom', auto=nTrueInt
+                self.pu_lookups = pu_lookups(
+                    self.parameters, auto=np.array(df.Pileup.nTrueInt)
                 )
-                self.pu_lookup_up = pu_lookup(
-                    self.parameters, 'up', auto=nTrueInt
-                )
-                self.pu_lookup_down = pu_lookup(
-                    self.parameters, 'down', auto=nTrueInt
-                )
-            pu_weight = pu_evaluator(
-                self.pu_lookup, numevents, nTrueInt
-            )
-            pu_weight_up = pu_evaluator(
-                self.pu_lookup_up, numevents, nTrueInt
-            )
-            pu_weight_down = pu_evaluator(
-                self.pu_lookup_down, numevents, nTrueInt
+            pu_wgts = pu_evaluator(
+                self.pu_lookups,
+                numevents,
+                np.array(df.Pileup.nTrueInt)
             )
             weights.add_weight_with_variations(
-                'pu_wgt', pu_weight, pu_weight_up, pu_weight_down
+                'pu_wgt', pu_wgts['nom'], pu_wgts['up'], pu_wgts['down']
             )
-            weights.add_weight('lumi', self.lumi_weights[dataset])
+
             if self.parameters["do_l1prefiring_wgts"]:
                 if 'L1PreFiringWeight' in df.fields:
                     l1pfw = ak.to_pandas(df.L1PreFiringWeight)
@@ -348,6 +325,7 @@ class DimuonProcessor(processor.ProcessorABC):
             # Define baseline event selection
             output['two_muons'] = (nmuons == 2)
             output['event_selection'] = (
+                mask &
                 (hlt > 0) &
                 (flags > 0) &
                 (nmuons == 2) &
@@ -503,7 +481,6 @@ class DimuonProcessor(processor.ProcessorABC):
         if ('data' in dataset) and ('2018' in self.year):
             self.do_jec = True
 
-        # cache = LRUCache(1_000_000, lambda a: a.nbytes)
         cache = df.caches[0]
 
         # Correct jets (w/o uncertainties)

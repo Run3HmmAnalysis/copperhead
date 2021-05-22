@@ -55,7 +55,7 @@ def apply_roccor(df, rochester, is_mc):
         mc_rand = ak.unflatten(mc_rand, ak.num(df.Muon.pt, axis=1))
 
         corrections = np.array(ak.flatten(ak.ones_like(df.Muon.pt)))
-        # errors = np.array(ak.flatten(ak.ones_like(df.Muon.pt)))
+        errors = np.array(ak.flatten(ak.ones_like(df.Muon.pt)))
         mc_kspread = rochester.kSpreadMC(
                         df.Muon.charge[hasgen],
                         df.Muon.pt[hasgen],
@@ -71,25 +71,24 @@ def apply_roccor(df, rochester, is_mc):
                         df.Muon.nTrackerLayers[~hasgen],
                         mc_rand[~hasgen])
 
-        # TODO: fix errors
-        # errspread = rochester.kSpreadMCerror(
-        #                 df.Muon.charge[hasgen],
-        #                 df.Muon.pt[hasgen],
-        #                 df.Muon.eta[hasgen],
-        #                 df.Muon.phi[hasgen],
-        #                 df.Muon.matched_gen.pt[hasgen])
-        # errsmear = rochester.kSmearMCerror(
-        #                 df.Muon.charge[~hasgen],
-        #                 df.Muon.pt[~hasgen],
-        #                 df.Muon.eta[~hasgen],
-        #                 df.Muon.phi[~hasgen],
-        #                 df.Muon.nTrackerLayers[~hasgen],
-        #                 mc_rand[~hasgen])
+        errspread = rochester.kSpreadMCerror(
+                        df.Muon.charge[hasgen],
+                        df.Muon.pt[hasgen],
+                        df.Muon.eta[hasgen],
+                        df.Muon.phi[hasgen],
+                        df.Muon.matched_gen.pt[hasgen])
+        errsmear = rochester.kSmearMCerror(
+                        df.Muon.charge[~hasgen],
+                        df.Muon.pt[~hasgen],
+                        df.Muon.eta[~hasgen],
+                        df.Muon.phi[~hasgen],
+                        df.Muon.nTrackerLayers[~hasgen],
+                        mc_rand[~hasgen])
         hasgen_flat = np.array(ak.flatten(hasgen))
         corrections[hasgen_flat] = np.array(ak.flatten(mc_kspread))
         corrections[~hasgen_flat] = np.array(ak.flatten(mc_ksmear))
-        # errors[hasgen.flatten()] = np.array(ak.flatten(errspread))
-        # errors[~hasgen.flatten()] = np.array(ak.flatten(errsmear))
+        errors[hasgen.flatten()] = np.array(ak.flatten(errspread))
+        errors[~hasgen.flatten()] = np.array(ak.flatten(errsmear))
 
         corrections = ak.unflatten(
             corrections, ak.num(df.Muon.pt, axis=1)
@@ -102,87 +101,17 @@ def apply_roccor(df, rochester, is_mc):
                         df.Muon.eta,
                         df.Muon.phi
         )
-        # errors = rochester.kScaleDTerror(
-        #                 df.Muon.charge,
-        #                 df.Muon.pt,
-        #                 df.Muon.eta,
-        #                 df.Muon.phi)
+        errors = rochester.kScaleDTerror(
+                        df.Muon.charge,
+                        df.Muon.pt,
+                        df.Muon.eta,
+                        df.Muon.phi)
 
     df['Muon', 'pt_roch'] = (
         df.Muon.pt * corrections
     )
-    # df['Muon', 'pt_roch_up'] = df.Muon.pt_roch + df.Muon.pt*error
-    # df['Muon', 'pt_roch_down'] = df.Muon.pt_roch - df.Muon.pt*error
-
-
-# awkward0 implementation!
-def roccor_evaluator(rochester, is_mc, muons):
-    if is_mc:
-        mc_rand = np.random.rand(*muons.pt.flatten().shape)
-        mc_rand = awkward.JaggedArray.fromoffsets(
-                        muons.pt.offsets,
-                        mc_rand)
-
-        # hasgen = ~np.isnan(
-        #    copy.deepcopy(muons.matched_gen.pt).fillna(np.nan))
-        hasgen = ~np.isnan(muons.matched_gen.pt.fillna(np.nan))
-        mc_rand = awkward.JaggedArray.fromoffsets(
-                    hasgen.offsets,
-                    mc_rand)._content
-
-        corrections = np.ones_like(muons.pt.flatten())
-        errors = np.ones_like(muons.pt.flatten())
-
-        mc_kspread = rochester.kSpreadMC(
-                        muons.charge[hasgen],
-                        muons.pt[hasgen],
-                        muons.eta[hasgen],
-                        muons.phi[hasgen],
-                        muons.matched_gen.pt[hasgen])
-        mc_ksmear = rochester.kSmearMC(
-                        muons.charge[~hasgen],
-                        muons.pt[~hasgen],
-                        muons.eta[~hasgen],
-                        muons.phi[~hasgen],
-                        muons.nTrackerLayers[~hasgen],
-                        mc_rand[~hasgen])
-        errspread = rochester.kSpreadMCerror(
-                        muons.charge[hasgen],
-                        muons.pt[hasgen],
-                        muons.eta[hasgen],
-                        muons.phi[hasgen],
-                        muons.matched_gen.pt[hasgen])
-        errsmear = rochester.kSmearMCerror(
-                        muons.charge[~hasgen],
-                        muons.pt[~hasgen],
-                        muons.eta[~hasgen],
-                        muons.phi[~hasgen],
-                        muons.nTrackerLayers[~hasgen],
-                        mc_rand[~hasgen])
-
-        corrections[hasgen.flatten()] = mc_kspread.flatten()
-        corrections[~hasgen.flatten()] = mc_ksmear.flatten()
-        errors[hasgen.flatten()] = errspread.flatten()
-        errors[~hasgen.flatten()] = errsmear.flatten()
-
-    else:
-        corrections = rochester.kScaleDT(
-                        muons.charge,
-                        muons.pt,
-                        muons.eta,
-                        muons.phi)
-        errors = rochester.kScaleDTerror(
-                        muons.charge,
-                        muons.pt,
-                        muons.eta,
-                        muons.phi)
-    corrections_jagged = awkward.JaggedArray.fromcounts(
-                        muons.counts,
-                        corrections.flatten())
-    errors_jagged = awkward.JaggedArray.fromcounts(
-                        muons.counts,
-                        errors.flatten())
-    return corrections_jagged, errors_jagged
+    df['Muon', 'pt_roch_up'] = df.Muon.pt_roch + df.Muon.pt*error
+    df['Muon', 'pt_roch_down'] = df.Muon.pt_roch - df.Muon.pt*error
 
 
 def musf_lookup(parameters):
@@ -336,33 +265,32 @@ def musf_evaluator(lookups, year, numevents, mu1, mu2):
     return sf
 
 
-def pu_lookup(parameters, mode='nom', auto=[]):
-    if mode == 'nom':
+def pu_lookups(parameters, mode='nom', auto=[]):
+    lookups = {}
+    branch = {
+        'nom': 'pileup',
+        'up': 'pileup_plus',
+        'down': 'pileup_minus'
+    }
+    for mode in ['nom', 'up', 'down']:
         pu_hist_data = uproot.open(
-                        parameters['pu_file_data'])['pileup'].values()
-    elif mode == 'up':
-        pu_hist_data = uproot.open(
-                        parameters['pu_file_data'])['pileup_plus'].values()
-    elif mode == 'down':
-        pu_hist_data = uproot.open(
-                        parameters['pu_file_data'])['pileup_minus'].values()
-    else:
-        print("PU lookup: incorrect mode ", mode)
-        return
+            parameters['pu_file_data']
+        )[branch[mode]].values()
 
-    nbins = len(pu_hist_data)
-    edges = [[i for i in range(nbins)]]
-    # pu_hist_mc = load("data/pileup/pisa_lookup_2018.coffea")(range(102))
-    if len(auto) == 0:
-        pu_hist_mc = uproot.open(parameters['pu_file_mc'])['pu_mc'].values()
-    else:
-        pu_hist_mc = np.histogram(auto, bins=range(nbins + 1))[0]
+        nbins = len(pu_hist_data)
+        edges = [[i for i in range(nbins)]]
 
-    lookup = dense_lookup.dense_lookup(
-                pu_reweight(pu_hist_data, pu_hist_mc),
-                edges)
-    lookup._axes = lookup._axes[0]
-    return lookup
+        if len(auto) == 0:
+            pu_hist_mc = uproot.open(parameters['pu_file_mc'])['pu_mc'].values()
+        else:
+            pu_hist_mc = np.histogram(auto, bins=range(nbins + 1))[0]
+
+        lookup = dense_lookup.dense_lookup(
+                    pu_reweight(pu_hist_data, pu_hist_mc),
+                    edges)
+        lookup._axes = lookup._axes[0]
+        lookups[mode] = lookup
+    return lookups
 
 
 def pu_reweight(pu_hist_data, pu_hist_mc):
@@ -411,13 +339,15 @@ def checkIntegral(wgt1, wgt2, ref):
     return (myint - refint) / refint
 
 
-def pu_evaluator(lookup, numevents, ntrueint):
-    pu_weight = np.ones(numevents)
-    pu_weight = lookup(ntrueint)
-    pu_weight = np.array(pu_weight)
-    pu_weight[ntrueint > 100] = 1
-    pu_weight[ntrueint < 1] = 1
-    return pu_weight
+def pu_evaluator(lookups, numevents, ntrueint):
+    pu_weights = {}
+    for var, lookup in lookups.items():
+        pu_weights[var] = np.ones(numevents)
+        pu_weights[var] = lookup(ntrueint)
+        pu_weights[var] = np.array(pu_weights[var])
+        pu_weights[var][ntrueint > 100] = 1
+        pu_weights[var][ntrueint < 1] = 1
+    return pu_weights
 
 
 def fsr_recovery(df):
