@@ -110,8 +110,8 @@ def apply_roccor(df, rochester, is_mc):
     df['Muon', 'pt_roch'] = (
         df.Muon.pt * corrections
     )
-    df['Muon', 'pt_roch_up'] = df.Muon.pt_roch + df.Muon.pt*error
-    df['Muon', 'pt_roch_down'] = df.Muon.pt_roch - df.Muon.pt*error
+    df['Muon', 'pt_roch_up'] = df.Muon.pt_roch + df.Muon.pt*errors
+    df['Muon', 'pt_roch_down'] = df.Muon.pt_roch - df.Muon.pt*errors
 
 
 def musf_lookup(parameters):
@@ -281,7 +281,8 @@ def pu_lookups(parameters, mode='nom', auto=[]):
         edges = [[i for i in range(nbins)]]
 
         if len(auto) == 0:
-            pu_hist_mc = uproot.open(parameters['pu_file_mc'])['pu_mc'].values()
+            pu_hist_mc = uproot.open(
+                parameters['pu_file_mc'])['pu_mc'].values()
         else:
             pu_hist_mc = np.histogram(auto, bins=range(nbins + 1))[0]
 
