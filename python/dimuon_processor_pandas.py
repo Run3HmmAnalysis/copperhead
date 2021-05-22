@@ -7,7 +7,7 @@ import pandas as pd
 import coffea.processor as processor
 from coffea.lookup_tools import extractor
 from coffea.lookup_tools import txt_converters, rochester_lookup
-from coffea.jetmet_tools import CorrectedJetsFactory, JECStack
+#from coffea.jetmet_tools import CorrectedJetsFactory, JECStack
 from coffea.btag_tools import BTagScaleFactor
 from coffea.lumi_tools import LumiMask
 # from cachetools import LRUCache
@@ -21,6 +21,7 @@ from python.corrections import qgl_weights, btag_weights  # puid_weights
 from python.corrections import apply_roccor, fsr_recovery, apply_geofit
 from python.stxs_uncert import vbf_uncert_stage_1_1, stxs_lookups
 from python.mass_resolution import mass_resolution_purdue
+from python.jec import jec_factories
 
 from config.parameters import parameters
 from config.variables import variables
@@ -45,7 +46,8 @@ class DimuonProcessor(processor.ProcessorABC):
         self.do_nnlops = True
         self.do_pdf = True
         self.parameters = {
-            k: v[self.year] for k, v in parameters.items()}
+            k: v[self.year] for k, v in parameters.items()
+        }
 
         self.timer = Timer('global') if do_timer else None
 
@@ -116,85 +118,8 @@ class DimuonProcessor(processor.ProcessorABC):
         self.evaluator[self.zpt_path]._axes =\
             self.evaluator[self.zpt_path]._axes[0]
 
-        # Prepare evaluators for JEC, JER and their systematics
-        jetext = extractor()
-        jetext.add_weight_sets(self.parameters['jec_weight_sets'])
-        jetext.add_weight_sets(self.parameters['jec_weight_sets_data'])
-        jetext.finalize()
-        jet_evaluator = jetext.make_evaluator()
-
-        jec_input_options = {}
-        self.jet_factory = {}
-
-        jec_input_options['jec'] = {
-            name: jet_evaluator[name]
-            for name in self.parameters['jec_stack']
-        }
-        jec_input_options['junc'] = {
-                name: jet_evaluator[name]
-                for name in self.parameters['jec_unc_stack']
-        }
-        for src in self.parameters['jec_unc_sources']:
-            for key in jet_evaluator.keys():
-                if src in key:
-                    jec_input_options['junc'][key] = jet_evaluator[key]
-        jec_input_options['jer'] = {
-                name: jet_evaluator[name]
-                for name in self.parameters['jer_stack']
-        }
-
-        for opt in ['jec', 'junc', 'jer']:
-            stack = JECStack(jec_input_options[opt])
-            name_map = stack.blank_name_map
-            name_map['JetPt'] = 'pt'
-            name_map['JetMass'] = 'mass'
-            name_map['JetEta'] = 'eta'
-            name_map['JetA'] = 'area'
-            name_map['ptGenJet'] = 'pt_gen'
-            name_map['ptRaw'] = 'pt_raw'
-            name_map['massRaw'] = 'mass_raw'
-            name_map['Rho'] = 'rho'
-            self.jet_factory[opt] = CorrectedJetsFactory(
-                name_map, stack
-            )
-
-        self.data_runs = list(
-            self.parameters['junc_sources_data'].keys()
-        )
-        self.jec_factories_data = {}
-        for run in self.data_runs:
-            jec_inputs_data = {}
-            jec_inputs_data.update(
-                {
-                    name: jet_evaluator[name] for name
-                    in self.parameters['jec_names_data'][run]
-                }
-            )
-            jec_inputs_data.update(
-                {
-                    name: jet_evaluator[name] for name
-                    in self.parameters['junc_names_data'][run]
-                }
-            )
-            for src in self.parameters['junc_sources_data'][run]:
-                for key in jet_evaluator.keys():
-                    if src in key:
-                        jec_inputs_data[key] = jet_evaluator[key]
-
-            jec_stack_data = JECStack(jec_inputs_data)
-            name_map = jec_stack_data.blank_name_map
-            name_map['JetPt'] = 'pt'
-            name_map['JetMass'] = 'mass'
-            name_map['JetEta'] = 'eta'
-            name_map['JetA'] = 'area'
-            name_map['ptGenJet'] = 'pt_gen'
-            name_map['ptRaw'] = 'pt_raw'
-            name_map['massRaw'] = 'mass_raw'
-            name_map['Rho'] = 'rho'
-            self.jec_factories_data[run] = CorrectedJetsFactory(
-                name_map, jec_stack_data
-            )
-
+        self.jec_factories,\
+            self.jec_factories_data = jec_factories(self.year)
         self.do_jecunc = False
         self.do_jerunc = False
 
@@ -586,7 +511,7 @@ class DimuonProcessor(processor.ProcessorABC):
         # Correct jets (w/o uncertainties)
         if self.do_jec:
             if is_mc:
-                factory = self.jet_factory['jec']
+                factory = self.jec_factories['jec']
             else:
                 for run in self.data_runs:
                     if run in dataset:
@@ -599,7 +524,7 @@ class DimuonProcessor(processor.ProcessorABC):
         # TODO: only consider nuisances that are defined in run parameters
         # Compute JEC uncertainties
         if is_mc and self.do_jecunc:
-            jets = self.jet_factory['junc'].build(
+            jets = self.jec_factories['junc'].build(
                 jets, lazy_cache=cache
             )
             if self.timer:
@@ -607,7 +532,7 @@ class DimuonProcessor(processor.ProcessorABC):
 
         # Compute JER uncertainties
         if is_mc and self.do_jerunc:
-            jets = self.jet_factory['jer'].build(
+            jets = self.jec_factories['jer'].build(
                 jets, lazy_cache=cache
             )
             if self.timer:
