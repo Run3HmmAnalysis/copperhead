@@ -29,7 +29,7 @@ parser.add_argument("-l", "--label", dest="label", default="test_march",
                     action='store',
                     help='Unique run label (to create output path)')
 parser.add_argument("-ch", "--chunksize", dest="chunksize",
-                    default=10000, action='store',
+                    default=100000, action='store',
                     help='Approximate chunk size')
 parser.add_argument("-mch", "--maxchunks", dest="maxchunks", default=-1,
                     action='store',
@@ -93,6 +93,7 @@ def saving_func(output, out_dir):
         df = output[output.s == ds]
         if df.shape[0] == 0:
             return
+        mkdir(f'{out_dir}/{ds}')
         df.to_parquet(
             path=f'{out_dir}/{ds}/{name}.parquet',
         )
