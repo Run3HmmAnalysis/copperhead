@@ -46,6 +46,20 @@ class NNLOPS_Evaluator(object):
         return result
 
 
+def nnlops_weights(df, numevents, parameters, dataset):    
+    nnlops = NNLOPS_Evaluator(parameters['nnlops_file'])
+    nnlopsw = np.ones(numevents, dtype=float)
+    if 'amc' in dataset:
+        nnlopsw = nnlops.evaluate(
+            df.HTXS.Higgs_pt, df.HTXS.njets30, "mcatnlo"
+        )
+    elif 'powheg' in dataset:
+        nnlopsw = nnlops.evaluate(
+            df.HTXS.Higgs_pt, df.HTXS.njets30, "powheg"
+        )
+    return nnlopsw
+
+
 def apply_roccor(df, rochester, is_mc):
     if is_mc:
         hasgen = ~np.isnan(ak.fill_none(df.Muon.matched_gen.pt, np.nan))
@@ -343,7 +357,11 @@ def checkIntegral(wgt1, wgt2, ref):
     return (myint - refint) / refint
 
 
-def pu_evaluator(lookups, numevents, ntrueint):
+def pu_evaluator(lookups, parameters, numevents, ntrueint, auto_pu):
+    if auto_pu:
+        lookups = pu_lookups(
+            parameters, auto=ntrueint
+        )
     pu_weights = {}
     for var, lookup in lookups.items():
         pu_weights[var] = np.ones(numevents)
@@ -541,7 +559,27 @@ def puid_weights(evaluator, year, jets, pt_name,
     return puid_weight
 
 
-def qgl_weights(jet, isHerwig):
+def qgl_weights(jet1, jet2, isHerwig, output, variables, njets):
+    qgl = pd.DataFrame(
+        index=output.index, columns=['wgt', 'wgt_down']
+    ).fillna(1.0)
+
+    qgl1 = get_qgl_weights(jet1, isHerwig).fillna(1.0)
+    qgl2 = get_qgl_weights(jet2, isHerwig).fillna(1.0)
+    qgl.wgt *= qgl1 * qgl2
+
+    qgl.wgt[variables.njets == 1] = 1.
+    selected = output.event_selection & (njets > 2)
+    qgl.wgt = qgl.wgt / qgl.wgt[selected].mean()
+
+    wgts = {
+        'nom': qgl.wgt,
+        'up': qgl.wgt*qgl.wgt,
+        'down': qgl.wgt_down
+    }
+    return wgts
+
+def get_qgl_weights(jet, isHerwig):
     df = pd.DataFrame(index=jet.index, columns=['weights'])
 
     wgt_mask = (
@@ -672,15 +710,47 @@ def geofit_evaluator(muons_pt, muons_eta, muons_dxybs,
     return (muons_pt.flatten() - pt_cor)
 
 
-def get_jec_unc(name, jet_pt, jet_eta, jecunc):
-    idx_func = jecunc.levels.index(name)
-    jec_unc_func = jecunc._funcs[idx_func]
-    function_signature = jecunc._funcs[idx_func].signature
-    counts = jet_pt.counts
-    args = {
-        "JetPt": np.array(jet_pt.flatten()),
-        "JetEta": np.array(jet_eta.flatten())
+def lhe_weights(df, output, dataset, year):
+    factor2 = (
+        ('dy_m105_160_amc' in dataset) and
+        (('2017' in year) or ('2018' in year))
+    )
+    if factor2:
+        lhefactor = 2.
+    else:
+        lhefactor = 1.
+    nLHEScaleWeight = ak.count(df.LHEScaleWeight, axis=1)
+    lhe_df = pd.DataFrame(
+        data=ak.to_numpy(nLHEScaleWeight),
+        index=output.index,
+        columns=['nLHEScaleWeight']
+    )
+    for i in [1, 3, 4, 5, 6, 7, 15, 24, 34]:
+        cut = lhe_df.nLHEScaleWeight > i
+        cut_ak = nLHEScaleWeight > i
+        lhe_df[f'LHE{i}'] = 1.0
+        lhe_df.loc[cut, f'LHE{i}'] =\
+        ak.to_numpy(df.LHEScaleWeight[cut_ak][:, i])
+
+    cut8 = lhe_df.nLHEScaleWeight > 8
+    cut30 = lhe_df.nLHEScaleWeight > 30
+    lhe_ren_up = lhe_df.LHE6 * lhefactor
+    lhe_ren_up[cut8] = lhe_df.LHE7 * lhefactor
+    lhe_ren_up[cut30] = lhe_df.LHE34 * lhefactor
+    lhe_ren_down = lhe_df.LHE1 * lhefactor
+    lhe_ren_down[cut8] = lhe_df.LHE1 * lhefactor
+    lhe_ren_down[cut30] = lhe_df.LHE5 * lhefactor
+
+    lhe_fac_up = lhe_df.LHE4 * lhefactor
+    lhe_fac_up[cut8] = lhe_df.LHE5 * lhefactor
+    lhe_fac_up[cut30] = lhe_df.LHE24 * lhefactor
+    lhe_fac_down = lhe_df.LHE3 * lhefactor
+    lhe_fac_down[cut8] = lhe_df.LHE3 * lhefactor
+    lhe_fac_down[cut30] = lhe_df.LHE15 * lhefactor
+    
+    lhe = {
+        'ren_up': lhe_ren_up, 'ren_down': lhe_ren_down,
+        'fac_up': lhe_fac_up, 'fac_down': lhe_fac_down
     }
-    func_args = tuple([args[s] for s in function_signature])
-    jec_unc_vec = jec_unc_func(*func_args)
-    return awkward.JaggedArray.fromcounts(counts, jec_unc_vec)
+    return lhe
+

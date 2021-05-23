@@ -23,6 +23,8 @@ parameters["roccor_file"] = {
     "2018": "data/roch_corr/RoccoR2018.txt",
 }
 
+parameters['nnlops_file'] = for_all_years('data/NNLOPS_reweight.root')
+
 parameters["btag_sf_csv"] = {
     "2016": "data/btag/DeepCSV_2016LegacySF_V1.csv",
     "2017": "data/btag/DeepCSV_94XSF_V5_B_F.csv",

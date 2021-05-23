@@ -148,3 +148,69 @@ def jec_factories(year):
         )
 
     return jec_factories, jec_factories_data
+
+
+"""
+        if is_mc and self.do_jerunc:
+            jetarrays = {c: df.Jet[c].flatten() for c in
+                         df.Jet.columns if 'matched' not in c}
+            pt_gen_jet = df.Jet['matched_genjet'].pt.flatten(axis=0)
+            # pt_gen_jet = df.Jet.matched_genjet.pt.flatten(axis=0)
+            pt_gen_jet = np.zeros(len(df.Jet.flatten()))
+            pt_gen_jet[df.Jet.matched_genjet.pt.flatten(axis=0).counts >
+                       0] = df.Jet.matched_genjet.pt.flatten().flatten()
+            pt_gen_jet[df.Jet.matched_genjet.pt.flatten(
+                axis=0).counts <= 0] = 0
+            jetarrays['ptGenJet'] = pt_gen_jet
+            jets = JaggedCandidateArray.candidatesfromcounts(
+                df.Jet.counts, **jetarrays)
+            jet_pt_jec = df.Jet.pt
+            self.Jet_transformer_JER.transform(
+                jets, forceStochastic=False)
+            jet_pt_jec_jer = jets.pt
+            jet_pt_gen = jets.ptGenJet
+            jer_sf = ((jet_pt_jec_jer - jet_pt_gen) /
+                      (jet_pt_jec - jet_pt_gen +
+                       (jet_pt_jec == jet_pt_gen) *
+                       (jet_pt_jec_jer - jet_pt_jec)))
+            jer_down_sf = ((jets.pt_jer_down - jet_pt_gen) /
+                           (jet_pt_jec - jet_pt_gen +
+                           (jet_pt_jec == jet_pt_gen) * 10.))
+            jet_pt_jer_down = jet_pt_gen +\
+                (jet_pt_jec - jet_pt_gen) *\
+                (jer_down_sf / jer_sf)
+            jer_categories = {
+                'jer1': (abs(jets.eta) < 1.93),
+                'jer2': (abs(jets.eta) > 1.93) & (abs(jets.eta) < 2.5),
+                'jer3': ((abs(jets.eta) > 2.5) &
+                         (abs(jets.eta) < 3.139) &
+                         (jets.pt < 50)),
+                'jer4': ((abs(jets.eta) > 2.5) &
+                         (abs(jets.eta) < 3.139) &
+                         (jets.pt > 50)),
+                'jer5': (abs(jets.eta) > 3.139) & (jets.pt < 50),
+                'jer6': (abs(jets.eta) > 3.139) & (jets.pt > 50),
+            }
+            for jer_unc_name, jer_cut in jer_categories.items():
+                jer_cut = jer_cut & (jets.ptGenJet > 0)
+                up_ = (f"{jer_unc_name}_up" not in self.pt_variations)
+                dn_ = (f"{jer_unc_name}_down" not in
+                       self.pt_variations)
+                if up_ and dn_:
+                    continue
+                pt_name_up = f"pt_{jer_unc_name}_up"
+                pt_name_down = f"pt_{jer_unc_name}_down"
+                df.Jet[pt_name_up] = jet_pt_jec
+                df.Jet[pt_name_down] = jet_pt_jec
+                df.Jet[pt_name_up][jer_cut] = jet_pt_jec_jer[jer_cut]
+                df.Jet[pt_name_down][jer_cut] =\
+                    jet_pt_jer_down[jer_cut]
+
+                if (f"{jer_unc_name}_up" in self.pt_variations):
+                    jet_variation_names += [f"{jer_unc_name}_up"]
+                if (f"{jer_unc_name}_down" in self.pt_variations):
+                    jet_variation_names += [f"{jer_unc_name}_down"]
+            if self.timer:
+                self.timer.add_checkpoint("Computed JER nuisances")
+
+"""
