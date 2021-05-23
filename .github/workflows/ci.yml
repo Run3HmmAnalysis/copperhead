@@ -9,13 +9,13 @@ on:
   workflow_dispatch:
 
 jobs:
-  build:
+  flake8:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
         os: [ubuntu-latest]
         python-version: [3.7]
-    name: build - flake8 - python ${{ matrix.python-version }}
+    name: flake8 - python ${{ matrix.python-version }}
 
     steps:
       - uses: actions/checkout@master
@@ -29,7 +29,7 @@ jobs:
         run: flake8 ./*py
       - name: flake8 - check python/*py
         run: flake8 python/*py
-  test:
+  test_run:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:

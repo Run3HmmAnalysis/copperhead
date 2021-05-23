@@ -55,3 +55,4 @@ if __name__ == "__main__":
 
     elapsed = round(time.time() - tick, 3)
     print(f'Finished everything in {elapsed} s.')
+    assert(df.shape == (8594, 100))
