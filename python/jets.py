@@ -106,21 +106,21 @@ def fill_jets(output, variables, jet1, jet2):
 
     variables.mmj1_dEta,\
         variables.mmj1_dPhi,\
-            variables.mmj1_dR = delta_r(
-                output.dimuon_eta,
-                variables.jet1_eta,
-                output.dimuon_phi,
-                variables.jet1_phi
-            )
+        variables.mmj1_dR = delta_r(
+            output.dimuon_eta,
+            variables.jet1_eta,
+            output.dimuon_phi,
+            variables.jet1_phi
+        )
 
     variables.mmj2_dEta,\
         variables.mmj2_dPhi,\
-            variables.mmj2_dR = delta_r(
-                output.dimuon_eta,
-                variables.jet2_eta,
-                output.dimuon_phi,
-                variables.jet2_phi
-            )
+        variables.mmj2_dR = delta_r(
+            output.dimuon_eta,
+            variables.jet2_eta,
+            output.dimuon_phi,
+            variables.jet2_phi
+        )
 
     variables.mmj_min_dEta = np.where(
         variables.mmj1_dEta,
