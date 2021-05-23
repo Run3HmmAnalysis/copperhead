@@ -812,7 +812,7 @@ class DimuonProcessor(processor.ProcessorABC):
 
             btag_wgt, btag_syst = btag_weights(
                 self, self.btag_lookup, self.btag_systs, jets,
-                weights, bjet_sel_mask, numevents
+                weights, bjet_sel_mask
             )
             weights.add_weight('btag_wgt', btag_wgt)
 

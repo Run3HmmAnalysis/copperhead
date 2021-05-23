@@ -2,7 +2,7 @@ import pandas as pd
 
 
 def btag_weights(processor, lookup, systs, jets,
-                 weights, bjet_sel_mask, numevents):
+                 weights, bjet_sel_mask):
 
     btag = pd.DataFrame(index=bjet_sel_mask.index)
     jets = jets[abs(jets.eta) < 2.4]
