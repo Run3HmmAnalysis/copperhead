@@ -17,11 +17,11 @@ from python.corrections import pu_lookups, pu_evaluator
 from python.corrections import nnlops_weights, lhe_weights
 from python.corrections import qgl_weights, btag_weights  # puid_weights
 from python.corrections import apply_roccor, fsr_recovery, apply_geofit
-from python.stxs_uncert import vbf_uncert_stage_1_1, stxs_lookups
+from python.corrections.stxs_uncert import stxs_uncert, stxs_lookups
 from python.muons import fill_muons
 from python.jets import prepare_jets, fill_jets, fill_softjets
 from python.jets import jet_id, jet_puid, gen_jet_pair_mass
-from python.jec import jec_factories
+from python.corrections.jec import jec_factories
 
 from config.parameters import parameters
 from config.variables import variables
@@ -479,14 +479,14 @@ class DimuonProcessor(processor.ProcessorABC):
 
             if do_thu:
                 for i, name in enumerate(self.sths_names):
-                    wgt_up = vbf_uncert_stage_1_1(
+                    wgt_up = stxs_uncert(
                         i,
                         ak.to_numpy(df.HTXS.stage1_1_fine_cat_pTjet30GeV),
                         1.,
                         self.stxs_acc_lookups,
                         self.powheg_xsec_lookup
                     )
-                    wgt_down = vbf_uncert_stage_1_1(
+                    wgt_down = stxs_uncert(
                         i,
                         ak.to_numpy(df.HTXS.stage1_1_fine_cat_pTjet30GeV),
                         -1.,
@@ -907,7 +907,7 @@ class DimuonProcessor(processor.ProcessorABC):
             BTagScaleFactor.RESHAPE,
             'iterativefit,iterativefit,iterativefit'
         )
-        # STXS Higgs cross-section reweighting
+        # STXS VBF cross-section uncertainty
         self.stxs_acc_lookups, self.powheg_xsec_lookup = stxs_lookups()
 
         # --- Evaluator

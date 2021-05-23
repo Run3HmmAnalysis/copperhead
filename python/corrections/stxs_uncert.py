@@ -117,8 +117,9 @@ def stxs_lookups():
     return stxs_acc_lookups, powheg_xsec_lookup
 
 
-def vbf_uncert_stage_1_1(source, event_STXS, Nsigma,
+def stxs_uncert(source, event_STXS, Nsigma,
                          stxs_acc_lookups, powheg_xsec_lookup):
+    # vbf_uncert_stage_1_1
     # return a single weight for a given souce
     if(source < 10):
         delta_var = (
