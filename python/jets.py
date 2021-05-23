@@ -1,6 +1,7 @@
 import numpy as np
+import pandas as pd
 import awkward as ak
-from python.utils import p4_sum, delta_r, rapidity, cs_variables
+from python.utils import p4_sum, delta_r, rapidity
 
 
 def prepare_jets(df, is_mc):
@@ -35,7 +36,7 @@ def fill_jets(output, variables, jet1, jet2):
 
     for v in variable_names:
         variables[v] = -999.
-    
+
     # Fill single jet variables
     for v in ['pt', 'eta', 'phi', 'qgl', 'jetId', 'puId']:
         variables[f'jet1_{v}'] = jet1[v]
@@ -104,22 +105,22 @@ def fill_jets(output, variables, jet1, jet2):
     variables.ll_zstar_log = np.log(ll_zstar)
 
     variables.mmj1_dEta,\
-    variables.mmj1_dPhi,\
-    variables.mmj1_dR = delta_r(
-        output.dimuon_eta,
-        variables.jet1_eta,
-        output.dimuon_phi,
-        variables.jet1_phi
-    )
+        variables.mmj1_dPhi,\
+            variables.mmj1_dR = delta_r(
+                output.dimuon_eta,
+                variables.jet1_eta,
+                output.dimuon_phi,
+                variables.jet1_phi
+            )
 
     variables.mmj2_dEta,\
-    variables.mmj2_dPhi,\
-    variables.mmj2_dR = delta_r(
-        output.dimuon_eta,
-        variables.jet2_eta,
-        output.dimuon_phi,
-        variables.jet2_phi
-    )
+        variables.mmj2_dPhi,\
+            variables.mmj2_dR = delta_r(
+                output.dimuon_eta,
+                variables.jet2_eta,
+                output.dimuon_phi,
+                variables.jet2_phi
+            )
 
     variables.mmj_min_dEta = np.where(
         variables.mmj1_dEta,
@@ -231,7 +232,7 @@ def fill_softjets(df, output, variables, cutoff):
     saj_df_filtered = saj_df[(~saj_df.to_remove) & (saj_df.pt > cutoff)]
     footprint = saj_df[(saj_df.to_remove) & (saj_df.pt > cutoff)]
     res['njets_corrected'] = saj_df_filtered\
-    .reset_index().groupby('entry')['subentry'].nunique()
+        .reset_index().groupby('entry')['subentry'].nunique()
     res['njets_corrected'] = res['njets_corrected'].fillna(0).astype(int)
     res['footprint'] = footprint.pt.groupby(level=[0]).sum()
     res['footprint'] = res['footprint'].fillna(0.0)

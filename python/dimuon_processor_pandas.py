@@ -10,7 +10,6 @@ from coffea.lookup_tools import txt_converters, rochester_lookup
 from coffea.btag_tools import BTagScaleFactor
 from coffea.lumi_tools import LumiMask
 
-from python.utils import p4_sum, delta_r, rapidity, cs_variables
 from python.timer import Timer
 from python.weights import Weights
 from python.corrections import musf_lookup, musf_evaluator
@@ -21,7 +20,7 @@ from python.corrections import apply_roccor, fsr_recovery, apply_geofit
 from python.stxs_uncert import vbf_uncert_stage_1_1, stxs_lookups
 from python.muons import fill_muons
 from python.jets import prepare_jets, fill_jets, fill_softjets
-from python.jets import jet_id, jet_puid
+from python.jets import jet_id, jet_puid, gen_jet_pair_mass
 from python.jec import jec_factories
 
 from config.parameters import parameters
@@ -633,7 +632,7 @@ class DimuonProcessor(processor.ProcessorABC):
 
         if not is_mc and variation != 'nominal':
             return
-        
+
         variables = pd.DataFrame(index=output.index)
 
         jet_columns = [
@@ -810,7 +809,7 @@ class DimuonProcessor(processor.ProcessorABC):
                 weights, bjet_sel_mask, numevents
             )
             weights.add_weight('btag_wgt', btag_wgt)
-            
+
             # --- Btag weights variations --- #
             for name, bs in btag_syst.items():
                 up = bs[0]
@@ -911,7 +910,7 @@ class DimuonProcessor(processor.ProcessorABC):
         # STXS Higgs cross-section reweighting
         self.stxs_acc_lookups, self.powheg_xsec_lookup = stxs_lookups()
 
-        # --- Evaluator 
+        # --- Evaluator
         self.extractor = extractor()
 
         # Z-pT reweigting (disabled)
@@ -935,7 +934,7 @@ class DimuonProcessor(processor.ProcessorABC):
 
         self.extractor.finalize()
         self.evaluator = self.extractor.make_evaluator()
-        
+
         self.evaluator[self.zpt_path]._axes =\
             self.evaluator[self.zpt_path]._axes[0]
 

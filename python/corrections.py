@@ -46,7 +46,7 @@ class NNLOPS_Evaluator(object):
         return result
 
 
-def nnlops_weights(df, numevents, parameters, dataset):    
+def nnlops_weights(df, numevents, parameters, dataset):
     nnlops = NNLOPS_Evaluator(parameters['nnlops_file'])
     nnlopsw = np.ones(numevents, dtype=float)
     if 'amc' in dataset:
@@ -579,6 +579,7 @@ def qgl_weights(jet1, jet2, isHerwig, output, variables, njets):
     }
     return wgts
 
+
 def get_qgl_weights(jet, isHerwig):
     df = pd.DataFrame(index=jet.index, columns=['weights'])
 
@@ -730,7 +731,7 @@ def lhe_weights(df, output, dataset, year):
         cut_ak = nLHEScaleWeight > i
         lhe_df[f'LHE{i}'] = 1.0
         lhe_df.loc[cut, f'LHE{i}'] =\
-        ak.to_numpy(df.LHEScaleWeight[cut_ak][:, i])
+            ak.to_numpy(df.LHEScaleWeight[cut_ak][:, i])
 
     cut8 = lhe_df.nLHEScaleWeight > 8
     cut30 = lhe_df.nLHEScaleWeight > 30
@@ -747,10 +748,9 @@ def lhe_weights(df, output, dataset, year):
     lhe_fac_down = lhe_df.LHE3 * lhefactor
     lhe_fac_down[cut8] = lhe_df.LHE3 * lhefactor
     lhe_fac_down[cut30] = lhe_df.LHE15 * lhefactor
-    
+
     lhe = {
         'ren_up': lhe_ren_up, 'ren_down': lhe_ren_down,
         'fac_up': lhe_fac_up, 'fac_down': lhe_fac_down
     }
     return lhe
-

@@ -1,7 +1,7 @@
 import numpy as np
 
 from python.mass_resolution import mass_resolution_purdue
-from python.utils import p4_sum, delta_r, rapidity, cs_variables
+from python.utils import p4_sum, delta_r, cs_variables
 
 
 def fill_muons(processor, output, mu1, mu2, is_mc):
@@ -32,7 +32,7 @@ def fill_muons(processor, output, mu1, mu2, is_mc):
     # Initialize columns for muon variables
     for n in (v_names):
         output[n] = 0.0
-    
+
     # Fill single muon variables
     for v in ['pt', 'ptErr', 'eta', 'phi']:
         output[f'mu1_{v}'] = mu1[v]
@@ -72,5 +72,4 @@ def fill_muons(processor, output, mu1, mu2, is_mc):
     )
 
     output['dimuon_cos_theta_cs'],\
-    output['dimuon_phi_cs'] = cs_variables(mu1, mu2)
-
+        output['dimuon_phi_cs'] = cs_variables(mu1, mu2)
