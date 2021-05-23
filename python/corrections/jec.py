@@ -4,6 +4,36 @@ from config.jec_parameters import runs, jec_levels_mc, jec_levels_data
 from config.jec_parameters import jec_tags, jer_tags, jec_data_tags
 
 
+def apply_jec(df, jets, is_mc, do_jec, do_jecunc, do_jerunc,
+              jec_factories, jec_factories_data, year):
+    cache = df.caches[0]
+
+    # Correct jets (w/o uncertainties)
+    if do_jec:
+        if is_mc:
+            factory = jec_factories['jec']
+        else:
+            for run in runs[year]:
+                if run in dataset:
+                    factory = jec_factories_data[run]
+        jets = factory.build(jets, lazy_cache=cache)
+
+    # TODO: only consider nuisances that are defined in run parameters
+    # Compute JEC uncertainties
+    if is_mc and do_jecunc:
+        jets = jec_factories['junc'].build(
+            jets, lazy_cache=cache
+        )
+
+    # Compute JER uncertainties
+    if is_mc and do_jerunc:
+        jets = jec_factories['jer'].build(
+            jets, lazy_cache=cache
+        )
+
+    # TODO: JER nuisances
+
+
 def jec_names_and_sources(year):
     names = {}
     suffix = {

@@ -17,7 +17,7 @@ from python.corrections.l1prefiring_weights import l1pf_weights
 from python.corrections.rochester import apply_roccor
 from python.corrections.fsr_recovery import fsr_recovery
 from python.corrections.geofit import apply_geofit
-from python.corrections.jec import jec_factories
+from python.corrections.jec import jec_factories, apply_jec
 from python.corrections.lepton_sf import musf_lookup, musf_evaluator
 from python.corrections.nnlops import nnlops_weights
 from python.corrections.stxs_uncert import stxs_uncert, stxs_lookups
@@ -295,7 +295,7 @@ class DimuonProcessor(processor.ProcessorABC):
                 self.timer.add_checkpoint("Selected events and muons")
 
             # --------------------------------------------------------#
-            # Initialize muon variables
+            # Select two leading-pT muons
             # --------------------------------------------------------#
 
             # Find pT-leading and subleading muons
@@ -361,39 +361,13 @@ class DimuonProcessor(processor.ProcessorABC):
         if ('data' in dataset) and ('2018' in self.year):
             self.do_jec = True
 
-        cache = df.caches[0]
-
-        # Correct jets (w/o uncertainties)
-        if self.do_jec:
-            if is_mc:
-                factory = self.jec_factories['jec']
-            else:
-                for run in self.data_runs:
-                    if run in dataset:
-                        factory = self.jec_factories_data[run]
-            jets = factory.build(jets, lazy_cache=cache)
-
-            if self.timer:
-                self.timer.add_checkpoint("Build JEC")
-
-        # TODO: only consider nuisances that are defined in run parameters
-        # Compute JEC uncertainties
-        if is_mc and self.do_jecunc:
-            jets = self.jec_factories['junc'].build(
-                jets, lazy_cache=cache
-            )
-            if self.timer:
-                self.timer.add_checkpoint("Build JECUNC")
-
-        # Compute JER uncertainties
-        if is_mc and self.do_jerunc:
-            jets = self.jec_factories['jer'].build(
-                jets, lazy_cache=cache
-            )
-            if self.timer:
-                self.timer.add_checkpoint("Build JER")
-
-        # TODO: JER nuisances
+        apply_jec(
+            df, jets, is_mc, self.do_jec, self.do_jecunc, self.do_jerunc,
+            self.year, self.jec_factories, self.jec_factories_data
+        )
+        
+        if self.timer:
+            self.timer.add_checkpoint("Applied JEC/JER, if enabled")
 
         # ------------------------------------------------------------#
         # Calculate other event weights
@@ -401,29 +375,6 @@ class DimuonProcessor(processor.ProcessorABC):
 
         if is_mc:
             do_nnlops = self.do_nnlops and ('ggh' in dataset)
-            # do_zpt = ('dy' in dataset)
-            do_musf = True
-            do_lhe = (
-                ('LHEScaleWeight' in df.fields) and
-                ('LHEPdfWeight' in df.fields) and
-                ('nominal' in self.pt_variations)
-            )
-            do_thu = (
-                ('vbf' in dataset) and
-                ('dy' not in dataset) and
-                ('nominal' in self.pt_variations) and
-                ('stage1_1_fine_cat_pTjet30GeV' in df.HTXS.fields)
-            )
-            do_pdf = (
-                self.do_pdf and
-                ('nominal' in self.pt_variations) and
-                ("dy" in dataset or
-                 "ewk" in dataset or
-                 "ggh" in dataset or
-                 "vbf" in dataset) and
-                ('mg' not in dataset)
-            )
-
             if do_nnlops:
                 nnlopsw = nnlops_weights(
                     df, numevents, self.parameters, dataset
@@ -431,17 +382,18 @@ class DimuonProcessor(processor.ProcessorABC):
                 weights.add_weight('nnlops', nnlopsw)
             else:
                 weights.add_weight('nnlops', how='dummy')
-
-            """
-            if do_zpt:
-                zpt_weight = np.ones(numevents, dtype=float)
-                zpt_weight[two_muons] =\
-                    self.evaluator[self.zpt_path](
-                        output['dimuon_pt'][two_muons]
-                    ).flatten()
-                weights.add_weight('zpt_wgt', zpt_weight)
-            """
-
+            # --- --- --- --- --- --- --- --- --- --- --- --- --- --- #
+            # do_zpt = ('dy' in dataset)
+            #
+            # if do_zpt:
+            #     zpt_weight = np.ones(numevents, dtype=float)
+            #     zpt_weight[two_muons] =\
+            #         self.evaluator[self.zpt_path](
+            #             output['dimuon_pt'][two_muons]
+            #         ).flatten()
+            #     weights.add_weight('zpt_wgt', zpt_weight)
+            # --- --- --- --- --- --- --- --- --- --- --- --- --- --- #
+            do_musf = True
             if do_musf:
                 muID, muIso, muTrig = musf_evaluator(
                     self.musf_lookup,
@@ -456,7 +408,12 @@ class DimuonProcessor(processor.ProcessorABC):
                 weights.add_weight('muID', how='dummy_all')
                 weights.add_weight('muIso', how='dummy_all')
                 weights.add_weight('muTrig', how='dummy_all')
-
+            # --- --- --- --- --- --- --- --- --- --- --- --- --- --- #
+            do_lhe = (
+                ('LHEScaleWeight' in df.fields) and
+                ('LHEPdfWeight' in df.fields) and
+                ('nominal' in self.pt_variations)
+            )
             if do_lhe:
                 lhe_ren,\
                     lhe_fac = lhe_weights(df, output, dataset, self.year)
@@ -465,7 +422,13 @@ class DimuonProcessor(processor.ProcessorABC):
             else:
                 weights.add_weight('LHERen', how='dummy_vars')
                 weights.add_weight('LHEFac', how='dummy_vars')
-
+            # --- --- --- --- --- --- --- --- --- --- --- --- --- --- #
+            do_thu = (
+                ('vbf' in dataset) and
+                ('dy' not in dataset) and
+                ('nominal' in self.pt_variations) and
+                ('stage1_1_fine_cat_pTjet30GeV' in df.HTXS.fields)
+            )
             if do_thu:
                 for i, name in enumerate(self.sths_names):
                     wgt_up = stxs_uncert(
@@ -489,8 +452,16 @@ class DimuonProcessor(processor.ProcessorABC):
             else:
                 for i, name in enumerate(self.sths_names):
                     weights.add_weight("THU_VBF_"+name, how='dummy_vars')
-
-            # TODO: find a better way to implement PDF weights
+            # --- --- --- --- --- --- --- --- --- --- --- --- --- --- #
+            do_pdf = (
+                self.do_pdf and
+                ('nominal' in self.pt_variations) and
+                ("dy" in dataset or
+                 "ewk" in dataset or
+                 "ggh" in dataset or
+                 "vbf" in dataset) and
+                ('mg' not in dataset)
+            )
             if '2016' in self.year:
                 max_replicas = 0
                 if 'dy' in dataset:
@@ -523,6 +494,7 @@ class DimuonProcessor(processor.ProcessorABC):
                     )
                 else:
                     weights.add_weight("pdf_2rms", how='dummy_vars')
+            # --- --- --- --- --- --- --- --- --- --- --- --- --- --- #
 
         if self.timer:
             self.timer.add_checkpoint("Computed event weights")

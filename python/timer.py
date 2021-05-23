@@ -36,9 +36,7 @@ class Timer(object):
             "Selected events and muons"
         ]
         jets = [
-            "Build JEC",
-            "Build JECUNC",
-            "Build JER",
+            "Applied JEC/JER, if enabled"
             "Filled jet variables",
             "Completed jet loop",
             "Prepared jets",
