@@ -1,6 +1,5 @@
 import numpy as np
 
-from python.mass_resolution import mass_resolution_purdue
 from python.utils import p4_sum, delta_r, cs_variables
 
 
@@ -15,7 +14,6 @@ def fill_muons(processor, output, mu1, mu2, is_mc):
     ]
     dimuon_variable_names = [
         'dimuon_mass',
-        'dimuon_mass_res', 'dimuon_mass_res_rel',
         'dimuon_ebe_mass_res', 'dimuon_ebe_mass_res_rel',
         'dimuon_pt', 'dimuon_pt_log',
         'dimuon_eta', 'dimuon_phi',
@@ -61,7 +59,7 @@ def fill_muons(processor, output, mu1, mu2, is_mc):
     output['dimuon_dPhi'] = mm_dphi
     output['dimuon_dR'] = mm_dr
 
-    output['dimuon_ebe_mass_res'] = mass_resolution_purdue(
+    output['dimuon_ebe_mass_res'] = mass_resolution(
         is_mc,
         processor.evaluator,
         output,
@@ -73,3 +71,23 @@ def fill_muons(processor, output, mu1, mu2, is_mc):
 
     output['dimuon_cos_theta_cs'],\
         output['dimuon_phi_cs'] = cs_variables(mu1, mu2)
+
+
+def mass_resolution(is_mc, evaluator, df, year):
+    # Returns absolute mass resolution!
+    dpt1 = (df.mu1_ptErr*df.dimuon_mass) / (2*df.mu1_pt)
+    dpt2 = (df.mu2_ptErr*df.dimuon_mass) / (2*df.mu2_pt)
+
+    if is_mc:
+        label = f"res_calib_MC_{year}"
+    else:
+        label = f"res_calib_Data_{year}"
+    calibration = np.array(
+        evaluator[label](
+            df.mu1_pt.values,
+            abs(df.mu1_eta.values),
+            abs(df.mu2_eta.values)
+        )
+    )
+
+    return np.sqrt(dpt1 * dpt1 + dpt2 * dpt2) * calibration
