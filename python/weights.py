@@ -34,7 +34,6 @@ class Weights(object):
         elif how == 'dummy_vars':
             self.add_dummy_weight(name, nom=False, variations=True)
 
-
     def add_nom_weight(self, name, wgt):
         columns = self.df.columns
         self.df[f'{name}_off'] = self.df['nominal']
