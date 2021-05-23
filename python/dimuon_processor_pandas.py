@@ -365,7 +365,7 @@ class DimuonProcessor(processor.ProcessorABC):
             df, jets, is_mc, self.do_jec, self.do_jecunc, self.do_jerunc,
             self.year, self.jec_factories, self.jec_factories_data
         )
-        
+
         if self.timer:
             self.timer.add_checkpoint("Applied JEC/JER, if enabled")
 
