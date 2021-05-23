@@ -13,6 +13,7 @@ from coffea.lumi_tools import LumiMask
 from python.timer import Timer
 from python.weights import Weights
 from python.corrections.pu_reweight import pu_lookups, pu_evaluator
+from python.corrections.l1prefiring_weights import l1pf_weights
 from python.corrections.rochester import apply_roccor
 from python.corrections.fsr_recovery import fsr_recovery
 from python.corrections.geofit import apply_geofit
@@ -147,20 +148,14 @@ class DimuonProcessor(processor.ProcessorABC):
                 np.array(df.Pileup.nTrueInt),
                 self.auto_pu
             )
-            weights.add_weight_with_variations(
-                'pu_wgt', pu_wgts['nom'], pu_wgts['up'], pu_wgts['down']
-            )
+            weights.add_weight('pu_wgt', pu_wgts, how='all')
 
             if self.parameters["do_l1prefiring_wgts"]:
                 if 'L1PreFiringWeight' in df.fields:
-                    l1pfw = ak.to_pandas(df.L1PreFiringWeight)
-                    weights.add_weight_with_variations(
-                        'l1prefiring_wgt', l1pfw.Nom, l1pfw.Up, l1pfw.Dn
-                    )
+                    l1pfw = l1pf_weights(df)
+                    weights.add_weight('l1prefiring_wgt', l1pfw, how='all')
                 else:
-                    weights.add_dummy_weight_with_variations(
-                        'l1prefiring_wgt'
-                    )
+                    weights.add_weight('l1prefiring_wgt', how='dummy_vars')
 
         else:
             # For Data: apply Lumi mask
@@ -435,7 +430,7 @@ class DimuonProcessor(processor.ProcessorABC):
                 )
                 weights.add_weight('nnlops', nnlopsw)
             else:
-                weights.add_dummy_weight('nnlops')
+                weights.add_weight('nnlops', how='dummy')
 
             """
             if do_zpt:
@@ -448,40 +443,28 @@ class DimuonProcessor(processor.ProcessorABC):
             """
 
             if do_musf:
-                sf = musf_evaluator(
+                muID, muIso, muTrig = musf_evaluator(
                     self.musf_lookup,
                     self.year,
                     numevents,
                     mu1, mu2
                 )
-                weights.add_weight_with_variations(
-                    'muID', sf['muID_nom'],
-                    sf['muID_up'], sf['muID_down']
-                )
-                weights.add_weight_with_variations(
-                    'muIso', sf['muIso_nom'],
-                    sf['muIso_up'], sf['muIso_down']
-                )
-                weights.add_weight_with_variations(
-                    'muTrig', sf['muTrig_nom'],
-                    sf['muTrig_up'], sf['muTrig_down']
-                )
+                weights.add_weight('muID', muID, how='all')
+                weights.add_weight('muIso', muID, how='all')
+                weights.add_weight('muTrig', muID, how='all')
             else:
-                weights.add_dummy_weight_with_variations('muID')
-                weights.add_dummy_weight_with_variations('muIso')
-                weights.add_dummy_weight_with_variations('muTrig')
+                weights.add_weight('muID', how='dummy_all')
+                weights.add_weight('muIso', how='dummy_all')
+                weights.add_weight('muTrig', how='dummy_all')
 
             if do_lhe:
-                lhe = lhe_weights(df, output, dataset, self.year)
-                weights.add_only_variations(
-                    'LHERen', lhe['ren_up'], lhe['ren_down']
-                )
-                weights.add_only_variations(
-                    'LHEFac', lhe['fac_up'], lhe['fac_down']
-                )
+                lhe_ren,\
+                    lhe_fac = lhe_weights(df, output, dataset, self.year)
+                weights.add_weight('LHERen', lhe_ren, how='only_vars')
+                weights.add_weight('LHEFac', lhe_fac, how='only_vars')
             else:
-                weights.add_dummy_variations('LHERen')
-                weights.add_dummy_variations('LHEFac')
+                weights.add_weight('LHERen', how='dummy_vars')
+                weights.add_weight('LHEFac', how='dummy_vars')
 
             if do_thu:
                 for i, name in enumerate(self.sths_names):
@@ -499,12 +482,13 @@ class DimuonProcessor(processor.ProcessorABC):
                         self.stxs_acc_lookups,
                         self.powheg_xsec_lookup
                     )
-                    weights.add_only_variations(
-                        "THU_VBF_"+name, wgt_up, wgt_down
+                    thu_wgts = {'up': wgt_up, 'down': wgt_down}
+                    weights.add_weight(
+                        "THU_VBF_"+name, thu_wgts, how='only_vars'
                     )
             else:
                 for i, name in enumerate(self.sths_names):
-                    weights.add_dummy_variations("THU_VBF_"+name)
+                    weights.add_weight("THU_VBF_"+name, how='dummy_vars')
 
             # TODO: find a better way to implement PDF weights
             if '2016' in self.year:
@@ -530,13 +514,15 @@ class DimuonProcessor(processor.ProcessorABC):
                         :, 0:self.parameters["n_pdf_variations"]
                     ][0]
                     pdf_wgts = np.array(pdf_wgts)
-                    weights.add_only_variations(
-                        "pdf_2rms",
-                        (1 + 2 * pdf_wgts.std()),
-                        (1 - 2 * pdf_wgts.std())
+                    pdf_vars = {
+                        'up': (1 + 2 * pdf_wgts.std()),
+                        'down': (1 - 2 * pdf_wgts.std())
+                    }
+                    weights.add_weight(
+                        "pdf_2rms", pdf_vars, how='only_vars'
                     )
                 else:
-                    weights.add_dummy_variations("pdf_2rms")
+                    weights.add_weight("pdf_2rms", how='dummy_vars')
 
         if self.timer:
             self.timer.add_checkpoint("Computed event weights")
@@ -802,10 +788,7 @@ class DimuonProcessor(processor.ProcessorABC):
             qgl_wgts = qgl_weights(
                 jet1, jet2, isHerwig, output, variables, njets
             )
-            weights.add_weight_with_variations(
-                'qgl_wgt', qgl_wgts['nom'],
-                up=qgl_wgts['up'], down=qgl_wgts['down']
-            )
+            weights.add_weight('qgl_wgt', qgl_wgts, how='all')
 
             # --- Btag weights --- #
             bjet_sel_mask = output.event_selection & two_jets & vbf_cut
@@ -818,10 +801,8 @@ class DimuonProcessor(processor.ProcessorABC):
 
             # --- Btag weights variations --- #
             for name, bs in btag_syst.items():
-                up = bs[0]
-                down = bs[1]
-                weights.add_only_variations(
-                    f'btag_wgt_{name}', up, down
+                weights.add_weight(
+                    f'btag_wgt_{name}', bs, how='only_vars'
                 )
 
             if self.timer:

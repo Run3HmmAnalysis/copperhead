@@ -152,5 +152,20 @@ def musf_evaluator(lookups, year, numevents, mu1, mu2):
             sf.loc[cut, f'trig_num_{how}'] /
             sf.loc[cut, f'trig_denom_{how}']
         )
+    muID = {
+        'nom': sf['muID_nom'],
+        'up': sf['muID_up'],
+        'down': sf['muID_down']
+    }
+    muIso = {
+        'nom': sf['muIso_nom'],
+        'up': sf['muIso_up'],
+        'down': sf['muIso_down']
+    }
+    muTrig = {
+        'nom': sf['muTrig_nom'],
+        'up': sf['muTrig_up'],
+        'down': sf['muTrig_down']
+    }
 
-    return sf
+    return muID, muIso, muTrig

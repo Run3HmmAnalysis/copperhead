@@ -8,7 +8,34 @@ class Weights(object):
         self.wgts = pd.DataFrame(index=data.index)
         self.variations = []
 
-    def add_weight(self, name, wgt):
+    def add_weight(self, name, wgt=None, how='nom'):
+        if (wgt is None) and ('dummy' not in how):
+            return
+
+        if how == 'nom':
+            # add only nominal weight
+            self.add_nom_weight(name, wgt)
+        elif how == 'all':
+            # add weight with up and down variations
+            nom = wgt['nom']
+            up = wgt['up']
+            down = wgt['down']
+            self.add_weight_with_variations(name, nom, up, down)
+        elif how == 'only_vars':
+            # add only variations
+            up = wgt['up']
+            down = wgt['down']
+            self.add_only_variations(name, up, down)
+
+        elif (how == 'dummy_nom') or (how == 'dummy'):
+            self.add_dummy_weight(name, nom=True, variations=False)
+        elif how == 'dummy_all':
+            self.add_dummy_weight(name, nom=True, variations=True)
+        elif how == 'dummy_vars':
+            self.add_dummy_weight(name, nom=False, variations=True)
+
+
+    def add_nom_weight(self, name, wgt):
         columns = self.df.columns
         self.df[f'{name}_off'] = self.df['nominal']
         self.df[columns] = self.df[columns]\
@@ -33,30 +60,18 @@ class Weights(object):
         self.df[f'{name}_down'] = (nom*down).astype(np.float64)
         self.variations.append(name)
 
-    def add_dummy_weight(self, name):
-        self.df[f'{name}_off'] = self.df['nominal']
+    def add_dummy_weight(self, name, nom=True, variations=False):
         self.variations.append(name)
-        self.wgts[name] = 1.
-
-    def add_dummy_weight_with_variations(self, name):
-        self.wgts[name] = 1.
-        self.df[f'{name}_off'] = self.df['nominal']
-        self.df[f'{name}_up'] = np.nan
-        self.df[f'{name}_down'] = np.nan
-        self.df[f'{name}_up'] =\
-            self.df[f'{name}_up'].astype(np.float64)
-        self.df[f'{name}_down'] =\
-            self.df[f'{name}_down'].astype(np.float64)
-        self.variations.append(name)
-
-    def add_dummy_variations(self, name):
-        self.df[f'{name}_up'] = np.nan
-        self.df[f'{name}_down'] = np.nan
-        self.df[f'{name}_up'] =\
-            self.df[f'{name}_up'].astype(np.float64)
-        self.df[f'{name}_down'] =\
-            self.df[f'{name}_down'].astype(np.float64)
-        self.variations.append(name)
+        if nom:
+            self.df[f'{name}_off'] = self.df['nominal']
+            self.wgts[name] = 1.
+        if variations:
+            self.df[f'{name}_up'] = np.nan
+            self.df[f'{name}_down'] = np.nan
+            self.df[f'{name}_up'] =\
+                self.df[f'{name}_up'].astype(np.float64)
+            self.df[f'{name}_down'] =\
+                self.df[f'{name}_down'].astype(np.float64)
 
     def get_weight(self, name, mask=np.array([])):
         if len(mask) == 0:

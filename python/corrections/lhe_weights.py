@@ -40,8 +40,6 @@ def lhe_weights(df, output, dataset, year):
     lhe_fac_down[cut8] = lhe_df.LHE3 * lhefactor
     lhe_fac_down[cut30] = lhe_df.LHE15 * lhefactor
 
-    lhe = {
-        'ren_up': lhe_ren_up, 'ren_down': lhe_ren_down,
-        'fac_up': lhe_fac_up, 'fac_down': lhe_fac_down
-    }
-    return lhe
+    lhe_ren = {'up': lhe_ren_up, 'down': lhe_ren_down}
+    lhe_fac = {'up': lhe_fac_up, 'down': lhe_fac_down}
+    return lhe_ren, lhe_fac

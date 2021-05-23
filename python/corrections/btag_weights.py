@@ -59,10 +59,10 @@ def btag_weights(processor, lookup, systs, jets,
 
         btag[f'{sys}_up'] = jets[f'btag_{sys}_up'].prod(level=0)
         btag[f'{sys}_down'] = jets[f'btag_{sys}_down'].prod(level=0)
-        btag_syst[sys] = [
-            btag[f'{sys}_up'],
-            btag[f'{sys}_down']
-        ]
+        btag_syst[sys] = {
+            'up': btag[f'{sys}_up'],
+            'down': btag[f'{sys}_down']
+        }
 
     sum_before = weights.df['nominal'][bjet_sel_mask].sum()
     sum_after = weights.df['nominal'][bjet_sel_mask].multiply(
