@@ -12,16 +12,22 @@ from coffea.lumi_tools import LumiMask
 
 from python.timer import Timer
 from python.weights import Weights
-from python.corrections import musf_lookup, musf_evaluator
-from python.corrections import pu_lookups, pu_evaluator
-from python.corrections import nnlops_weights, lhe_weights
-from python.corrections import qgl_weights, btag_weights  # puid_weights
-from python.corrections import apply_roccor, fsr_recovery, apply_geofit
+from python.corrections.pu_reweight import pu_lookups, pu_evaluator
+from python.corrections.rochester import apply_roccor
+from python.corrections.fsr_recovery import fsr_recovery
+from python.corrections.geofit import apply_geofit
+from python.corrections.jec import jec_factories
+from python.corrections.lepton_sf import musf_lookup, musf_evaluator
+from python.corrections.nnlops import nnlops_weights
 from python.corrections.stxs_uncert import stxs_uncert, stxs_lookups
+from python.corrections.lhe_weights import lhe_weights
+from python.corrections.qgl_weights import qgl_weights
+from python.corrections.btag_weights import btag_weights
+# from python.corrections.puid_weights import puid_weights
+
 from python.muons import fill_muons
 from python.jets import prepare_jets, fill_jets, fill_softjets
 from python.jets import jet_id, jet_puid, gen_jet_pair_mass
-from python.corrections.jec import jec_factories
 
 from config.parameters import parameters
 from config.variables import variables
