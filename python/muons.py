@@ -75,8 +75,8 @@ def fill_muons(processor, output, mu1, mu2, is_mc):
 
 def mass_resolution(is_mc, evaluator, df, year):
     # Returns absolute mass resolution!
-    dpt1 = (df.mu1_ptErr*df.dimuon_mass) / (2*df.mu1_pt)
-    dpt2 = (df.mu2_ptErr*df.dimuon_mass) / (2*df.mu2_pt)
+    dpt1 = (df.mu1_ptErr * df.dimuon_mass) / (2 * df.mu1_pt)
+    dpt2 = (df.mu2_ptErr * df.dimuon_mass) / (2 * df.mu2_pt)
 
     if is_mc:
         label = f"res_calib_MC_{year}"

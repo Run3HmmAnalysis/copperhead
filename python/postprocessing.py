@@ -97,7 +97,7 @@ rate_syst_lookup = {
         'XsecAndNormTT+ST': {'TT+ST': 1.182},
         'XsecAndNormVV': {'VV': 1.13203},
         'XsecAndNormggH': {'ggH_hmm': 1.38206},
-        },
+    },
     '2017': {
         # 'XsecAndNorm2017DYJ2': {
         #     'DYJ2_nofilter': 1.13020, 'DYJ2_filter': 1.12409},
@@ -106,7 +106,7 @@ rate_syst_lookup = {
         'XsecAndNormTT+ST': {'TT+ST': 1.18406},
         'XsecAndNormVV': {'VV': 1.05653},
         'XsecAndNormggH': {'ggH_hmm': 1.37126},
-        },
+    },
     '2018': {
         # 'XsecAndNorm2018DYJ2':{
         #     'DYJ2_nofilter': 1.12320, 'DYJ2_filter': 1.12077},
@@ -115,7 +115,7 @@ rate_syst_lookup = {
         'XsecAndNormTT+ST': {'TT+ST': 1.18582},
         'XsecAndNormVV': {'VV': 1.05615},
         'XsecAndNormggH': {'ggH_hmm': 1.38313},
-        },
+    },
 }
 
 # https://twiki.cern.ch/twiki/bin/view/CMS/TWikiLUM
@@ -493,25 +493,25 @@ def dnn_training(df, args, model):
 
         # load model
         input_dim = len(features)
-        inputs = Input(shape=(input_dim,), name=label+'_input')
+        inputs = Input(shape=(input_dim,), name=label + '_input')
         x = Dense(
             128, name=label+'_layer_1', activation='tanh')(inputs)
         x = Dropout(0.2)(x)
         x = BatchNormalization()(x)
-        x = Dense(64, name=label+'_layer_2', activation='tanh')(x)
+        x = Dense(64, name=label + '_layer_2', activation='tanh')(x)
         x = Dropout(0.2)(x)
         x = BatchNormalization()(x)
-        x = Dense(32, name=label+'_layer_3', activation='tanh')(x)
+        x = Dense(32, name=label + '_layer_3', activation='tanh')(x)
         x = Dropout(0.2)(x)
         x = BatchNormalization()(x)
-        # x = Dense(8, name=label+'_layer_4', activation='tanh')(x)
+        # x = Dense(8, name=label + '_layer_4', activation='tanh')(x)
         # x = Dropout(0.2)(x)
         # x = BatchNormalization()(x)
-        # x = Dense(8, name=label+'_layer_5', activation='tanh')(x)
+        # x = Dense(8, name=label + '_layer_5', activation='tanh')(x)
         # x = Dropout(0.2)(x)
         # x = BatchNormalization()(x)
         outputs = Dense(
-            1, name=label+'_output',  activation='sigmoid')(x)
+            1, name=label + '_output', activation='sigmoid')(x)
 
         dnn = Model(inputs=inputs, outputs=outputs)
         dnn.compile(
@@ -555,10 +555,11 @@ def dnn_evaluation(df, model, args):
     import tensorflow as tf
     from tensorflow.keras.models import load_model
     config = tf.compat.v1.ConfigProto(
-                        intra_op_parallelism_threads=1,
-                        inter_op_parallelism_threads=1,
-                        allow_soft_placement=True,
-                        device_count={'CPU': 1})
+        intra_op_parallelism_threads=1,
+        inter_op_parallelism_threads=1,
+        allow_soft_placement=True,
+        device_count={'CPU': 1}
+    )
     tf.compat.v1.logging.set_verbosity(tf.compat.v1.logging.ERROR)
     sess = tf.compat.v1.Session(config=config)
     if args['do_massscan']:
@@ -631,7 +632,7 @@ def bdt_evaluation(df, model, args):
         if args['r'] != 'h-peak':
             df_i['dimuon_mass'] = 125.
         if args['do_massscan']:
-            df_i['dimuon_mass'] = df_i['dimuon_mass']-mass_shift
+            df_i['dimuon_mass'] = df_i['dimuon_mass'] - mass_shift
         df_i = (df_i[features] - scalers[0]) / scalers[1]
         # prediction = np.array(
         #     bdt_model.predict_proba(df_i)[:, 1]).ravel()
@@ -740,7 +741,7 @@ def plot_rocs(df, args):
     fig = plt.figure()
     fig.set_size_inches(10, 8)
     plt.rcParams.update({'font.size': 15})
-    for model in args['dnn_models']+args['bdt_models']:
+    for model in args['dnn_models'] + args['bdt_models']:
         print(model)
         var = f'score_{model}'
         if var not in df.columns:
@@ -821,7 +822,7 @@ def overlap_study(df, args, model):
         },
         'narrow': {
             'purdue_bins': [
-                x * max(purdue_bins) / narrow for x in range(narrow+1)],
+                x * max(purdue_bins) / narrow for x in range(narrow + 1)],
             'pisa_bins': [
                 x * max(pisa_bins[args['year']]) / narrow for x in
                 range(narrow + 1)]
@@ -832,9 +833,9 @@ def overlap_study(df, args, model):
     for opt_name, binning in options.items():
         for i in range(len(purdue_bins) - 1):
             ibin = (df_combined.pisa_score >=
-                    pisa_bins[args['year']][i]) &\
-                    (df_combined.pisa_score <
-                     pisa_bins[args['year']][i + 1])
+                    pisa_bins[args['year']][i]) &
+                   (df_combined.pisa_score <
+                    pisa_bins[args['year']][i + 1])
             if opt_name == 'analysis':
                 df_combined.loc[ibin, 'weight'] =\
                     1 / df_combined[ibin].shape[0]
@@ -1095,7 +1096,7 @@ def get_hists(df, var, args, mva_bins=[]):
                         range(nbins)})
                     row_up.update({
                         f'sumw2_{i}': [nom_sumw2[i]] for i in
-                        range(nbins+1)})
+                        range(nbins + 1)})
                     row_up.update({
                         f'sumw2_{i+1}': [sumw2[i]] for i in
                         range(nbins)})
@@ -1316,8 +1317,8 @@ def save_shapes(hist, model, args, mva_bins):
                                 variations_by_group[gr][smp_var_name] = [
                                     variation_up, variation_down]
 
-                        mc_hist = mc_hist.groupby(
-                           'g').aggregate(np.sum).reset_index()
+                        mc_hist = mc_hist.groupby('g')\
+                            .aggregate(np.sum).reset_index()
                         for g in mc_hist.g.unique():
                             if g not in grouping.values():
                                 continue
@@ -1329,9 +1330,9 @@ def save_shapes(hist, model, args, mva_bins):
                                 if dec_syst in vwname:
                                     for dec_group, proc_groups in\
                                             decorr.items():
-                                        if (dec_group in vwname) and\
-                                          (g not in proc_groups):
-                                            decor_ok = False
+                                        if ((dec_group in vwname) and
+                                            (g not in proc_groups)):
+                                                decor_ok = False
 
                             if not decor_ok:
                                 continue
@@ -1853,18 +1854,18 @@ def plot(var, hists, edges, args, r='', save=True, blind=True,
 
     # Report yields
     if not show and var.name == 'dimuon_mass':
-        print("="*50)
+        print("=" * 50)
         if r == '':
             print(f"{var.name}: Inclusive yields:")
         else:
             print(f"{var.name}: Yields in {r}")
-        print("="*50)
+        print("=" * 50)
         print('Data', data.sum())
         for row in bkg_df[['g', 'integral']].values:
             print(row)
         print('VBF', vbf.sum())
         print('ggH', ggh.sum())
-        print("-"*50)
+        print("-" * 50)
 
     # Make plot
     fig = plt.figure()
@@ -1986,8 +1987,11 @@ def plot(var, hists, edges, args, r='', save=True, blind=True,
     # Bottom panel: Data/MC ratio plot
     plt2 = fig.add_subplot(gs[1], sharex=plt1)
 
-    if (data.sum() * bkg_total.sum()) and (
-      not blind or var.name != 'dimuon_mass'):
+    cond = (
+        (data.sum() * bkg_total.sum()) and
+        (not blind or var.name != 'dimuon_mass')
+    )
+    if cond:
         ratios = np.zeros(len(data))
         yerr = np.zeros(len(data))
         unity = np.ones_like(bkg_total)
@@ -2061,11 +2065,11 @@ def plot(var, hists, edges, args, r='', save=True, blind=True,
                     if ('_up' in w) or ('_up' in v):
                         total_err2_up +=\
                            np.square((ret['bkg_total'].values[mask] -
-                                      bkg_total[mask]) / bkg_total[mask])
+                                     bkg_total[mask]) / bkg_total[mask])
                     if ('_down' in w) or ('_down' in v):
                         total_err2_down +=\
                            np.square((ret['bkg_total'].values[mask] -
-                                      bkg_total[mask]) / bkg_total[mask])
+                                     bkg_total[mask]) / bkg_total[mask])
         ratio_up[mask] = 1 + np.sqrt(total_err2_up)[mask]
         ratio_down[mask] = 1 - np.sqrt(total_err2_down)[mask]
         hep.histplot(ratio_up, edges, histtype='step',

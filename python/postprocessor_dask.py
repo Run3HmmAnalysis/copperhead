@@ -9,6 +9,7 @@ import matplotlib.pyplot as plt
 import mplhep as hep
 from hist import Hist
 from config.variables import variables_lookup, Variable
+import boost_histogram as bh
 
 stderr = sys.stderr
 sys.stderr = open(os.devnull, 'w')
@@ -64,6 +65,17 @@ grouping = {
     'vbf_powheg_dipole': 'VBF',
 }
 
+grouping_alt = {
+    'Data': ['data_A', 'data_B', 'data_C', 'data_D', 'data_E', 'data_F', 'data_G', 'data_H'],
+    'DY': ['dy_m105_160_amc', 'dy_m105_160_vbf_amc'],
+    'EWK': ['ewk_lljj_mll105_160_ptj0'],
+    'TT+ST': ['ttjets_dl', 'ttjets_sl', 'ttw', 'ttz', 'st_tw_top', 'st_tw_antitop'],
+    'VV': ['ww_2l2nu', 'wz_2l2q', 'wz_1l1nu2q', 'wz_3lnu', 'zz'],
+    'VVV': ['www', 'wwz', 'wzz', 'zzz'],
+    'ggH': ['ggh_amcPS'],
+    'VBF': ['vbf_powheg_dipole']
+}
+
 decorrelation_scheme = {
     'LHERen': {'DY': ['DY'], 'EWK': ['EWK'], 'ggH': ['ggH'],
                'TT+ST': ['TT+ST']},
@@ -88,7 +100,7 @@ def workflow(client, paths, parameters, timer):
     df_future = client.gather(df_future)
     timer.add_checkpoint("Loaded data from Parquet")
 
-    df = dd.concat(df_future)
+    df = dd.concat([d for d in df_future if len(d.columns)>0])
     npart = df.npartitions
     df = df.compute()
     df.reset_index(inplace=True, drop=True)
@@ -154,7 +166,10 @@ def workflow(client, paths, parameters, timer):
 
 
 def load_data(path):
-    df = dd.read_parquet(path)
+    if len(path)>0:
+        df = dd.read_parquet(path)
+    else:
+        df = dd.from_pandas(pd.DataFrame(), npartitions=1)
     return df
 
 
@@ -347,14 +362,17 @@ def plot(hist, df=pd.DataFrame(), parameters={}):
     a_year = list(hist.keys())[0]
     var = hist[a_year].axes[-1]
 
-    # stack_entries = []
-    step_entries = ['vbf_powheg_herwig', 'vbf_powheg_dipole']
-    # errorbar_entries = []
+    r = 'h-peak'
+    c = 'vbf'
+    v = 'nominal'
+    stack_groups = ['DY', 'EWK', 'TT+ST', 'VV', 'VVV']
+    step_groups = ['VBF', 'ggH']
+    errorbar_groups = ['Data']
 
     plotsize = 8
     ratio_plot_size = 0.25
     # data_opts = {'color': 'k', 'marker': '.', 'markersize': 15}
-    # stack_fill_opts = {'alpha': 0.8, 'edgecolor': (0, 0, 0)}
+    stack_fill_opts = {'alpha': 0.8, 'edgecolor': (0, 0, 0)}
     # stat_err_opts = {'step': 'post', 'label': 'Stat. unc.',
     #                  'hatch': '//////', 'facecolor': 'none',
     #                  'edgecolor': (0, 0, 0, .5), 'linewidth': 0}
@@ -368,20 +386,50 @@ def plot(hist, df=pd.DataFrame(), parameters={}):
     plt.style.use(style)
     for year in hist.keys():
         fig.clf()
-        fig.set_size_inches(plotsize*1.2, plotsize * (1 + ratio_plot_size))
+        fig.set_size_inches(plotsize * 1.2, plotsize * (1 + ratio_plot_size))
         gs = fig.add_gridspec(2, 1, height_ratios=[
             (1 - ratio_plot_size), ratio_plot_size], hspace=.07)
 
         # Top panel: Data/MC
         plt1 = fig.add_subplot(gs[0])
+        datasets = hist[year].axes["dataset"]
+        stack = []
+        stack_labels = []
+        #for group, entries in grouping_alt.items():
+        #    if group in step_groups:
+        #        for entry in entries:
+        #            if entry not in datasets:
+        #                continue
+        #            plottable = hist[year][
+        #                entry, r, c, v, 'value', :
+        #            ].project(var.name)
+        #            hep.histplot(plottable, label=group, **{'linewidth': 3})
 
-        for entry in step_entries:
-            if entry not in hist[year].axes["dataset"]:
-                continue
-            plottable = hist[year][
-                entry, 'h-peak', 'vbf', 'nominal', 'value', :
-            ].project(var.name)
-            hep.histplot(plottable, label=entry, **{'linewidth': 3})
+        #    elif group in stack_groups:
+        #        entries_ = [e for e in entries if e in datasets]
+        #        if len(entries_) == 0:
+        #            continue
+        #        plottable = hist[year][
+        #            :, r, c, v, 'value', :
+        #        ].project('dataset', var.name)
+        #        print(plottable.view())
+        
+        stack_entries = [e for e, g in grouping.items() if g in stack_groups]
+        step_entries = [e for e, g in grouping.items() if g in step_groups]
+        #stack = hist[year][
+        #            bh.loc(stack_entries), r, c, v, 'value', :
+        #        ].project('dataset', var.name)
+        #hep.histplot(
+        #    stack, stack=True, histtype='fill',
+        #    label=stack_labels, **stack_fill_opts
+        #)
+        
+        steps = hist[year][
+                    bh.loc(step_entries), r, c, v, 'value', :
+                ].project(var.name)
+        hep.histplot(
+            steps, stack=False, histtype='step', **{'linewidth': 3}
+        )
 
         plt1.set_yscale('log')
         plt1.set_ylim(0.01, 1e9)

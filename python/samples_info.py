@@ -131,7 +131,7 @@ class SamplesInfo(object):
             all_files = [self.paths[sample]]
         else:
             all_files = [self.server + f for f in
-                         glob.glob(self.paths[sample]+'/**/**/*.root')]
+                         glob.glob(self.paths[sample] + '/**/**/*.root')]
 
         if self.debug:
             all_files = [all_files[0]]
@@ -163,8 +163,11 @@ class SamplesInfo(object):
                     data_entries += tree.num_entries
                 else:
                     tree = uproot.open(f)['Runs']
-                    if (('NanoAODv6' in self.paths[sample]) or
-                            ('NANOV10' in self.paths[sample])):
+                    v6or10 = (
+                        ('NanoAODv6' in self.paths[sample]) or
+                        ('NANOV10' in self.paths[sample])
+                    )
+                    if v6or10:
                         sumGenWgts += tree['genEventSumw_'].array()[0]
                         nGenEvts += tree['genEventCount_'].array()[0]
                     else:

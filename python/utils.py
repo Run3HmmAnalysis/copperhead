@@ -40,9 +40,9 @@ def p4_sum(obj1, obj2):
 
 
 def rapidity(obj):
-    px = obj.pt*np.cos(obj.phi)
-    py = obj.pt*np.sin(obj.phi)
-    pz = obj.pt*np.sinh(obj.eta)
+    px = obj.pt * np.cos(obj.phi)
+    py = obj.pt * np.sin(obj.phi)
+    pz = obj.pt * np.sinh(obj.eta)
     e = np.sqrt(px**2 + py**2 + pz**2 + obj.mass**2)
     rap = 0.5 * np.log((e + pz) / (e - pz))
     return rap
@@ -239,6 +239,6 @@ def cs_variables(mu1, mu2):
 
 def delta_r(eta1, eta2, phi1, phi2):
     deta = abs(eta1 - eta2)
-    dphi = abs(np.mod(phi1 - phi2 + np.pi, 2*np.pi) - np.pi)
+    dphi = abs(np.mod(phi1 - phi2 + np.pi, 2 * np.pi) - np.pi)
     dr = np.sqrt(deta**2 + dphi**2)
     return deta, dphi, dr

@@ -47,16 +47,16 @@ class Weights(object):
         self.wgts[name] = wgt
         nom = self.df['nominal']
         self.df[f'{name}_off'] = nom
-        self.df[f'{name}_up'] = (nom*up).astype(np.float64)
-        self.df[f'{name}_down'] = (nom*down).astype(np.float64)
+        self.df[f'{name}_up'] = (nom * up).astype(np.float64)
+        self.df[f'{name}_down'] = (nom * down).astype(np.float64)
         self.df[columns] = self.df[columns]\
             .multiply(wgt, axis=0).astype(np.float64)
         self.variations.append(name)
 
     def add_only_variations(self, name, up, down):
         nom = self.df['nominal']
-        self.df[f'{name}_up'] = (nom*up).astype(np.float64)
-        self.df[f'{name}_down'] = (nom*down).astype(np.float64)
+        self.df[f'{name}_up'] = (nom * up).astype(np.float64)
+        self.df[f'{name}_down'] = (nom * down).astype(np.float64)
         self.variations.append(name)
 
     def add_dummy_weight(self, name, nom=True, variations=False):
@@ -88,7 +88,7 @@ class Weights(object):
                 continue
             wgt_off = self.df[f'{var}_off'][mask].to_numpy().sum()
             wgt_on = self.df['nominal'][mask].to_numpy().sum()
-            effect = (wgt_on - wgt_off)/wgt_on*100
+            effect = (wgt_on - wgt_off) / wgt_on * 100
             if effect < 0:
                 ef = round(-effect, 2)
                 print(f'Enabling {var} decreases yield by {ef}%')

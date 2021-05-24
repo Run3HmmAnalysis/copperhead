@@ -72,12 +72,12 @@ class Timer(object):
         summary[columns[1]] = np.round(
             np.array(list(self.time_dict.values())), 2)
         summary[columns[2]] = np.round(
-            100*np.array(list(self.time_dict.values())) / total_time, 3)
-        print('-'*50)
+            100 * np.array(list(self.time_dict.values())) / total_time, 3)
+        print('-' * 50)
         print(f'Summary of {self.name} timer:')
-        print('-'*50)
+        print('-' * 50)
         print(summary.groupby(columns[0]).sum())
-        print('-'*50)
+        print('-' * 50)
         print(f'Total time: {total_time} s')
-        print('='*50)
+        print('=' * 50)
         print()

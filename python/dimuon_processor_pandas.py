@@ -229,7 +229,7 @@ class DimuonProcessor(processor.ProcessorABC):
             muon_columns = [
                 'pt', 'pt_fsr', 'eta', 'phi', 'charge', 'ptErr',
                 'mass', 'pt_raw', 'eta_raw', 'pfRelIso04_all'
-            ]+[self.parameters["muon_id"]]
+            ] + [self.parameters["muon_id"]]
             muons = ak.to_pandas(df.Muon[muon_columns])
 
             # --------------------------------------------------------#
@@ -448,11 +448,11 @@ class DimuonProcessor(processor.ProcessorABC):
                     )
                     thu_wgts = {'up': wgt_up, 'down': wgt_down}
                     weights.add_weight(
-                        "THU_VBF_"+name, thu_wgts, how='only_vars'
+                        "THU_VBF_" + name, thu_wgts, how='only_vars'
                     )
             else:
                 for i, name in enumerate(self.sths_names):
-                    weights.add_weight("THU_VBF_"+name, how='dummy_vars')
+                    weights.add_weight("THU_VBF_" + name, how='dummy_vars')
             # --- --- --- --- --- --- --- --- --- --- --- --- --- --- #
             do_pdf = (
                 self.do_pdf and
@@ -625,12 +625,12 @@ class DimuonProcessor(processor.ProcessorABC):
 
         # Select particular JEC variation
         if '_up' in variation:
-            unc_name = 'JES_'+variation.replace('_up', '')
+            unc_name = 'JES_' + variation.replace('_up', '')
             if unc_name not in jets.fields:
                 return
             jets = jets[unc_name]['up'][jet_columns]
         elif '_down' in variation:
-            unc_name = 'JES_'+variation.replace('_down', '')
+            unc_name = 'JES_' + variation.replace('_down', '')
             if unc_name not in jets.fields:
                 return
             jets = jets[unc_name]['down'][jet_columns]
