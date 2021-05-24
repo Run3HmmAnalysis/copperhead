@@ -1,7 +1,6 @@
 import os
 import sys
 import time
-import traceback
 
 import coffea.processor as processor
 from coffea.processor import dask_executor, run_uproot_job
@@ -62,7 +61,7 @@ if __name__ == "__main__":
 
     elapsed = round(time.time() - tick, 3)
     print(f'Finished everything in {elapsed} s.')
-    
+
     dimuon_mass = df.loc[df.event == 2, 'dimuon_mass'].values[0]
     jj_mass = df.loc[df.event == 2, 'jj_mass nominal'].values[0]
     assert(df.shape == (8594, 100))
