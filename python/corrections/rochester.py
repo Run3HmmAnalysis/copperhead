@@ -13,33 +13,37 @@ def apply_roccor(df, rochester, is_mc):
         corrections = np.array(ak.flatten(ak.ones_like(df.Muon.pt)))
         errors = np.array(ak.flatten(ak.ones_like(df.Muon.pt)))
         mc_kspread = rochester.kSpreadMC(
-                        df.Muon.charge[hasgen],
-                        df.Muon.pt[hasgen],
-                        df.Muon.eta[hasgen],
-                        df.Muon.phi[hasgen],
-                        df.Muon.matched_gen.pt[hasgen])
+            df.Muon.charge[hasgen],
+            df.Muon.pt[hasgen],
+            df.Muon.eta[hasgen],
+            df.Muon.phi[hasgen],
+            df.Muon.matched_gen.pt[hasgen]
+        )
 
         mc_ksmear = rochester.kSmearMC(
-                        df.Muon.charge[~hasgen],
-                        df.Muon.pt[~hasgen],
-                        df.Muon.eta[~hasgen],
-                        df.Muon.phi[~hasgen],
-                        df.Muon.nTrackerLayers[~hasgen],
-                        mc_rand[~hasgen])
+            df.Muon.charge[~hasgen],
+            df.Muon.pt[~hasgen],
+            df.Muon.eta[~hasgen],
+            df.Muon.phi[~hasgen],
+            df.Muon.nTrackerLayers[~hasgen],
+            mc_rand[~hasgen]
+        )
 
         errspread = rochester.kSpreadMCerror(
-                        df.Muon.charge[hasgen],
-                        df.Muon.pt[hasgen],
-                        df.Muon.eta[hasgen],
-                        df.Muon.phi[hasgen],
-                        df.Muon.matched_gen.pt[hasgen])
+            df.Muon.charge[hasgen],
+            df.Muon.pt[hasgen],
+            df.Muon.eta[hasgen],
+            df.Muon.phi[hasgen],
+            df.Muon.matched_gen.pt[hasgen]
+        )
         errsmear = rochester.kSmearMCerror(
-                        df.Muon.charge[~hasgen],
-                        df.Muon.pt[~hasgen],
-                        df.Muon.eta[~hasgen],
-                        df.Muon.phi[~hasgen],
-                        df.Muon.nTrackerLayers[~hasgen],
-                        mc_rand[~hasgen])
+            df.Muon.charge[~hasgen],
+            df.Muon.pt[~hasgen],
+            df.Muon.eta[~hasgen],
+            df.Muon.phi[~hasgen],
+            df.Muon.nTrackerLayers[~hasgen],
+            mc_rand[~hasgen]
+        )
         hasgen_flat = np.array(ak.flatten(hasgen))
         corrections[hasgen_flat] = np.array(ak.flatten(mc_kspread))
         corrections[~hasgen_flat] = np.array(ak.flatten(mc_ksmear))
@@ -55,19 +59,20 @@ def apply_roccor(df, rochester, is_mc):
 
     else:
         corrections = rochester.kScaleDT(
-                        df.Muon.charge,
-                        df.Muon.pt,
-                        df.Muon.eta,
-                        df.Muon.phi
+            df.Muon.charge,
+            df.Muon.pt,
+            df.Muon.eta,
+            df.Muon.phi
         )
         errors = rochester.kScaleDTerror(
-                        df.Muon.charge,
-                        df.Muon.pt,
-                        df.Muon.eta,
-                        df.Muon.phi)
+            df.Muon.charge,
+            df.Muon.pt,
+            df.Muon.eta,
+            df.Muon.phi
+        )
 
     df['Muon', 'pt_roch'] = (
         df.Muon.pt * corrections
     )
-    df['Muon', 'pt_roch_up'] = df.Muon.pt_roch + df.Muon.pt*errors
-    df['Muon', 'pt_roch_down'] = df.Muon.pt_roch - df.Muon.pt*errors
+    df['Muon', 'pt_roch_up'] = df.Muon.pt_roch + df.Muon.pt * errors
+    df['Muon', 'pt_roch_down'] = df.Muon.pt_roch - df.Muon.pt * errors

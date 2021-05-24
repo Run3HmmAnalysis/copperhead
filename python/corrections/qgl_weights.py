@@ -16,7 +16,7 @@ def qgl_weights(jet1, jet2, isHerwig, output, variables, njets):
 
     wgts = {
         'nom': qgl.wgt,
-        'up': qgl.wgt*qgl.wgt,
+        'up': qgl.wgt * qgl.wgt,
         'down': qgl.wgt_down
     }
     return wgts

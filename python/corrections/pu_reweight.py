@@ -26,8 +26,9 @@ def pu_lookups(parameters, mode='nom', auto=[]):
             pu_hist_mc = np.histogram(auto, bins=range(nbins + 1))[0]
 
         lookup = dense_lookup.dense_lookup(
-                    pu_reweight(pu_hist_data, pu_hist_mc),
-                    edges)
+            pu_reweight(pu_hist_data, pu_hist_mc),
+            edges
+        )
         lookup._axes = lookup._axes[0]
         lookups[mode] = lookup
     return lookups

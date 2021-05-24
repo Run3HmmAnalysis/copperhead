@@ -62,17 +62,21 @@ def musf_lookup(parameters):
     mu_iso_err = dense_lookup.dense_lookup(mu_iso_err, mu_iso_edges)
 
     mu_trig_eff_data = dense_lookup.dense_lookup(
-                            mu_trig_vals_data,
-                            mu_trig_edges)
+        mu_trig_vals_data,
+        mu_trig_edges
+    )
     mu_trig_eff_mc = dense_lookup.dense_lookup(
-                            mu_trig_vals_mc,
-                            mu_trig_edges)
+        mu_trig_vals_mc,
+        mu_trig_edges
+    )
     mu_trig_err_data = dense_lookup.dense_lookup(
-                            mu_trig_err_data,
-                            mu_trig_edges)
+        mu_trig_err_data,
+        mu_trig_edges
+    )
     mu_trig_err_mc = dense_lookup.dense_lookup(
-                            mu_trig_err_mc,
-                            mu_trig_edges)
+        mu_trig_err_mc,
+        mu_trig_edges
+    )
 
     return {
         'mu_id_sf': mu_id_sf,
