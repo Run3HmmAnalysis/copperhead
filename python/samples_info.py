@@ -78,12 +78,11 @@ class SamplesInfo(object):
         self.is_mc = True
 
         if 'purdue' in datasets_from:
-            from config.datasets import datasets, lumi_data
+            from config.datasets import datasets
         elif 'pisa' in datasets_from:
-            from config.datasets_pisa import datasets, lumi_data
+            from config.datasets_pisa import datasets
 
         self.paths = datasets[self.year]
-        self.lumi_data = lumi_data
 
         if '2016' in self.year:
             self.lumi = 35900.
@@ -104,8 +103,6 @@ class SamplesInfo(object):
         self.lumi_weights = {}
 
     def load(self, sample, use_dask, client=None):
-        # t0 = time.time()
-
         if 'data' in sample:
             self.is_mc = False
 
@@ -117,22 +114,6 @@ class SamplesInfo(object):
 
         self.metadata = res['metadata']
         self.data_entries = res['data_entries']
-
-        # if self.data_entries:
-        #     print()
-        #     data_entries_total = self.lumi_data[self.year]['events']
-        #     print(f"Total events in {self.year}: {data_entries_total}")
-
-        #     print(f"Loaded {self.data_entries} of {self.year} data events")
-        #     prc = round(self.data_entries/data_entries_total*100, 2)
-        #     print(f"This is ~ {prc}% of {self.year} data.")
-
-        #     print(f"Integrated luminosity: {self.lumi}/pb")
-        #     print()
-
-        # t1 = time.time()
-        # dt = round(t1 - t0, 2)
-        # print(f"Loading took {dt} s")
 
     def load_sample(self, sample, use_dask=False, client=None):
         if sample not in self.paths:

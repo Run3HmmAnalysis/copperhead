@@ -2,7 +2,7 @@ datasets = {
     "2016": {
         "test_file": "root://xrootd.rcac.purdue.edu//store/mc/RunIISummer16NanoAODv6/DYJetsToLL_M-105To160_TuneCUETP8M1_13TeV-amcatnloFXFX-pythia8//NANOAODSIM//PUMoriond17_Nano25Oct2019_102X_mcRun2_asymptotic_v7_ext1-v1//70000//6D37B11E-A470-FE44-8D02-E4ED006C1D0E.root",
 
-        "data_B": "/store/group/local/hmm/FSRNANO2016DATAV8a/SingleMuon/RunIIData17_FSRNANO2016DATAV8a_un2016B-17Jul2018_ver2-v1/",    
+        "data_B": "/store/group/local/hmm/FSRNANO2016DATAV8a/SingleMuon/RunIIData17_FSRNANO2016DATAV8a_un2016B-17Jul2018_ver2-v1/",
         "data_C": "/store/group/local/hmm/FSRNANO2016DATAV8a/SingleMuon/RunIIData17_FSRNANO2016DATAV8a_Run2016C-17Jul2018-v1/",
         "data_D": "/store/group/local/hmm/FSRNANO2016DATAV8a/SingleMuon/RunIIData17_FSRNANO2016DATAV8a_Run2016D-17Jul2018-v1/",
         "data_E": "/store/group/local/hmm/FSRNANO2016DATAV8a/SingleMuon/RunIIData17_FSRNANO2016DATAV8a_Run2016E-17Jul2018-v1/",
@@ -97,7 +97,7 @@ datasets = {
 
         "ewk_lljj_mll50_mjj120": "/store/group/local/hmm/nanoAODv6_private/FSRmyNanoProdMc2017_NANOV4a/EWK_LLJJ_MLL-50_MJJ-120_TuneCP5_PSweights_13TeV-madgraph-pythia8/",
         "ewk_lljj_mll105_160": "/store/group/local/hmm/nanoAODv6_private/FSRmyNanoProdMc2017_NANOV4a/EWK_LLJJ_MLL_105-160_SM_5f_LO_TuneCH3_13TeV-madgraph-herwig7/",
-        "ewk_lljj_mll105_160_py": "/store/group/local/hmm/nanoAODv6_private/FSRmyNanoProdMc2017_NANOV4a/EWK_LLJJ_MLL-50_MJJ-120_TuneCP5_PSweights_13TeV-madgraph-pythia8/", 
+        "ewk_lljj_mll105_160_py": "/store/group/local/hmm/nanoAODv6_private/FSRmyNanoProdMc2017_NANOV4a/EWK_LLJJ_MLL-50_MJJ-120_TuneCP5_PSweights_13TeV-madgraph-pythia8/",
         "ewk_lljj_mll105_160_ptj0": "/store/group/local/hmm/FSRmyNanoProdMc2017_NANOV8g_06May2020/EWK_LLJJ_MLL_105-160_SM_5f_LO_TuneCH3_13TeV-madgraph-herwig7_corrected/",
         "ewk_lljj_mll105_160_py_dipole": "/store/group/local/hmm/FSRmyNanoProdMc2017_NANOV8i/EWK_LLJJ_MLL_105-160_TuneCP5_13TeV-madgraph-pythia_dipole/",
 
