@@ -1,5 +1,6 @@
 import os
 import sys
+[sys.path.append(i) for i in ['.', '..']]
 import time
 
 import coffea.processor as processor
@@ -11,8 +12,6 @@ import dask
 from dask.distributed import Client
 
 __all__ = ['Client']
-
-[sys.path.append(i) for i in ['.', '..']]
 
 
 def almost_equal(a, b):
