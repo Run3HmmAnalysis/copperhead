@@ -14,6 +14,11 @@ import dask.dataframe as dd
 
 from dask.distributed import Client
 
+
+def almost_equal(a, b):
+    return (abs(a-b)<10e-6)
+
+
 if __name__ == "__main__":
     tick = time.time()
 
@@ -56,3 +61,5 @@ if __name__ == "__main__":
     elapsed = round(time.time() - tick, 3)
     print(f'Finished everything in {elapsed} s.')
     assert(df.shape == (8594, 100))
+    assert(almost_equal(df.loc[df.event==2, 'dimuon_mass'].values[0], 124.16069531))
+    assert(almost_equal(df.loc[df.event==2, 'jj_mass nominal'].values[0], 1478.3898375))
