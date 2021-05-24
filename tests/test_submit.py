@@ -1,6 +1,5 @@
-import os, sys
-[sys.path.append(i) for i in ['.', '..']]
-
+import os
+import sys
 import time
 import traceback
 
@@ -10,13 +9,15 @@ from python.dimuon_processor_pandas import DimuonProcessor
 from python.samples_info import SamplesInfo
 
 import dask
-import dask.dataframe as dd
-
 from dask.distributed import Client
+
+__all__ = ['Client']
+
+[sys.path.append(i) for i in ['.', '..']]
 
 
 def almost_equal(a, b):
-    return (abs(a-b)<10e-6)
+    return (abs(a-b) < 10e-6)
 
 
 if __name__ == "__main__":
@@ -30,7 +31,8 @@ if __name__ == "__main__":
     )
     print('Client created')
 
-    file_path = f"{os.getcwd()}/tests/samples/vbf_powheg_dipole_NANOV10_2018.root"
+    file_name = "vbf_powheg_dipole_NANOV10_2018.root"
+    file_path = f"{os.getcwd()}/tests/samples/{file_name}"
     dataset = {'test': file_path}
 
     samp_info = SamplesInfo(xrootd=False)
@@ -49,7 +51,7 @@ if __name__ == "__main__":
         'samp_info': samp_info,
         'do_timer': False,
         'do_btag_syst': False,
-    }  
+    }
     print(samp_info.fileset)
     output = run_uproot_job(samp_info.fileset, 'Events',
                             DimuonProcessor(**processor_args),
@@ -60,6 +62,9 @@ if __name__ == "__main__":
 
     elapsed = round(time.time() - tick, 3)
     print(f'Finished everything in {elapsed} s.')
+    
+    dimuon_mass = df.loc[df.event == 2, 'dimuon_mass'].values[0]
+    jj_mass = df.loc[df.event == 2, 'jj_mass nominal'].values[0]
     assert(df.shape == (8594, 100))
-    assert(almost_equal(df.loc[df.event==2, 'dimuon_mass'].values[0], 124.16069531))
-    assert(almost_equal(df.loc[df.event==2, 'jj_mass nominal'].values[0], 1478.3898375))
+    assert(almost_equal(dimuon_mass, 124.16069531))
+    assert(almost_equal(jj_mass, 1478.3898375))
