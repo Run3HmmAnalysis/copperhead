@@ -1,0 +1,32 @@
+name: validation
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+
+  workflow_dispatch:
+
+jobs:
+  test_run:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest]
+        python-version: [3.7]
+    name: test - python ${{ matrix.python-version }}
+
+    steps:
+      - uses: actions/checkout@master
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v2
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: install coffea
+        run: python -m pip install coffea
+      - name: install dask
+        run: python -m pip install dask[distributed]
+      - name: test run
+        run: python -W ignore tests/test_submit.py
+
