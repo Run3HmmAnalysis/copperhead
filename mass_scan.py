@@ -85,7 +85,7 @@ if args.dnn or args.bdt:
     else:
         bdt_models = []
 else:
-    models = dnn_models+bdt_models
+    models = dnn_models + bdt_models
 
 for model in models:
     name = f'score_{model}'
