@@ -23,8 +23,8 @@ jer_tags = {
 jec_data_tags = {
     '2016': {
         'Summer16_07Aug2017BCD_V11_DATA': ['B', 'C', 'D'],
-        'Summer16_07Aug2017EF_V11_DATA' : ['E', 'F'],
-        'Summer16_07Aug2017GH_V11_DATA' : ['G', 'H'],
+        'Summer16_07Aug2017EF_V11_DATA': ['E', 'F'],
+        'Summer16_07Aug2017GH_V11_DATA': ['G', 'H'],
     },
     '2017': {
         'Fall17_17Nov2017B_V32_DATA': ['B'],
@@ -38,5 +38,5 @@ jec_data_tags = {
         'Autumn18_RunC_V19_DATA': ['C'],
         'Autumn18_RunD_V19_DATA': ['D']
     }
-    
+
 }
