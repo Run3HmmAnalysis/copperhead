@@ -362,8 +362,9 @@ class DimuonProcessor(processor.ProcessorABC):
             self.do_jec = True
 
         apply_jec(
-            df, jets, is_mc, self.do_jec, self.do_jecunc, self.do_jerunc,
-            self.year, self.jec_factories, self.jec_factories_data
+            df, jets, dataset, is_mc, self.year,
+            self.do_jec, self.do_jecunc, self.do_jerunc,
+            self.jec_factories, self.jec_factories_data
         )
 
         if self.timer:

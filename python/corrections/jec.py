@@ -4,8 +4,8 @@ from config.jec_parameters import runs, jec_levels_mc, jec_levels_data
 from config.jec_parameters import jec_tags, jer_tags, jec_data_tags
 
 
-def apply_jec(df, jets, is_mc, do_jec, do_jecunc, do_jerunc,
-              jec_factories, jec_factories_data, year):
+def apply_jec(df, jets, dataset, is_mc, year, do_jec, do_jecunc,
+              do_jerunc, jec_factories, jec_factories_data):
     cache = df.caches[0]
 
     # Correct jets (w/o uncertainties)

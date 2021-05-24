@@ -1,6 +1,7 @@
 import numpy as np
 import awkward as ak
 
+
 def apply_geofit(df, year, mask):
     d0_BS_charge = np.multiply(df.Muon.dxybs, df.Muon.charge)
     mask = mask & (np.abs(d0_BS_charge) < 999999.)

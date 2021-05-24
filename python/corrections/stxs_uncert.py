@@ -118,7 +118,7 @@ def stxs_lookups():
 
 
 def stxs_uncert(source, event_STXS, Nsigma,
-                         stxs_acc_lookups, powheg_xsec_lookup):
+                stxs_acc_lookups, powheg_xsec_lookup):
     # vbf_uncert_stage_1_1
     # return a single weight for a given souce
     if(source < 10):
