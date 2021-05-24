@@ -1,11 +1,11 @@
 import time
 import sys
 import argparse
-from python.postprocessing import postprocess, plot
-from python.postprocessing import save_shapes, make_datacards
-from python.postprocessing import rebin, dnn_training
-from python.postprocessing import prepare_root_files
-from python.postprocessing import overlap_study_unbinned, plot_rocs
+from python.postprocessor_old import postprocess, plot
+from python.postprocessor_old import save_shapes, make_datacards
+from python.postprocessor_old import rebin, dnn_training
+from python.postprocessor_old import prepare_root_files
+from python.postprocessor_old import overlap_study_unbinned, plot_rocs
 from config.variables import variables, Variable
 import pandas as pd
 

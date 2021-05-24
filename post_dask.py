@@ -2,7 +2,7 @@ import dask
 from dask.distributed import Client
 
 from python.timer import Timer
-from python.postprocessor_dask import workflow  # , grouping
+from python.postprocessor import workflow  # , grouping
 import glob
 
 __all__ = ['dask']
