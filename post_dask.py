@@ -2,7 +2,7 @@ import dask
 from dask.distributed import Client
 
 from python.timer import Timer
-from python.postprocessor_dask import workflow
+from python.postprocessor_dask import workflow, grouping
 import glob
 
 __all__ = ['dask']
@@ -10,10 +10,10 @@ __all__ = ['dask']
 use_local_cluster = True
 # is False, will use Slurm cluster (requires manual setup of the cluster)
 
-ncpus_local = 20  # number of cores to use. Each one will start with 4GB
+ncpus_local = 40  # number of cores to use. Each one will start with 4GB
 
 # only if Slurm cluster is used:
-slurm_cluster_ip = ''  # '128.211.149.133:34003'
+slurm_cluster_ip = '128.211.149.133:39389'  # '128.211.149.133:34003'
 
 
 # if Local cluster is used:
@@ -36,7 +36,8 @@ if not use_local_cluster:
 parameters = {
     'slurm_cluster_ip': slurm_cluster_ip,
     'ncpus': ncpus_local,
-    'label': 'test_march',
+    # 'label': 'test_march',
+    'label': 'full_may21',
     'path': '/depot/cms/hmm/coffea/',
     'plots_path': './plots_test/',
     'models_path': '/depot/cms/hmm/trained_models/',
@@ -88,27 +89,29 @@ if __name__ == "__main__":
         print(f"Creating local cluster with {ncpus_local} workers."
               f" Dashboard address: {dashboard_address}")
         client = Client(
-                    processes=True,
-                    dashboard_address=dashboard_address,
-                    n_workers=ncpus_local,
-                    threads_per_worker=1,
-                    memory_limit='4GB')
+            processes=True,
+            dashboard_address=dashboard_address,
+            n_workers=ncpus_local,
+            threads_per_worker=1,
+            memory_limit='4GB'
+        )
     else:
         print(f"Creating Slurm cluster at {slurm_cluster_ip}."
               f"Dashboard address: {dashboard_address}")
         client = Client(parameters['slurm_cluster_ip'])
 
     samples = [
-        # 'ggh_amcPS',
+        'ggh_amcPS',
         # 'vbf_powhegPS',
         # 'vbf_powheg_herwig',
         'vbf_powheg_dipole'
         # 'dy_m105_160_amc'
     ]
+    # samples = grouping.keys()
 
     parameters['hist_vars'] = ['dimuon_mass']
-    parameters['hist_vars'] += ['score_'+m for m in parameters['dnn_models']]
-    parameters['hist_vars'] += ['score_'+m for m in parameters['bdt_models']]
+    parameters['hist_vars'] += ['score_' + m for m in parameters['dnn_models']]
+    parameters['hist_vars'] += ['score_' + m for m in parameters['bdt_models']]
 
     # parameters['plot_vars'] = ['dimuon_mass']
     parameters['plot_vars'] = parameters['hist_vars']
@@ -129,6 +132,6 @@ if __name__ == "__main__":
 
     df, hists = workflow(client, paths, parameters, timer)
 
-#    print(df)
-#    print(hists['dimuon_mass'][2016].project('dimuon_mass'))
+    # print(df)
+    # print(hists['dimuon_mass'][2016].project('dimuon_mass'))
     timer.summary()

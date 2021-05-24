@@ -130,8 +130,7 @@ def submit_job(arg_set, parameters):
 
     except Exception as e:
         tb = traceback.format_exc()
-        return 'Failed: '+str(e)+' '+tb
-
+        return 'Failed: ' + str(e) + ' ' + tb
 
     df = output.compute()
     if df.count().sum() == 0:
@@ -168,13 +167,13 @@ if __name__ == "__main__":
             'data_F',
             'data_G',
             'data_H',
-            ],
+        ],
         'signal': [
             'ggh_amcPS',
             'vbf_powhegPS',
             'vbf_powheg_herwig',
             'vbf_powheg_dipole'
-            ],
+        ],
         'main_mc': [
             'dy_m105_160_amc',
             'dy_m105_160_vbf_amc',
@@ -182,7 +181,7 @@ if __name__ == "__main__":
             'ewk_lljj_mll105_160_ptj0',
             'ewk_lljj_mll105_160_py_dipole',
             'ttjets_dl',
-            ],
+        ],
         'other_mc': [
             'ttjets_sl', 'ttz', 'ttw',
             'st_tw_top', 'st_tw_antitop',
@@ -195,13 +194,13 @@ if __name__ == "__main__":
 
     if parameters['local_cluster']:
         parameters['client'] = dask.distributed.Client(
-                                    processes=True,
-                                    # n_workers=min(mch, 23),
-                                    n_workers=40,
-                                    dashboard_address=dash_local,
-                                    threads_per_worker=1,
-                                    memory_limit='2.9GB',
-                                )
+            processes=True,
+            # n_workers=min(mch, 23),
+            n_workers=40,
+            dashboard_address=dash_local,
+            threads_per_worker=1,
+            memory_limit='2.9GB',
+        )
     else:
         parameters['client'] = Client(
             parameters['slurm_cluster_ip'],

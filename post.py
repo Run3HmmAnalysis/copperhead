@@ -98,14 +98,14 @@ mva_bins = {
                  1.68, 1.796, 1.871, 2.3],
         '2017': [],
         '2018': []
-        },
+    },
     'dnn_nominal_allyears': {
         '2016': [0, 0.172, 0.404, 0.608, 0.795,
                  0.972, 1.137, 1.293, 1.446, 1.597,
                  1.743, 1.881, 1.987, 2.3],
         '2017': [0, 0.335, 0.641, 0.879, 1.072,
                  1.238, 1.388, 1.527, 1.663, 1.782,
-                 1.88,  1.957, 2.017, 2.3],
+                 1.88, 1.957, 2.017, 2.3],
         '2018': [0, 0.075, 0.462, 0.75, 0.976,
                  1.171, 1.35, 1.513, 1.664, 1.794,
                  1.896, 1.969, 2.021, 2.3]
@@ -179,8 +179,8 @@ mva_bins = {
         '2016': [0, 0.282, 0.569, 0.797, 0.991,
                  1.162, 1.318, 1.466, 1.611, 1.759,
                  1.914, 2.078, 2.267, 5.0],
-        '2017': [0, 0.41, 0.742,  0.989, 1.182,
-                 1.35,  1.501, 1.64,  1.781, 1.921,
+        '2017': [0, 0.41, 0.742, 0.989, 1.182,
+                 1.35, 1.501, 1.64, 1.781, 1.921,
                  2.066, 2.219, 2.395, 5.0],
         '2018': [0, 0.129, 0.622, 0.948, 1.191,
                  1.388, 1.56, 1.72, 1.869, 2.013,
@@ -257,7 +257,7 @@ to_plot_ = [
     'jet2_pt', 'jet2_eta', 'jet2_phi', 'jet2_qgl',
     'jj_mass', 'jj_deta',
     'nsoftjets5', 'htsoft2'
-    ]
+]
 to_plot = ['dimuon_mass']
 # to_plot = ['rpt','jet1_eta','jet2_eta']
 vars_to_save = []
@@ -379,10 +379,11 @@ for ptvar in pt_variations:
         all_pt_variations += [f'{ptvar}_up']
         all_pt_variations += [f'{ptvar}_down']
 
-if (not args.jetsyst) or args.dnn_training\
-                      or args.rebin\
-                      or args.overlap\
-                      or args.roc:
+force_nominal = (
+    (not args.jetsyst) or args.dnn_training or
+    args.rebin or args.overlap or args.roc
+)
+if force_nominal:
     all_pt_variations = ['nominal']
 
 
@@ -431,7 +432,7 @@ if args.datacards:
     if not (args.dnn or args.bdt):
         load_unbinned_data = False
 if args.plot:
-    modules = add_modules(modules, ['to_pandas',  'get_hists'])
+    modules = add_modules(modules, ['to_pandas', 'get_hists'])
     options += ['plot']
 
 postproc_args = {
@@ -481,7 +482,7 @@ if load_unbinned_data:
 
         if args.rebin:
             df = pd.concat(dfs)
-            for model in dnn_models+bdt_models:
+            for model in dnn_models + bdt_models:
                 boundaries = rebin(df, model, postproc_args)
                 print(model, boundaries)
             sys.exit()
@@ -505,7 +506,9 @@ if load_unbinned_data:
             if var not in hist.keys():
                 hist[var] = pd.concat(hists, ignore_index=True)
             else:
-                hist[var] = pd.concat(hists+[hist[var]], ignore_index=True)
+                hist[var] = pd.concat(
+                    hists + [hist[var]], ignore_index=True
+                )
 
         if (args.dnn or args.bdt) and not args.plot:
             for model in models:

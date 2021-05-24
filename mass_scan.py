@@ -20,7 +20,11 @@ parser.add_argument("-o", "--overlap", action='store_true')
 
 args = parser.parse_args()
 
-if int(args.dnn)+int(args.bdt)+int(args.datacards)+int(args.overlap) == 0:
+fail = (
+    int(args.dnn) + int(args.bdt) +
+    int(args.datacards) + int(args.overlap) == 0
+)
+if fail:
     print("Please specify option(s) to run:")
     print("-t --dnn_training")
     print("-dnn --dnn")
@@ -220,7 +224,7 @@ mass_points = [120.0, 120.5, 121.0, 121.5,
                129.5, 130.0]
 mass_points = [125.0]  # , 125.38, 125.5, 126.0]
 
-num_options = len(mass_points)*len(all_pt_variations)
+num_options = len(mass_points) * len(all_pt_variations)
 iopt = 0
 for m in mass_points:
     hist = {}
@@ -251,7 +255,9 @@ for m in mass_points:
                 if var not in hist.keys():
                     hist[var] = pd.concat(hists, ignore_index=True)
                 else:
-                    hist[var] = pd.concat(hists+[hist[var]], ignore_index=True)
+                    hist[var] = pd.concat(
+                        hists + [hist[var]], ignore_index=True
+                    )
 
             if (args.dnn or args.bdt):
                 for model in models:
