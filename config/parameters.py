@@ -60,8 +60,8 @@ parameters["jec_unc_to_consider"] = {
 def jec_variations(year):
     result = []
     for v in parameters["jec_unc_to_consider"][year]:
-        result.append(v+"_up")
-        result.append(v+"_down")
+        result.append(v + "_up")
+        result.append(v + "_down")
     return result
 
 
@@ -86,13 +86,13 @@ parameters["muSFFileList"] = {
          'trig': ("data/muon_sf/mu2016/EfficienciesStudies_2016_trigger_EfficienciesAndSF_RunBtoF.root",
                   "IsoMu24_OR_IsoTkMu24_PtEtaBins/efficienciesDATA/abseta_pt_DATA",
                   "IsoMu24_OR_IsoTkMu24_PtEtaBins/efficienciesMC/abseta_pt_MC"),
-         'scale': 20.1/36.4},
+         'scale': 20.1 / 36.4},
         {'id': ("data/muon_sf/year2016/RunGH_SF_ID.root", "NUM_MediumID_DEN_genTracks_eta_pt"),
          'iso': ("data/muon_sf/year2016/RunGH_SF_ISO.root", "NUM_TightRelIso_DEN_MediumID_eta_pt"),
          'trig': ("data/muon_sf/mu2016/EfficienciesStudies_2016_trigger_EfficienciesAndSF_RunGtoH.root",
                   "IsoMu24_OR_IsoTkMu24_PtEtaBins/efficienciesDATA/abseta_pt_DATA",
                   "IsoMu24_OR_IsoTkMu24_PtEtaBins/efficienciesMC/abseta_pt_MC"),
-         'scale': 16.3/36.4}
+         'scale': 16.3 / 36.4}
     ],
     '2017': [{'id': ("data/muon_sf/year2017/RunBCDEF_SF_ID.root", "NUM_MediumID_DEN_genTracks_pt_abseta"),
               'iso': ("data/muon_sf/year2017/RunBCDEF_SF_ISO.root", "NUM_TightRelIso_DEN_MediumID_pt_abseta"),
@@ -105,13 +105,13 @@ parameters["muSFFileList"] = {
               'trig': ("data/muon_sf/mu2018/EfficienciesStudies_2018_trigger_EfficienciesAndSF_2018Data_BeforeMuonHLTUpdate.root",
                        "IsoMu24_PtEtaBins/efficienciesDATA/abseta_pt_DATA",
                        "IsoMu24_PtEtaBins/efficienciesMC/abseta_pt_MC"),
-              'scale': 8.95/59.74},
+              'scale': 8.95 / 59.74},
              {'id': ("data/muon_sf/year2018/RunABCD_SF_ID.root", "NUM_MediumID_DEN_genTracks_pt_abseta"),
               'iso': ("data/muon_sf/year2018/RunABCD_SF_ISO.root", "NUM_TightRelIso_DEN_MediumID_pt_abseta"),
               'trig': ("data/muon_sf/mu2018/EfficienciesStudies_2018_trigger_EfficienciesAndSF_2018Data_AfterMuonHLTUpdate.root",
                        "IsoMu24_PtEtaBins/efficienciesDATA/abseta_pt_DATA",
                        "IsoMu24_PtEtaBins/efficienciesMC/abseta_pt_MC"),
-              'scale': 50.79/59.74}],
+              'scale': 50.79 / 59.74}],
 }
 
 parameters['zpt_weights_file'] =\
