@@ -13,7 +13,6 @@ def load_sample(dataset, parameters):
     xrootd = not (dataset == 'test_file')
     args = {
         'year': parameters['year'],
-        'out_path': parameters['out_path'],
         'server': parameters['server'],
         'datasets_from': 'purdue',
         'debug': False,
@@ -29,7 +28,6 @@ def load_sample(dataset, parameters):
 def load_samples(datasets, parameters):
     args = {
         'year': parameters['year'],
-        'out_path': parameters['out_path'],
         'server': parameters['server'],
         'datasets_from': 'purdue',
         'debug': False
@@ -69,7 +67,6 @@ def read_via_xrootd(server, path, from_das=False):
 class SamplesInfo(object):
     def __init__(self, **kwargs):
         self.year = kwargs.pop('year', '2016')
-        self.out_path = kwargs.pop('out_path', '/output/')
         self.xrootd = kwargs.pop('xrootd', True)
         self.server = kwargs.pop('server', 'root://xrootd.rcac.purdue.edu/')
         self.timeout = kwargs.pop('timeout', 60)
