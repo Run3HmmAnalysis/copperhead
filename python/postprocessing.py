@@ -495,7 +495,7 @@ def dnn_training(df, args, model):
         input_dim = len(features)
         inputs = Input(shape=(input_dim,), name=label + '_input')
         x = Dense(
-            128, name=label+'_layer_1', activation='tanh')(inputs)
+            128, name=label + '_layer_1', activation='tanh')(inputs)
         x = Dropout(0.2)(x)
         x = BatchNormalization()(x)
         x = Dense(64, name=label + '_layer_2', activation='tanh')(x)
@@ -832,10 +832,12 @@ def overlap_study(df, args, model):
     df_combined['weight'] = 1.
     for opt_name, binning in options.items():
         for i in range(len(purdue_bins) - 1):
-            ibin = (df_combined.pisa_score >=
-                    pisa_bins[args['year']][i]) &
-                   (df_combined.pisa_score <
-                    pisa_bins[args['year']][i + 1])
+            ibin = (
+                (df_combined.pisa_score >=
+                 pisa_bins[args['year']][i]) &
+                (df_combined.pisa_score <
+                 pisa_bins[args['year']][i + 1])
+            )
             if opt_name == 'analysis':
                 df_combined.loc[ibin, 'weight'] =\
                     1 / df_combined[ibin].shape[0]
@@ -1330,9 +1332,12 @@ def save_shapes(hist, model, args, mva_bins):
                                 if dec_syst in vwname:
                                     for dec_group, proc_groups in\
                                             decorr.items():
-                                        if ((dec_group in vwname) and
-                                            (g not in proc_groups)):
-                                                decor_ok = False
+                                        dok = (
+                                            (dec_group in vwname) and
+                                            (g not in proc_groups)
+                                        )
+                                        if dok:
+                                            decor_ok = False
 
                             if not decor_ok:
                                 continue
@@ -1342,9 +1347,11 @@ def save_shapes(hist, model, args, mva_bins):
                                 dtype=float)
                             if len(histo) == 0:
                                 continue
-                            sumw2 = np.array(mc_hist[mc_hist.g == g][
-                                sumw2_columns].values.sum(axis=0),
-                                             dtype=float)
+                            sumw2 = np.array(
+                                mc_hist[mc_hist.g == g][sumw2_columns]
+                                .values.sum(axis=0),
+                                dtype=float
+                            )
 
                             if sum([sh in w for sh in shape_only]):
                                 histo_nom = np.array(
@@ -2063,13 +2070,15 @@ def plot(var, hists, edges, args, r='', save=True, blind=True,
                 ret = get_shapes_for_option(hist, v, w)
                 if sum(ret['bkg_total'].values[mask]) != 0:
                     if ('_up' in w) or ('_up' in v):
-                        total_err2_up +=\
-                           np.square((ret['bkg_total'].values[mask] -
-                                     bkg_total[mask]) / bkg_total[mask])
+                        total_err2_up += (
+                            np.square((ret['bkg_total'].values[mask] -
+                                       bkg_total[mask]) / bkg_total[mask])
+                        )
                     if ('_down' in w) or ('_down' in v):
-                        total_err2_down +=\
-                           np.square((ret['bkg_total'].values[mask] -
-                                     bkg_total[mask]) / bkg_total[mask])
+                        total_err2_down += (
+                            np.square((ret['bkg_total'].values[mask] -
+                                       bkg_total[mask]) / bkg_total[mask])
+                        )
         ratio_up[mask] = 1 + np.sqrt(total_err2_up)[mask]
         ratio_down[mask] = 1 - np.sqrt(total_err2_down)[mask]
         hep.histplot(ratio_up, edges, histtype='step',
@@ -2170,7 +2179,7 @@ def get_pisa_hist(var, r, edges):
     }
     qgl_mean = {
         'data': 1,
-        'dy_m105_160_amc':  1.04859375342,
+        'dy_m105_160_amc': 1.04859375342,
         'dy_m105_160_vbf_amc': 1.00809412662
     }
 
