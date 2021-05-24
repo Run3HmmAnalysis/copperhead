@@ -132,12 +132,13 @@ def submit_job(arg_set, parameters):
         tb = traceback.format_exc()
         return 'Failed: '+str(e)+' '+tb
 
-    return 'Success!'
 
     df = output.compute()
     if df.count().sum() == 0:
         return 'Nothing to save!'
     print(df)
+
+    return 'Success!'
 
     if parameters['save_output']:
         for ds in output.s.unique():
