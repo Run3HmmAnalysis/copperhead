@@ -368,7 +368,7 @@ def plot(hist, df=pd.DataFrame(), parameters={}):
     r = 'h-peak'
     c = 'vbf'
     v = 'nominal'
-    stack_groups = ['DY', 'EWK', 'TT+ST', 'VV', 'VVV']
+    # stack_groups = ['DY', 'EWK', 'TT+ST', 'VV', 'VVV']
     step_groups = ['VBF', 'ggH']
     # errorbar_groups = ['Data']
 
@@ -416,7 +416,7 @@ def plot(hist, df=pd.DataFrame(), parameters={}):
         #            :, r, c, v, 'value', :
         #        ].project('dataset', var.name)
         #        print(plottable.view())
-        
+
         # stack_entries = [e for e, g in grouping.items() if g in stack_groups]
         step_entries = [e for e, g in grouping.items() if g in step_groups]
         # stack = hist[year][
