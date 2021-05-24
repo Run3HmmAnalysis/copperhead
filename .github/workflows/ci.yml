@@ -33,6 +33,9 @@ jobs:
         run: flake8 python/corrections/*py
       - name: flake8 - check config/*py
         run: flake8 --max-line-length=300 config/*py
+      - name: flake8 - check tests/*py
+        run: flake8 tests/*py
+
 
   test_run:
     runs-on: ${{ matrix.os }}
