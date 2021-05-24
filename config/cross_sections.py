@@ -28,7 +28,7 @@ cross_sections = {
     "ttjets_sl": 358.57,
 
     "ww_2l2nu": 12.178,
-    "wz_3lnu":  4.102,
+    "wz_3lnu": 4.102,
     "wz_2l2q": 5.606,
     "wz_1l1nu2q": 7.031227,
     "zz": 0.5664,
