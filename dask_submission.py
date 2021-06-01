@@ -10,7 +10,6 @@ from python.utils import mkdir
 from config.parameters import parameters as pars
 
 import dask
-import dask.dataframe as dd
 from functools import partial
 
 from dask.distributed import Client
@@ -111,7 +110,7 @@ def submit_job(arg_set, parameters):
     executor_args = {
         'client': parameters['client'],
         'schema': processor.NanoAODSchema,
-        #'use_dataframes': True,
+        # 'use_dataframes': True,
         'retries': 0
     }
     processor_args = {
@@ -122,11 +121,13 @@ def submit_job(arg_set, parameters):
         'apply_to_output': partial(saving_func, out_dir=out_dir),
     }
     try:
-        output = run_uproot_job(parameters['samp_infos'].fileset, 'Events',
-                                DimuonProcessor(**processor_args),
-                                executor, executor_args=executor_args,
-                                chunksize=parameters['chunksize'],
-                                maxchunks=parameters['maxchunks'])
+        run_uproot_job(
+            parameters['samp_infos'].fileset, 'Events',
+            DimuonProcessor(**processor_args),
+            executor, executor_args=executor_args,
+            chunksize=parameters['chunksize'],
+            maxchunks=parameters['maxchunks']
+        )
 
     except Exception as e:
         tb = traceback.format_exc()
