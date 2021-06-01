@@ -40,10 +40,13 @@ class DimuonProcessor(processor.ProcessorABC):
         do_timer = kwargs.pop('do_timer', False)
         self.pt_variations = kwargs.pop('pt_variations', ['nominal'])
         self.do_btag_syst = kwargs.pop('do_btag_syst', True)
+        self.apply_to_output = kwargs.pop('apply_to_output', None)
 
         if self.samp_info is None:
             print("Samples info missing!")
             return
+
+        self._accumulator = processor.defaultdict_accumulator(int)
 
         self.year = self.samp_info.year
         self.parameters = {
@@ -403,8 +406,8 @@ class DimuonProcessor(processor.ProcessorABC):
                     mu1, mu2
                 )
                 weights.add_weight('muID', muID, how='all')
-                weights.add_weight('muIso', muID, how='all')
-                weights.add_weight('muTrig', muID, how='all')
+                weights.add_weight('muIso', muIso, how='all')
+                weights.add_weight('muTrig', muTrig, how='all')
             else:
                 weights.add_weight('muID', how='dummy_all')
                 weights.add_weight('muIso', how='dummy_all')
@@ -589,7 +592,16 @@ class DimuonProcessor(processor.ProcessorABC):
             self.timer.add_checkpoint("Filled outputs")
             self.timer.summary()
 
-        return output
+        if self.apply_to_output is None:
+            return output
+        else:
+            self.apply_to_output(output)
+
+            if self.timer:
+                self.timer.add_checkpoint("Saved outputs")
+                self.timer.summary()
+
+            return self.accumulator.identity()
 
     def jet_loop(self, variation, is_mc, df, dataset, mask, muons,
                  mu1, mu2, jets, weights, numevents, output):

@@ -1,3 +1,4 @@
+import os
 import time
 import argparse
 import traceback
@@ -11,10 +12,23 @@ from config.parameters import parameters as pars
 
 import dask
 import dask.dataframe as dd
-from functools import partial
-
 from dask.distributed import Client
 dask.config.set({"temporary-directory": "/depot/cms/hmm/dask-temp/"})
+
+import pyspark.sql
+from pyarrow.util import guid
+from coffea.processor.spark.detail import (
+    _spark_initialize,
+    _spark_stop,
+)
+from pyspark import TaskContext
+import socket
+from functools import partial
+
+os.environ["ARROW_PRE_0_15_IPC_FORMAT"] = "1"
+
+from coffea.processor import run_spark_job
+from coffea.processor.spark.spark_executor import spark_executor
 
 parser = argparse.ArgumentParser()
 # Slurm cluster IP to use. If not specified, will create a local cluster
@@ -82,21 +96,19 @@ parameters['out_dir'] = f"{parameters['global_out_path']}/"\
 
 
 def saving_func(output, out_dir):
-    from dask.distributed import get_worker
-    name = None
-    for key, task in get_worker().tasks.items():
-        if task.state == "executing":
-            name = key[-32:]
-    if not name:
-        return
+    ctx = TaskContext()
+    name = f'part_{ctx.partitionId()}'
+
     for ds in output.s.unique():
         df = output[output.s == ds]
         if df.shape[0] == 0:
             return
         mkdir(f'{out_dir}/{ds}')
+        path = f'{out_dir}/{ds}/{name}.parquet'
         df.to_parquet(
-            path=f'{out_dir}/{ds}/{name}.parquet',
+            path=path,
         )
+        print(f'Saved to {path}')
 
 
 def submit_job(arg_set, parameters):
@@ -107,12 +119,12 @@ def submit_job(arg_set, parameters):
         out_dir = f"{parameters['out_dir']}_jec/"
     mkdir(out_dir)
 
-    executor = dask_executor
+
+    executor = spark_executor
     executor_args = {
-        'client': parameters['client'],
         'schema': processor.NanoAODSchema,
         #'use_dataframes': True,
-        'retries': 0
+        "file_type": "root"
     }
     processor_args = {
         'samp_info': parameters['samp_infos'],
@@ -122,15 +134,15 @@ def submit_job(arg_set, parameters):
         'apply_to_output': partial(saving_func, out_dir=out_dir),
     }
     try:
-        output = run_uproot_job(parameters['samp_infos'].fileset, 'Events',
+        output = run_spark_job(parameters['samp_infos'].fileset,
                                 DimuonProcessor(**processor_args),
-                                executor, executor_args=executor_args,
-                                chunksize=parameters['chunksize'],
-                                maxchunks=parameters['maxchunks'])
-
+                                executor, spark=parameters['spark'],
+                                thread_workers=32, partitionsize=parameters['chunksize'],
+                                executor_args=executor_args,)
+        _spark_stop(parameters['spark'])
     except Exception as e:
         tb = traceback.format_exc()
-        return 'Failed: ' + str(e) + ' ' + tb
+        return 'Failed: '+str(e)+' '+tb
 
     return 'Success!'
 
@@ -150,13 +162,13 @@ if __name__ == "__main__":
             'data_F',
             'data_G',
             'data_H',
-        ],
+            ],
         'signal': [
             'ggh_amcPS',
             'vbf_powhegPS',
             'vbf_powheg_herwig',
             'vbf_powheg_dipole'
-        ],
+            ],
         'main_mc': [
             'dy_m105_160_amc',
             'dy_m105_160_vbf_amc',
@@ -164,7 +176,7 @@ if __name__ == "__main__":
             'ewk_lljj_mll105_160_ptj0',
             'ewk_lljj_mll105_160_py_dipole',
             'ttjets_dl',
-        ],
+            ],
         'other_mc': [
             'ttjets_sl', 'ttz', 'ttw',
             'st_tw_top', 'st_tw_antitop',
@@ -177,19 +189,40 @@ if __name__ == "__main__":
 
     if parameters['local_cluster']:
         parameters['client'] = dask.distributed.Client(
-            processes=True,
-            # n_workers=min(mch, 23),
-            n_workers=40,
-            dashboard_address=dash_local,
-            threads_per_worker=1,
-            memory_limit='2.9GB',
-        )
+                                    processes=True,
+                                    # n_workers=min(mch, 23),
+                                    n_workers=48,
+                                    dashboard_address=dash_local,
+                                    threads_per_worker=1,
+                                    memory_limit='2.9GB',
+                                )
     else:
         parameters['client'] = Client(
             parameters['slurm_cluster_ip'],
         )
     print('Client created')
 
+    
+    spark_config = (
+        pyspark.sql.SparkSession.builder.appName("spark-executor-test-%s" % guid())
+        .master("local[*]")
+        .config("spark.sql.execution.arrow.enabled", "true")
+        #.config("spark.driver.host", "127.0.0.1")
+        #.config("spark.driver.bindAddress", "127.0.0.1")
+        #.config("spark.executor.x509proxyname", "x509_u12409")
+        #.config("spark.executor.memory", "1g")
+        .config("spark.driver.memory", "16g") # fixes java memory errors
+        .config("spark.driver.maxResultSize", "4g")
+        .config("spark.sql.execution.arrow.maxRecordsPerBatch", 100000)
+    )
+
+    parameters['spark'] = _spark_initialize(
+        config=spark_config, log_level="ERROR",
+        spark_progress=False,
+        laurelin_version="1.0.0"
+    )
+
+    
     datasets_mc = []
     datasets_data = []
     for group, samples in smp.items():
@@ -231,3 +264,4 @@ if __name__ == "__main__":
     print(f'Finished everything in {elapsed} s.')
     print('Timing breakdown:')
     print(timings)
+

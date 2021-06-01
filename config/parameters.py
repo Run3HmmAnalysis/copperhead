@@ -178,7 +178,7 @@ fsr_branches = ['nFsrPhoton', 'FsrPhoton_pt', 'FsrPhoton_eta',
 jet_branches = ['nJet', 'Jet_pt', 'Jet_eta', 'Jet_phi', 'Jet_mass',
                 'Jet_qgl', 'Jet_jetId', 'Jet_puId', 'Jet_rawFactor',
                 'Jet_hadronFlavour', 'Jet_partonFlavour',
-                'Jet_muonIdx1', 'Jet_muonIdx2', 'Jet_btagDeepB']
+                'Jet_muonIdx1', 'Jet_muonIdx2', 'Jet_btagDeepB', 'Jet_genJetIdx']
 genjet_branches = ['nGenJet', 'GenJet_pt', 'GenJet_eta', 'GenJet_phi',
                    'GenJet_mass']
 sajet_branches = ['nSoftActivityJet', 'SoftActivityJet_pt',
