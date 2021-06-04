@@ -10,7 +10,6 @@ from config.cross_sections import cross_sections
 
 
 def load_sample(dataset, parameters):
-    #xrootd = not (dataset == 'test_file')
     xrootd = parameters['xrootd']
     args = {
         'year': parameters['year'],
@@ -131,7 +130,9 @@ class SamplesInfo(object):
         elif self.paths[sample].endswith('.root'):
             all_files = [self.paths[sample]]
         else:
-            all_files = glob.glob(self.server + self.paths[sample] + '/**/**/**/*.root')
+            all_files = glob.glob(
+                self.server + self.paths[sample] + '/**/**/**/*.root'
+            )
 
         if self.debug:
             all_files = [all_files[0]]
