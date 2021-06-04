@@ -77,7 +77,10 @@ parameters = {
     'label': args.label,
     'global_out_path': '/depot/cms/hmm/coffea/',
     'out_path': f'{args.year}_{args.label}',
-    'server': 'root://xrootd.rcac.purdue.edu/',
+    # 'server': 'root://xrootd.rcac.purdue.edu/',
+    # 'xrootd': True,
+    'server': '/mnt/hadoop/',
+    'xrootd': False,
     'datasets_from': 'purdue',
     'pt_variations': pt_variations,
     'chunksize': int(args.chunksize),
@@ -95,6 +98,8 @@ parameters['out_dir'] = f"{parameters['global_out_path']}/"\
 def saving_func(output, out_dir):
     ctx = TaskContext()
     name = f'part_{ctx.partitionId()}'
+    # print("Stage: {0}, Partition: {1}, Host: {2}".format(
+    #     ctx.stageId(), ctx.partitionId(), socket.gethostname()))
 
     for ds in output.s.unique():
         df = output[output.s == ds]
