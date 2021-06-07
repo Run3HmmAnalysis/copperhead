@@ -30,6 +30,7 @@ class Timer(object):
     def summary(self):
         columns = ["Action", "Time (s)", "Time (%)"]
         action_groups = []
+        """
         muons = [
             "Filled muon variables",
             "Mu1 and Mu2",
@@ -54,6 +55,7 @@ class Timer(object):
             "Filled outputs",
             "Initialization"
         ]
+        """
 
         for action in list(self.time_dict.keys()):
             action_groups.append(action)
