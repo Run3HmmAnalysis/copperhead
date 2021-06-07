@@ -509,7 +509,7 @@ class DimuonProcessor(processor.ProcessorABC):
         output.columns = pd.MultiIndex.from_product(
             [output.columns, ['']], names=['Variable', 'Variation']
         )
-        
+
         if self.timer:
             self.timer.add_checkpoint("Jet preparation & event weights")
 
@@ -581,7 +581,6 @@ class DimuonProcessor(processor.ProcessorABC):
             self.timer.summary()
 
         return to_return
-
 
     def jet_loop(self, variation, is_mc, df, dataset, mask, muons,
                  mu1, mu2, jets, weights, numevents, output):
