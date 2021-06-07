@@ -4,7 +4,7 @@ import numpy as np
 
 
 class Timer(object):
-    def __init__(self, name="the", ordered=False):
+    def __init__(self, name="the", ordered=True):
         self.name = name
         self.time_dict = {}
         self.last_checkpoint = time.time()
@@ -32,28 +32,12 @@ class Timer(object):
         action_groups = []
         """
         muons = [
-            "Filled muon variables",
-            "Mu1 and Mu2",
-            "Selected events and muons"
         ]
         jets = [
-            "Applied JEC/JER, if enabled"
-            "Filled jet variables",
-            "Completed jet loop",
-            "Prepared jets",
-            "Selected jets"
         ]
         corrections = [
-            "Applied QGL and B-tag weights",
-            "Computed event weights",
-            "FSR recovery",
-            "GeoFit correction"
         ]
         other = [
-            "Applied HLT and lumimask",
-            "Calculated SA variables",
-            "Filled outputs",
-            "Initialization"
         ]
         """
 

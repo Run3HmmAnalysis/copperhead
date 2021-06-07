@@ -133,9 +133,6 @@ class DimuonProcessor(processor.ProcessorABC):
         # and their systematic variations
         weights = Weights(output)
 
-        # if self.timer:
-        #     self.timer.add_checkpoint("Initialization")
-
         if is_mc:
             # For MC: Apply gen.weights, pileup weights, lumi weights,
             # L1 prefiring weights
@@ -169,8 +166,8 @@ class DimuonProcessor(processor.ProcessorABC):
         hlt = ak.to_pandas(df.HLT[self.parameters["hlt"]])
         hlt = hlt[self.parameters["hlt"]].sum(axis=1)
 
-        # if self.timer:
-        #     self.timer.add_checkpoint("Applied HLT and lumimask")
+        if self.timer:
+            self.timer.add_checkpoint("HLT, lumimask, PU weights")
 
         # ------------------------------------------------------------#
         # Update muon kinematics with Rochester correction,
@@ -188,9 +185,6 @@ class DimuonProcessor(processor.ProcessorABC):
         if self.do_roccor:
             apply_roccor(df, self.roccor_lookup, is_mc)
             df['Muon', 'pt'] = df.Muon.pt_roch
-
-            if self.timer:
-                self.timer.add_checkpoint("Rochester correction")
 
             # variations will be in branches pt_roch_up and pt_roch_down
             # muons_pts = {
@@ -213,9 +207,6 @@ class DimuonProcessor(processor.ProcessorABC):
                 df['Muon', 'phi'] = df.Muon.phi_fsr
                 df['Muon', 'pfRelIso04_all'] = df.Muon.iso_fsr
 
-                # if self.timer:
-                #     self.timer.add_checkpoint("FSR recovery")
-
             # if FSR was applied, 'pt_fsr' will be corrected pt
             # if FSR wasn't applied, just copy 'pt' to 'pt_fsr'
             df['Muon', 'pt_fsr'] = df.Muon.pt
@@ -225,8 +216,8 @@ class DimuonProcessor(processor.ProcessorABC):
                 apply_geofit(df, self.year, ~has_fsr)
                 df['Muon', 'pt'] = df.Muon.pt_fsr
 
-                # if self.timer:
-                #     self.timer.add_checkpoint("GeoFit correction")
+            if self.timer:
+                self.timer.add_checkpoint("Muon corrections")
 
             # --- conversion from awkward to pandas --- #
             muon_columns = [
@@ -294,9 +285,6 @@ class DimuonProcessor(processor.ProcessorABC):
                 good_pv
             )
 
-            # if self.timer:
-            #     self.timer.add_checkpoint("Selected events and muons")
-
             # --------------------------------------------------------#
             # Select two leading-pT muons
             # --------------------------------------------------------#
@@ -312,9 +300,6 @@ class DimuonProcessor(processor.ProcessorABC):
             mu2 = muons.loc[muons.pt.groupby('entry').idxmin()]
             mu1.index = mu1.index.droplevel('subentry')
             mu2.index = mu2.index.droplevel('subentry')
-
-            if self.timer:
-                self.timer.add_checkpoint("Mu1 and Mu2")
 
             # --------------------------------------------------------#
             # Select events with muons passing leading pT cut
@@ -339,17 +324,14 @@ class DimuonProcessor(processor.ProcessorABC):
 
             fill_muons(self, output, mu1, mu2, is_mc)
 
-            # if self.timer:
-            #     self.timer.add_checkpoint("Filled muon variables")
+            if self.timer:
+                self.timer.add_checkpoint("Event & muon selection")
 
         # ------------------------------------------------------------#
         # Prepare jets
         # ------------------------------------------------------------#
 
         prepare_jets(df, is_mc)
-
-        # if self.timer:
-        #     self.timer.add_checkpoint("Prepared jets")
 
         # ------------------------------------------------------------#
         # Apply JEC, get JEC and JER variations
@@ -369,9 +351,6 @@ class DimuonProcessor(processor.ProcessorABC):
             self.do_jec, self.do_jecunc, self.do_jerunc,
             self.jec_factories, self.jec_factories_data
         )
-
-        # if self.timer:
-        #     self.timer.add_checkpoint("Applied JEC/JER, if enabled")
 
         # ------------------------------------------------------------#
         # Calculate other event weights
@@ -500,9 +479,6 @@ class DimuonProcessor(processor.ProcessorABC):
                     weights.add_weight("pdf_2rms", how='dummy_vars')
             # --- --- --- --- --- --- --- --- --- --- --- --- --- --- #
 
-        # if self.timer:
-        #     self.timer.add_checkpoint("Computed event weights")
-
         # ------------------------------------------------------------#
         # Calculate getJetMass and split DY
         # ------------------------------------------------------------#
@@ -533,6 +509,10 @@ class DimuonProcessor(processor.ProcessorABC):
         output.columns = pd.MultiIndex.from_product(
             [output.columns, ['']], names=['Variable', 'Variation']
         )
+        
+        if self.timer:
+            self.timer.add_checkpoint("Jet preparation & event weights")
+
         for v_name in self.pt_variations:
             output_updated = self.jet_loop(
                 v_name, is_mc, df, dataset, mask, muons,
@@ -540,8 +520,9 @@ class DimuonProcessor(processor.ProcessorABC):
             )
             if output_updated is not None:
                 output = output_updated
+
         if self.timer:
-            self.timer.add_checkpoint("Completed jet loop")
+            self.timer.add_checkpoint("Jet loop")
 
         # ------------------------------------------------------------#
         # Fill outputs
@@ -588,19 +569,19 @@ class DimuonProcessor(processor.ProcessorABC):
 
         output = output[output.r.isin(self.regions)]
 
-        # if self.timer:
-        #     self.timer.add_checkpoint("Filled outputs")
-
+        to_return = None
         if self.apply_to_output is None:
-            return output
+            to_return = output
         else:
             self.apply_to_output(output)
+            to_return = self.accumulator.identity()
 
-            if self.timer:
-                # self.timer.add_checkpoint("Saved outputs")
-                self.timer.summary()
+        if self.timer:
+            self.timer.add_checkpoint("Saving outputs")
+            self.timer.summary()
 
-            return self.accumulator.identity()
+        return to_return
+
 
     def jet_loop(self, variation, is_mc, df, dataset, mask, muons,
                  mu1, mu2, jets, weights, numevents, output):
@@ -793,10 +774,10 @@ class DimuonProcessor(processor.ProcessorABC):
                     f'btag_wgt_{name}', bs, how='only_vars'
                 )
 
-            if self.timer:
-                self.timer.add_checkpoint(
-                    "Applied QGL and B-tag weights"
-                )
+            # if self.timer:
+            #     self.timer.add_checkpoint(
+            #         "Applied QGL and B-tag weights"
+            #     )
 
         # Separate from ttH and VH phase space
         variables['nBtagLoose'] = jets[
