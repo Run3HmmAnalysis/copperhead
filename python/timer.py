@@ -56,6 +56,8 @@ class Timer(object):
         ]
 
         for action in list(self.time_dict.keys()):
+            action_groups.append(action)
+            """
             if action in muons:
                 action_groups.append("Muons")
             elif action in jets:
@@ -66,6 +68,7 @@ class Timer(object):
                 action_groups.append("Other")
             else:
                 action_groups.append(action)
+            """
         summary = pd.DataFrame(columns=columns)
         total_time = round(sum(list(self.time_dict.values())), 5)
         summary[columns[0]] = np.array(action_groups)
