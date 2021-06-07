@@ -5,7 +5,7 @@ from dask.distributed import Client
 from dask.distributed import Scheduler, Worker
 from dask_jobqueue import SLURMCluster
 from coffea.processor.executor import dask_executor
-from python.dimuon_processor_pandas import DimuonProcessor
+from python.processor import DimuonProcessor
 dask.config.set({"temporary-directory": "/depot/cms/hmm/dask-temp/"})
 dask.config.set({'distributed.worker.timeouts.connect': '60s'})
 
