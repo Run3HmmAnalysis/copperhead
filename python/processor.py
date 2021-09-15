@@ -167,7 +167,7 @@ class DimuonProcessor(processor.ProcessorABC):
             c for c in self.parameters["hlt"] if c in df.HLT.fields
         ]
         hlt = ak.to_pandas(df.HLT[hlt_columns])
-        if len(hlt_columns)==0:
+        if len(hlt_columns) == 0:
             hlt = False
         else:
             hlt = hlt[hlt_columns].sum(axis=1)
