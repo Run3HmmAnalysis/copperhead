@@ -163,8 +163,14 @@ class DimuonProcessor(processor.ProcessorABC):
             mask = lumi_info(df.run, df.luminosityBlock)
 
         # Apply HLT to both Data and MC
-        hlt = ak.to_pandas(df.HLT[self.parameters["hlt"]])
-        hlt = hlt[self.parameters["hlt"]].sum(axis=1)
+        hlt_columns = [
+            c for c in self.parameters["hlt"] if c in df.HLT.fields
+        ]
+        hlt = ak.to_pandas(df.HLT[hlt_columns])
+        if len(hlt_columns)==0:
+            hlt = False
+        else:
+            hlt = hlt[hlt_columns].sum(axis=1)
 
         if self.timer:
             self.timer.add_checkpoint("HLT, lumimask, PU weights")
@@ -346,7 +352,7 @@ class DimuonProcessor(processor.ProcessorABC):
         if ('data' in dataset) and ('2018' in self.year):
             self.do_jec = True
 
-        apply_jec(
+        jets = apply_jec(
             df, jets, dataset, is_mc, self.year,
             self.do_jec, self.do_jecunc, self.do_jerunc,
             self.jec_factories, self.jec_factories_data
