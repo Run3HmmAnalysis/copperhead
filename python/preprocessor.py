@@ -40,7 +40,7 @@ def load_samples(datasets, parameters):
         si = load_sample(d, parameters)[d]
         if 'files' not in si.fileset[d].keys():
             continue
-        if si.fileset[d]['files']=={}:
+        if si.fileset[d]['files'] == {}:
             continue
         samp_info_total.data_entries += si.data_entries
         samp_info_total.fileset.update(si.fileset)
@@ -209,7 +209,7 @@ class SamplesInfo(object):
 
     def finalize(self):
         if self.is_mc:
-            if len(self.metadata)==0:
+            if len(self.metadata) == 0:
                 return 0
             N = self.metadata['sumGenWgts']
             numevents = self.metadata['nGenEvts']
