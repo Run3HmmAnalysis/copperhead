@@ -45,6 +45,9 @@ parser.add_argument("-ch", "--chunksize", dest="chunksize",
 parser.add_argument("-mch", "--maxchunks", dest="maxchunks", default=-1,
                     action='store',
                     help='Max. number of chunks')
+parser.add_argument("-w", "--workers", dest="workers", default=8,
+                    action='store',
+                    help='Max. number of Spark workers')
 parser.add_argument("-jec", "--jec", dest="jec_unc", default=False,
                     action='store_true',
                     help='Enable JEC/JER uncertainties')
@@ -209,15 +212,15 @@ if __name__ == "__main__":
         pyspark.sql.SparkSession.builder.appName(
             "spark-executor-test-%s" % guid()
         )
-        .master("local[*]")
+        .master("spark://hammer-c000.rcac.purdue.edu:7077")
+        #.master("local[32]")
         .config("spark.sql.execution.arrow.enabled", "true")
-        # .config("spark.driver.host", "127.0.0.1")
-        # .config("spark.driver.bindAddress", "127.0.0.1")
-        # .config("spark.executor.x509proxyname", "x509_u12409")
-        # .config("spark.executor.memory", "1g")
-        .config("spark.driver.memory", "16g")  # fixes java memory errors
+        .config("spark.executor.memory", "7g")
+        .config("spark.executor.cores", "1")
+        .config("spark.driver.memory", "16g")  # 16g fixes java memory errors
         .config("spark.driver.maxResultSize", "4g")
         .config("spark.sql.execution.arrow.maxRecordsPerBatch", 100000)
+        .config("spark.cores.max", f"{args.workers}")
     )
 
     parameters['spark'] = _spark_initialize(
@@ -226,13 +229,14 @@ if __name__ == "__main__":
         laurelin_version="1.0.0"
     )
 
+
     datasets_mc = []
     datasets_data = []
     for group, samples in smp.items():
         for sample in samples:
-            # if sample != 'data_B':
-            # if sample != 'dy_m105_160_amc':
             if sample != 'vbf_powheg_dipole':
+                continue
+            if (group != 'other_mc'):
                 continue
             if group == 'data':
                 datasets_data.append(sample)
