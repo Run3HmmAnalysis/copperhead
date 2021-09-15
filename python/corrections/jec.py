@@ -33,6 +33,8 @@ def apply_jec(df, jets, dataset, is_mc, year, do_jec, do_jecunc,
 
     # TODO: JER nuisances
 
+    return jets
+
 
 def jec_names_and_sources(year):
     names = {}

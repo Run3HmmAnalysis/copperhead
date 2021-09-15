@@ -103,7 +103,7 @@ def boost(vector, boost_vector):
     gamma = 1.0 / np.sqrt(1.0 - b2)
     bp = bx * x + by * y + bz * z
     gamma2 = np.zeros(len(x))
-    gamma2[b2 > 0] = (gamma - 1.0) / b2
+    gamma2[b2 > 0] = (gamma[b2 > 0] - 1.0) / b2[b2 > 0]
     x = x + gamma2 * bp * bx + gamma * bx * t
     y = y + gamma2 * bp * by + gamma * by * t
     z = z + gamma2 * bp * bz + gamma * bz * t

@@ -40,6 +40,8 @@ def load_samples(datasets, parameters):
         si = load_sample(d, parameters)[d]
         if 'files' not in si.fileset[d].keys():
             continue
+        if si.fileset[d]['files']=={}:
+            continue
         samp_info_total.data_entries += si.data_entries
         samp_info_total.fileset.update(si.fileset)
         samp_info_total.metadata.update(si.metadata)
@@ -116,7 +118,7 @@ class SamplesInfo(object):
         self.data_entries = res['data_entries']
 
     def load_sample(self, sample, use_dask=False, client=None):
-        if sample not in self.paths:
+        if ((sample not in self.paths) or (self.paths[sample] == "")):
             # print(f"Couldn't load {sample}! Skipping.")
             return {'sample': sample, 'metadata': {},
                     'files': {}, 'data_entries': 0, 'is_missing': True}
@@ -132,6 +134,9 @@ class SamplesInfo(object):
         else:
             all_files = glob.glob(
                 self.server + self.paths[sample] + '/**/**/**/*.root'
+            )
+            all_files = all_files + glob.glob(
+                self.server + self.paths[sample] + '/**/**/*.root'
             )
 
         if self.debug:
@@ -204,6 +209,8 @@ class SamplesInfo(object):
 
     def finalize(self):
         if self.is_mc:
+            if len(self.metadata)==0:
+                return 0
             N = self.metadata['sumGenWgts']
             numevents = self.metadata['nGenEvts']
             if isinstance(cross_sections[self.sample], dict):
