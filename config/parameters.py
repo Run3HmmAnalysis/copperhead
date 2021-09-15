@@ -3,14 +3,12 @@ def for_all_years(value):
     return out
 
 
-glob_path = '/home/dkondra/hmumu-coffea/'
-
 parameters = {}
 
 parameters["lumimask"] = {
-    "2016": glob_path+"data/lumimasks/Cert_271036-284044_13TeV_ReReco_07Aug2017_Collisions16_JSON.txt",
-    "2017": glob_path+"data/lumimasks/Cert_294927-306462_13TeV_EOY2017ReReco_Collisions17_JSON_v1.txt",
-    "2018": glob_path+"data/lumimasks/Cert_314472-325175_13TeV_17SeptEarlyReReco2018ABC_PromptEraD_Collisions18_JSON.txt"
+    "2016": "data/lumimasks/Cert_271036-284044_13TeV_ReReco_07Aug2017_Collisions16_JSON.txt",
+    "2017": "data/lumimasks/Cert_294927-306462_13TeV_EOY2017ReReco_Collisions17_JSON_v1.txt",
+    "2018": "data/lumimasks/Cert_314472-325175_13TeV_17SeptEarlyReReco2018ABC_PromptEraD_Collisions18_JSON.txt"
 }
 
 parameters["hlt"] = {
@@ -20,29 +18,29 @@ parameters["hlt"] = {
 }
 
 parameters["roccor_file"] = {
-    "2016": glob_path+"data/roch_corr/RoccoR2016.txt",
-    "2017": glob_path+"data/roch_corr/RoccoR2017.txt",
-    "2018": glob_path+"data/roch_corr/RoccoR2018.txt",
+    "2016": "data/roch_corr/RoccoR2016.txt",
+    "2017": "data/roch_corr/RoccoR2017.txt",
+    "2018": "data/roch_corr/RoccoR2018.txt",
 }
 
-parameters['nnlops_file'] = for_all_years(glob_path+'data/NNLOPS_reweight.root')
+parameters['nnlops_file'] = for_all_years('data/NNLOPS_reweight.root')
 
 parameters["btag_sf_csv"] = {
-    "2016": glob_path+"data/btag/DeepCSV_2016LegacySF_V1.csv",
-    "2017": glob_path+"data/btag/DeepCSV_94XSF_V5_B_F.csv",
-    "2018": glob_path+"data/btag/DeepCSV_102XSF_V1.csv",
+    "2016": "data/btag/DeepCSV_2016LegacySF_V1.csv",
+    "2017": "data/btag/DeepCSV_94XSF_V5_B_F.csv",
+    "2018": "data/btag/DeepCSV_102XSF_V1.csv",
 }
 
 parameters["pu_file_data"] = {
-    '2016': glob_path+'data/pileup/PileupData_GoldenJSON_Full2016.root',
-    '2017': glob_path+'data/pileup/puData2017_withVar.root',
-    '2018': glob_path+'data/pileup/puData2018_withVar.root',
+    '2016': 'data/pileup/PileupData_GoldenJSON_Full2016.root',
+    '2017': 'data/pileup/puData2017_withVar.root',
+    '2018': 'data/pileup/puData2018_withVar.root',
 }
 
 parameters["pu_file_mc"] = {
-    '2016': glob_path+'data/pileup/pileup_profile_Summer16.root',
-    '2017': glob_path+'data/pileup/mcPileup2017.root',
-    '2018': glob_path+'data/pileup/mcPileup2018.root',
+    '2016': 'data/pileup/pileup_profile_Summer16.root',
+    '2017': 'data/pileup/mcPileup2017.root',
+    '2018': 'data/pileup/mcPileup2018.root',
 }
 
 # Reduced set
