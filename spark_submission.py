@@ -213,7 +213,7 @@ if __name__ == "__main__":
             "spark-executor-test-%s" % guid()
         )
         .master("spark://hammer-c000.rcac.purdue.edu:7077")
-        #.master("local[32]")
+        # .master("local[32]")
         .config("spark.sql.execution.arrow.enabled", "true")
         .config("spark.executor.memory", "7g")
         .config("spark.executor.cores", "1")
@@ -228,7 +228,6 @@ if __name__ == "__main__":
         spark_progress=False,
         laurelin_version="1.0.0"
     )
-
 
     datasets_mc = []
     datasets_data = []
