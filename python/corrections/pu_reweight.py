@@ -1,6 +1,8 @@
+from packaging.version import Version
 import numpy as np
 import uproot
 
+import coffea
 from coffea.lookup_tools import dense_lookup
 
 
@@ -29,7 +31,8 @@ def pu_lookups(parameters, mode='nom', auto=[]):
             pu_reweight(pu_hist_data, pu_hist_mc),
             edges
         )
-        lookup._axes = lookup._axes[0]
+        if Version(coffea.__version__) < Version('0.7.6'):
+            lookup._axes = lookup._axes[0]
         lookups[mode] = lookup
     return lookups
 
