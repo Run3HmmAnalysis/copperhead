@@ -8,14 +8,11 @@ import numpy as np
 import matplotlib.pyplot as plt
 import mplhep as hep
 from hist import Hist
+from hist.intervals import poisson_interval
 from config.variables import variables_lookup, Variable
 import boost_histogram as bh
-
-stderr = sys.stderr
-sys.stderr = open(os.devnull, 'w')
-import keras  # noqa: E402
-sys.stderr = stderr
-os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
+pd.options.mode.chained_assignment = None
 
 __all__ = ['keras']
 
@@ -102,6 +99,7 @@ def workflow(client, paths, parameters, timer):
     df_future = client.gather(df_future)
     timer.add_checkpoint("Loaded data from Parquet")
 
+    # Merge dataframes
     df = dd.concat([d for d in df_future if len(d.columns) > 0])
     npart = df.npartitions
     df = df.compute()
@@ -137,7 +135,6 @@ def workflow(client, paths, parameters, timer):
                 )
                 timer.add_checkpoint(f"Evaluated {model} {v}")
     df = df[[c for c in keep_columns if c in df.columns]]
-
     df = df.compute()
     df.dropna(axis=1, inplace=True)
     df.reset_index(inplace=True)
@@ -192,7 +189,7 @@ def prepare_features(df, parameters, variation='nominal', add_year=True):
     return features_var
 
 
-def dnn_evaluation(df, variation, model, parameters):
+def dnn_evaluation(df, variation, model, parameters):  
     import tensorflow as tf
     from tensorflow.keras.models import load_model
     config = tf.compat.v1.ConfigProto(
@@ -201,7 +198,7 @@ def dnn_evaluation(df, variation, model, parameters):
         allow_soft_placement=True,
         device_count={'CPU': 1}
     )
-    tf.compat.v1.logging.set_verbosity(tf.compat.v1.logging.ERROR)
+    tf.compat.v1.logging.set_verbosity(tf.compat.v1.logging.FATAL)
     sess = tf.compat.v1.Session(config=config)
     if parameters['do_massscan']:
         mass_shift = parameters['mass'] - 125.0
@@ -211,7 +208,7 @@ def dnn_evaluation(df, variation, model, parameters):
         df = df.compute()
     except Exception:
         pass
-    df[score_name] = 0
+    df.loc[:, score_name] = 0
     with sess:
         nfolds = 4
         for i in range(nfolds):
@@ -233,7 +230,7 @@ def dnn_evaluation(df, variation, model, parameters):
             df_i = df.loc[eval_filter, :]
             df_i.loc[df_i.r != 'h-peak', 'dimuon_mass'] = 125.0
             if parameters['do_massscan']:
-                df_i['dimuon_mass'] = df_i['dimuon_mass'] - mass_shift
+                df_i.loc[:, 'dimuon_mass'] = df_i['dimuon_mass'] - mass_shift
             df_i = (df_i[features] - scalers[0]) / scalers[1]
             prediction = np.array(dnn_model.predict(df_i)).ravel()
             df.loc[eval_filter, score_name] = np.arctanh((prediction))
@@ -250,7 +247,7 @@ def bdt_evaluation(df, variation, model, parameters):
         df = df.compute()
     except Exception:
         pass
-    df[score_name] = 0
+    df.loc[:, score_name] = 0
     nfolds = 4
     for i in range(nfolds):
         # FIXME
@@ -272,7 +269,7 @@ def bdt_evaluation(df, variation, model, parameters):
         df_i = df[eval_filter]
         df_i.loc[df_i.r != 'h-peak', 'dimuon_mass'] = 125.0
         if parameters['do_massscan']:
-            df_i['dimuon_mass'] = df_i['dimuon_mass'] - mass_shift
+            df_i.loc[:, 'dimuon_mass'] = df_i['dimuon_mass'] - mass_shift
         df_i = (df_i[features] - scalers[0]) / scalers[1]
         if len(df_i) > 0:
             if 'multiclass' in model:
@@ -365,22 +362,67 @@ def plot(hist, df=pd.DataFrame(), parameters={}):
     a_year = list(hist.keys())[0]
     var = hist[a_year].axes[-1]
 
+    plotsize = 8
+    ratio_plot_size = 0.25
+
     r = 'h-peak'
     c = 'vbf'
     v = 'nominal'
-    # stack_groups = ['DY', 'EWK', 'TT+ST', 'VV', 'VVV']
+    stack_groups = ['DY', 'EWK', 'TT+ST', 'VV', 'VVV']
+    data_groups = ['Data']
     step_groups = ['VBF', 'ggH']
-    # errorbar_groups = ['Data']
+    
+    class Entry(object):
+        def __init__(self, entry_type='step'):
+            self.entry_type = entry_type
+            self.labels = []
+            if entry_type == 'step':
+                self.entry_dict = {e:g for e, g in grouping.items() if g in step_groups}
+                self.histtype = 'step'
+                self.stack = False
+                self.plot_opts = {'linewidth': 3}
+                self.yerr = False
+            elif entry_type == 'stack':
+                self.entry_dict = {e:g for e, g in grouping.items() if g in stack_groups}
+                self.histtype = 'fill'
+                self.stack = True
+                self.plot_opts = {'alpha': 0.8, 'edgecolor': (0, 0, 0)}
+                self.yerr = False
+            elif entry_type == 'data':
+                self.entry_dict = {e:g for e, g in grouping.items() if g in data_groups}
+                self.histtype = 'errorbar'
+                self.stack = False
+                self.plot_opts = {'color': 'k', 'marker': '.', 'markersize': 15}
+                self.yerr = True
+            else:
+                raise Exception(f"Wrong entry type: {entry_type}")
+            self.entry_list = self.entry_dict.keys()
+            self.labels = self.entry_dict.values()
+            self.groups = list(set(self.entry_dict.values()))
 
-    plotsize = 8
-    ratio_plot_size = 0.25
-    # data_opts = {'color': 'k', 'marker': '.', 'markersize': 15}
-    # stack_fill_opts = {'alpha': 0.8, 'edgecolor': (0, 0, 0)}
-    # stat_err_opts = {'step': 'post', 'label': 'Stat. unc.',
-    #                  'hatch': '//////', 'facecolor': 'none',
-    #                  'edgecolor': (0, 0, 0, .5), 'linewidth': 0}
-    # ratio_err_opts = {'step': 'post', 'facecolor': (0, 0, 0, 0.3),
-    #                   'linewidth': 0}
+        def get_plottables(self, hist, year, r, c, v, var_name):
+            plottables = []
+            sumw2 = []
+            labels = []
+            for group in self.groups:
+                group_entries = [e for e, g in self.entry_dict.items() if (group == g)]
+                sumw2.append(
+                    sum([hist[year][en, r, c, v, 'sumw2', :].project(var_name) for en in group_entries])
+                )
+                plottables.append(
+                    sum([hist[year][en, r, c, v, 'value', :].project(var_name) for en in group_entries])
+                )
+                labels.append(group)
+            return plottables, sumw2, labels
+
+    stat_err_opts = {'step': 'post', 'label': 'Stat. unc.',
+                     'hatch': '//////', 'facecolor': 'none',
+                     'edgecolor': (0, 0, 0, .5), 'linewidth': 0}
+    ratio_err_opts = {'step': 'post', 'facecolor': (0, 0, 0, 0.3),
+                      'linewidth': 0}
+  
+    entry_types = ['stack', 'step', 'data']
+    entries = {et:Entry(et) for et in entry_types}
 
     fig = plt.figure()
     style = hep.style.CMS
@@ -395,44 +437,28 @@ def plot(hist, df=pd.DataFrame(), parameters={}):
 
         # Top panel: Data/MC
         plt1 = fig.add_subplot(gs[0])
-        # datasets = hist[year].axes["dataset"]
-        # stack = []
-        # stack_labels = []
-        # for group, entries in grouping_alt.items():
-        #    if group in step_groups:
-        #        for entry in entries:
-        #            if entry not in datasets:
-        #                continue
-        #            plottable = hist[year][
-        #                entry, r, c, v, 'value', :
-        #            ].project(var.name)
-        #            hep.histplot(plottable, label=group, **{'linewidth': 3})
 
-        #    elif group in stack_groups:
-        #        entries_ = [e for e in entries if e in datasets]
-        #        if len(entries_) == 0:
-        #            continue
-        #        plottable = hist[year][
-        #            :, r, c, v, 'value', :
-        #        ].project('dataset', var.name)
-        #        print(plottable.view())
-
-        # stack_entries = [e for e, g in grouping.items() if g in stack_groups]
-        step_entries = [e for e, g in grouping.items() if g in step_groups]
-        # stack = hist[year][
-        #             bh.loc(stack_entries), r, c, v, 'value', :
-        #         ].project('dataset', var.name)
-        # hep.histplot(
-        #     stack, stack=True, histtype='fill',
-        #     label=stack_labels, **stack_fill_opts
-        # )
-
-        steps = hist[year][
-            bh.loc(step_entries), r, c, v, 'value', :
-        ].project(var.name)
-        hep.histplot(
-            steps, stack=False, histtype='step', **{'linewidth': 3}
-        )
+        for entry in entries.values():
+            if len(entry.entry_list) == 0:
+                continue
+            plottables, sumw2, labels = entry.get_plottables(hist, year, r, c, v, var.name)
+            yerr = np.sqrt(sum(plottables).values()) if entry.yerr else None
+            hep.histplot(
+                plottables, label=labels, ax=plt1, yerr=yerr,
+                stack=entry.stack, histtype=entry.histtype, **entry.plot_opts
+            )
+            # MC errors
+            if entry.entry_type == 'stack':
+                total_bkg = sum(plottables).values()
+                total_sumw2 = sum(sumw2).values()
+                if sum(total_bkg)>0:
+                    err = poisson_interval(total_bkg, total_sumw2)
+                    plt1.fill_between(
+                            x=plottables[0].axes[0].edges,
+                            y1=np.r_[err[0, :], err[0, -1]],
+                            y2=np.r_[err[1, :], err[1, -1]],
+                            **stat_err_opts
+                    )
 
         plt1.set_yscale('log')
         plt1.set_ylim(0.01, 1e9)
@@ -440,17 +466,47 @@ def plot(hist, df=pd.DataFrame(), parameters={}):
         # plt1.set_xlim(edges[0], edges[-1])
         plt1.set_xlabel('')
         plt1.tick_params(axis='x', labelbottom=False)
-        plt1.legend(prop={'size': 'small'})
+        plt1.legend(prop={'size': 'x-small'})
 
         # Bottom panel: Data/MC ratio plot
         plt2 = fig.add_subplot(gs[1], sharex=plt1)
 
+        num = den = []
+        if len(entries['data'].entry_list) > 0:
+            num, _, _ = entries['data'].get_plottables(hist, year, r, c, v, var.name)
+            num = sum(num).values()
+        if len(entries['stack'].entry_list) > 0:
+            den, den_sumw2, _ = entries['stack'].get_plottables(hist, year, r, c, v, var.name)
+            edges = den[0].axes[0].edges
+            den = sum(den).values()
+            den_sumw2 = sum(den_sumw2).values()
+        if len(num)*len(den) > 0:
+            ratio = np.divide(num, den)
+            yerr = np.zeros_like(num)
+            yerr[den>0] = np.sqrt(num[den>0]) / den[den>0]
+            hep.histplot(
+                ratio, bins=edges, ax=plt2, yerr=yerr,
+                histtype='errorbar', **entries['data'].plot_opts
+            )
+        if sum(den) > 0:
+            unity = np.ones_like(den)
+            w2 = np.zeros_like(den)
+            w2[den>0] = den_sumw2[den>0] / den[den>0]**2
+            den_unc = poisson_interval(unity, w2)
+            plt2.fill_between(
+                edges,
+                np.r_[den_unc[0], den_unc[0, -1]],
+                np.r_[den_unc[1], den_unc[1, -1]],
+                label='Stat. unc.', **ratio_err_opts
+            )
+        
         plt2.axhline(1, ls='--')
         plt2.set_ylim([0.5, 1.5])
         plt2.set_ylabel('Data/MC', loc='center')
         plt2.set_xlabel(var.label, loc='right')
+        plt2.legend(prop={'size': 'x-small'})
 
-        hep.cms.label(ax=plt1, data=True, paper=False, year=year)
+        hep.cms.label(ax=plt1, data=True, label='Preliminary', year=year)
 
         path = parameters['plots_path']
         out_name = f'{path}/{var.name}_{year}.png'
