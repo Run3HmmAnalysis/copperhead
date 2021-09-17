@@ -426,7 +426,7 @@ def plot(hist, df=pd.DataFrame(), parameters={}):
                       'linewidth': 0}
 
     entry_types = ['stack', 'step', 'data']
-    entries = {et:Entry(et) for et in entry_types}
+    entries = {et: Entry(et) for et in entry_types}
 
     fig = plt.figure()
     style = hep.style.CMS
@@ -445,7 +445,8 @@ def plot(hist, df=pd.DataFrame(), parameters={}):
         for entry in entries.values():
             if len(entry.entry_list) == 0:
                 continue
-            plottables, sumw2, labels = entry.get_plottables(hist, year, r, c, v, var.name)
+            plottables, sumw2, labels =\
+                entry.get_plottables(hist, year, r, c, v, var.name)
             yerr = np.sqrt(sum(plottables).values()) if entry.yerr else None
             hep.histplot(
                 plottables, label=labels, ax=plt1, yerr=yerr,
@@ -477,12 +478,12 @@ def plot(hist, df=pd.DataFrame(), parameters={}):
 
         num = den = []
         if len(entries['data'].entry_list) > 0:
-            num, _, _ = entries['data'].get_plottables(
-                                    hist, year, r, c, v, var.name)
+            num, _, _ =\
+                entries['data'].get_plottables(hist, year, r, c, v, var.name)
             num = sum(num).values()
         if len(entries['stack'].entry_list) > 0:
-            den, den_sumw2, _ = entries['stack'].get_plottables(
-                                    hist, year, r, c, v, var.name)
+            den, den_sumw2, _ =\
+                entries['stack'].get_plottables(hist, year, r, c, v, var.name)
             edges = den[0].axes[0].edges
             den = sum(den).values()
             den_sumw2 = sum(den_sumw2).values()
