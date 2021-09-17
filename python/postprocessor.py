@@ -1,5 +1,4 @@
 import os
-import sys
 from functools import partial
 
 import dask.dataframe as dd
@@ -10,11 +9,9 @@ import mplhep as hep
 from hist import Hist
 from hist.intervals import poisson_interval
 from config.variables import variables_lookup, Variable
-import boost_histogram as bh
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 pd.options.mode.chained_assignment = None
 
-__all__ = ['keras']
 
 training_features = ['dimuon_mass', 'dimuon_pt', 'dimuon_pt_log',
                      'dimuon_eta', 'dimuon_mass_res',
@@ -189,7 +186,7 @@ def prepare_features(df, parameters, variation='nominal', add_year=True):
     return features_var
 
 
-def dnn_evaluation(df, variation, model, parameters):  
+def dnn_evaluation(df, variation, model, parameters):
     import tensorflow as tf
     from tensorflow.keras.models import load_model
     config = tf.compat.v1.ConfigProto(
@@ -371,28 +368,33 @@ def plot(hist, df=pd.DataFrame(), parameters={}):
     stack_groups = ['DY', 'EWK', 'TT+ST', 'VV', 'VVV']
     data_groups = ['Data']
     step_groups = ['VBF', 'ggH']
-    
+
     class Entry(object):
         def __init__(self, entry_type='step'):
             self.entry_type = entry_type
             self.labels = []
             if entry_type == 'step':
-                self.entry_dict = {e:g for e, g in grouping.items() if g in step_groups}
+                self.entry_dict = {
+                    e: g for e, g in grouping.items() if g in step_groups}
                 self.histtype = 'step'
                 self.stack = False
                 self.plot_opts = {'linewidth': 3}
                 self.yerr = False
             elif entry_type == 'stack':
-                self.entry_dict = {e:g for e, g in grouping.items() if g in stack_groups}
+                self.entry_dict = {
+                    e: g for e, g in grouping.items() if g in stack_groups}
                 self.histtype = 'fill'
                 self.stack = True
                 self.plot_opts = {'alpha': 0.8, 'edgecolor': (0, 0, 0)}
                 self.yerr = False
             elif entry_type == 'data':
-                self.entry_dict = {e:g for e, g in grouping.items() if g in data_groups}
+                self.entry_dict = {
+                    e: g for e, g in grouping.items() if g in data_groups}
                 self.histtype = 'errorbar'
                 self.stack = False
-                self.plot_opts = {'color': 'k', 'marker': '.', 'markersize': 15}
+                self.plot_opts = {
+                    'color': 'k', 'marker': '.', 'markersize': 15
+                }
                 self.yerr = True
             else:
                 raise Exception(f"Wrong entry type: {entry_type}")
@@ -405,13 +407,15 @@ def plot(hist, df=pd.DataFrame(), parameters={}):
             sumw2 = []
             labels = []
             for group in self.groups:
-                group_entries = [e for e, g in self.entry_dict.items() if (group == g)]
-                sumw2.append(
-                    sum([hist[year][en, r, c, v, 'sumw2', :].project(var_name) for en in group_entries])
-                )
-                plottables.append(
-                    sum([hist[year][en, r, c, v, 'value', :].project(var_name) for en in group_entries])
-                )
+                group_entries = [
+                    e for e, g in self.entry_dict.items() if (group == g)
+                ]
+                sumw2.append(sum([hist[year][
+                    en, r, c, v, 'sumw2', :
+                ].project(var_name) for en in group_entries]))
+                plottables.append(sum([hist[year][
+                    en, r, c, v, 'value', :
+                ].project(var_name) for en in group_entries]))
                 labels.append(group)
             return plottables, sumw2, labels
 
@@ -420,7 +424,7 @@ def plot(hist, df=pd.DataFrame(), parameters={}):
                      'edgecolor': (0, 0, 0, .5), 'linewidth': 0}
     ratio_err_opts = {'step': 'post', 'facecolor': (0, 0, 0, 0.3),
                       'linewidth': 0}
-  
+
     entry_types = ['stack', 'step', 'data']
     entries = {et:Entry(et) for et in entry_types}
 
@@ -451,13 +455,13 @@ def plot(hist, df=pd.DataFrame(), parameters={}):
             if entry.entry_type == 'stack':
                 total_bkg = sum(plottables).values()
                 total_sumw2 = sum(sumw2).values()
-                if sum(total_bkg)>0:
+                if sum(total_bkg) > 0:
                     err = poisson_interval(total_bkg, total_sumw2)
                     plt1.fill_between(
-                            x=plottables[0].axes[0].edges,
-                            y1=np.r_[err[0, :], err[0, -1]],
-                            y2=np.r_[err[1, :], err[1, -1]],
-                            **stat_err_opts
+                        x=plottables[0].axes[0].edges,
+                        y1=np.r_[err[0, :], err[0, -1]],
+                        y2=np.r_[err[1, :], err[1, -1]],
+                        **stat_err_opts
                     )
 
         plt1.set_yscale('log')
@@ -473,17 +477,19 @@ def plot(hist, df=pd.DataFrame(), parameters={}):
 
         num = den = []
         if len(entries['data'].entry_list) > 0:
-            num, _, _ = entries['data'].get_plottables(hist, year, r, c, v, var.name)
+            num, _, _ = entries['data'].get_plottables(
+                                    hist, year, r, c, v, var.name)
             num = sum(num).values()
         if len(entries['stack'].entry_list) > 0:
-            den, den_sumw2, _ = entries['stack'].get_plottables(hist, year, r, c, v, var.name)
+            den, den_sumw2, _ = entries['stack'].get_plottables(
+                                    hist, year, r, c, v, var.name)
             edges = den[0].axes[0].edges
             den = sum(den).values()
             den_sumw2 = sum(den_sumw2).values()
-        if len(num)*len(den) > 0:
+        if len(num) * len(den) > 0:
             ratio = np.divide(num, den)
             yerr = np.zeros_like(num)
-            yerr[den>0] = np.sqrt(num[den>0]) / den[den>0]
+            yerr[den > 0] = np.sqrt(num[den > 0]) / den[den > 0]
             hep.histplot(
                 ratio, bins=edges, ax=plt2, yerr=yerr,
                 histtype='errorbar', **entries['data'].plot_opts
@@ -491,7 +497,7 @@ def plot(hist, df=pd.DataFrame(), parameters={}):
         if sum(den) > 0:
             unity = np.ones_like(den)
             w2 = np.zeros_like(den)
-            w2[den>0] = den_sumw2[den>0] / den[den>0]**2
+            w2[den > 0] = den_sumw2[den > 0] / den[den > 0]**2
             den_unc = poisson_interval(unity, w2)
             plt2.fill_between(
                 edges,
@@ -499,7 +505,7 @@ def plot(hist, df=pd.DataFrame(), parameters={}):
                 np.r_[den_unc[1], den_unc[1, -1]],
                 label='Stat. unc.', **ratio_err_opts
             )
-        
+
         plt2.axhline(1, ls='--')
         plt2.set_ylim([0.5, 1.5])
         plt2.set_ylabel('Data/MC', loc='center')
