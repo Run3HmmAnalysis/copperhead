@@ -600,6 +600,8 @@ class DimuonProcessor(processor.ProcessorABC):
         jet_columns = [
             'pt', 'eta', 'phi', 'jetId', 'qgl', 'puId', 'mass', 'btagDeepB',
         ]
+        if 'puId17' in df.Jet.fields:
+            jet_columns += ['puId17']
         if is_mc:
             jet_columns += ['partonFlavour', 'hadronFlavour']
         if variation == 'nominal':
