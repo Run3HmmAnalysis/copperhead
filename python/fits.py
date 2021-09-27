@@ -1,9 +1,7 @@
-import dask
 from dask.distributed import Client
 
 import dask.dataframe as dd
 import pandas as pd
-import numpy as np
 import glob
 
 
@@ -19,7 +17,7 @@ def workflow(client, paths, parameters):
     # Load dataframes
     df_future = client.map(load_data, paths)
     df_future = client.gather(df_future)
-    
+
     # Select only one column and concatenate
     df_future = [d[['dimuon_mass']] for d in df_future]
     df = dd.concat([d for d in df_future if len(d.columns) > 0])
