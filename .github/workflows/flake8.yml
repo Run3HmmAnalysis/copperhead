@@ -37,5 +37,3 @@ jobs:
         run: flake8 tests/*py
       - name: flake8 - check delphes/*py
         run: flake8 delphes/*py
-        with:
-          ignore: "W292"
