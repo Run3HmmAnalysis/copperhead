@@ -14,7 +14,7 @@ def fill_muons(processor, output, mu1, mu2):
     ]
     dimuon_variable_names = [
         'dimuon_mass',
-        #'dimuon_ebe_mass_res', 'dimuon_ebe_mass_res_rel',
+        # 'dimuon_ebe_mass_res', 'dimuon_ebe_mass_res_rel',
         'dimuon_pt', 'dimuon_pt_log',
         'dimuon_eta', 'dimuon_phi',
         'dimuon_dEta', 'dimuon_dPhi',
@@ -65,5 +65,3 @@ def fill_muons(processor, output, mu1, mu2):
 
     output['dimuon_cos_theta_cs'],\
         output['dimuon_phi_cs'] = cs_variables(mu1, mu2)
-
-

@@ -1,23 +1,19 @@
 import sys
 import awkward
 import awkward as ak
-import numpy as np
 import pandas as pd
 
+# https://github.com/kratsg/coffea/tree/feat/nanodelphes
 sys.path.insert(0, "/home/dkondra/coffea_delphes/coffea/")
-import coffea
 
 import coffea.processor as processor
-from coffea.lookup_tools import extractor
-from coffea.lookup_tools import txt_converters, rochester_lookup
-from coffea.btag_tools import BTagScaleFactor
-from coffea.lumi_tools import LumiMask
 
-from python.weights import Weights
+# from python.weights import Weights
 
 from delphes.parameters import parameters
 from delphes.variables import variables
 from delphes.muons import fill_muons
+
 
 class DimuonProcessorDelphes(processor.ProcessorABC):
     def __init__(self, **kwargs):
@@ -32,10 +28,9 @@ class DimuonProcessorDelphes(processor.ProcessorABC):
         # self.channels = ['ggh_01j', 'ggh_2j', 'vbf']
         self.channels = ['vbf', 'vbf_01j', 'vbf_2j']
 
-        #self.lumi_weights = self.samp_info.lumi_weights
+        # self.lumi_weights = self.samp_info.lumi_weights
 
         self.vars_to_save = set([v.name for v in variables])
-
 
     @property
     def accumulator(self):
@@ -47,7 +42,7 @@ class DimuonProcessorDelphes(processor.ProcessorABC):
 
     def process(self, df):
         dataset = df.metadata['dataset']
-        numevents = len(df)
+        # numevents = len(df)
 
         output = pd.DataFrame({'event': df.Event.Number})
         # print(df.Event.CrossSection)
@@ -117,7 +112,6 @@ class DimuonProcessorDelphes(processor.ProcessorABC):
             to_return = self.accumulator.identity()
 
         return to_return
-
 
     def postprocess(self, accumulator):
         return accumulator
