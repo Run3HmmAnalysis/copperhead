@@ -4,11 +4,10 @@ import argparse
 import traceback
 import glob
 
+# https://github.com/kratsg/coffea/tree/feat/nanodelphes
 sys.path.insert(0, "/home/dkondra/coffea_delphes/coffea/")
-import coffea
-from coffea.nanoevents import DelphesSchema
 
-import coffea.processor as processor
+from coffea.nanoevents import DelphesSchema
 from coffea.processor import dask_executor, run_uproot_job
 from python.utils import mkdir
 from delphes.processor_delphes import DimuonProcessorDelphes
@@ -38,8 +37,8 @@ parser.add_argument("-mch", "--maxchunks", dest="maxchunks", default=-1,
 
 args = parser.parse_args()
 
-node_ip = '128.211.149.133' # hammer-c000
-#node_ip = '128.211.149.140' # hammer-c007
+node_ip = '128.211.149.133'  # hammer-c000
+# node_ip = '128.211.149.140' # hammer-c007
 dash_local = f'{node_ip}:34875'
 
 if args.slurm_port is None:
@@ -138,7 +137,7 @@ if __name__ == "__main__":
 
     fileset = {}
     for sample, path in datasets.items():
-        fileset[sample] = glob.glob(parameters['server']+path+'/*.root')
+        fileset[sample] = glob.glob(parameters['server'] + path + '/*.root')
 
     parameters['fileset'] = fileset
     out = submit_job({}, parameters)
