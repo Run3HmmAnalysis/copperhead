@@ -62,5 +62,4 @@ def fill_muons(output, mu1, mu2):
     output['dimuon_dPhi'] = mm_dphi
     output['dimuon_dR'] = mm_dr
 
-    output['dimuon_cos_theta_cs'],\
-        output['dimuon_phi_cs'] = cs_variables(mu1, mu2)
+    output['dimuon_cos_theta_cs'], output['dimuon_phi_cs'] = cs_variables(mu1, mu2)

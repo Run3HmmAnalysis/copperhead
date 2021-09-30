@@ -65,8 +65,7 @@ parameters = {
     'lumi': 3000000,
 }
 
-parameters['out_dir'] = f"{parameters['global_out_path']}/"\
-                        f"{parameters['out_path']}"
+parameters['out_dir'] = f"{parameters['global_out_path']}/{parameters['out_path']}"
 
 
 def saving_func(output, out_dir):
