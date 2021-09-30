@@ -26,7 +26,7 @@ def get_fileset(datasets, parameters):
         futures = parameters['client'].map(get_sum_wgts, filelist)
         nEvts = sum(parameters['client'].gather(futures))
         mymetadata = {
-            'lumi_wgt': 3000000 * cross_sections[sample] / nEvts,
+            'lumi_wgt': parameters['lumi'] * cross_sections[sample] / nEvts,
             'regions': ['z-peak', 'h-sidebands', 'h-peak'],
             'channels': ['ggh_01j', 'ggh_2j', 'vbf', 'vbf_01j', 'vbf_2j']
         }

@@ -9,7 +9,6 @@ sys.path.insert(0, "/home/dkondra/coffea_delphes/coffea/")
 
 from coffea.nanoevents import DelphesSchema
 from coffea.processor import dask_executor, run_uproot_job
-import awkward as ak
 
 from python.utils import mkdir
 from delphes.preprocessor import get_fileset
@@ -65,6 +64,7 @@ parameters = {
     'local_cluster': local_cluster,
     'slurm_cluster_ip': slurm_cluster_ip,
     'client': None,
+    'lumi': 3000000,
 }
 
 parameters['out_dir'] = f"{parameters['global_out_path']}/"\
