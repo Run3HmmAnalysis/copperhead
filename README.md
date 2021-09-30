@@ -21,6 +21,12 @@ mkdir dask_logs
 . setup_proxy.sh
 ```
 
+### Test run
+Should take around 1.5 minutes to complete.
+```bash
+python3 -W ignore tests/test_submit.py
+```
+
 ### Example of Dask+Slurm cluster initialization
 The `iPython` session that creates the cluster should be started in a new bash session / screen.
 ```bash
