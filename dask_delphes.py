@@ -2,20 +2,19 @@ import sys
 import time
 import argparse
 import traceback
-import glob
 from functools import partial
 
 # https://github.com/kratsg/coffea/tree/feat/nanodelphes
 sys.path.insert(0, "/home/dkondra/coffea_delphes/coffea/")
 
-from coffea.nanoevents import DelphesSchema, NanoEventsFactory
+from coffea.nanoevents import DelphesSchema
 from coffea.processor import dask_executor, run_uproot_job
 import awkward as ak
 
 from python.utils import mkdir
+from delphes.preprocessor import get_fileset
 from delphes.processor import DimuonProcessorDelphes
 from delphes.datasets import datasets
-from delphes.cross_sections import cross_sections
 
 from dask.distributed import Client
 # dask.config.set({"temporary-directory": "/depot/cms/hmm/dask-temp/"})
@@ -120,17 +119,10 @@ def submit_job(arg_set, parameters):
     return 'Success!'
 
 
-def get_sum_wgts(file):
-    events = NanoEventsFactory.from_root(
-        file, 'Delphes', schemaclass=DelphesSchema,
-    ).events()
-    return ak.sum(events.Event.Weight)
-
-
 if __name__ == "__main__":
     tick = time.time()
     if parameters['local_cluster']:
-        client = Client(
+        parameters['client'] = Client(
             processes=True,
             n_workers=40,
             dashboard_address=dash_local,
@@ -138,32 +130,13 @@ if __name__ == "__main__":
             memory_limit='2.9GB',
         )
     else:
-        client = Client(
+        parameters['client'] = Client(
             parameters['slurm_cluster_ip'],
         )
     print('Client created')
 
-    fileset = {}
-    for sample, path in datasets.items():
-        if sample not in cross_sections.keys():
-            print(f'Cross section for {sample} missing, skipping')
-        filelist = [glob.glob(parameters['server'] + path + '/*.root')[0]]
-        # filelist = glob.glob(parameters['server'] + path + '/*.root')
-        futures = client.map(get_sum_wgts, filelist)
-        nEvts = sum(client.gather(futures))
-        mymetadata = {
-            'lumi_wgt': 3000000 * cross_sections[sample] / nEvts,
-            'regions': ['z-peak', 'h-sidebands', 'h-peak'],
-            'channels': ['ggh_01j', 'ggh_2j', 'vbf', 'vbf_01j', 'vbf_2j']
-        }
-        fileset[sample] = {
-            'treename': 'Delphes',
-            'files': filelist,
-            'metadata': mymetadata
-        }
+    parameters['fileset'] = get_fileset(datasets, parameters)
 
-    parameters['fileset'] = fileset
-    parameters['client'] = client
     out = submit_job({}, parameters)
     print(out)
 
