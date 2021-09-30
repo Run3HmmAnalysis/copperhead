@@ -9,7 +9,6 @@ sys.path.insert(0, "/home/dkondra/coffea_delphes/coffea/")
 import coffea.processor as processor
 
 from delphes.parameters import parameters
-from delphes.variables import variables
 from delphes.muons import fill_muons
 from delphes.jets import fill_jets
 
@@ -33,7 +32,7 @@ class DimuonProcessorDelphes(processor.ProcessorABC):
 
         output['s'] = df.metadata['dataset']
         regions = df.metadata['regions']
-        channels = df.metadata['channels']
+        # channels = df.metadata['channels']
         output['lumi_wgt'] = df.metadata['lumi_wgt']
         output['mc_wgt'] = ak.to_pandas(df.Event.Weight)
         # There are multiple weights per event - need to figure this out
