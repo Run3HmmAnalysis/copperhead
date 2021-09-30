@@ -9,15 +9,15 @@ The data processing is implemented using columnar approach, making use of the to
 
 ### Installation instructions (Purdue Hammer cluster):
 ```bash
-git clone https://github.com/kondratyevd/hmumu-coffea
-cd hmumu-coffea
 module load anaconda/5.3.1-py37
 conda create --name hmumu python=3.7
 source activate hmumu
 pip install --user coffea matplotlib==3.4.2 dask_jobqueue mplhep
 conda install -c conda-forge pytest dask xrootd 
 source /cvmfs/cms.cern.ch/cmsset_default.sh
-mkdir dask_logs
+
+git clone https://github.com/kondratyevd/hmumu-coffea
+cd hmumu-coffea
 . setup_proxy.sh
 ```
 
@@ -29,17 +29,15 @@ python3 -W ignore tests/test_submit.py
 
 ### Example of Dask+Slurm cluster initialization
 The `iPython` session that creates the cluster should be started in a new bash session / screen.
-```bash
+```python
 dkondra@hammer-c000:~/hmumu-coffea $ ipython -i slurm_cluster_prep.py
 Python 3.7.9 | packaged by conda-forge | (default, Dec  9 2020, 21:08:20)
 Type 'copyright', 'credits' or 'license' for more information
 IPython 7.13.0 -- An enhanced Interactive Python. Type '?' for help.
 Dask version: 2021.03.0
 
-In [1]: cluster = SLURMCluster( project='cms', cores=1, memory='3.9GB',walltime='14-00:00:00', job_extra=['--qos=normal', '-o dask_logs/dask_job.%j.%N.out','-e dask_logs/dask_job.%j.%N.error'])
-
-In [2]: cluster.scale(300)
-
+In [1]: cluster = SLURMCluster( project='cms', cores=1, memory='3.9GB',walltime='14-00:00:00', job_extra=['--qos=normal', '-o /tmp/dask_job.%j.%N.out','-e /tmp/dask_job.%j.%N.error'])
+In [2]: cluster.scale(100)
 In [3]: print(cluster)
 SLURMCluster(346dd8d0, 'tcp://128.211.149.133:37608', workers=92, threads=92, memory=358.80 GB)
 ```
@@ -50,11 +48,11 @@ Number of workers in the cluster can be adjusted using `cluster.scale()`, which 
 Parameters of `SLURMCluster`:
 - `project` - corresponds to queue name at Purdue Tier-2
 - `cores` - number of CPUs per job (1 is enough for our purposes)
-- `memory` - memory limit per worker. If a job exceeds the memory limit, it gets resubmitted a few times and then fails.
+- `memory` - memory limit per worker. If a job exceeds the memory limit, it gets resubmitted a few times and then fails
 - `walltime` - how long the cluster will be running
-- `job_extra` - corresponds to arguments passed to `srun`.
-    - Note that location for `-o` and `-e` arguments should be an existing directory, otherwise the cluster will not start
-    - If a dedicated reservation has been created by a system administrator, it can be specified using additional argument, e.g `'--reservation=TEST'`.
+- `job_extra` - corresponds to arguments passed to `srun`
+    - note that location for `-o` and `-e` arguments should be an existing directory, otherwise the cluster will not start
+    - if a dedicated reservation has been created by a system administrator, it can be specified using additional argument, e.g `'--reservation=TEST'`
 
 
 ### Examples of Dask client initialization
