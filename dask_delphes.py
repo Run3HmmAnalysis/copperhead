@@ -11,7 +11,7 @@ sys.path.insert(0, "/home/dkondra/coffea_delphes/coffea/")
 from coffea.nanoevents import DelphesSchema
 from coffea.processor import dask_executor, run_uproot_job
 from python.utils import mkdir
-from delphes.processor_delphes import DimuonProcessorDelphes
+from delphes.processor import DimuonProcessorDelphes
 from delphes.datasets import datasets
 from delphes.cross_sections import cross_sections
 
