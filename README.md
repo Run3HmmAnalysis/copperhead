@@ -49,7 +49,7 @@ Parameters of `SLURMCluster`:
 - `job_extra` - corresponds to arguments passed to `srun`.
     - Note that location for `-o` and `-e` arguments should be an existing directory, otherwise the cluster will not start
     - If a dedicated reservation has been created by a system administrator, it can be specified using additional argument, e.g `'--reservation=TEST'`.
-```
+
 
 ### Examples of Dask client initialization
 Local cluster:
