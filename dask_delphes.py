@@ -125,7 +125,7 @@ if __name__ == "__main__":
         parameters['client'] = dask.distributed.Client(
             processes=True,
             n_workers=20,
-            #dashboard_address=dash_local,
+            dashboard_address=dash_local,
             threads_per_worker=1,
             memory_limit='2.9GB',
         )
