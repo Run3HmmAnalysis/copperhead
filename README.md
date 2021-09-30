@@ -27,9 +27,26 @@ Should take around 1.5 minutes to complete.
 python3 -W ignore tests/test_submit.py
 ```
 
+### Examples of Dask client initialization
+Local cluster:
+```python
+from dask.distributed import Client
+client = Client(
+    processes=True,
+    n_workers=40,
+    threads_per_worker=1,
+    memory_limit='2.9GB',
+)
+```
+Connecting to an existing Slurm cluster (see next section about where to get the IP address):
+```python
+from dask.distributed import Client
+client = Client(128.211.149.133:37608)
+```
+
 ### Example of Dask+Slurm cluster initialization
 The `iPython` session that creates the cluster should be started in a new bash session / screen.
-```python
+```
 dkondra@hammer-c000:~/hmumu-coffea $ ipython -i slurm_cluster_prep.py
 Python 3.7.9 | packaged by conda-forge | (default, Dec  9 2020, 21:08:20)
 Type 'copyright', 'credits' or 'license' for more information
@@ -53,21 +70,3 @@ Parameters of `SLURMCluster`:
 - `job_extra` - corresponds to arguments passed to `srun`
     - note that location for `-o` and `-e` arguments should be an existing directory, otherwise the cluster will not start
     - if a dedicated reservation has been created by a system administrator, it can be specified using additional argument, e.g `'--reservation=TEST'`
-
-
-### Examples of Dask client initialization
-Local cluster:
-```python
-from dask.distributed import Client
-client = Client(
-    processes=True,
-    n_workers=40,
-    threads_per_worker=1,
-    memory_limit='2.9GB',
-)
-```
-Connecting to an existing Slurm cluster:
-```python
-from dask.distributed import Client
-client = Client(128.211.149.133:37608)
-```
