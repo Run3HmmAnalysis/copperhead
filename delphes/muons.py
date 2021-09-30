@@ -3,7 +3,7 @@ import numpy as np
 from python.utils import p4_sum, delta_r, cs_variables
 
 
-def fill_muons(processor, output, mu1, mu2):
+def fill_muons(output, mu1, mu2):
     mu1_variable_names = [
         'mu1_pt', 'mu1_pt_over_mass',
         'mu1_eta', 'mu1_phi', 'mu1_iso'
@@ -14,7 +14,6 @@ def fill_muons(processor, output, mu1, mu2):
     ]
     dimuon_variable_names = [
         'dimuon_mass',
-        # 'dimuon_ebe_mass_res', 'dimuon_ebe_mass_res_rel',
         'dimuon_pt', 'dimuon_pt_log',
         'dimuon_eta', 'dimuon_phi',
         'dimuon_dEta', 'dimuon_dPhi',

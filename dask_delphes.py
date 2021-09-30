@@ -3,6 +3,7 @@ import time
 import argparse
 import traceback
 import glob
+from functools import partial
 
 # https://github.com/kratsg/coffea/tree/feat/nanodelphes
 sys.path.insert(0, "/home/dkondra/coffea_delphes/coffea/")
@@ -12,12 +13,11 @@ from coffea.processor import dask_executor, run_uproot_job
 from python.utils import mkdir
 from delphes.processor_delphes import DimuonProcessorDelphes
 from delphes.datasets import datasets
+from delphes.cross_sections import cross_sections
 
 import dask
-from functools import partial
-
 from dask.distributed import Client
-dask.config.set({"temporary-directory": "/depot/cms/hmm/dask-temp/"})
+# dask.config.set({"temporary-directory": "/depot/cms/hmm/dask-temp/"})
 
 parser = argparse.ArgumentParser()
 # Slurm cluster IP to use. If not specified, will create a local cluster
@@ -125,7 +125,7 @@ if __name__ == "__main__":
         parameters['client'] = dask.distributed.Client(
             processes=True,
             n_workers=20,
-            dashboard_address=dash_local,
+            #dashboard_address=dash_local,
             threads_per_worker=1,
             memory_limit='2.9GB',
         )
@@ -137,10 +137,25 @@ if __name__ == "__main__":
 
     fileset = {}
     for sample, path in datasets.items():
-        fileset[sample] = glob.glob(parameters['server'] + path + '/*.root')
+        if sample not in cross_sections.keys():
+            print(f'Cross section for {sample} missing, skipping')
+        # TODO: get total nEvts in sample
+        nEvts = 1
+        mymetadata = {
+            'lumi_wgt': 3000000 * cross_sections[sample] / nEvts,
+            'regions': ['z-peak', 'h-sidebands', 'h-peak'],
+            'channels': ['ggh_01j', 'ggh_2j', 'vbf', 'vbf_01j', 'vbf_2j']
+        }
+        fileset[sample] = {
+            'treename': 'Delphes',
+            'files': [glob.glob(parameters['server'] + path + '/*.root')[0]],
+            # 'files': glob.glob(parameters['server'] + path + '/*.root'),
+            'metadata': mymetadata
+        }
 
     parameters['fileset'] = fileset
     out = submit_job({}, parameters)
+    print(out)
 
     elapsed = round(time.time() - tick, 3)
     print(f'Finished everything in {elapsed} s.')
