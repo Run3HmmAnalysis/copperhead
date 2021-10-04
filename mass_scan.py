@@ -1,66 +1,96 @@
 import time
-import os,sys,glob
+import sys
 import argparse
-from python.postprocessing import postprocess, plot, save_yields, load_yields, save_shapes, make_datacards, dnn_rebin, dnn_training, prepare_root_files
-from config.variables import variables
-from config.datasets import datasets
+from python.postprocessor_old import postprocess, save_shapes
+from python.postprocessor_old import make_datacards, prepare_root_files
+from python.postprocessor_old import overlap_study_unbinned
+from config.variables import Variable
 import pandas as pd
 
 parser = argparse.ArgumentParser()
-parser.add_argument("-y", "--year", dest="year", default=2016, action='store')
-parser.add_argument("-l", "--label", dest="label", default="apr23", action='store')
-parser.add_argument("-t", "--dnn_training", action='store_true')
-parser.add_argument("-r", "--dnn_rebin", action='store_true')
-parser.add_argument("-dnn", "--dnn_evaluation", action='store_true')
+parser.add_argument("-y", "--year", dest="year", default='', action='store')
+parser.add_argument("-l", "--label", dest="label",
+                    default="jun16", action='store')
+parser.add_argument("-dnn", "--dnn", action='store_true')
+parser.add_argument("-bdt", "--bdt", action='store_true')
 parser.add_argument("-dc", "--datacards", action='store_true')
-parser.add_argument("-p", "--plot", action='store_true')
 parser.add_argument("-js", "--jetsyst", action='store_true')
 parser.add_argument("-i", "--iterative", action='store_true')
+parser.add_argument("-o", "--overlap", action='store_true')
+
 args = parser.parse_args()
 
-if int(args.dnn_training)+int(args.dnn_rebin)+int(args.dnn_evaluation)+int(args.datacards)+int(args.plot)==0:
+fail = (
+    int(args.dnn) + int(args.bdt) +
+    int(args.datacards) + int(args.overlap) == 0
+)
+if fail:
     print("Please specify option(s) to run:")
     print("-t --dnn_training")
-    print("-r --dnn_rebin")
-    print("-dnn --dnn_evaluation")
+    print("-dnn --dnn")
+    print("-bdt --bdt")
     print("-dc --datacards")
-    print("-p --plot")
+    print("-o --overlap")
     sys.exit()
 
-if args.dnn_training and (args.dnn_evaluation or args.datacards or args.plot):
-    print("Can't combine 'training' option with 'evaluation','datacards' or 'plot'!")
+if (args.year == '') and not args.overlap:
+    print("Year must be specified!")
     sys.exit()
 
-if args.dnn_rebin and (args.dnn_evaluation or args.datacards or args.plot):
-    print("Can't combine 'rebin' option with 'evaluation','datacards' or 'plot'!")
-    sys.exit()
+mva_bins = {
+    'dnn_allyears_128_64_32': {
+        '2016': [0, 0.16, 0.374, 0.569, 0.75,
+                 0.918, 1.079, 1.23, 1.373, 1.514,
+                 1.651, 1.784, 1.923, 2.8],
+        '2017': [0, 0.307, 0.604, 0.832, 1.014,
+                 1.169, 1.31, 1.44, 1.567, 1.686,
+                 1.795, 1.902, 2.009, 2.8],
+        '2018': [0, 0.07, 0.432, 0.71, 0.926,
+                 1.114, 1.28, 1.428, 1.564, 1.686,
+                 1.798, 1.9, 2.0, 2.8]
+    },
+    'bdt_nest10000_weightCorrAndShuffle_2Aug': {
+        '2016': [0, 0.282, 0.57, 0.802, 0.999,
+                 1.171, 1.328, 1.479, 1.624, 1.775,
+                 1.93, 2.097, 2.288, 5.0],
+        '2017': [0, 0.411, 0.744, 0.99, 1.185,
+                 1.352, 1.504, 1.642, 1.784,
+                 1.924, 2.07, 2.222, 2.398, 5.0],
+        '2018': [0, 0.129, 0.621, 0.948, 1.189,
+                 1.388, 1.558, 1.717, 1.866, 2.01,
+                 2.152, 2.294, 2.451, 5.0]
+    },
+}
 
-if args.dnn_evaluation and (args.dnn_training or args.dnn_rebin):
-    print("Can't combine 'evaluation' option with 'training' or 'rebin'!")
-    sys.exit()
+dnn_models = [
+    'dnn_allyears_128_64_32',  # best DNN so far
+]
+# bdt_models = []
+bdt_models = [
+    # 'bdt_nest10000_weightCorrAndShuffle_2Aug',
+]
 
-if args.datacards and (args.dnn_training or args.dnn_rebin or args.plot):
-    print("Can't combine 'datacards' option with 'training', 'rebin' or 'plot'!")
-    sys.exit()
+vars_to_save = []
+vars_to_plot = {}
 
-if args.plot and (args.dnn_training or args.dnn_rebin or args.datacards):
-    print("Can't combine 'datacards' option with 'training', 'rebin' or 'datacards'!")
-    sys.exit()
+models = []
 
-#to_plot = ['dimuon_mass', 'dimuon_pt', 'mu1_pt', 'jet1_pt', 'jet1_eta', 'jet2_pt', 'jet2_eta', 'dnn_score']
-to_plot = ['dimuon_mass', 'dnn_score']
+if args.dnn or args.bdt:
+    if args.dnn:
+        models += dnn_models
+    else:
+        dnn_models = []
+    if args.bdt:
+        models += bdt_models
+    else:
+        bdt_models = []
+else:
+    models = dnn_models + bdt_models
 
-vars_to_plot = {v.name:v for v in variables if v.name in to_plot}
-#vars_to_plot = {v.name:v for v in variables}
-
-myvar = [v for v in variables if v.name == 'dnn_score'][0] # variable for templates and datacards
-
-dnn_bins_all = {
-    '2016': [0, 0.188, 0.371, 0.548, 0.718, 0.883, 1.043, 1.196, 1.343, 1.485, 1.62, 1.75, 1.874, 2.3],
-    '2017': [0, 0.23, 0.449, 0.657, 0.853, 1.038, 1.211, 1.373, 1.523, 1.662, 1.789, 1.905, 2.01, 2.3],
-    '2018': [0, 0.22, 0.43, 0.63, 0.82, 0.999, 1.168, 1.327, 1.476, 1.614, 1.742, 1.86, 1.968, 2.3]
-    }
-dnn_bins = dnn_bins_all[args.year]
+for model in models:
+    name = f'score_{model}'
+    vars_to_plot.update({name: Variable(name, name, 50, 0, 5)})
+    vars_to_save.append(vars_to_plot[name])
 
 samples = [
     'data_A',
@@ -71,11 +101,12 @@ samples = [
     'data_F',
     'data_G',
     'data_H',
-    'ggh_amcPS',
-    'vbf_powhegPS',
-    'vbf_powheg_herwig',
+    # 'ggh_amcPS',
+    # 'vbf_powhegPS',
+    # 'vbf_powheg_herwig',
     'vbf_powheg_dipole'
 ]
+
 samples_ = [
     'data_A',
     'data_B',
@@ -95,152 +126,152 @@ samples_ = [
     'ttjets_sl',
     'ttz',
     'ttw',
-    'st_tw_top','st_tw_antitop',
+    'st_tw_top', 'st_tw_antitop',
     'ww_2l2nu',
     'wz_2l2q',
     'wz_3lnu',
     'zz',
-    'ggh_amcPS',
-    'vbf_powhegPS',
-    'vbf_powheg_herwig',
-    'vbf_powheg_dipole'
 ]
 
-training_samples = {
-    'background': ['dy_m105_160_amc', 'dy_m105_160_vbf_amc', 'ewk_lljj_mll105_160_ptj0'],#, 'ttjets_dl'],
-    'signal': ['ggh_amcPS','vbf_powhegPS', 'vbf_powheg_herwig'],
-}
-all_training_samples = []
-for k,v in training_samples.items():
-    all_training_samples.extend(v)
-
-    
 pt_variations = []
 pt_variations += ['nominal']
 pt_variations += ['Absolute', f'Absolute{args.year}']
 pt_variations += ['BBEC1', f'BBEC1{args.year}']
 pt_variations += ['EC2', f'EC2{args.year}']
 pt_variations += ['FlavorQCD']
-pt_variations += ['HF',f'HF{args.year}']
+pt_variations += ['HF', f'HF{args.year}']
 pt_variations += ['RelativeBal', f'RelativeSample{args.year}']
-pt_variations += ['jer1','jer2','jer3','jer4','jer5','jer6']
+pt_variations += ['jer1', 'jer2', 'jer3']
+pt_variations += ['jer4', 'jer5', 'jer6']
 
 all_pt_variations = []
 for ptvar in pt_variations:
-    if ptvar=='nominal':
+    if ptvar == 'nominal':
         all_pt_variations += ['nominal']
     else:
         all_pt_variations += [f'{ptvar}_up']
-        all_pt_variations += [f'{ptvar}_down'] 
+        all_pt_variations += [f'{ptvar}_down']
 
-if (not args.jetsyst) or args.dnn_training or args.dnn_rebin:
+if (not args.jetsyst) or args.overlap:
     all_pt_variations = ['nominal']
+
 
 # keeping correct order just for debug output
 def add_modules(modules, new_modules):
     for m in new_modules:
-        if m not in modules: modules.append(m)
+        if m not in modules:
+            modules.append(m)
     return modules
+
 
 load_unbinned_data = True
 modules = []
 options = []
-if args.dnn_training:
-    modules = add_modules(modules,['to_pandas'])
-    samples = all_training_samples
-    options += ['dnn_training']
-if args.dnn_rebin:
-    modules = add_modules(modules,['to_pandas', 'dnn_evaluation'])
-    if not args.dnn_training: samples = ['vbf_powheg_dipole', 'ggh_amcPS']
-    options += ['dnn_rebin']
-if args.dnn_evaluation:
-    modules = add_modules(modules,['to_pandas', 'dnn_evaluation', 'get_hists'])
-    options += ['dnn_evaluation']
-    if not args.plot:
-        vars_to_plot = {v.name:v for v in variables if v.name in ['dnn_score']}
+if args.dnn:
+    if len(dnn_models) == 0:
+        print("List of DNN models is empty!")
+        sys.exit()
+    modules = add_modules(modules, ['to_pandas', 'evaluation', 'get_hists'])
+    options += ['evaluation']
+if args.bdt:
+    if len(bdt_models) == 0:
+        print("List of BDT models is empty!")
+        sys.exit()
+    modules = add_modules(modules, ['to_pandas', 'evaluation', 'get_hists'])
+    options += ['evaluation']
 if args.datacards:
     options += ['datacards']
-    if not args.dnn_evaluation: load_unbinned_data = False
-if args.plot:
-    modules = add_modules(modules,['to_pandas',  'get_hists'])
-    options += ['plot']
-
+    if not (args.dnn or args.bdt):
+        load_unbinned_data = False
+if args.overlap:
+    modules = add_modules(modules, ['to_pandas', 'evaluation'])
+    options += ['dnn_overlap']
 
 postproc_args = {
     'modules': modules,
     'year': args.year,
     'label': args.label,
-    'in_path': f'/depot/cms/hmm/coffea/{args.year}_{args.label}/',
+    'in_path': '/depot/cms/hmm/coffea/',
+    'dnn_models': dnn_models,
+    'bdt_models': bdt_models,
     'syst_variations': all_pt_variations,
     'out_path': 'plots_new/',
-    'samples':samples,
-    'training_samples': training_samples,
-    'channels': ['vbf','vbf_01j','vbf_2j'],
-    'channel_groups': {'vbf':['vbf','vbf_01j','vbf_2j']},
+    'samples': samples,
+    'training_samples': {},
+    'channels': ['vbf', 'vbf_01j', 'vbf_2j'],
+    'channel_groups': {'vbf': ['vbf', 'vbf_01j', 'vbf_2j']},
     'regions': ['h-peak', 'h-sidebands'],
     'vars_to_plot': list(vars_to_plot.values()),
     'wgt_variations': True,
-    'training': args.dnn_training,
+    'training': False,
     'do_jetsyst': args.jetsyst,
-    'dnn_bins': dnn_bins,
+    'mva_bins': mva_bins,
     'do_massscan': True,
-    'mass': 125.0
+    'mass': 125.0,
 }
 
-print(f"Start!")
+print("Start!")
 print(f"Running options: {options}")
-tstart = time.time() 
+tstart = time.time()
 
-mass_points = [125.0, 125.1, 125.2, 125.3, 125.4, 125.5, 125.6, 125.7, 125.8, 125.9, 126.0]
-#mass_points = [126.0]
+mass_points = [120.0, 120.5, 121.0, 121.5,
+               122.0, 122.5, 123.0, 123.5,
+               124.0, 124.5, 125.0, 125.1,
+               125.2, 125.3, 125.38, 125.4,
+               125.5, 125.6, 125.7, 125.8,
+               125.9, 126.0, 126.5, 127.0,
+               127.5, 128.0, 128.5, 129.0,
+               129.5, 130.0]
+mass_points = [125.0]  # , 125.38, 125.5, 126.0]
+
+num_options = len(mass_points) * len(all_pt_variations)
+iopt = 0
 for m in mass_points:
+    hist = {}
     postproc_args['mass'] = m
-    print(f"Processing mass point: {m}")
+    print(f"Running mass point: {m}")
     if load_unbinned_data:
         print(f"Will run modules: {modules}")
         for ptvar in all_pt_variations:
             postproc_args['syst_variations'] = [ptvar]
-            print(f"Processing pt variation: {ptvar}")
-            print(f"Getting unbinned data...")
-            dfs, hist_dfs, edges = postprocess(postproc_args, not args.iterative)
+            print(f"Running option: {args.year} m={m} {ptvar}")
+            iopt += 1
+            print(f"This is option #{iopt} out of {num_options}"
+                  "for {args.year}")
+            print("Getting unbinned data...")
+            dfs, hist_dfs, edges = postprocess(postproc_args,
+                                               not args.iterative)
 
-            if args.dnn_training:
-                print(f"Concatenating dataframes...")
+            if args.overlap:
+                print("Studying overlap with Pisa...")
                 df = pd.concat(dfs)
-                print("Starting DNN training...")
-                dnn_training(df, postproc_args)
-                print("DNN training complete!")
-                sys.exit()
+                for model in models:
+                    # overlap_study(df, postproc_args, model)
+                    overlap_study_unbinned(df, postproc_args, model)
+                continue
 
-            if args.dnn_rebin:
-                print("Rebinning DNN...")
-                boundaries = dnn_rebin(dfs, postproc_args)
-                print(args.year, args.label, boundaries)
-                sys.exit()
-    
-            hist = {}
-    #        print(hist_dfs)
             for var, hists in hist_dfs.items():
                 print(f"Concatenating histograms: {var}")
-                hist[var] = pd.concat(hists, ignore_index=True)
+                if var not in hist.keys():
+                    hist[var] = pd.concat(hists, ignore_index=True)
+                else:
+                    hist[var] = pd.concat(
+                        hists + [hist[var]], ignore_index=True
+                    )
 
-            #print(f"Saving yields...")
-            #save_yields(vars_to_plot['dimuon_mass'], hist, edges[myvar], postproc_args)
-            if args.dnn_evaluation:
-                print(f"Saving shapes: {myvar.name}")
-                save_shapes(myvar, hist, dnn_bins, postproc_args)
+            if (args.dnn or args.bdt):
+                for model in models:
+                    print(f"Saving shapes: {model}")
+                    save_shapes(hist, model, postproc_args, mva_bins)
 
     if args.datacards:
-        print(f"Preparing ROOT files with shapes ({myvar.name})...")    
-        prepare_root_files(myvar, dnn_bins, postproc_args)
-        print(f"Writing datacards...")
-        make_datacards(myvar, postproc_args)
-
-if args.plot:
-    for vname, var in vars_to_plot.items():
-        print(f"Plotting: {vname}")
-        for r in postproc_args['regions']:
-            plot(var, hist, edges[vname], postproc_args, r)
+        for myvar in vars_to_save:
+            print(f"Preparing ROOT files with shapes ({myvar.name})...")
+            prepare_root_files(myvar, postproc_args, shift_signal=False)
+            prepare_root_files(myvar, postproc_args, shift_signal=True)
+            print("Writing datacards...")
+            make_datacards(myvar, postproc_args, shift_signal=False)
+            make_datacards(myvar, postproc_args, shift_signal=True)
 
 elapsed = time.time() - tstart
 print(f"Total time: {elapsed} s")
