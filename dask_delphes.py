@@ -4,7 +4,6 @@ import argparse
 import traceback
 from functools import partial
 
-import coffea
 from coffea.nanoevents import DelphesSchema
 from coffea.processor import dask_executor, run_uproot_job
 
