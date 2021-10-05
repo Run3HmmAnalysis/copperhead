@@ -1,9 +1,9 @@
 import sys
 import glob
-# https://github.com/kratsg/coffea/tree/feat/nanodelphes
-sys.path.insert(0, "/home/dkondra/coffea_delphes/coffea/")
 
+import coffea
 from coffea.nanoevents import DelphesSchema, NanoEventsFactory
+
 import awkward as ak
 
 from delphes.cross_sections import cross_sections

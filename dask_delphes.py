@@ -4,9 +4,7 @@ import argparse
 import traceback
 from functools import partial
 
-# https://github.com/kratsg/coffea/tree/feat/nanodelphes
-sys.path.insert(0, "/home/dkondra/coffea_delphes/coffea/")
-
+import coffea
 from coffea.nanoevents import DelphesSchema
 from coffea.processor import dask_executor, run_uproot_job
 

@@ -3,9 +3,7 @@ import awkward
 import awkward as ak
 import pandas as pd
 
-# https://github.com/kratsg/coffea/tree/feat/nanodelphes
-sys.path.insert(0, "/home/dkondra/coffea_delphes/coffea/")
-
+import coffea
 import coffea.processor as processor
 
 from delphes.parameters import parameters
