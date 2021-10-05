@@ -1,7 +1,5 @@
-import sys
 import pandas as pd
 import awkward as ak
-
 import coffea.processor as processor
 
 from delphes.parameters import parameters

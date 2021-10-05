@@ -1,8 +1,5 @@
-import sys
 import glob
-
 import awkward as ak
-
 from coffea.nanoevents import DelphesSchema, NanoEventsFactory
 
 from delphes.cross_sections import cross_sections
