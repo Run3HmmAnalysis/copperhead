@@ -6,32 +6,22 @@ import coffea
 from coffea.lookup_tools import dense_lookup
 
 
-def pu_lookups(parameters, mode='nom', auto=[]):
+def pu_lookups(parameters, mode="nom", auto=[]):
     lookups = {}
-    branch = {
-        'nom': 'pileup',
-        'up': 'pileup_plus',
-        'down': 'pileup_minus'
-    }
-    for mode in ['nom', 'up', 'down']:
-        pu_hist_data = uproot.open(
-            parameters['pu_file_data']
-        )[branch[mode]].values()
+    branch = {"nom": "pileup", "up": "pileup_plus", "down": "pileup_minus"}
+    for mode in ["nom", "up", "down"]:
+        pu_hist_data = uproot.open(parameters["pu_file_data"])[branch[mode]].values()
 
         nbins = len(pu_hist_data)
         edges = [[i for i in range(nbins)]]
 
         if len(auto) == 0:
-            pu_hist_mc = uproot.open(
-                parameters['pu_file_mc'])['pu_mc'].values()
+            pu_hist_mc = uproot.open(parameters["pu_file_mc"])["pu_mc"].values()
         else:
             pu_hist_mc = np.histogram(auto, bins=range(nbins + 1))[0]
 
-        lookup = dense_lookup.dense_lookup(
-            pu_reweight(pu_hist_data, pu_hist_mc),
-            edges
-        )
-        if Version(coffea.__version__) < Version('0.7.6'):
+        lookup = dense_lookup.dense_lookup(pu_reweight(pu_hist_data, pu_hist_mc), edges)
+        if Version(coffea.__version__) < Version("0.7.6"):
             lookup._axes = lookup._axes[0]
         lookups[mode] = lookup
     return lookups
@@ -51,21 +41,20 @@ def pu_reweight(pu_hist_data, pu_hist_mc):
     pu_arr_data = pu_arr_data / pu_arr_data.sum()
 
     weights = np.ones(len(pu_hist_mc))
-    weights[pu_arr_mc != 0] =\
-        pu_arr_data[pu_arr_mc != 0] / pu_arr_mc[pu_arr_mc != 0]
-    maxw = min(weights.max(), 5.)
+    weights[pu_arr_mc != 0] = pu_arr_data[pu_arr_mc != 0] / pu_arr_mc[pu_arr_mc != 0]
+    maxw = min(weights.max(), 5.0)
     cropped = []
-    while (maxw > 3):
+    while maxw > 3:
         cropped = []
         for i in range(len(weights)):
             cropped.append(min(maxw, weights[i]))
         shift = checkIntegral(cropped, weights, pu_arr_mc_ref)
-        if(abs(shift) > 0.0025):
+        if abs(shift) > 0.0025:
             break
         maxw *= 0.95
 
     maxw /= 0.95
-    if (len(cropped) > 0):
+    if len(cropped) > 0:
         for i in range(len(weights)):
             cropped[i] = min(maxw, weights[i])
         normshift = checkIntegral(cropped, weights, pu_arr_mc_ref)
@@ -85,9 +74,7 @@ def checkIntegral(wgt1, wgt2, ref):
 
 def pu_evaluator(lookups, parameters, numevents, ntrueint, auto_pu):
     if auto_pu:
-        lookups = pu_lookups(
-            parameters, auto=ntrueint
-        )
+        lookups = pu_lookups(parameters, auto=ntrueint)
     pu_weights = {}
     for var, lookup in lookups.items():
         pu_weights[var] = np.ones(numevents)

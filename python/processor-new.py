@@ -129,10 +129,14 @@ class DimuonProcessor(processor.ProcessorABC):
         if self.timer:
             self.timer.update()
 
+        self.bd_timer = Timer("breakdown", ordered=False)
+        self.bd_timer.update()
+
         # Dataset name (see definitions in config/datasets.py)
         dataset = df.metadata["dataset"]
         is_mc = "data" not in dataset
         numevents = len(df)
+        # print(numevents)
 
         # ------------------------------------------------------------#
         # Apply HLT, lumimask, genweights, PU weights
@@ -150,6 +154,8 @@ class DimuonProcessor(processor.ProcessorABC):
         # and their systematic variations
         weights = Weights(output)
 
+        self.bd_timer.add_checkpoint("other")
+
         if is_mc:
             # For MC: Apply gen.weights, pileup weights, lumi weights,
             # L1 prefiring weights
@@ -157,7 +163,7 @@ class DimuonProcessor(processor.ProcessorABC):
             genweight = df.genWeight
             weights.add_weight("genwgt", genweight)
             weights.add_weight("lumi", self.lumi_weights[dataset])
-
+            self.bd_timer.add_checkpoint("other")
             pu_wgts = pu_evaluator(
                 self.pu_lookups,
                 self.parameters,
@@ -165,27 +171,33 @@ class DimuonProcessor(processor.ProcessorABC):
                 np.array(df.Pileup.nTrueInt),
                 self.auto_pu,
             )
+            self.bd_timer.add_checkpoint("lookup")
             weights.add_weight("pu_wgt", pu_wgts, how="all")
-
+            self.bd_timer.add_checkpoint("other")
             if self.parameters["do_l1prefiring_wgts"]:
                 if "L1PreFiringWeight" in df.fields:
                     l1pfw = l1pf_weights(df)
+                    self.bd_timer.add_checkpoint("to_pandas")
                     weights.add_weight("l1prefiring_wgt", l1pfw, how="all")
                 else:
                     weights.add_weight("l1prefiring_wgt", how="dummy_vars")
+                self.bd_timer.add_checkpoint("other")
 
         else:
             # For Data: apply Lumi mask
             lumi_info = LumiMask(self.parameters["lumimask"])
             mask = lumi_info(df.run, df.luminosityBlock)
+            self.bd_timer.add_checkpoint("lookup")
 
         # Apply HLT to both Data and MC
         hlt_columns = [c for c in self.parameters["hlt"] if c in df.HLT.fields]
         hlt = ak.to_pandas(df.HLT[hlt_columns])
+        self.bd_timer.add_checkpoint("to_pandas")
         if len(hlt_columns) == 0:
             hlt = False
         else:
             hlt = hlt[hlt_columns].sum(axis=1)
+        self.bd_timer.add_checkpoint("math")
 
         if self.timer:
             self.timer.add_checkpoint("HLT, lumimask, PU weights")
@@ -201,10 +213,12 @@ class DimuonProcessor(processor.ProcessorABC):
         df["Muon", "eta_raw"] = df.Muon.eta
         df["Muon", "phi_raw"] = df.Muon.phi
         df["Muon", "pfRelIso04_all_raw"] = df.Muon.pfRelIso04_all
+        self.bd_timer.add_checkpoint("other")
 
         # Rochester correction
         if self.do_roccor:
             apply_roccor(df, self.roccor_lookup, is_mc)
+            self.bd_timer.add_checkpoint("lookup")
             df["Muon", "pt"] = df.Muon.pt_roch
 
             # variations will be in branches pt_roch_up and pt_roch_down
@@ -221,8 +235,10 @@ class DimuonProcessor(processor.ProcessorABC):
             # implemented in the future
 
             # FSR recovery
+            self.bd_timer.add_checkpoint("other")
             if self.do_fsr:
                 has_fsr = fsr_recovery(df)
+                self.bd_timer.add_checkpoint("math")
                 df["Muon", "pt"] = df.Muon.pt_fsr
                 df["Muon", "eta"] = df.Muon.eta_fsr
                 df["Muon", "phi"] = df.Muon.phi_fsr
@@ -233,8 +249,10 @@ class DimuonProcessor(processor.ProcessorABC):
             df["Muon", "pt_fsr"] = df.Muon.pt
 
             # GeoFit correction
+            self.bd_timer.add_checkpoint("other")
             if self.do_geofit and ("dxybs" in df.Muon.fields):
                 apply_geofit(df, self.year, ~has_fsr)
+                self.bd_timer.add_checkpoint("math")
                 df["Muon", "pt"] = df.Muon.pt_fsr
 
             if self.timer:
@@ -252,8 +270,10 @@ class DimuonProcessor(processor.ProcessorABC):
                 "pt_raw",
                 "eta_raw",
                 "pfRelIso04_all",
-            ] + [self.parameters["muon_id"]]
+            ]  # + [self.parameters["muon_id"]]
+            self.bd_timer.add_checkpoint("other")
             muons = ak.to_pandas(df.Muon[muon_columns])
+            self.bd_timer.add_checkpoint("to_pandas")
 
             # --------------------------------------------------------#
             # Select muons that pass pT, eta, isolation cuts,
@@ -264,21 +284,24 @@ class DimuonProcessor(processor.ProcessorABC):
 
             # Apply event quality flags
             flags = ak.to_pandas(df.Flag[self.parameters["event_flags"]])
+            self.bd_timer.add_checkpoint("to_pandas")
             flags = flags[self.parameters["event_flags"]].product(axis=1)
             muons["pass_flags"] = True
             if self.parameters["muon_flags"]:
                 muons["pass_flags"] = muons[self.parameters["muon_flags"]].product(
                     axis=1
                 )
-
+            self.bd_timer.add_checkpoint("math")
             # Define baseline muon selection (applied to pandas DF!)
             muons["selection"] = (
                 (muons.pt_raw > self.parameters["muon_pt_cut"])
                 & (abs(muons.eta_raw) < self.parameters["muon_eta_cut"])
                 & (muons.pfRelIso04_all < self.parameters["muon_iso_cut"])
-                & muons[self.parameters["muon_id"]]
-                & muons.pass_flags
+                &
+                # muons[self.parameters["muon_id"]] &
+                muons.pass_flags
             )
+            self.bd_timer.add_checkpoint("filter")
 
             # Count muons
             nmuons = (
@@ -290,14 +313,17 @@ class DimuonProcessor(processor.ProcessorABC):
 
             # Find opposite-sign muons
             mm_charge = muons.loc[muons.selection, "charge"].groupby("entry").prod()
+            self.bd_timer.add_checkpoint("sort")
 
             # Veto events with good quality electrons
             electrons = df.Electron[
                 (df.Electron.pt > self.parameters["electron_pt_cut"])
-                & (abs(df.Electron.eta) < self.parameters["electron_eta_cut"])
-                & (df.Electron[self.parameters["electron_id"]] == 1)
+                & (abs(df.Electron.eta) < self.parameters["electron_eta_cut"])  # &
+                # (df.Electron[self.parameters["electron_id"]] == 1)
             ]
+            self.bd_timer.add_checkpoint("filter")
             electron_veto = ak.to_numpy(ak.count(electrons.pt, axis=1) == 0)
+            self.bd_timer.add_checkpoint("to_pandas")
 
             # Find events with at least one good primary vertex
             good_pv = ak.to_pandas(df.PV).npvsGood > 0
@@ -313,6 +339,7 @@ class DimuonProcessor(processor.ProcessorABC):
                 & electron_veto
                 & good_pv
             )
+            self.bd_timer.add_checkpoint("filter")
 
             # --------------------------------------------------------#
             # Select two leading-pT muons
@@ -329,6 +356,7 @@ class DimuonProcessor(processor.ProcessorABC):
             mu2 = muons.loc[muons.pt.groupby("entry").idxmin()]
             mu1.index = mu1.index.droplevel("subentry")
             mu2.index = mu2.index.droplevel("subentry")
+            self.bd_timer.add_checkpoint("sort")
 
             # --------------------------------------------------------#
             # Select events with muons passing leading pT cut
@@ -342,13 +370,14 @@ class DimuonProcessor(processor.ProcessorABC):
             # update event selection with leading muon pT cut
             output["pass_leading_pt"] = pass_leading_pt
             output["event_selection"] = output.event_selection & output.pass_leading_pt
+            self.bd_timer.add_checkpoint("filter")
 
             # --------------------------------------------------------#
             # Fill dimuon and muon variables
             # --------------------------------------------------------#
 
             fill_muons(self, output, mu1, mu2, is_mc)
-
+            self.bd_timer.add_checkpoint("math")
             if self.timer:
                 self.timer.add_checkpoint("Event & muon selection")
 
@@ -356,14 +385,8 @@ class DimuonProcessor(processor.ProcessorABC):
         # Prepare jets
         # ------------------------------------------------------------#
 
-        jets = df.Jet
-        mu_for_clean = df.Muon
-        mu_for_clean = mu_for_clean[(mu_for_clean.pt > self.parameters["muon_pt_cut"])]
-        _, jet_mu_dr = jets.nearest(mu_for_clean, return_metric=True)
-        jets = jets[ak.fill_none(jet_mu_dr > self.parameters["min_dr_mu_jet"], True)]
-        print(jet_mu_dr)
-
         prepare_jets(df, is_mc)
+        self.bd_timer.add_checkpoint("math")
 
         # ------------------------------------------------------------#
         # Apply JEC, get JEC and JER variations
@@ -391,6 +414,8 @@ class DimuonProcessor(processor.ProcessorABC):
             self.jec_factories_data,
         )
 
+        self.bd_timer.add_checkpoint("lookup")
+
         # ------------------------------------------------------------#
         # Calculate other event weights
         # ------------------------------------------------------------#
@@ -399,6 +424,7 @@ class DimuonProcessor(processor.ProcessorABC):
             do_nnlops = self.do_nnlops and ("ggh" in dataset)
             if do_nnlops:
                 nnlopsw = nnlops_weights(df, numevents, self.parameters, dataset)
+                self.bd_timer.add_checkpoint("lookup")
                 weights.add_weight("nnlops", nnlopsw)
             else:
                 weights.add_weight("nnlops", how="dummy")
@@ -413,11 +439,13 @@ class DimuonProcessor(processor.ProcessorABC):
             #         ).flatten()
             #     weights.add_weight('zpt_wgt', zpt_weight)
             # --- --- --- --- --- --- --- --- --- --- --- --- --- --- #
+            self.bd_timer.add_checkpoint("other")
             do_musf = True
             if do_musf:
                 muID, muIso, muTrig = musf_evaluator(
                     self.musf_lookup, self.year, numevents, mu1, mu2
                 )
+                self.bd_timer.add_checkpoint("lookup")
                 weights.add_weight("muID", muID, how="all")
                 weights.add_weight("muIso", muIso, how="all")
                 weights.add_weight("muTrig", muTrig, how="all")
@@ -431,8 +459,10 @@ class DimuonProcessor(processor.ProcessorABC):
                 and ("LHEPdfWeight" in df.fields)
                 and ("nominal" in self.pt_variations)
             )
+            self.bd_timer.add_checkpoint("other")
             if do_lhe:
                 lhe_ren, lhe_fac = lhe_weights(df, output, dataset, self.year)
+                self.bd_timer.add_checkpoint("math")
                 weights.add_weight("LHERen", lhe_ren, how="only_vars")
                 weights.add_weight("LHEFac", lhe_fac, how="only_vars")
             else:
@@ -445,6 +475,7 @@ class DimuonProcessor(processor.ProcessorABC):
                 and ("nominal" in self.pt_variations)
                 and ("stage1_1_fine_cat_pTjet30GeV" in df.HTXS.fields)
             )
+            self.bd_timer.add_checkpoint("other")
             if do_thu:
                 for i, name in enumerate(self.sths_names):
                     wgt_up = stxs_uncert(
@@ -461,11 +492,13 @@ class DimuonProcessor(processor.ProcessorABC):
                         self.stxs_acc_lookups,
                         self.powheg_xsec_lookup,
                     )
+                    self.bd_timer.add_checkpoint("lookup")
                     thu_wgts = {"up": wgt_up, "down": wgt_down}
                     weights.add_weight("THU_VBF_" + name, thu_wgts, how="only_vars")
             else:
                 for i, name in enumerate(self.sths_names):
                     weights.add_weight("THU_VBF_" + name, how="dummy_vars")
+            self.bd_timer.add_checkpoint("other")
             # --- --- --- --- --- --- --- --- --- --- --- --- --- --- #
             do_pdf = (
                 self.do_pdf
@@ -508,6 +541,7 @@ class DimuonProcessor(processor.ProcessorABC):
                     weights.add_weight("pdf_2rms", pdf_vars, how="only_vars")
                 else:
                     weights.add_weight("pdf_2rms", how="dummy_vars")
+            self.bd_timer.add_checkpoint("math")
             # --- --- --- --- --- --- --- --- --- --- --- --- --- --- #
 
         # ------------------------------------------------------------#
@@ -529,6 +563,7 @@ class DimuonProcessor(processor.ProcessorABC):
                     output.event_selection = output.event_selection & (
                         output.genJetPairMass <= 350
                     )
+        self.bd_timer.add_checkpoint("to_pandas")
 
         # ------------------------------------------------------------#
         # Loop over JEC variations and fill jet variables
@@ -537,6 +572,7 @@ class DimuonProcessor(processor.ProcessorABC):
         output.columns = pd.MultiIndex.from_product(
             [output.columns, [""]], names=["Variable", "Variation"]
         )
+        self.bd_timer.add_checkpoint("filter")
 
         if self.timer:
             self.timer.add_checkpoint("Jet preparation & event weights")
@@ -591,19 +627,22 @@ class DimuonProcessor(processor.ProcessorABC):
             or ("mcreplica" in c[0])
             or (c[0] in ["c", "r", "s", "year"])
         ]
+        self.bd_timer.add_checkpoint("other")
         output = output.loc[output.event_selection, columns_to_save]
         output = output.reindex(sorted(output.columns), axis=1)
-
+        self.bd_timer.add_checkpoint("filter")
         try:
             output = output[
                 output.loc[:, pd.IndexSlice["c", "nominal"]].isin(self.channels)
             ]
+            self.bd_timer.add_checkpoint("filter")
         except Exception:
             pass
 
         output.columns = [" ".join(col).strip() for col in output.columns.values]
 
         output = output[output.r.isin(self.regions)]
+        self.bd_timer.add_checkpoint("filter")
 
         to_return = None
         if self.apply_to_output is None:
@@ -615,7 +654,7 @@ class DimuonProcessor(processor.ProcessorABC):
         if self.timer:
             self.timer.add_checkpoint("Saving outputs")
             self.timer.summary()
-
+        # self.bd_timer.summary()
         return to_return
 
     def jet_loop(
@@ -659,16 +698,17 @@ class DimuonProcessor(processor.ProcessorABC):
                 jet_columns += ["pt_jec", "mass_jec"]
             if is_mc and self.do_jerunc:
                 jet_columns += ["pt_orig", "mass_orig"]
-
         # Find jets that have selected muons within dR<0.4 from them
         matched_mu_pt = jets.matched_muons.pt_fsr
         matched_mu_iso = jets.matched_muons.pfRelIso04_all
-        matched_mu_id = jets.matched_muons[self.parameters["muon_id"]]
+        # matched_mu_id = jets.matched_muons[self.parameters["muon_id"]]
+        self.bd_timer.add_checkpoint("other")
         matched_mu_pass = (
             (matched_mu_pt > self.parameters["muon_pt_cut"])
-            & (matched_mu_iso < self.parameters["muon_iso_cut"])
-            & matched_mu_id
+            & (matched_mu_iso < self.parameters["muon_iso_cut"])  # &
+            # matched_mu_id
         )
+        self.bd_timer.add_checkpoint("filter")
         clean = ~(
             ak.to_pandas(matched_mu_pass)
             .astype(float)
@@ -677,7 +717,7 @@ class DimuonProcessor(processor.ProcessorABC):
             .sum()
             .astype(bool)
         )
-
+        self.bd_timer.add_checkpoint("to_pandas")
         # if self.timer:
         #     self.timer.add_checkpoint("Clean jets from matched muons")
 
@@ -694,15 +734,16 @@ class DimuonProcessor(processor.ProcessorABC):
             jets = jets[unc_name]["down"][jet_columns]
         else:
             jets = jets[jet_columns]
-
+        self.bd_timer.add_checkpoint("other")
         # --- conversion from awkward to pandas --- #
         jets = ak.to_pandas(jets)
+        self.bd_timer.add_checkpoint("to_pandas")
 
         if jets.index.nlevels == 3:
             # sometimes there are duplicates?
             jets = jets.loc[pd.IndexSlice[:, :, 0], :]
             jets.index = jets.index.droplevel("subsubentry")
-
+            self.bd_timer.add_checkpoint("sort")
         if variation == "nominal":
             # Update pt and mass if JEC was applied
             if self.do_jec:
@@ -715,14 +756,14 @@ class DimuonProcessor(processor.ProcessorABC):
             if is_mc and self.do_jerunc and not self.do_jec:
                 jets["pt"] = jets["pt_orig"]
                 jets["mass"] = jets["mass_orig"]
-
+        self.bd_timer.add_checkpoint("other")
         # ------------------------------------------------------------#
         # Apply jetID and PUID
         # ------------------------------------------------------------#
 
         pass_jet_id = jet_id(jets, self.parameters, self.year)
         pass_jet_puid = jet_puid(jets, self.parameters, self.year)
-
+        self.bd_timer.add_checkpoint("math")
         # Jet PUID scale factors
         # if is_mc and False:  # disable for now
         #     puid_weight = puid_weights(
@@ -746,6 +787,7 @@ class DimuonProcessor(processor.ProcessorABC):
         )
 
         jets = jets[jet_selection]
+        self.bd_timer.add_checkpoint("filter")
 
         # if self.timer:
         #     self.timer.add_checkpoint("Selected jets")
@@ -775,8 +817,10 @@ class DimuonProcessor(processor.ProcessorABC):
             jet2.index = jet2.index.droplevel("subentry")
         except Exception:
             return
+        self.bd_timer.add_checkpoint("sort")
 
         fill_jets(output, variables, jet1, jet2)
+        self.bd_timer.add_checkpoint("math")
 
         # if self.timer:
         #     self.timer.add_checkpoint("Filled jet variables")
@@ -790,6 +834,7 @@ class DimuonProcessor(processor.ProcessorABC):
         if variation == "nominal":
             fill_softjets(df, output, variables, 2)
             fill_softjets(df, output, variables, 5)
+            self.bd_timer.add_checkpoint("math")
 
             # if self.timer:
             #     self.timer.add_checkpoint("Calculated SA variables")
@@ -812,6 +857,7 @@ class DimuonProcessor(processor.ProcessorABC):
 
             qgl_wgts = qgl_weights(jet1, jet2, isHerwig, output, variables, njets)
             weights.add_weight("qgl_wgt", qgl_wgts, how="all")
+            self.bd_timer.add_checkpoint("math")
 
             # --- Btag weights --- #
             bjet_sel_mask = output.event_selection & two_jets & vbf_cut
@@ -824,6 +870,7 @@ class DimuonProcessor(processor.ProcessorABC):
             # --- Btag weights variations --- #
             for name, bs in btag_syst.items():
                 weights.add_weight(f"btag_wgt_{name}", bs, how="only_vars")
+            self.bd_timer.add_checkpoint("lookup")
 
             # if self.timer:
             #     self.timer.add_checkpoint(
@@ -840,6 +887,7 @@ class DimuonProcessor(processor.ProcessorABC):
             .groupby("entry")["subentry"]
             .nunique()
         )
+        self.bd_timer.add_checkpoint("sort")
 
         variables["nBtagMedium"] = (
             jets[
@@ -852,12 +900,14 @@ class DimuonProcessor(processor.ProcessorABC):
         )
         variables.nBtagLoose = variables.nBtagLoose.fillna(0.0)
         variables.nBtagMedium = variables.nBtagMedium.fillna(0.0)
+        self.bd_timer.add_checkpoint("sort")
 
         variables.selection = (
             output.event_selection
             & (variables.nBtagLoose < 2)
             & (variables.nBtagMedium < 1)
         )
+        self.bd_timer.add_checkpoint("filter")
 
         # ------------------------------------------------------------#
         # Define categories
@@ -868,6 +918,7 @@ class DimuonProcessor(processor.ProcessorABC):
             variables.selection & (variables.njets >= 2) & (~vbf_cut)
         ] = "ggh_2j"
         variables.c[variables.selection & (variables.njets >= 2) & vbf_cut] = "vbf"
+        self.bd_timer.add_checkpoint("filter")
 
         # if 'dy' in dataset:
         #     two_jets_matched = np.zeros(numevents, dtype=bool)
@@ -895,6 +946,7 @@ class DimuonProcessor(processor.ProcessorABC):
 
         for key, val in variables.items():
             output.loc[:, pd.IndexSlice[key, variation]] = val
+        self.bd_timer.add_checkpoint("other")
 
         return output
 
