@@ -1,4 +1,4 @@
-name: delphes validation
+name: delphes
 
 on:
   push:

@@ -1,7 +1,8 @@
 # H→µµ analysis framework
 
 ![Flake8](https://github.com/kondratyevd/hmumu-coffea/actions/workflows/flake8.yml/badge.svg)
-![Validation](https://github.com/kondratyevd/hmumu-coffea/actions/workflows/validation.yml/badge.svg)
+![Nanoaod](https://github.com/kondratyevd/hmumu-coffea/actions/workflows/nanoaod.yml/badge.svg)
+![Delphes](https://github.com/kondratyevd/hmumu-coffea/actions/workflows/delphes.yml/badge.svg)
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 
 The framework was originally designed for the [Run 2 H→µµ search](https://inspirehep.net/literature/1815813) by the CMS Collaboration. The results in the channel targeting the VBF Higgs production mode were reproduced with 1% precision.
