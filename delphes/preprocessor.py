@@ -19,7 +19,10 @@ def get_fileset(datasets, parameters):
     for sample, path in datasets.items():
         if sample not in cross_sections.keys():
             print(f"Cross section for {sample} missing, skipping")
-        filelist = [glob.glob(parameters["server"] + path + "/*.root")[0]]
+        if len(glob.glob(path)) > 0:
+            filelist = glob.glob(path)
+        else:
+            filelist = [glob.glob(parameters["server"] + path + "/*.root")[0]]
         # filelist = glob.glob(parameters['server'] + path + '/*.root')
         futures = parameters["client"].map(get_sum_wgts, filelist)
         nEvts = sum(parameters["client"].gather(futures))
