@@ -170,7 +170,6 @@ class SamplesInfo(object):
         else:
             for f in all_files:
                 if "data" in sample:
-                    tree = uproot.open(f)["Events"]
                     data_entries += self.get_data(f)["data_entries"]
                 else:
                     ret = self.get_mc(f)
