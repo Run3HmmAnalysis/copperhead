@@ -79,15 +79,15 @@ grouping = {
     "data_F": "Data",
     "data_G": "Data",
     "data_H": "Data",
-    #'dy_0j': 'DY',
-    #'dy_1j': 'DY',
-    #'dy_2j': 'DY',
-    ## 'dy_m105_160_amc': 'DY_nofilter',
-    ## 'dy_m105_160_vbf_amc': 'DY_filter',
+    # 'dy_0j': 'DY',
+    # 'dy_1j': 'DY',
+    # 'dy_2j': 'DY',
+    # 'dy_m105_160_amc': 'DY_nofilter',
+    # 'dy_m105_160_vbf_amc': 'DY_filter',
     "dy_m105_160_amc": "DY",
     "dy_m105_160_vbf_amc": "DY",
     "ewk_lljj_mll105_160_ptj0": "EWK",
-    ## 'ewk_lljj_mll105_160_py_dipole': 'EWK_Pythia',
+    # 'ewk_lljj_mll105_160_py_dipole': 'EWK_Pythia',
     "ttjets_dl": "TT+ST",
     "ttjets_sl": "TT+ST",
     "ttw": "TT+ST",
@@ -152,7 +152,7 @@ def workflow(client, paths, parameters, timer):
     # Merge dataframes
     try:
         df = dd.concat([d for d in df_future if len(d.columns) > 0])
-    except:
+    except Exception:
         return
     npart = df.npartitions
     df = df.compute()
@@ -366,7 +366,7 @@ def histogram(args, df=pd.DataFrame(), parameters={}):
     else:
         var = Variable(var, var, 50, 0, 5)
 
-    samples = df.s.unique()
+    # samples = df.s.unique()
     years = df.year.unique()
     regions = parameters["regions"]
     categories = parameters["categories"]
@@ -451,7 +451,7 @@ def load_histograms(argset, parameters):
     try:
         with open(path, "rb") as handle:
             hist = pickle.load(handle)
-    except:
+    except Exception:
         return {}
     return {var_name: {year: {s: hist}}}
 

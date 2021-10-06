@@ -2416,7 +2416,7 @@ def get_pisa_hist(var, r, edges):
         "dy_m105_160_amc": "/depot/cms/hmm/coffea/pisa/DY105_2018AMCPYSnapshot.root",
         "dy_m105_160_vbf_amc": "/depot/cms/hmm/coffea/pisa/DY105VBF_2018AMCPYSnapshot.root",
     }
-    xsec = {"data": 1, "dy_m105_160_amc": 47.17, "dy_m105_160_vbf_amc": 2.03}  #  #
+    xsec = {"data": 1, "dy_m105_160_amc": 47.17, "dy_m105_160_vbf_amc": 2.03}
     N = {
         "data": 1,
         "dy_m105_160_amc": 6995355211.029654,
