@@ -356,13 +356,6 @@ class DimuonProcessor(processor.ProcessorABC):
         # Prepare jets
         # ------------------------------------------------------------#
 
-        jets = df.Jet
-        mu_for_clean = df.Muon
-        mu_for_clean = mu_for_clean[(mu_for_clean.pt > self.parameters["muon_pt_cut"])]
-        _, jet_mu_dr = jets.nearest(mu_for_clean, return_metric=True)
-        jets = jets[ak.fill_none(jet_mu_dr > self.parameters["min_dr_mu_jet"], True)]
-        print(jet_mu_dr)
-
         prepare_jets(df, is_mc)
 
         # ------------------------------------------------------------#
