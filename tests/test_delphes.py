@@ -4,7 +4,6 @@ import sys
 [sys.path.append(i) for i in [".", ".."]]
 import time
 
-import coffea.processor as processor
 from coffea.processor import dask_executor, run_uproot_job
 from coffea.nanoevents import DelphesSchema
 from delphes.preprocessor import get_fileset
