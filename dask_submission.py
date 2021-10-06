@@ -10,9 +10,12 @@ from python.utils import mkdir
 from config.parameters import parameters as pars
 
 import dask
+from dask.distributed import Client
+
 from functools import partial
 
-from dask.distributed import Client
+
+__all__ = ["dask"]
 
 parser = argparse.ArgumentParser()
 # Slurm cluster IP to use. If not specified, will create a local cluster
