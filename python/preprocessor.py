@@ -171,18 +171,12 @@ class SamplesInfo(object):
             for f in all_files:
                 if "data" in sample:
                     tree = uproot.open(f)["Events"]
-                    data_entries += tree.num_entries
+                    data_entries += self.get_data(f)["data_entries"]
                 else:
-                    tree = uproot.open(f)["Runs"]
-                    v6or10 = ("NanoAODv6" in self.paths[sample]) or (
-                        "NANOV10" in self.paths[sample]
-                    )
-                    if v6or10:
-                        sumGenWgts += tree["genEventSumw_"].array()[0]
-                        nGenEvts += tree["genEventCount_"].array()[0]
-                    else:
-                        sumGenWgts += tree["genEventSumw"].array()[0]
-                        nGenEvts += tree["genEventCount"].array()[0]
+                    ret = self.get_mc(f)
+                    sumGenWgts += ret["sumGenWgts"]
+                    nGenEvts += ret["nGenEvts"]
+
         metadata["sumGenWgts"] = sumGenWgts
         metadata["nGenEvts"] = nGenEvts
 
