@@ -25,11 +25,8 @@ def fill_muons(output, mu1, mu2):
     for n in v_names:
         output[n] = 0.0
 
-    vmap = {"pt": "PT", "eta": "Eta", "phi": "Phi", "charge": "Charge"}
     # Fill single muon variables
     for v in ["pt", "eta", "phi", "charge"]:
-        mu1[v] = mu1[vmap[v]]
-        mu2[v] = mu2[vmap[v]]
         output[f"mu1_{v}"] = mu1[v]
         output[f"mu2_{v}"] = mu2[v]
     mu1["mass"] = mu2["mass"] = 0.10566

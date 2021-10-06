@@ -34,57 +34,61 @@ class DimuonProcessorDelphes(processor.ProcessorABC):
         output["year"] = "snowmass"
 
         # Select muons
-        muon_columns = ["PT", "Eta", "Phi", "Charge", "IsolationVar"]
-        muons = ak.to_pandas(df[parameters["muon_branch"]][muon_columns])
-        muons["selection"] = (
-            (muons.PT > parameters["muon_pt_cut"])
-            & (abs(muons.Eta) < parameters["muon_eta_cut"])
+        muons = df[parameters["muon_branch"]]
+        muons = muons[
+            (muons.pt > parameters["muon_pt_cut"])
+            & (abs(muons.eta) < parameters["muon_eta_cut"])
             & (muons.IsolationVar < parameters["muon_iso_cut"])
-        )
-        nmuons = (
-            muons[muons.selection].reset_index().groupby("entry")["subentry"].nunique()
-        )
-        mm_charge = muons.loc[muons.selection, "Charge"].groupby("entry").prod()
+        ]
+        nmuons = ak.count(muons.pt, axis=1)
+        muons = muons[nmuons == 2]
 
-        muons = muons[muons.selection & (nmuons == 2)]
-        mu1 = muons.loc[muons.PT.groupby("entry").idxmax()]
-        mu2 = muons.loc[muons.PT.groupby("entry").idxmin()]
+        mu_map = {"PT": "pt", "Eta": "eta", "Phi": "phi", "Charge": "charge"}
+        for old, new in mu_map.items():
+            muons[new] = muons[old]
+        muon_columns = ["pt", "eta", "phi", "charge", "IsolationVar"]
+        muons = ak.to_pandas(muons[muon_columns])
+        nmuons = ak.to_pandas(nmuons)
+
+        mm_charge = muons.loc[:, "charge"].groupby("entry").prod()
+        mu1 = muons.loc[muons.pt.groupby("entry").idxmax()]
+        mu2 = muons.loc[muons.pt.groupby("entry").idxmin()]
         mu1.index = mu1.index.droplevel("subentry")
         mu2.index = mu2.index.droplevel("subentry")
-        pass_leading_pt = mu1.PT > parameters["muon_leading_pt"]
+        pass_leading_pt = mu1.pt > parameters["muon_leading_pt"]
 
         fill_muons(output, mu1, mu2)
 
         # Select electrons
-        ele_columns = ["PT", "Eta"]
-        electrons = ak.to_pandas(df[parameters["electron_branch"]][ele_columns])
-        electrons["selection"] = (electrons.PT > parameters["electron_pt_cut"]) & (
-            abs(electrons.Eta) < parameters["electron_eta_cut"]
-        )
-        electrons = electrons[electrons.selection]
-        nelectrons = (
-            electrons.reset_index().groupby("entry")["subentry"].nunique().fillna(0)
-        )
+        electrons = df[parameters["electron_branch"]]
+        electrons = electrons[
+            (electrons.pt > parameters["electron_pt_cut"])
+            & (abs(electrons.eta) < parameters["electron_eta_cut"])
+        ]
+        nelectrons = ak.to_pandas(ak.count(electrons.pt, axis=1))
 
         # Select jets
         jets = df[parameters["jet_branch"]]
         mu_for_clean = df[parameters["muon_branch"]]
         mu_for_clean = mu_for_clean[
-            (mu_for_clean.PT > parameters["muon_pt_cut"])
+            (mu_for_clean.pt > parameters["muon_pt_cut"])
             & (mu_for_clean.IsolationVar < parameters["muon_iso_cut"])
         ]
         _, jet_mu_dr = jets.nearest(mu_for_clean, return_metric=True)
         jets = jets[
             ak.fill_none(jet_mu_dr > parameters["min_dr_mu_jet"], True)
-            & (jets.PT > parameters["jet_pt_cut"])
-            & (abs(jets.Eta) < parameters["jet_eta_cut"])
+            & (jets.pt > parameters["jet_pt_cut"])
+            & (abs(jets.eta) < parameters["jet_eta_cut"])
         ]
+        njets = ak.to_pandas(ak.count(jets.pt, axis=1))
 
-        jet_columns = ["PT", "Eta", "Phi", "Mass"]
+        jet_map = {"PT": "pt", "Eta": "eta", "Phi": "phi", "Mass": "mass"}
+        for old, new in jet_map.items():
+            jets[new] = jets[old]
+        jet_columns = ["pt", "eta", "phi", "mass"]
         jets = ak.to_pandas(jets[jet_columns])
 
-        njets = jets.reset_index().groupby("entry")["subentry"].nunique()
-        jets = jets.sort_values(["entry", "PT"], ascending=[True, False])
+        jets = jets.sort_values(["entry", "pt"], ascending=[True, False])
         jets.index = pd.MultiIndex.from_arrays(
             [jets.index.get_level_values(0), jets.groupby(level=0).cumcount()],
             names=["entry", "subentry"],

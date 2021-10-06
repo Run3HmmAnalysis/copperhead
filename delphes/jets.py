@@ -40,18 +40,7 @@ def fill_jets(output, jet1, jet2):
         output[v] = -999.0
 
     # Fill single jet variables
-    vmap = {
-        "pt": "PT",
-        "eta": "Eta",
-        "phi": "Phi",
-    }
-
-    jet1["mass"] = jet1["Mass"]
-    jet2["mass"] = jet2["Mass"]
-
     for v in ["pt", "eta", "phi"]:
-        jet1[v] = jet1[vmap[v]]
-        jet2[v] = jet2[vmap[v]]
         output[f"jet1_{v}"] = jet1[v]
         output[f"jet2_{v}"] = jet2[v]
 
