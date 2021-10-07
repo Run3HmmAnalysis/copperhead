@@ -4,18 +4,20 @@ from dask.distributed import Client
 
 from python.timer import Timer
 from python.postprocessor import workflow, plotter, grouping_alt
-# from python.postprocessor import grouping
+from python.postprocessor import grouping
 from mva_bins import mva_bins
 
 __all__ = ["dask"]
 
 use_local_cluster = True
+remake_hists = True
+grouped = True
 # is False, will use Slurm cluster (requires manual setup of the cluster)
 
 ncpus_local = 40  # number of cores to use. Each one will start with 4GB
 
 # only if Slurm cluster is used:
-slurm_cluster_ip = "128.211.149.133:32985"  # '128.211.149.133:34003'
+slurm_cluster_ip = "128.211.149.133:45579"  # '128.211.149.133:34003'
 
 
 # if Local cluster is used:
@@ -89,7 +91,7 @@ if __name__ == "__main__":
         "vbf_powheg_dipole"
         # 'dy_m105_160_amc'
     ]
-    # datasets = grouping.keys()
+    datasets = grouping.keys()
 
     parameters["hist_vars"] = ["dimuon_mass"]
     parameters["hist_vars"] += ["score_" + m for m in parameters["dnn_models"]]
@@ -107,17 +109,21 @@ if __name__ == "__main__":
             for d in ds:
                 if d not in datasets:
                     continue
-                paths_grouped[group].append(
-                    glob.glob(
-                        f"{parameters['path']}/"
-                        f"{y}_{parameters['label']}/"
-                        f"{d}/*.parquet"
-                    )
+                path = glob.glob(
+                    f"{parameters['path']}/"
+                    f"{y}_{parameters['label']}/"
+                    f"{d}/*.parquet"
                 )
+                paths.append(path)
+                paths_grouped[group].append(path)
 
-    for group, g_paths in paths_grouped.items():
-        if len(g_paths) == 0:
-            continue
-        workflow(client, g_paths, parameters, timer)
+    if remake_hists:
+        if grouped:
+            for group, g_paths in tqdm.tqdm(paths_grouped.items()):
+                if len(g_paths) == 0:
+                    continue
+                workflow(client, g_paths, parameters, timer)
+        else:
+            workflow(client, paths, parameters, timer)
     plotter(client, parameters, timer)
     timer.summary()

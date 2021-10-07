@@ -214,7 +214,6 @@ def plotter(client, parameters, timer):
     hist_futures = client.map(partial(load_histograms, parameters=parameters), argsets)
     hist_rows = client.gather(hist_futures)
     hist_df = pd.concat(hist_rows).reset_index(drop=True)
-
     # TODO: argset should also include year
     hists_to_plot = [
         hist_df.loc[hist_df.var_name == var_name]
@@ -461,7 +460,7 @@ def load_histograms(argset, parameters):
         with open(path, "rb") as handle:
             hist = pickle.load(handle)
     except Exception:
-        return {}
+        return pd.DataFrame()
     hist_row = pd.DataFrame(
         [{"year": year, "var_name": var_name, "dataset": dataset, "hist": hist}]
     )
@@ -538,6 +537,8 @@ def plot(hist, parameters={}):
                         hist.dataset.isin(group_entries), "hist"
                     ].values
                 ]
+                if len(hist_values_group) == 0:
+                    continue
                 nevts = sum(hist_values_group).sum()
                 if nevts > 0:
                     plottables_df = plottables_df.append(
@@ -545,10 +546,11 @@ def plot(hist, parameters={}):
                             "label": group,
                             "hist": sum(hist_values_group),
                             "sumw2": sum(hist_sumw2_group),
+                            "integral": sum(hist_values_group).sum(),
                         },
                         ignore_index=True,
                     )
-
+            plottables_df.sort_values(by="integral", inplace=True)
             return plottables_df
 
     stat_err_opts = {
