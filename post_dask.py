@@ -1,4 +1,5 @@
 import glob
+import tqdm
 import dask
 from dask.distributed import Client
 
