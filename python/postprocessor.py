@@ -198,7 +198,8 @@ def workflow(client, paths, parameters, timer):
                 argsets.append({"year": year, "var_name": var_name, "dataset": dataset})
     # Make histograms
     hist_futures = client.map(partial(histogram, df=df, parameters=parameters), argsets)
-    hist_rows = client.gather(hist_futures)
+    client.gather(hist_futures)
+    # hist_rows = client.gather(hist_futures)
     # hist_df = pd.concat(hist_rows).reset_index(drop=True)
     timer.add_checkpoint("Histogramming")
 
@@ -629,7 +630,7 @@ def plot(hist, parameters={}):
     if len(entries["data"].entry_list) > 0:
         # get Data yields
         num_df = entries["data"].get_plottables(hist, year, r, c, v, var.name)
-        num = plottables_df["hist"].values.tolist()
+        num = num_df["hist"].values.tolist()
         num = sum(num).values()
 
     if len(entries["stack"].entry_list) > 0:
