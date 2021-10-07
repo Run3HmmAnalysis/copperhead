@@ -192,15 +192,14 @@ def workflow(client, paths, parameters, timer):
     timer.add_checkpoint("Prepared for histogramming")
 
     argsets = []
-    for var in parameters["hist_vars"]:
-        for s in df.s.unique():
-            argsets.append({"var": var, "s": s})
+    for year in df.year.unique():
+        for var_name in parameters["hist_vars"]:
+            for dataset in df.s.unique():
+                argsets.append({"year": year, "var_name": var_name, "dataset": dataset})
     # Make histograms
     hist_futures = client.map(partial(histogram, df=df, parameters=parameters), argsets)
-    hists_ = client.gather(hist_futures)
-    hists = {}
-    for h in hists_:
-        hists.update(h)
+    hist_rows = client.gather(hist_futures)
+    # hist_df = pd.concat(hist_rows).reset_index(drop=True)
     timer.add_checkpoint("Histogramming")
 
 
@@ -208,29 +207,21 @@ def plotter(client, parameters, timer):
     # Load histograms
     argsets = []
     for year in parameters["years"]:
-        for var in parameters["hist_vars"]:
-            for s in parameters["samples"]:
-                argsets.append({"var": var, "s": s, "year": year})
+        for var_name in parameters["hist_vars"]:
+            for dataset in parameters["datasets"]:
+                argsets.append({"year": year, "var_name": var_name, "dataset": dataset})
     hist_futures = client.map(partial(load_histograms, parameters=parameters), argsets)
-    hists_ = client.gather(hist_futures)
-    hists = {}
-    # for h in hists_:
-    # hists.update(h)
-    for hist in hists_:
-        for k1, h1 in hist.items():
-            if k1 not in hists.keys():
-                hists[k1] = {}
-            for k2, h2 in h1.items():
-                if k2 not in hists[k1].keys():
-                    hists[k1][k2] = {}
-                for k3, h3 in h2.items():
-                    hists[k1][k2][k3] = h3
-    timer.add_checkpoint("Loading histograms")
+    hist_rows = client.gather(hist_futures)
+    hist_df = pd.concat(hist_rows).reset_index(drop=True)
 
-    # Plot histograms
+    # TODO: argset should also include year
     hists_to_plot = [
-        hist for var, hist in hists.items() if var in parameters["plot_vars"]
+        hist_df.loc[hist_df.var_name == var_name]
+        for var_name in hist_df.var_name.unique()
+        if var_name in parameters["plot_vars"]
     ]
+
+    timer.add_checkpoint("Loading histograms")
 
     plot_futures = client.map(partial(plot, parameters=parameters), hists_to_plot)
     client.gather(plot_futures)
@@ -358,117 +349,136 @@ def bdt_evaluation(df, variation, model, parameters):
     return df[score_name]
 
 
-def histogram(args, df=pd.DataFrame(), parameters={}):
-    var = args["var"]
-    s = args["s"]
-    if var in variables_lookup.keys():
-        var = variables_lookup[var]
+def get_variation(wgt_variation, sys_variation):
+    if "nominal" in wgt_variation:
+        if "nominal" in sys_variation:
+            return "nominal"
+        else:
+            return sys_variation
     else:
-        var = Variable(var, var, 50, 0, 5)
+        if "nominal" in sys_variation:
+            return wgt_variation
+        else:
+            return None
 
-    # samples = df.s.unique()
-    years = df.year.unique()
+
+def histogram(args, df=pd.DataFrame(), parameters={}):
+    year = args["year"]
+    var_name = args["var_name"]
+    dataset = args["dataset"]
+    if var_name in variables_lookup.keys():
+        var = variables_lookup[var_name]
+    else:
+        var = Variable(var_name, var_name, 50, 0, 5)
+
     regions = parameters["regions"]
-    categories = parameters["categories"]
-    syst_variations = parameters["syst_variations"]
+    channels = parameters["channels"]
     wgt_variations = [w for w in df.columns if ("wgt_" in w)]
+    syst_variations = parameters["syst_variations"]
+
+    variations = []
+    for w in wgt_variations:
+        for v in syst_variations:
+            variation = get_variation(w, v)
+            if variation:
+                variations.append(variation)
 
     regions = [r for r in regions if r in df.r.unique()]
-    categories = [c for c in categories if c in df["c nominal"].unique()]
+    channels = [c for c in channels if c in df["c nominal"].unique()]
 
     # sometimes different years have different binnings (MVA score)
-    h = {}
+    if "score" in var.name:
+        bins = parameters["mva_bins"][var.name.replace("score_", "")][f"{year}"]
+        hist = (
+            Hist.new.StrCat(regions, name="region")
+            .StrCat(channels, name="channel")
+            .StrCat(variations, name="variation")
+            .StrCat(["value", "sumw2"], name="val_err")
+            .Var(bins, name=var.name)
+            .Double()
+        )
+    else:
+        hist = (
+            Hist.new.StrCat(regions, name="region")
+            .StrCat(channels, name="channel")
+            .StrCat(variations, name="variation")
+            .StrCat(["value", "sumw2"], name="val_sumw2")
+            .Reg(var.nbins, var.xmin, var.xmax, name=var.name, label=var.caption)
+            .Double()
+        )
 
-    for year in years:
-        h[year] = {}
-        if "score" in var.name:
-            bins = parameters["mva_bins"][var.name.replace("score_", "")][f"{year}"]
-            h[year] = (
-                Hist.new.StrCat(regions, name="region")
-                .StrCat(categories, name="category")
-                .StrCat(syst_variations, name="variation")
-                .StrCat(wgt_variations, name="wgt_variation")
-                .StrCat(["value", "sumw2"], name="val_err")
-                .Var(bins, name=var.name)
-                .Double()
-            )
-            # nbins = len(bins) - 1
-        else:
-            h[year] = (
-                Hist.new.StrCat(regions, name="region")
-                .StrCat(categories, name="category")
-                .StrCat(syst_variations, name="variation")
-                .StrCat(wgt_variations, name="wgt_variation")
-                .StrCat(["value", "sumw2"], name="val_sumw2")
-                .Reg(var.nbins, var.xmin, var.xmax, name=var.name, label=var.caption)
-                .Double()
-            )
-            # nbins = var.nbins
-
-        for r in regions:
+    for r in regions:
+        for w in wgt_variations:
             for v in syst_variations:
-                varname = f"{var.name} {v}"
-                if varname not in df.columns:
+                variation = get_variation(w, v)
+                if not variation:
+                    continue
+                var_name = f"{var.name} {v}"
+                if var_name not in df.columns:
                     if var.name in df.columns:
-                        varname = var.name
+                        var_name = var.name
                     else:
                         continue
-                for c in categories:
-                    for w in wgt_variations:
-                        slicer = (
-                            (df.s == s)
-                            & (df.r == r)
-                            & (df.year == year)
-                            & (df[f"c {v}"] == c)
-                        )
-                        data = df.loc[slicer, varname]
-                        weight = df.loc[slicer, w]
-                        h[year].fill(r, c, v, w, "value", data, weight=weight)
-                        h[year].fill(r, c, v, w, "sumw2", data, weight=weight * weight)
-                        # TODO: add treatment of PDF systematics
-                        # (MC replicas)
-        save_hist(h[year], var.name, s, year, parameters)
-    return {var.name: {s: h}}
+                for c in channels:
+                    slicer = (
+                        (df.s == dataset)
+                        & (df.r == r)
+                        & (df.year == year)
+                        & (df[f"c {v}"] == c)
+                    )
+                    data = df.loc[slicer, var_name]
+                    weight = df.loc[slicer, w]
+                    hist.fill(r, c, variation, "value", data, weight=weight)
+                    hist.fill(r, c, variation, "sumw2", data, weight=weight * weight)
+                    # TODO: add treatment of PDF systematics
+                    # (MC replicas)
+    save_hist(hist, var.name, dataset, year, parameters)
+    hist_row = pd.DataFrame(
+        [{"year": year, "var_name": var.name, "dataset": dataset, "hist": hist}]
+    )
+    return hist_row
 
 
-def save_hist(hist, var_name, s, year, parameters):
-    # print(hist['h-peak', 'vbf', 'nominal', 'value', :].project(var_name).view())
+def save_hist(hist, var_name, dataset, year, parameters):
     mkdir(parameters["hist_path"])
     hist_path = parameters["hist_path"] + parameters["label"]
     mkdir(hist_path)
     mkdir(f"{hist_path}/{year}")
-    path = f"{hist_path}/{year}/{var_name}_{s}.pickle"
+    mkdir(f"{hist_path}/{year}/{var_name}")
+    path = f"{hist_path}/{year}/{var_name}/{dataset}.pickle"
     with open(path, "wb") as handle:
         pickle.dump(hist, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
 
 def load_histograms(argset, parameters):
-    var_name = argset["var"]
-    s = argset["s"]
     year = argset["year"]
+    var_name = argset["var_name"]
+    dataset = argset["dataset"]
     hist_path = parameters["hist_path"] + parameters["label"]
-    path = f"{hist_path}/{year}/{var_name}_{s}.pickle"
+    path = f"{hist_path}/{year}/{var_name}/{dataset}.pickle"
     try:
         with open(path, "rb") as handle:
             hist = pickle.load(handle)
     except Exception:
         return {}
-    return {var_name: {year: {s: hist}}}
+    hist_row = pd.DataFrame(
+        [{"year": year, "var_name": var_name, "dataset": dataset, "hist": hist}]
+    )
+    return hist_row
 
 
 def plot(hist, parameters={}):
-    if not hist.keys():
+    if hist.shape[0] == 0:
         return
-    a_year = list(hist.keys())[0]
-    a_sample = list(hist[a_year].keys())[0]
-    var = hist[a_year][a_sample].axes[-1]
+    var = hist["hist"].values[0].axes[-1]
     plotsize = 8
     ratio_plot_size = 0.25
 
+    # temporary
     r = "h-peak"
     c = "vbf"
     v = "nominal"
-    w = "wgt_nominal"
+    year = "2018"
     stack_groups = ["DY", "EWK", "TT+ST", "VV", "VVV"]
     data_groups = ["Data"]
     step_groups = ["VBF", "ggH"]
@@ -505,48 +515,40 @@ def plot(hist, parameters={}):
             self.entry_dict = {
                 e: g
                 for e, g in grouping.items()
-                if (g in self.groups) and (e in parameters["samples"])
+                if (g in self.groups) and (e in parameters["datasets"])
             }
             self.entry_list = self.entry_dict.keys()
             self.labels = self.entry_dict.values()
             self.groups = list(set(self.entry_dict.values()))
-            # print(self.entry_type, self.labels, self.groups)
 
-        def get_plottables(self, hist, year, r, c, v, w, var_name):
-            plottables = []
-            sumw2 = []
-            labels = []
+        def get_plottables(self, hist, year, r, c, v, var_name):
+            plottables_df = pd.DataFrame(columns=["label", "hist", "sumw2"])
             for group in self.groups:
                 group_entries = [e for e, g in self.entry_dict.items() if (group == g)]
-                if sum(
-                    [
-                        hist[year][en][r, c, v, w, "value", :].project(var_name)
-                        for en in group_entries
-                        if en in hist[year].keys()
-                    ]
-                ):
-                    plottables.append(
-                        sum(
-                            [
-                                hist[year][en][r, c, v, w, "value", :].project(var_name)
-                                for en in group_entries
-                                if en in hist[year].keys()
-                            ]
-                        )
+                hist_values_group = [
+                    hist[r, c, v, "value", :].project(var_name)
+                    for hist in hist.loc[
+                        hist.dataset.isin(group_entries), "hist"
+                    ].values
+                ]
+                hist_sumw2_group = [
+                    hist[r, c, v, "sumw2", :].project(var_name)
+                    for hist in hist.loc[
+                        hist.dataset.isin(group_entries), "hist"
+                    ].values
+                ]
+                nevts = sum(hist_values_group).sum()
+                if nevts > 0:
+                    plottables_df = plottables_df.append(
+                        {
+                            "label": group,
+                            "hist": sum(hist_values_group),
+                            "sumw2": sum(hist_sumw2_group),
+                        },
+                        ignore_index=True,
                     )
-                    sumw2.append(
-                        sum(
-                            [
-                                hist[year][en][r, c, v, w, "sumw2", :].project(var_name)
-                                for en in group_entries
-                                if en in hist[year].keys()
-                            ]
-                        )
-                    )
-                    labels.append(group)
-                    # print(group, sum(sum([hist[year][en][r, c, v, 'value', :]
-                    #         .project(var_name) for en in group_entries if en in hist[year].keys()]).values()))
-            return plottables, sumw2, labels
+
+            return plottables_df
 
     stat_err_opts = {
         "step": "post",
@@ -566,116 +568,118 @@ def plot(hist, parameters={}):
     style["mathtext.fontset"] = "cm"
     style["mathtext.default"] = "rm"
     plt.style.use(style)
-    for year in parameters["years"]:
-        fig.clf()
-        fig.set_size_inches(plotsize * 1.2, plotsize * (1 + ratio_plot_size))
-        gs = fig.add_gridspec(
-            2, 1, height_ratios=[(1 - ratio_plot_size), ratio_plot_size], hspace=0.07
+
+    fig.clf()
+    fig.set_size_inches(plotsize * 1.2, plotsize * (1 + ratio_plot_size))
+    gs = fig.add_gridspec(
+        2, 1, height_ratios=[(1 - ratio_plot_size), ratio_plot_size], hspace=0.07
+    )
+
+    # Top panel: Data/MC
+    plt1 = fig.add_subplot(gs[0])
+
+    for entry in entries.values():
+        if len(entry.entry_list) == 0:
+            continue
+        plottables_df = entry.get_plottables(hist, year, r, c, v, var.name)
+        plottables = plottables_df["hist"].values.tolist()
+        sumw2 = plottables_df["sumw2"].values.tolist()
+        labels = plottables_df["label"].values.tolist()
+
+        yerr = np.sqrt(sum(plottables).values()) if entry.yerr else None
+        if len(plottables) == 0:
+            continue
+
+        hep.histplot(
+            plottables,
+            label=labels,
+            ax=plt1,
+            yerr=yerr,
+            stack=entry.stack,
+            histtype=entry.histtype,
+            **entry.plot_opts,
         )
 
-        # Top panel: Data/MC
-        plt1 = fig.add_subplot(gs[0])
+        # MC errors
+        if entry.entry_type == "stack":
+            total_bkg = sum(plottables).values()
+            total_sumw2 = sum(sumw2).values()
+            if sum(total_bkg) > 0:
+                err = poisson_interval(total_bkg, total_sumw2)
+                plt1.fill_between(
+                    x=plottables[0].axes[0].edges,
+                    y1=np.r_[err[0, :], err[0, -1]],
+                    y2=np.r_[err[1, :], err[1, -1]],
+                    **stat_err_opts,
+                )
 
-        for entry in entries.values():
-            if len(entry.entry_list) == 0:
-                continue
-            plottables, sumw2, labels = entry.get_plottables(
-                hist, year, r, c, v, w, var.name
-            )
-            yerr = np.sqrt(sum(plottables).values()) if entry.yerr else None
-            # print("#"*40)
-            if len(plottables) == 0:
-                continue
-            # if entry.entry_type == 'step':
-            #    print(plottables)
-            hep.histplot(
-                plottables,
-                label=labels,
-                ax=plt1,
-                yerr=yerr,
-                stack=entry.stack,
-                histtype=entry.histtype,
-                **entry.plot_opts,
-            )
+    plt1.set_yscale("log")
+    plt1.set_ylim(0.01, 1e9)
+    # plt1.set_xlim(var.xmin,var.xmax)
+    # plt1.set_xlim(edges[0], edges[-1])
+    plt1.set_xlabel("")
+    plt1.tick_params(axis="x", labelbottom=False)
+    plt1.legend(prop={"size": "x-small"})
 
-            # MC errors
-            if entry.entry_type == "stack":
-                total_bkg = sum(plottables).values()
-                total_sumw2 = sum(sumw2).values()
-                if sum(total_bkg) > 0:
-                    err = poisson_interval(total_bkg, total_sumw2)
-                    plt1.fill_between(
-                        x=plottables[0].axes[0].edges,
-                        y1=np.r_[err[0, :], err[0, -1]],
-                        y2=np.r_[err[1, :], err[1, -1]],
-                        **stat_err_opts,
-                    )
+    # Bottom panel: Data/MC ratio plot
+    plt2 = fig.add_subplot(gs[1], sharex=plt1)
 
-        plt1.set_yscale("log")
-        plt1.set_ylim(0.01, 1e9)
-        # plt1.set_xlim(var.xmin,var.xmax)
-        # plt1.set_xlim(edges[0], edges[-1])
-        plt1.set_xlabel("")
-        plt1.tick_params(axis="x", labelbottom=False)
-        plt1.legend(prop={"size": "x-small"})
+    num = den = []
 
-        # Bottom panel: Data/MC ratio plot
-        plt2 = fig.add_subplot(gs[1], sharex=plt1)
+    if len(entries["data"].entry_list) > 0:
+        # get Data yields
+        num_df = entries["data"].get_plottables(hist, year, r, c, v, var.name)
+        num = plottables_df["hist"].values.tolist()
+        num = sum(num).values()
 
-        num = den = []
+    if len(entries["stack"].entry_list) > 0:
+        # get MC yields and sumw2
+        den_df = entries["stack"].get_plottables(hist, year, r, c, v, var.name)
+        den = den_df["hist"].values.tolist()
+        den_sumw2 = den_df["sumw2"].values.tolist()
 
-        if len(entries["data"].entry_list) > 0:
-            # get Data yields
-            num, _, _ = entries["data"].get_plottables(hist, year, r, c, v, w, var.name)
-            num = sum(num).values()
+        edges = den[0].axes[0].edges
+        den = sum(den).values()  # total MC
+        den_sumw2 = sum(den_sumw2).values()
 
-        if len(entries["stack"].entry_list) > 0:
-            # get MC yields and sumw2
-            den, den_sumw2, _ = entries["stack"].get_plottables(
-                hist, year, r, c, v, w, var.name
-            )
-            edges = den[0].axes[0].edges
-            den = sum(den).values()  # total MC
-            den_sumw2 = sum(den_sumw2).values()
+    if len(num) * len(den) > 0:
+        # compute Data/MC ratio
+        ratio = np.divide(num, den)
+        yerr = np.zeros_like(num)
+        yerr[den > 0] = np.sqrt(num[den > 0]) / den[den > 0]
+        hep.histplot(
+            ratio,
+            bins=edges,
+            ax=plt2,
+            yerr=yerr,
+            histtype="errorbar",
+            **entries["data"].plot_opts,
+        )
 
-        if len(num) * len(den) > 0:
-            # compute Data/MC ratio
-            ratio = np.divide(num, den)
-            yerr = np.zeros_like(num)
-            yerr[den > 0] = np.sqrt(num[den > 0]) / den[den > 0]
-            hep.histplot(
-                ratio,
-                bins=edges,
-                ax=plt2,
-                yerr=yerr,
-                histtype="errorbar",
-                **entries["data"].plot_opts,
-            )
+    if sum(den) > 0:
+        # compute MC uncertainty
+        unity = np.ones_like(den)
+        w2 = np.zeros_like(den)
+        w2[den > 0] = den_sumw2[den > 0] / den[den > 0] ** 2
+        den_unc = poisson_interval(unity, w2)
+        plt2.fill_between(
+            edges,
+            np.r_[den_unc[0], den_unc[0, -1]],
+            np.r_[den_unc[1], den_unc[1, -1]],
+            label="Stat. unc.",
+            **ratio_err_opts,
+        )
 
-        if sum(den) > 0:
-            # compute MC uncertainty
-            unity = np.ones_like(den)
-            w2 = np.zeros_like(den)
-            w2[den > 0] = den_sumw2[den > 0] / den[den > 0] ** 2
-            den_unc = poisson_interval(unity, w2)
-            plt2.fill_between(
-                edges,
-                np.r_[den_unc[0], den_unc[0, -1]],
-                np.r_[den_unc[1], den_unc[1, -1]],
-                label="Stat. unc.",
-                **ratio_err_opts,
-            )
+    plt2.axhline(1, ls="--")
+    plt2.set_ylim([0.5, 1.5])
+    plt2.set_ylabel("Data/MC", loc="center")
+    plt2.set_xlabel(var.label, loc="right")
+    plt2.legend(prop={"size": "x-small"})
 
-        plt2.axhline(1, ls="--")
-        plt2.set_ylim([0.5, 1.5])
-        plt2.set_ylabel("Data/MC", loc="center")
-        plt2.set_xlabel(var.label, loc="right")
-        plt2.legend(prop={"size": "x-small"})
+    hep.cms.label(ax=plt1, data=True, label="Preliminary", year=year)
 
-        hep.cms.label(ax=plt1, data=True, label="Preliminary", year=year)
-
-        path = parameters["plots_path"]
-        out_name = f"{path}/{var.name}_{year}.png"
-        fig.savefig(out_name)
-        print(f"Saved: {out_name}")
+    path = parameters["plots_path"]
+    out_name = f"{path}/{var.name}_{year}.png"
+    fig.savefig(out_name)
+    print(f"Saved: {out_name}")
     return
