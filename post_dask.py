@@ -51,7 +51,7 @@ parser.add_argument(
 
 args = parser.parse_args()
 
-use_local_cluster = args.slurm_port == None
+use_local_cluster = args.slurm_port is None
 ncpus_local = 40  # number of cores to use. Each one will start with 4GB
 
 node_ip = "128.211.149.133"
@@ -159,11 +159,11 @@ if __name__ == "__main__":
             for dataset in ds:
                 if dataset not in datasets:
                     continue
-                if how[group] is "all":
+                if how[group] == "all":
                     the_group = "all"
-                elif how[group] is "grouped":
+                elif how[group] == "grouped":
                     the_group = group
-                elif how[group] is "individual":
+                elif how[group] == "individual":
                     the_group = dataset
                 path = glob.glob(
                     f"{parameters['path']}/"
