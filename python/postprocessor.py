@@ -158,7 +158,8 @@ def workflow(client, paths, parameters, timer):
     df = df.compute()
     df.reset_index(inplace=True, drop=True)
     df = dd.from_pandas(df, npartitions=npart)
-    df = df.repartition(npartitions=parameters["ncpus"])
+    if npart > 2 * parameters["ncpus"]:
+        df = df.repartition(npartitions=parameters["ncpus"])
     timer.add_checkpoint("Combined into a single Dask DataFrame")
 
     keep_columns = ["s", "year", "r"]
@@ -214,27 +215,35 @@ def plotter(client, parameters, timer):
     hist_futures = client.map(partial(load_histograms, parameters=parameters), argsets)
     hist_rows = client.gather(hist_futures)
     hist_df = pd.concat(hist_rows).reset_index(drop=True)
-    # TODO: argset should also include year
-    hists_to_plot = [
-        hist_df.loc[hist_df.var_name == var_name]
-        for var_name in hist_df.var_name.unique()
-        if var_name in parameters["plot_vars"]
-    ]
+
+    hists_to_plot = []
+    keys = []
+    for year in parameters["years"]:
+        for var_name in hist_df.var_name.unique():
+            if var_name not in parameters["plot_vars"]:
+                continue
+            hists_to_plot.append(
+                hist_df.loc[(hist_df.var_name == var_name) & (hist_df.year == year)]
+            )
+            keys.append(f"plot: {year} {var_name}")
 
     timer.add_checkpoint("Loading histograms")
 
-    plot_futures = client.map(partial(plot, parameters=parameters), hists_to_plot)
+    plot_futures = client.map(
+        partial(plot, parameters=parameters), hists_to_plot, key=keys
+    )
     client.gather(plot_futures)
 
     timer.add_checkpoint("Plotting")
 
 
 def load_data(path):
+    df = dd.from_pandas(pd.DataFrame(), npartitions=1)
     if len(path) > 0:
-        df = dd.read_parquet(path)
-    else:
-        df = dd.from_pandas(pd.DataFrame(), npartitions=1)
-
+        try:
+            df = dd.read_parquet(path)
+        except Exception:
+            return df
     return df
 
 
@@ -276,6 +285,9 @@ def dnn_evaluation(df, variation, model, parameters):
     except Exception:
         pass
     df.loc[:, score_name] = 0
+    if df.shape[0] == 0:
+        return df[score_name]
+
     with sess:
         nfolds = 4
         for i in range(nfolds):
@@ -293,6 +305,8 @@ def dnn_evaluation(df, variation, model, parameters):
             model_path = f"{parameters['models_path']}/{model}/dnn_{label}.h5"
             dnn_model = load_model(model_path)
             df_i = df.loc[eval_filter, :]
+            if df_i.shape[0] == 0:
+                continue
             df_i.loc[df_i.r != "h-peak", "dimuon_mass"] = 125.0
             if parameters["do_massscan"]:
                 df_i.loc[:, "dimuon_mass"] = df_i["dimuon_mass"] - mass_shift
@@ -314,6 +328,8 @@ def bdt_evaluation(df, variation, model, parameters):
     except Exception:
         pass
     df.loc[:, score_name] = 0
+    if df.shape[0] == 0:
+        return df[score_name]
     nfolds = 4
     for i in range(nfolds):
         # FIXME
@@ -332,6 +348,8 @@ def bdt_evaluation(df, variation, model, parameters):
 
         bdt_model = pickle.load(open(model_path, "rb"))
         df_i = df[eval_filter]
+        if df_i.shape[0] == 0:
+            continue
         df_i.loc[df_i.r != "h-peak", "dimuon_mass"] = 125.0
         if parameters["do_massscan"]:
             df_i.loc[:, "dimuon_mass"] = df_i["dimuon_mass"] - mass_shift
@@ -478,7 +496,13 @@ def plot(hist, parameters={}):
     r = "h-peak"
     c = "vbf"
     v = "nominal"
-    year = "2018"
+    years = hist.year.unique()
+    if len(years) > 1:
+        print(
+            f"Histograms for more than one year provided. Will make plots only for {years[0]}."
+        )
+    year = years[0]
+
     stack_groups = ["DY", "EWK", "TT+ST", "VV", "VVV"]
     data_groups = ["Data"]
     step_groups = ["VBF", "ggH"]
@@ -522,7 +546,7 @@ def plot(hist, parameters={}):
             self.groups = list(set(self.entry_dict.values()))
 
         def get_plottables(self, hist, year, r, c, v, var_name):
-            plottables_df = pd.DataFrame(columns=["label", "hist", "sumw2"])
+            plottables_df = pd.DataFrame(columns=["label", "hist", "sumw2", "integral"])
             for group in self.groups:
                 group_entries = [e for e, g in self.entry_dict.items() if (group == g)]
                 hist_values_group = [
@@ -540,6 +564,7 @@ def plot(hist, parameters={}):
                 if len(hist_values_group) == 0:
                     continue
                 nevts = sum(hist_values_group).sum()
+
                 if nevts > 0:
                     plottables_df = plottables_df.append(
                         {
@@ -589,9 +614,10 @@ def plot(hist, parameters={}):
         sumw2 = plottables_df["sumw2"].values.tolist()
         labels = plottables_df["label"].values.tolist()
 
-        yerr = np.sqrt(sum(plottables).values()) if entry.yerr else None
         if len(plottables) == 0:
             continue
+
+        yerr = np.sqrt(sum(plottables).values()) if entry.yerr else None
 
         hep.histplot(
             plottables,
@@ -633,17 +659,18 @@ def plot(hist, parameters={}):
         # get Data yields
         num_df = entries["data"].get_plottables(hist, year, r, c, v, var.name)
         num = num_df["hist"].values.tolist()
-        num = sum(num).values()
+        if len(num) > 0:
+            num = sum(num).values()
 
     if len(entries["stack"].entry_list) > 0:
         # get MC yields and sumw2
         den_df = entries["stack"].get_plottables(hist, year, r, c, v, var.name)
         den = den_df["hist"].values.tolist()
         den_sumw2 = den_df["sumw2"].values.tolist()
-
-        edges = den[0].axes[0].edges
-        den = sum(den).values()  # total MC
-        den_sumw2 = sum(den_sumw2).values()
+        if len(den) > 0:
+            edges = den[0].axes[0].edges
+            den = sum(den).values()  # total MC
+            den_sumw2 = sum(den_sumw2).values()
 
     if len(num) * len(den) > 0:
         # compute Data/MC ratio

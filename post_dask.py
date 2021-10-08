@@ -1,5 +1,6 @@
 import glob
 import tqdm
+import argparse
 import dask
 from dask.distributed import Client
 
@@ -10,21 +11,58 @@ from mva_bins import mva_bins
 
 __all__ = ["dask"]
 
-use_local_cluster = True
-remake_hists = True
-grouped = True
-# is False, will use Slurm cluster (requires manual setup of the cluster)
 
+parser = argparse.ArgumentParser()
+parser.add_argument(
+    "-sl",
+    "--slurm",
+    dest="slurm_port",
+    default=None,
+    action="store",
+    help="Slurm cluster port (if not specified, will create a local cluster)",
+)
+parser.add_argument(
+    "-s",
+    "--sequential",
+    dest="sequential",
+    default=False,
+    action="store_true",
+    help="Sequential processing",
+)
+parser.add_argument(
+    "-r",
+    "--remake_hists",
+    dest="remake_hists",
+    default=False,
+    action="store_true",
+    help="Remake histograms",
+)
+parser.add_argument(
+    "-p",
+    "--plot",
+    dest="plot",
+    default=False,
+    action="store_true",
+    help="Produce plots",
+)
+parser.add_argument(
+    "-y", "--years", nargs="+", help="Years to process", default=["2018"]
+)
+
+args = parser.parse_args()
+
+use_local_cluster = args.slurm_port == None
 ncpus_local = 40  # number of cores to use. Each one will start with 4GB
 
-# only if Slurm cluster is used:
-slurm_cluster_ip = "128.211.149.133:45579"  # '128.211.149.133:34003'
+node_ip = "128.211.149.133"
 
+# only if Slurm cluster is used:
+slurm_cluster_ip = f"{node_ip}:{args.slurm_port}"
 
 # if Local cluster is used:
-dashboard_address = "128.211.149.133:34875"
+dashboard_address = f"{node_ip}:34875"
 if not use_local_cluster:
-    dashboard_address = "128.211.149.133:8787"
+    dashboard_address = f"{node_ip}:8787"
 # How to open the dashboard:
 # Dashboard IP should be the same as the node
 # from which the code is running. In my case it's hammer-c000.
@@ -52,7 +90,7 @@ parameters = {
     # 'bdt_models': ['bdt_nest10000_weightCorrAndShuffle_2Aug'],
     "bdt_models": [],
     "do_massscan": False,
-    "years": ["2018"],
+    "years": args.years,
     "syst_variations": ["nominal"],
     # 'syst_variations':['nominal', f'Absolute2016_up'],
     "channels": ["vbf", "vbf_01j", "vbf_2j"],
@@ -102,29 +140,55 @@ if __name__ == "__main__":
     parameters["plot_vars"] = parameters["hist_vars"]
     parameters["datasets"] = datasets
 
+    how = {
+        "Data": "grouped",
+        "DY": "all",
+        "EWK": "all",
+        "TT+ST": "individual",
+        "VV": "individual",
+        "VVV": "individual",
+        "ggH": "all",
+        "VBF": "all",
+    }
     paths_grouped = {}
-    paths = []
+    all_paths = []
     for y in parameters["years"]:
+        paths_grouped[y] = {}
+        paths_grouped[y]["all"] = []
         for group, ds in grouping_alt.items():
-            paths_grouped[group] = []
-            for d in ds:
-                if d not in datasets:
+            for dataset in ds:
+                if dataset not in datasets:
                     continue
+                if how[group] is "all":
+                    the_group = "all"
+                elif how[group] is "grouped":
+                    the_group = group
+                elif how[group] is "individual":
+                    the_group = dataset
                 path = glob.glob(
                     f"{parameters['path']}/"
                     f"{y}_{parameters['label']}/"
-                    f"{d}/*.parquet"
+                    f"{dataset}/*.parquet"
                 )
-                paths.append(path)
-                paths_grouped[group].append(path)
+                if the_group not in paths_grouped.keys():
+                    paths_grouped[y][the_group] = []
+                all_paths.append(path)
+                paths_grouped[y][the_group].append(path)
 
-    if remake_hists:
-        if grouped:
-            for group, g_paths in tqdm.tqdm(paths_grouped.items()):
-                if len(g_paths) == 0:
+    if args.remake_hists:
+        if args.sequential:
+            for path in tqdm.tqdm(all_paths):
+                if len(path) == 0:
                     continue
-                workflow(client, g_paths, parameters, timer)
+                workflow(client, [path], parameters, timer)
         else:
-            workflow(client, paths, parameters, timer)
-    plotter(client, parameters, timer)
+            for year, groups in paths_grouped.items():
+                print(f"Processing {year}")
+                for group, g_paths in tqdm.tqdm(groups.items()):
+                    if len(g_paths) == 0:
+                        continue
+                    workflow(client, g_paths, parameters, timer)
+
+    if args.plot:
+        plotter(client, parameters, timer)
     timer.summary()
