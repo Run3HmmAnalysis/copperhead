@@ -12,25 +12,25 @@ from coffea.btag_tools import BTagScaleFactor
 from coffea.lumi_tools import LumiMask
 
 from python.timer import Timer
-from python.weights import Weights
-from python.corrections.pu_reweight import pu_lookups, pu_evaluator
-from python.corrections.l1prefiring_weights import l1pf_weights
-from python.corrections.rochester import apply_roccor
-from python.corrections.fsr_recovery import fsr_recovery
-from python.corrections.geofit import apply_geofit
-from python.corrections.jec import jec_factories, apply_jec
-from python.corrections.lepton_sf import musf_lookup, musf_evaluator
-from python.corrections.nnlops import nnlops_weights
-from python.corrections.stxs_uncert import stxs_uncert, stxs_lookups
-from python.corrections.lhe_weights import lhe_weights
-from python.corrections.qgl_weights import qgl_weights
-from python.corrections.btag_weights import btag_weights
+from nanoaod.weights import Weights
+from nanoaod.corrections.pu_reweight import pu_lookups, pu_evaluator
+from nanoaod.corrections.l1prefiring_weights import l1pf_weights
+from nanoaod.corrections.rochester import apply_roccor
+from nanoaod.corrections.fsr_recovery import fsr_recovery
+from nanoaod.corrections.geofit import apply_geofit
+from nanoaod.corrections.jec import jec_factories, apply_jec
+from nanoaod.corrections.lepton_sf import musf_lookup, musf_evaluator
+from nanoaod.corrections.nnlops import nnlops_weights
+from nanoaod.corrections.stxs_uncert import stxs_uncert, stxs_lookups
+from nanoaod.corrections.lhe_weights import lhe_weights
+from nanoaod.corrections.qgl_weights import qgl_weights
+from nanoaod.corrections.btag_weights import btag_weights
 
-# from python.corrections.puid_weights import puid_weights
+# from nanoaod.corrections.puid_weights import puid_weights
 
-from python.muons import fill_muons
-from python.jets import prepare_jets, fill_jets, fill_softjets
-from python.jets import jet_id, jet_puid, gen_jet_pair_mass
+from nanoaod.muons import fill_muons
+from nanoaod.jets import prepare_jets, fill_jets, fill_softjets
+from nanoaod.jets import jet_id, jet_puid, gen_jet_pair_mass
 
 from config.parameters import parameters
 from config.variables import variables

@@ -29,8 +29,10 @@ jobs:
         run: flake8 ./*py
       - name: flake8 - check python/*py
         run: flake8 python/*py
-      - name: flake8 - check python/corrections/*py
-        run: flake8 python/corrections/*py
+      - name: flake8 - check nanoaod/*py
+        run: flake8 nanoaod/*py
+      - name: flake8 - check nanoaod/corrections/*py
+        run: flake8 nanoaod/corrections/*py
       - name: flake8 - check config/*py
         run: flake8 --max-line-length=300 config/*py
       - name: flake8 - check tests/*py
