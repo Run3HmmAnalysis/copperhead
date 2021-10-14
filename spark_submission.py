@@ -4,8 +4,8 @@ import argparse
 import traceback
 
 import coffea.processor as processor
-from python.processor import DimuonProcessor
-from python.preprocessor import load_samples
+from nanoaod.processor import DimuonProcessor
+from nanoaod.preprocessor import load_samples
 from python.utils import mkdir
 from config.parameters import parameters as pars
 

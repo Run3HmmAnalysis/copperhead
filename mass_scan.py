@@ -1,9 +1,9 @@
 import time
 import sys
 import argparse
-from python.postprocessor_old import postprocess, save_shapes
-from python.postprocessor_old import make_datacards, prepare_root_files
-from python.postprocessor_old import overlap_study_unbinned
+from nanoaod.postprocessor_old import postprocess, save_shapes
+from nanoaod.postprocessor_old import make_datacards, prepare_root_files
+from nanoaod.postprocessor_old import overlap_study_unbinned
 from config.variables import Variable
 import pandas as pd
 

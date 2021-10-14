@@ -5,8 +5,8 @@ import dask
 from dask.distributed import Client
 
 from python.timer import Timer
-from python.postprocessor import workflow, plotter, grouping_alt
-from python.postprocessor import grouping
+from nanoaod.postprocessor import workflow, plotter, grouping_alt
+from nanoaod.postprocessor import grouping
 from mva_bins import mva_bins
 
 __all__ = ["dask"]
