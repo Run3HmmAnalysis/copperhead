@@ -28,7 +28,7 @@ cd hmumu-coffea
 ### Test run
 Should take around 1.5 minutes to complete.
 ```bash
-python3 -W ignore tests/test_submit.py
+python3 -W ignore tests/test_nanoaod.py
 ```
 
 ### Examples of Dask client initialization
