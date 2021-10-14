@@ -27,7 +27,7 @@ class DimuonProcessorDelphes(processor.ProcessorABC):
         output["s"] = df.metadata["dataset"]
         regions = df.metadata["regions"]
         # channels = df.metadata['channels']
-        output["lumi_wgt"] = df.metadata["lumi_wgt"]
+        output["lumi_wgt"] = float(df.metadata["lumi_wgt"])
         output["mc_wgt"] = ak.to_pandas(df.Event.Weight)
         # There are multiple weights per event - need to figure this out
         # output['lhe_wgt'] = ak.to_pandas(df.Weight.Weight)
@@ -127,6 +127,7 @@ class DimuonProcessorDelphes(processor.ProcessorABC):
         output = output.reindex(sorted(output.columns), axis=1)
 
         output = output[output.r.isin(regions)]
+
         # print(output.isna().sum()[output.isna().sum()>0])
 
         to_return = None

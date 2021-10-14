@@ -78,7 +78,7 @@ parameters = {
     "local_cluster": local_cluster,
     "slurm_cluster_ip": slurm_cluster_ip,
     "client": None,
-    "lumi": 3000000,
+    "lumi": 3000000.0,
 }
 
 parameters["out_dir"] = f"{parameters['global_out_path']}/{parameters['out_path']}"
@@ -151,10 +151,51 @@ if __name__ == "__main__":
         )
     print("Client created")
 
-    parameters["fileset"] = get_fileset(datasets, parameters)
+    ds_names = [
+        # "ggh_powheg",
+        # "vbf_powheg",
+        "dy_m100_mg",
+        "ttbar_dl",
+        "tttj",
+        "tttt",
+        "tttw",
+        "ttwj",
+        "ttww",
+        "ttz",
+        "st_s",
+        # "st_t_top", # hangs
+        "st_t_antitop",
+        "st_tw_top",
+        "st_tw_antitop",
+        "zz_2l2q",
+    ]
+    # ds_names = ["dy_m100_mg"]
+    my_datasets = {name: path for name, path in datasets.items() if name in ds_names}
+    fileset_json = "/depot/cms/hmm/coffea/snowmass_datasets.json"
+    fileset = get_fileset(
+        my_datasets,
+        parameters,
+        save_to=fileset_json,
+        # load_from=fileset_json,
+    )
 
-    out = submit_job({}, parameters)
-    print(out)
+    # Process all datasets at once
+    # parameters["fileset"] = fileset
+    # out = submit_job({}, parameters)
+    # print(out)
+
+    # for name, data in fileset.items():
+    #     print(name, data["metadata"]["lumi_wgt"])
+    # import sys
+    # sys.exit()
+
+    # Process datasets individually
+    for name, data in fileset.items():
+        if name not in ds_names:
+            continue
+        parameters["fileset"] = {name: data}
+        out = submit_job({}, parameters)
+        print(name, out)
 
     elapsed = round(time.time() - tick, 3)
     print(f"Finished everything in {elapsed} s.")
