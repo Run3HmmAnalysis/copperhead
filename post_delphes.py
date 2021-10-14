@@ -111,7 +111,7 @@ if __name__ == "__main__":
     print("Cluster created!")
 
     datasets = grouping.keys()
-    #datasets = ["dy_m100_mg"]
+    # datasets = ["dy_m100_mg"]
 
     parameters["hist_vars"] = [
         "dimuon_mass",
@@ -124,8 +124,12 @@ if __name__ == "__main__":
         "dimuon_rap",
         "dimuon_cos_theta_cs",
         "dimuon_phi_cs",
-        "mu1_pt", "mu1_eta", "mu1_phi",
-        "mu2_pt", "mu2_eta", "mu2_phi",
+        "mu1_pt",
+        "mu1_eta",
+        "mu1_phi",
+        "mu2_pt",
+        "mu2_eta",
+        "mu2_phi",
         "jet1_pt",
         "jet1_eta",
         "jet1_rap",
@@ -155,7 +159,7 @@ if __name__ == "__main__":
         "rpt",
         "zeppenfeld",
         "ll_zstar_log",
-        "njets"
+        "njets",
     ]
 
     parameters["plot_vars"] = parameters["hist_vars"]
