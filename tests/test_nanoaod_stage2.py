@@ -33,7 +33,7 @@ parameters = {
         "dy_m105_160_vbf_amc": "DY",
     },
     "stack_groups": ["DY"],
-    "data_group": [],
+    "data_groups": [],
     "step_groups": [],
 }
 

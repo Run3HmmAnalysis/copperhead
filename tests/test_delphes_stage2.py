@@ -30,7 +30,7 @@ parameters = {
         "dy_m100_mg": "DY",
     },
     "stack_groups": ["DY"],
-    "data_group": [],
+    "data_groups": [],
     "step_groups": [],
 }
 
