@@ -74,6 +74,11 @@ def plot(hist, parameters={}):
         )
     year = years[0]
 
+    if parameters["has_variations"]:
+        dimensions = (region, channel, variation)
+    else:
+        dimensions = (region, channel)
+
     entries = {et: Entry(et, parameters) for et in parameters["plot_groups"].keys()}
 
     fig = plt.figure()
@@ -93,10 +98,6 @@ def plot(hist, parameters={}):
     for entry in entries.values():
         if len(entry.entry_list) == 0:
             continue
-        if parameters["has_variations"]:
-            dimensions = (region, channel, variation)
-        else:
-            dimensions = (region, channel)
         plottables_df = entry.get_plottables(hist, year, var.name, dimensions)
         plottables = plottables_df["hist"].values.tolist()
         sumw2 = plottables_df["sumw2"].values.tolist()
@@ -149,18 +150,14 @@ def plot(hist, parameters={}):
 
         if len(entries["data"].entry_list) > 0:
             # get Data yields
-            num_df = entries["data"].get_plottables(
-                hist, year, region, channel, variation, var.name
-            )
+            num_df = entries["data"].get_plottables(hist, year, var.name, dimensions)
             num = num_df["hist"].values.tolist()
             if len(num) > 0:
                 num = sum(num).values()
 
         if len(entries["stack"].entry_list) > 0:
             # get MC yields and sumw2
-            den_df = entries["stack"].get_plottables(
-                hist, year, region, channel, variation, var.name
-            )
+            den_df = entries["stack"].get_plottables(hist, year, var.name, dimensions)
             den = den_df["hist"].values.tolist()
             den_sumw2 = den_df["sumw2"].values.tolist()
             if len(den) > 0:
