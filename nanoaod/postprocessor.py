@@ -308,8 +308,6 @@ def dnn_evaluation(df, variation, model, parameters):
 
 
 def bdt_evaluation(df, variation, model, parameters):
-    import pickle
-
     if parameters["do_massscan"]:
         mass_shift = parameters["mass"] - 125.0
     features = prepare_features(df, parameters, variation, add_year=False)
