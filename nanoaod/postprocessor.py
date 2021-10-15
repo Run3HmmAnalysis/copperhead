@@ -10,7 +10,8 @@ import mplhep as hep
 from hist import Hist
 from hist.intervals import poisson_interval
 from config.variables import variables_lookup, Variable
-from python.utils import mkdir
+from python.utils import load_from_parquet
+from python.utils import save_hist, load_histograms
 
 os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
 pd.options.mode.chained_assignment = None
@@ -145,7 +146,7 @@ decorrelation_scheme = {
 
 def workflow(client, paths, parameters, timer):
     # Load dataframes
-    df_future = client.map(load_data, paths)
+    df_future = client.map(load_from_parquet, paths)
     df_future = client.gather(df_future)
     timer.add_checkpoint("Loaded data from Parquet")
 
@@ -235,16 +236,6 @@ def plotter(client, parameters, timer):
     client.gather(plot_futures)
 
     timer.add_checkpoint("Plotting")
-
-
-def load_data(path):
-    df = dd.from_pandas(pd.DataFrame(), npartitions=1)
-    if len(path) > 0:
-        try:
-            df = dd.read_parquet(path)
-        except Exception:
-            return df
-    return df
 
 
 def prepare_features(df, parameters, variation="nominal", add_year=True):
@@ -453,34 +444,6 @@ def histogram(args, df=pd.DataFrame(), parameters={}):
     save_hist(hist, var.name, dataset, year, parameters)
     hist_row = pd.DataFrame(
         [{"year": year, "var_name": var.name, "dataset": dataset, "hist": hist}]
-    )
-    return hist_row
-
-
-def save_hist(hist, var_name, dataset, year, parameters):
-    mkdir(parameters["hist_path"])
-    hist_path = parameters["hist_path"] + parameters["label"]
-    mkdir(hist_path)
-    mkdir(f"{hist_path}/{year}")
-    mkdir(f"{hist_path}/{year}/{var_name}")
-    path = f"{hist_path}/{year}/{var_name}/{dataset}.pickle"
-    with open(path, "wb") as handle:
-        pickle.dump(hist, handle, protocol=pickle.HIGHEST_PROTOCOL)
-
-
-def load_histograms(argset, parameters):
-    year = argset["year"]
-    var_name = argset["var_name"]
-    dataset = argset["dataset"]
-    hist_path = parameters["hist_path"] + parameters["label"]
-    path = f"{hist_path}/{year}/{var_name}/{dataset}.pickle"
-    try:
-        with open(path, "rb") as handle:
-            hist = pickle.load(handle)
-    except Exception:
-        return pd.DataFrame()
-    hist_row = pd.DataFrame(
-        [{"year": year, "var_name": var_name, "dataset": dataset, "hist": hist}]
     )
     return hist_row
 

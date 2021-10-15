@@ -10,7 +10,8 @@ import mplhep as hep
 from hist import Hist
 from hist.intervals import poisson_interval
 from config.variables import variables_lookup, Variable
-from python.utils import mkdir
+from python.utils import load_from_parquet
+from python.utils import save_hist, load_histograms
 
 os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
 pd.options.mode.chained_assignment = None
@@ -48,7 +49,7 @@ grouping_alt = {
 
 def workflow(client, paths, parameters, timer):
     # Load dataframes
-    df_future = client.map(load_data, paths)
+    df_future = client.map(load_from_parquet, paths)
     df_future = client.gather(df_future)
     timer.add_checkpoint("Loaded data from Parquet")
 
@@ -59,6 +60,7 @@ def workflow(client, paths, parameters, timer):
         return
     npart = df.npartitions
     df = df.compute()
+    df["c"] = "vbf"
     df.reset_index(inplace=True, drop=True)
     df = dd.from_pandas(df, npartitions=npart)
     if npart > 2 * parameters["ncpus"]:
@@ -121,30 +123,6 @@ def plotter(client, parameters, timer):
     timer.add_checkpoint("Plotting")
 
 
-def load_data(path):
-    df = dd.from_pandas(pd.DataFrame(), npartitions=1)
-    if len(path) > 0:
-        try:
-            df = dd.read_parquet(path)
-        except Exception:
-            return df
-    df["c"] = "vbf"
-    return df
-
-
-def get_variation(wgt_variation, sys_variation):
-    if "nominal" in wgt_variation:
-        if "nominal" in sys_variation:
-            return "nominal"
-        else:
-            return sys_variation
-    else:
-        if "nominal" in sys_variation:
-            return wgt_variation
-        else:
-            return None
-
-
 def histogram(args, df=pd.DataFrame(), parameters={}):
     year = args["year"]
     var_name = args["var_name"]
@@ -189,42 +167,12 @@ def histogram(args, df=pd.DataFrame(), parameters={}):
             slicer = (df.s == dataset) & (df.r == r) & (df.year == year) & (df.c == c)
             data = df.loc[slicer, var_name]
             weight = df.loc[slicer, "lumi_wgt"] * df.loc[slicer, "mc_wgt"]
-            print(dataset, df.loc[slicer, "lumi_wgt"].mean())
             hist.fill(r, c, "value", data, weight=weight)
             hist.fill(r, c, "sumw2", data, weight=weight * weight)
-            # TODO: add treatment of PDF systematics
-            # (MC replicas)
+
     save_hist(hist, var.name, dataset, year, parameters)
     hist_row = pd.DataFrame(
         [{"year": year, "var_name": var.name, "dataset": dataset, "hist": hist}]
-    )
-    return hist_row
-
-
-def save_hist(hist, var_name, dataset, year, parameters):
-    mkdir(parameters["hist_path"])
-    hist_path = parameters["hist_path"] + parameters["label"]
-    mkdir(hist_path)
-    mkdir(f"{hist_path}/{year}")
-    mkdir(f"{hist_path}/{year}/{var_name}")
-    path = f"{hist_path}/{year}/{var_name}/{dataset}.pickle"
-    with open(path, "wb") as handle:
-        pickle.dump(hist, handle, protocol=pickle.HIGHEST_PROTOCOL)
-
-
-def load_histograms(argset, parameters):
-    year = argset["year"]
-    var_name = argset["var_name"]
-    dataset = argset["dataset"]
-    hist_path = parameters["hist_path"] + parameters["label"]
-    path = f"{hist_path}/{year}/{var_name}/{dataset}.pickle"
-    try:
-        with open(path, "rb") as handle:
-            hist = pickle.load(handle)
-    except Exception:
-        return pd.DataFrame()
-    hist_row = pd.DataFrame(
-        [{"year": year, "var_name": var_name, "dataset": dataset, "hist": hist}]
     )
     return hist_row
 
