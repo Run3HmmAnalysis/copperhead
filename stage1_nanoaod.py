@@ -6,7 +6,7 @@ import coffea.processor as processor
 from coffea.processor import dask_executor, run_uproot_job
 from nanoaod.processor import DimuonProcessor
 from nanoaod.preprocessor import load_samples
-from python.utils import mkdir
+from python.utils import mkdir, saving_func_parquet
 from nanoaod.config.parameters import parameters as pars
 
 import dask
@@ -115,25 +115,6 @@ parameters = {
 parameters["out_dir"] = f"{parameters['global_out_path']}/" f"{parameters['out_path']}"
 
 
-def saving_func(output, out_dir):
-    from dask.distributed import get_worker
-
-    name = None
-    for key, task in get_worker().tasks.items():
-        if task.state == "executing":
-            name = key[-32:]
-    if not name:
-        return
-    for ds in output.s.unique():
-        df = output[output.s == ds]
-        if df.shape[0] == 0:
-            return
-        mkdir(f"{out_dir}/{ds}")
-        df.to_parquet(
-            path=f"{out_dir}/{ds}/{name}.parquet",
-        )
-
-
 def submit_job(arg_set, parameters):
     mkdir(parameters["out_dir"])
     if parameters["pt_variations"] == ["nominal"]:
@@ -154,7 +135,7 @@ def submit_job(arg_set, parameters):
         "do_timer": False,
         "do_btag_syst": False,
         "pt_variations": parameters["pt_variations"],
-        "apply_to_output": partial(saving_func, out_dir=out_dir),
+        "apply_to_output": partial(saving_func_parquet, out_dir=out_dir),
     }
 
     try:

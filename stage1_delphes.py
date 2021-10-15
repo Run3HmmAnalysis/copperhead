@@ -6,7 +6,7 @@ from functools import partial
 from coffea.nanoevents import DelphesSchema
 from coffea.processor import dask_executor, run_uproot_job
 
-from python.utils import mkdir
+from python.utils import mkdir, saving_func_parquet
 from delphes.preprocessor import get_fileset
 from delphes.processor import DimuonProcessorDelphes
 from delphes.config.datasets import datasets
@@ -84,25 +84,6 @@ parameters = {
 parameters["out_dir"] = f"{parameters['global_out_path']}/{parameters['out_path']}"
 
 
-def saving_func(output, out_dir):
-    from dask.distributed import get_worker
-
-    name = None
-    for key, task in get_worker().tasks.items():
-        if task.state == "executing":
-            name = key[-32:]
-    if not name:
-        return
-    for ds in output.s.unique():
-        df = output[output.s == ds]
-        if df.shape[0] == 0:
-            return
-        mkdir(f"{out_dir}/{ds}")
-        df.to_parquet(
-            path=f"{out_dir}/{ds}/{name}.parquet",
-        )
-
-
 def submit_job(arg_set, parameters):
     mkdir(parameters["out_dir"])
     out_dir = f"{parameters['out_dir']}/"
@@ -115,7 +96,7 @@ def submit_job(arg_set, parameters):
         "retries": 0,
     }
     processor_args = {
-        "apply_to_output": partial(saving_func, out_dir=out_dir),
+        "apply_to_output": partial(saving_func_parquet, out_dir=out_dir),
     }
 
     try:

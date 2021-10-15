@@ -15,6 +15,25 @@ def mkdir(path):
         pass
 
 
+def saving_func_parquet(output, out_dir):
+    from dask.distributed import get_worker
+
+    name = None
+    for key, task in get_worker().tasks.items():
+        if task.state == "executing":
+            name = key[-32:]
+    if not name:
+        return
+    for ds in output.s.unique():
+        df = output[output.s == ds]
+        if df.shape[0] == 0:
+            return
+        mkdir(f"{out_dir}/{ds}")
+        df.to_parquet(
+            path=f"{out_dir}/{ds}/{name}.parquet",
+        )
+
+
 def load_from_parquet(path):
     df = dd.from_pandas(pd.DataFrame(), npartitions=1)
     if len(path) > 0:
