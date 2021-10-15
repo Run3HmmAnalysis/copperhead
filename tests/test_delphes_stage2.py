@@ -18,7 +18,7 @@ parameters = {
     "years": ["snowmass"],
     "channels": ["vbf"],
     "regions": ["h-peak"],
-    "save_hists": False
+    "save_hists": False,
 }
 
 
@@ -43,4 +43,6 @@ if __name__ == "__main__":
 
     elapsed = round(time.time() - tick, 3)
     print(f"Finished everything in {elapsed} s.")
-    assert almost_equal(out["hist"][0]["h-peak", "vbf", "value", :].sum(), 4515.761427143451)
+    assert almost_equal(
+        out["hist"][0]["h-peak", "vbf", "value", :].sum(), 4515.761427143451
+    )
