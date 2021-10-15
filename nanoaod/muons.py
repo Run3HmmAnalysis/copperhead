@@ -1,6 +1,6 @@
 import numpy as np
 
-from python.utils import p4_sum, delta_r, cs_variables
+from python.math import p4_sum, delta_r, cs_variables
 
 
 def fill_muons(processor, output, mu1, mu2, is_mc):
