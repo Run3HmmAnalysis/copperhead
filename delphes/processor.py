@@ -24,7 +24,7 @@ class DimuonProcessorDelphes(processor.ProcessorABC):
         output = pd.DataFrame({"event": df.Event.Number})
         output.index.name = "entry"
 
-        output["s"] = df.metadata["dataset"]
+        output["dataset"] = df.metadata["dataset"]
         regions = df.metadata["regions"]
         # channels = df.metadata['channels']
         output["lumi_wgt"] = float(df.metadata["lumi_wgt"])
@@ -116,17 +116,18 @@ class DimuonProcessorDelphes(processor.ProcessorABC):
         )
 
         mass = output.dimuon_mass
-        output["r"] = None
-        output.loc[((mass > 76) & (mass < 106)), "r"] = "z-peak"
+        output["region"] = None
+        output.loc[((mass > 76) & (mass < 106)), "region"] = "z-peak"
         output.loc[
-            ((mass > 110) & (mass < 115.03)) | ((mass > 135.03) & (mass < 150)), "r"
+            ((mass > 110) & (mass < 115.03)) | ((mass > 135.03) & (mass < 150)),
+            "region",
         ] = "h-sidebands"
-        output.loc[((mass > 115.03) & (mass < 135.03)), "r"] = "h-peak"
+        output.loc[((mass > 115.03) & (mass < 135.03)), "region"] = "h-peak"
 
         output = output.loc[output.event_selection, :]
         output = output.reindex(sorted(output.columns), axis=1)
 
-        output = output[output.r.isin(regions)]
+        output = output[output.region.isin(regions)]
 
         # print(output.isna().sum()[output.isna().sum()>0])
 

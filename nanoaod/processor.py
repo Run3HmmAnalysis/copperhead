@@ -559,13 +559,14 @@ class DimuonProcessor(processor.ProcessorABC):
         # Fill outputs
         # ------------------------------------------------------------#
         mass = output.dimuon_mass
-        output["r"] = None
-        output.loc[((mass > 76) & (mass < 106)), "r"] = "z-peak"
+        output["region"] = None
+        output.loc[((mass > 76) & (mass < 106)), "region"] = "z-peak"
         output.loc[
-            ((mass > 110) & (mass < 115.03)) | ((mass > 135.03) & (mass < 150)), "r"
+            ((mass > 110) & (mass < 115.03)) | ((mass > 135.03) & (mass < 150)),
+            "region",
         ] = "h-sidebands"
-        output.loc[((mass > 115.03) & (mass < 135.03)), "r"] = "h-peak"
-        output["s"] = dataset
+        output.loc[((mass > 115.03) & (mass < 135.03)), "region"] = "h-peak"
+        output["dataset"] = dataset
         output["year"] = int(self.year)
 
         for wgt in weights.df.columns:
@@ -582,21 +583,21 @@ class DimuonProcessor(processor.ProcessorABC):
             if (c[0] in self.vars_to_save)
             or ("wgt_" in c[0])
             or ("mcreplica" in c[0])
-            or (c[0] in ["c", "r", "s", "year"])
+            or (c[0] in ["channel", "region", "dataset", "year"])
         ]
         output = output.loc[output.event_selection, columns_to_save]
         output = output.reindex(sorted(output.columns), axis=1)
 
         try:
             output = output[
-                output.loc[:, pd.IndexSlice["c", "nominal"]].isin(self.channels)
+                output.loc[:, pd.IndexSlice["channel", "nominal"]].isin(self.channels)
             ]
         except Exception:
             pass
 
         output.columns = [" ".join(col).strip() for col in output.columns.values]
 
-        output = output[output.r.isin(self.regions)]
+        output = output[output.region.isin(self.regions)]
 
         to_return = None
         if self.apply_to_output is None:
@@ -855,12 +856,14 @@ class DimuonProcessor(processor.ProcessorABC):
         # ------------------------------------------------------------#
         # Define categories
         # ------------------------------------------------------------#
-        variables["c"] = ""
-        variables.c[variables.selection & (variables.njets < 2)] = "ggh_01j"
-        variables.c[
+        variables["channel"] = ""
+        variables.channel[variables.selection & (variables.njets < 2)] = "ggh_01j"
+        variables.channel[
             variables.selection & (variables.njets >= 2) & (~vbf_cut)
         ] = "ggh_2j"
-        variables.c[variables.selection & (variables.njets >= 2) & vbf_cut] = "vbf"
+        variables.channel[
+            variables.selection & (variables.njets >= 2) & vbf_cut
+        ] = "vbf"
 
         # if 'dy' in dataset:
         #     two_jets_matched = np.zeros(numevents, dtype=bool)
@@ -868,11 +871,11 @@ class DimuonProcessor(processor.ProcessorABC):
         #         (jet1.matched_genjet.counts > 0)[two_jets[one_jet]]
         #     matched2 = (jet2.matched_genjet.counts > 0)
         #     two_jets_matched[two_jets] = matched1 & matched2
-        #     variables.c[
+        #     variables.channel[
         #         variables.selection &
         #         (variables.njets >= 2) &
         #         vbf_cut & (~two_jets_matched)] = 'vbf_01j'
-        #     variables.c[
+        #     variables.channel[
         #         variables.selection &
         #         (variables.njets >= 2) &
         #         vbf_cut & two_jets_matched] = 'vbf_2j'

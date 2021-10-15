@@ -165,8 +165,17 @@ def workflow(client, paths, parameters, timer=None):
     if timer:
         timer.add_checkpoint("Combined into a single Dask DataFrame")
 
-    keep_columns = ["s", "year", "r"]
-    keep_columns += [f"c {v}" for v in parameters["syst_variations"]]
+    # temporary
+    if ("dataset" not in df.columns) and ("s" in df.columns):
+        df["dataset"] = df["s"]
+    if ("region" not in df.columns) and ("r" in df.columns):
+        df["region"] = df["r"]
+    for v in parameters["syst_variations"]:
+        if (f"channel {v}" not in df.columns) and (f"c {v}" in df.columns):
+            df[f"channel {v}"] = df[f"c {v}"]
+
+    keep_columns = ["dataset", "year", "region"]
+    keep_columns += [f"channel {v}" for v in parameters["syst_variations"]]
     keep_columns += [c for c in df.columns if "wgt_" in c]
     keep_columns += parameters["hist_vars"]
 
@@ -201,7 +210,7 @@ def workflow(client, paths, parameters, timer=None):
     argsets = []
     for year in df.year.unique():
         for var_name in parameters["hist_vars"]:
-            for dataset in df.s.unique():
+            for dataset in df.dataset.unique():
                 argsets.append({"year": year, "var_name": var_name, "dataset": dataset})
     # Make histograms
     hist_futures = client.map(partial(histogram, df=df, parameters=parameters), argsets)
@@ -305,7 +314,7 @@ def dnn_evaluation(df, variation, model, parameters):
             df_i = df.loc[eval_filter, :]
             if df_i.shape[0] == 0:
                 continue
-            df_i.loc[df_i.r != "h-peak", "dimuon_mass"] = 125.0
+            df_i.loc[df_i.region != "h-peak", "dimuon_mass"] = 125.0
             if parameters["do_massscan"]:
                 df_i.loc[:, "dimuon_mass"] = df_i["dimuon_mass"] - mass_shift
             df_i = (df_i[features] - scalers[0]) / scalers[1]
@@ -346,7 +355,7 @@ def bdt_evaluation(df, variation, model, parameters):
         df_i = df[eval_filter]
         if df_i.shape[0] == 0:
             continue
-        df_i.loc[df_i.r != "h-peak", "dimuon_mass"] = 125.0
+        df_i.loc[df_i.region != "h-peak", "dimuon_mass"] = 125.0
         if parameters["do_massscan"]:
             df_i.loc[:, "dimuon_mass"] = df_i["dimuon_mass"] - mass_shift
         df_i = (df_i[features] - scalers[0]) / scalers[1]
@@ -397,8 +406,8 @@ def histogram(args, df=pd.DataFrame(), parameters={}):
             if variation:
                 variations.append(variation)
 
-    regions = [r for r in regions if r in df.r.unique()]
-    channels = [c for c in channels if c in df["c nominal"].unique()]
+    regions = [r for r in regions if r in df.region.unique()]
+    channels = [c for c in channels if c in df["channel nominal"].unique()]
 
     # sometimes different years have different binnings (MVA score)
     if "score" in var.name:
@@ -421,7 +430,7 @@ def histogram(args, df=pd.DataFrame(), parameters={}):
             .Double()
         )
 
-    for r in regions:
+    for region in regions:
         for w in wgt_variations:
             for v in syst_variations:
                 variation = get_variation(w, v)
@@ -433,17 +442,24 @@ def histogram(args, df=pd.DataFrame(), parameters={}):
                         var_name = var.name
                     else:
                         continue
-                for c in channels:
+                for channel in channels:
                     slicer = (
-                        (df.s == dataset)
-                        & (df.r == r)
+                        (df.dataset == dataset)
+                        & (df.region == region)
                         & (df.year == year)
-                        & (df[f"c {v}"] == c)
+                        & (df[f"channel {v}"] == channel)
                     )
                     data = df.loc[slicer, var_name]
                     weight = df.loc[slicer, w]
-                    hist.fill(r, c, variation, "value", data, weight=weight)
-                    hist.fill(r, c, variation, "sumw2", data, weight=weight * weight)
+                    hist.fill(region, channel, variation, "value", data, weight=weight)
+                    hist.fill(
+                        region,
+                        channel,
+                        variation,
+                        "sumw2",
+                        data,
+                        weight=weight * weight,
+                    )
                     # TODO: add treatment of PDF systematics
                     # (MC replicas)
     if parameters["save_hists"]:
@@ -462,9 +478,9 @@ def plot(hist, parameters={}):
     ratio_plot_size = 0.25
 
     # temporary
-    r = "h-peak"
-    c = "vbf"
-    v = "nominal"
+    region = "h-peak"
+    channel = "vbf"
+    variation = "nominal"
     years = hist.year.unique()
     if len(years) > 1:
         print(
@@ -514,18 +530,18 @@ def plot(hist, parameters={}):
             self.labels = self.entry_dict.values()
             self.groups = list(set(self.entry_dict.values()))
 
-        def get_plottables(self, hist, year, r, c, v, var_name):
+        def get_plottables(self, hist, year, region, channel, variation, var_name):
             plottables_df = pd.DataFrame(columns=["label", "hist", "sumw2", "integral"])
             for group in self.groups:
                 group_entries = [e for e, g in self.entry_dict.items() if (group == g)]
                 hist_values_group = [
-                    hist[r, c, v, "value", :].project(var_name)
+                    hist[region, channel, variation, "value", :].project(var_name)
                     for hist in hist.loc[
                         hist.dataset.isin(group_entries), "hist"
                     ].values
                 ]
                 hist_sumw2_group = [
-                    hist[r, c, v, "sumw2", :].project(var_name)
+                    hist[region, channel, variation, "sumw2", :].project(var_name)
                     for hist in hist.loc[
                         hist.dataset.isin(group_entries), "hist"
                     ].values
@@ -578,7 +594,9 @@ def plot(hist, parameters={}):
     for entry in entries.values():
         if len(entry.entry_list) == 0:
             continue
-        plottables_df = entry.get_plottables(hist, year, r, c, v, var.name)
+        plottables_df = entry.get_plottables(
+            hist, year, region, channel, variation, var.name
+        )
         plottables = plottables_df["hist"].values.tolist()
         sumw2 = plottables_df["sumw2"].values.tolist()
         labels = plottables_df["label"].values.tolist()
@@ -626,14 +644,18 @@ def plot(hist, parameters={}):
 
     if len(entries["data"].entry_list) > 0:
         # get Data yields
-        num_df = entries["data"].get_plottables(hist, year, r, c, v, var.name)
+        num_df = entries["data"].get_plottables(
+            hist, year, region, channel, variation, var.name
+        )
         num = num_df["hist"].values.tolist()
         if len(num) > 0:
             num = sum(num).values()
 
     if len(entries["stack"].entry_list) > 0:
         # get MC yields and sumw2
-        den_df = entries["stack"].get_plottables(hist, year, r, c, v, var.name)
+        den_df = entries["stack"].get_plottables(
+            hist, year, region, channel, variation, var.name
+        )
         den = den_df["hist"].values.tolist()
         den_sumw2 = den_df["sumw2"].values.tolist()
         if len(den) > 0:

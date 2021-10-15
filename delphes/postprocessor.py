@@ -66,7 +66,7 @@ def workflow(client, paths, parameters, timer=None):
         return
     npart = df.npartitions
     df = df.compute()
-    df["c"] = "vbf"
+    df["channel"] = "vbf"
     df.reset_index(inplace=True, drop=True)
     df = dd.from_pandas(df, npartitions=npart)
     if npart > 2 * parameters["ncpus"]:
@@ -74,7 +74,15 @@ def workflow(client, paths, parameters, timer=None):
     if timer:
         timer.add_checkpoint("Combined into a single Dask DataFrame")
 
-    keep_columns = ["s", "year", "r", "c"]
+    # temporary
+    if ("dataset" not in df.columns) and ("s" in df.columns):
+        df["dataset"] = df["s"]
+    if ("region" not in df.columns) and ("r" in df.columns):
+        df["region"] = df["r"]
+    if ("channel" not in df.columns) and ("c" in df.columns):
+        df["channel"] = df["c"]
+
+    keep_columns = ["dataset", "year", "region", "channel"]
     keep_columns += [c for c in df.columns if "wgt" in c]
     keep_columns += parameters["hist_vars"]
 
@@ -89,7 +97,7 @@ def workflow(client, paths, parameters, timer=None):
     argsets = []
     for year in df.year.unique():
         for var_name in parameters["hist_vars"]:
-            for dataset in df.s.unique():
+            for dataset in df.dataset.unique():
                 argsets.append({"year": year, "var_name": var_name, "dataset": dataset})
     # Make histograms
     hist_futures = client.map(partial(histogram, df=df, parameters=parameters), argsets)
@@ -148,8 +156,8 @@ def histogram(args, df=pd.DataFrame(), parameters={}):
     regions = parameters["regions"]
     channels = parameters["channels"]
 
-    regions = [r for r in regions if r in df.r.unique()]
-    channels = [c for c in channels if c in df["c"].unique()]
+    regions = [r for r in regions if r in df.region.unique()]
+    channels = [c for c in channels if c in df.channel.unique()]
 
     # sometimes different years have different binnings (MVA score)
     if "score" in var.name:
@@ -170,18 +178,23 @@ def histogram(args, df=pd.DataFrame(), parameters={}):
             .Double()
         )
 
-    for r in regions:
+    for region in regions:
         var_name = var.name
         if var.name in df.columns:
             var_name = var.name
         else:
             continue
-        for c in channels:
-            slicer = (df.s == dataset) & (df.r == r) & (df.year == year) & (df.c == c)
+        for channel in channels:
+            slicer = (
+                (df.dataset == dataset)
+                & (df.region == region)
+                & (df.year == year)
+                & (df.channel == channel)
+            )
             data = df.loc[slicer, var_name]
             weight = df.loc[slicer, "lumi_wgt"] * df.loc[slicer, "mc_wgt"]
-            hist.fill(r, c, "value", data, weight=weight)
-            hist.fill(r, c, "sumw2", data, weight=weight * weight)
+            hist.fill(region, channel, "value", data, weight=weight)
+            hist.fill(region, channel, "sumw2", data, weight=weight * weight)
 
     if parameters["save_hists"]:
         save_hist(hist, var.name, dataset, year, parameters)
@@ -198,8 +211,8 @@ def plot(hist, parameters={}):
     plotsize = 8
 
     # temporary
-    r = "h-peak"
-    c = "vbf"
+    region = "h-peak"
+    channel = "vbf"
     years = hist.year.unique()
     if len(years) > 1:
         print(
@@ -242,7 +255,7 @@ def plot(hist, parameters={}):
             self.labels = self.entry_dict.values()
             self.groups = list(set(self.entry_dict.values()))
 
-        def get_plottables(self, hist, year, r, c, var_name):
+        def get_plottables(self, hist, year, region, channel, var_name):
             plottables_df = pd.DataFrame(columns=["label", "hist", "sumw2", "integral"])
             all_df = pd.DataFrame(columns=["label", "integral"])
             for group in self.groups:
@@ -251,13 +264,13 @@ def plot(hist, parameters={}):
                     hist.dataset.isin(group_entries), "dataset"
                 ].values
                 hist_values_group = [
-                    hist[r, c, "value", :].project(var_name)
+                    hist[region, channel, "value", :].project(var_name)
                     for hist in hist.loc[
                         hist.dataset.isin(group_entries), "hist"
                     ].values
                 ]
                 hist_sumw2_group = [
-                    hist[r, c, "sumw2", :].project(var_name)
+                    hist[region, channel, "sumw2", :].project(var_name)
                     for hist in hist.loc[
                         hist.dataset.isin(group_entries), "hist"
                     ].values
@@ -307,7 +320,7 @@ def plot(hist, parameters={}):
     for entry in entries.values():
         if len(entry.entry_list) == 0:
             continue
-        plottables_df = entry.get_plottables(hist, year, r, c, var.name)
+        plottables_df = entry.get_plottables(hist, year, region, channel, var.name)
         plottables = plottables_df["hist"].values.tolist()
         sumw2 = plottables_df["sumw2"].values.tolist()
         labels = plottables_df["label"].values.tolist()
