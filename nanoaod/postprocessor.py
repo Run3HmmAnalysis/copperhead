@@ -558,12 +558,16 @@ def plot(hist, parameters={}):
 
                 if nevts > 0:
                     plottables_df = plottables_df.append(
-                        {
-                            "label": group,
-                            "hist": sum(hist_values_group),
-                            "sumw2": sum(hist_sumw2_group),
-                            "integral": sum(hist_values_group).sum(),
-                        },
+                        pd.DataFrame(
+                            [
+                                {
+                                    "label": group,
+                                    "hist": sum(hist_values_group),
+                                    "sumw2": sum(hist_sumw2_group),
+                                    "integral": sum(hist_values_group).sum(),
+                                }
+                            ]
+                        ),
                         ignore_index=True,
                     )
             plottables_df.sort_values(by="integral", inplace=True)
