@@ -161,7 +161,7 @@ grouping_alt = {
     "VBF": ["vbf_powheg_dipole"],
 }
 
-parameters["plot_groups"]: {
+parameters["plot_groups"] = {
     "stack": ["DY", "EWK", "TT+ST", "VV", "VVV"],
     "step": ["VBF", "ggH"],
     "data": ["Data"],
