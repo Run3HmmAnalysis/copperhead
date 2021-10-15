@@ -27,6 +27,6 @@ jobs:
         run: |
           python -m pip install coffea
           python -m pip install dask[distributed]
-      - name: test run
-        run: python -W ignore tests/test_nanoaod.py
+      - name: stage 1
+        run: python -W ignore tests/test_nanoaod_stage1.py
 

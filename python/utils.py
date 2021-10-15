@@ -5,6 +5,10 @@ import dask.dataframe as dd
 import pickle
 
 
+def almost_equal(a, b):
+    return abs(a - b) < 10e-6
+
+
 def mkdir(path):
     try:
         os.mkdir(path)

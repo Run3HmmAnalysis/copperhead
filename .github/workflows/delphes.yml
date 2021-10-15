@@ -29,6 +29,7 @@ jobs:
           python -m pip install dask[distributed]
           COFFEADIR=$(python -c 'import coffea; print(coffea.__path__[0])')
           cp coffea_replacement/delphes.py $COFFEADIR/nanoevents/schemas/
-      - name: test run
-        run: python -W ignore tests/test_delphes.py
-
+      - name: stage 1
+        run: python -W ignore tests/test_delphes_stage1.py
+      - name: stage 2
+        run: python -W ignore tests/test_delphes_stage2.py

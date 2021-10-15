@@ -8,15 +8,12 @@ from coffea.processor import dask_executor, run_uproot_job
 from coffea.nanoevents import DelphesSchema
 from delphes.preprocessor import get_fileset
 from delphes.processor import DimuonProcessorDelphes
+from python.utils import almost_equal
 
 import dask
 from dask.distributed import Client
 
 __all__ = ["Client"]
-
-
-def almost_equal(a, b):
-    return abs(a - b) < 10e-6
 
 
 if __name__ == "__main__":

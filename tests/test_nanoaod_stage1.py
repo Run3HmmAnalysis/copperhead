@@ -8,15 +8,12 @@ import coffea.processor as processor
 from coffea.processor import dask_executor, run_uproot_job
 from nanoaod.processor import DimuonProcessor
 from nanoaod.preprocessor import SamplesInfo
+from python.utils import almost_equal
 
 import dask
 from dask.distributed import Client
 
 __all__ = ["Client"]
-
-
-def almost_equal(a, b):
-    return abs(a - b) < 10e-6
 
 
 if __name__ == "__main__":
