@@ -29,4 +29,5 @@ jobs:
           python -m pip install dask[distributed]
       - name: stage 1
         run: python -W ignore tests/test_nanoaod_stage1.py
-
+      - name: stage 2
+        run: python -W ignore tests/test_nanoaod_stage2.py
