@@ -30,9 +30,11 @@ parameters = {
     "grouping": {
         "dy_m100_mg": "DY",
     },
-    "stack_groups": ["DY"],
-    "data_groups": [],
-    "step_groups": [],
+    "plot_groups": {
+        "stack": "DY",
+        "step": [],
+        "data": [],
+    },
 }
 
 

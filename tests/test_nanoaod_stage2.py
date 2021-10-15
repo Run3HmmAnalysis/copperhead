@@ -33,9 +33,11 @@ parameters = {
     "grouping": {
         "dy_m105_160_vbf_amc": "DY",
     },
-    "stack_groups": ["DY"],
-    "data_groups": [],
-    "step_groups": [],
+    "plot_groups": {
+        "stack": "DY",
+        "step": [],
+        "data": [],
+    },
 }
 
 

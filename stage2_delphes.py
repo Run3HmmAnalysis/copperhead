@@ -121,9 +121,11 @@ grouping_alt = {
     # "VBF": ["vbf_powheg_dipole"],
 }
 
-parameters["stack_groups"] = ["DY", "EWK", "TTbar", "Single top", "VV", "VVV"]
-parameters["data_groups"] = ["Data"]
-parameters["step_groups"] = ["VBF", "ggH"]
+parameters["plot_groups"]: {
+    "stack": ["DY", "EWK", "TTbar", "Single top", "VV", "VVV"],
+    "step": ["VBF", "ggH"],
+}
+
 
 if __name__ == "__main__":
     timer = Timer(ordered=False)

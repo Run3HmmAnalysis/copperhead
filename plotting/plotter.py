@@ -74,8 +74,7 @@ def plot(hist, parameters={}):
         )
     year = years[0]
 
-    entry_types = ["stack", "step", "data"]
-    entries = {et: Entry(et, parameters) for et in entry_types}
+    entries = {et: Entry(et, parameters) for et in parameters["plot_groups"].keys()}
 
     fig = plt.figure()
 
