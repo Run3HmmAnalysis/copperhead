@@ -5,8 +5,9 @@ import dask
 from dask.distributed import Client
 
 from python.timer import Timer
-from delphes.postprocessor import workflow, plotter, grouping_alt
+from delphes.postprocessor import workflow
 from delphes.postprocessor import grouping
+from plotting.plotter import plotter
 
 __all__ = ["dask"]
 
@@ -86,8 +87,43 @@ parameters = {
     "regions": ["h-peak", "h-sidebands"],
     "save_hists": True,
     "save_plots": True,
+    "plot_ratio": False,
+    "14TeV_label": True,
 }
 
+parameters["grouping"] = {
+    # "ggh_powheg": "ggH",
+    # "vbf_powheg": "VBF",
+    "dy_m100_mg": "DY",
+    "ttbar_dl": "TTbar",
+    "tttj": "TTbar",
+    "tttt": "TTbar",
+    "tttw": "TTbar",
+    "ttwj": "TTbar",
+    "ttww": "TTbar",
+    "ttz": "TTbar",
+    "st_s": "Single top",
+    # "st_t_top": "Single top",
+    "st_t_antitop": "Single top",
+    "st_tw_top": "Single top",
+    "st_tw_antitop": "Single top",
+    "zz_2l2q": "VV",
+}
+
+grouping_alt = {
+    "DY": ["dy_m100_mg"],
+    # "EWK": [],
+    "TTbar": ["ttbar_dl", "tttj", "tttt", "tttw", "ttwj", "ttww", "ttz"],
+    "Single top": ["st_s", "st_t_antitop", "st_tw_top", "st_tw_antitop"],
+    "VV": ["zz_2l2q"],
+    # "VVV": [],
+    # "ggH": ["ggh_amcPS"],
+    # "VBF": ["vbf_powheg_dipole"],
+}
+
+parameters["stack_groups"] = ["DY", "EWK", "TTbar", "Single top", "VV", "VVV"]
+parameters["data_groups"] = ["Data"]
+parameters["step_groups"] = ["VBF", "ggH"]
 
 if __name__ == "__main__":
     timer = Timer(ordered=False)
@@ -112,7 +148,7 @@ if __name__ == "__main__":
         client = Client(parameters["slurm_cluster_ip"])
     print("Cluster created!")
 
-    datasets = grouping.keys()
+    datasets = parameters["grouping"].keys()
     # datasets = ["dy_m100_mg"]
 
     parameters["hist_vars"] = [
@@ -207,15 +243,15 @@ if __name__ == "__main__":
             for path in tqdm.tqdm(all_paths):
                 if len(path) == 0:
                     continue
-                workflow(client, [path], parameters, timer)
+                workflow(client, [path], parameters, timer=timer)
         else:
             for year, groups in paths_grouped.items():
                 print(f"Processing {year}")
                 for group, g_paths in tqdm.tqdm(groups.items()):
                     if len(g_paths) == 0:
                         continue
-                    workflow(client, g_paths, parameters, timer)
+                    workflow(client, g_paths, parameters, timer=timer)
 
     if args.plot:
-        plotter(client, parameters, timer)
+        plotter(client, parameters, timer=timer)
     timer.summary()

@@ -7,8 +7,9 @@ import time
 import dask
 from dask.distributed import Client
 
-from delphes.postprocessor import workflow, plotter
+from delphes.postprocessor import workflow
 from python.utils import almost_equal
+from plotting.plotter import plotter
 
 __all__ = ["dask"]
 
@@ -16,10 +17,21 @@ __all__ = ["dask"]
 parameters = {
     "ncpus": 1,
     "years": ["snowmass"],
+    "datasets": ["dy_m100_mg"],
     "channels": ["vbf"],
     "regions": ["h-peak"],
+    "hist_vars": ["dimuon_mass"],
+    "plot_vars": ["dimuon_mass"],
     "save_hists": False,
     "save_plots": False,
+    "plot_ratio": False,
+    "14TeV_label": True,
+    "grouping": {
+        "dy_m100_mg": "DY",
+    },
+    "stack_groups": ["DY"],
+    "data_group": [],
+    "step_groups": [],
 }
 
 
@@ -32,10 +44,6 @@ if __name__ == "__main__":
         threads_per_worker=1,
         memory_limit="4GB",
     )
-
-    parameters["hist_vars"] = ["dimuon_mass"]
-    parameters["plot_vars"] = ["dimuon_mass"]
-    parameters["datasets"] = ["dy_m100_mg"]
 
     file_name = "dy_delphes_stage1_output.parquet"
     path = f"{os.getcwd()}/tests/samples/{file_name}"

@@ -5,9 +5,10 @@ import dask
 from dask.distributed import Client
 
 from python.timer import Timer
-from nanoaod.postprocessor import workflow, plotter, grouping_alt
+from nanoaod.postprocessor import workflow
 from nanoaod.postprocessor import grouping
 from nanoaod.config.mva_bins import mva_bins
+from plotting.plotter import plotter
 
 __all__ = ["dask"]
 
@@ -98,9 +99,71 @@ parameters = {
     "regions": ["h-peak", "h-sidebands"],
     "save_hists": True,
     "save_plots": True,
+    "plot_ratio": True,
+    "14TeV_label": False,
 }
 
 parameters["mva_bins"] = mva_bins
+parameters["grouping"] = {
+    "data_A": "Data",
+    "data_B": "Data",
+    "data_C": "Data",
+    "data_D": "Data",
+    "data_E": "Data",
+    "data_F": "Data",
+    "data_G": "Data",
+    "data_H": "Data",
+    # 'dy_0j': 'DY',
+    # 'dy_1j': 'DY',
+    # 'dy_2j': 'DY',
+    # 'dy_m105_160_amc': 'DY_nofilter',
+    # 'dy_m105_160_vbf_amc': 'DY_filter',
+    "dy_m105_160_amc": "DY",
+    "dy_m105_160_vbf_amc": "DY",
+    "ewk_lljj_mll105_160_ptj0": "EWK",
+    # 'ewk_lljj_mll105_160_py_dipole': 'EWK_Pythia',
+    "ttjets_dl": "TT+ST",
+    "ttjets_sl": "TT+ST",
+    "ttw": "TT+ST",
+    "ttz": "TT+ST",
+    "st_tw_top": "TT+ST",
+    "st_tw_antitop": "TT+ST",
+    "ww_2l2nu": "VV",
+    "wz_2l2q": "VV",
+    "wz_1l1nu2q": "VV",
+    "wz_3lnu": "VV",
+    "zz": "VV",
+    "www": "VVV",
+    "wwz": "VVV",
+    "wzz": "VVV",
+    "zzz": "VVV",
+    "ggh_amcPS": "ggH",
+    "vbf_powheg_dipole": "VBF",
+}
+
+grouping_alt = {
+    "Data": [
+        "data_A",
+        "data_B",
+        "data_C",
+        "data_D",
+        "data_E",
+        "data_F",
+        "data_G",
+        "data_H",
+    ],
+    "DY": ["dy_m105_160_amc", "dy_m105_160_vbf_amc"],
+    "EWK": ["ewk_lljj_mll105_160_ptj0"],
+    "TT+ST": ["ttjets_dl", "ttjets_sl", "ttw", "ttz", "st_tw_top", "st_tw_antitop"],
+    "VV": ["ww_2l2nu", "wz_2l2q", "wz_1l1nu2q", "wz_3lnu", "zz"],
+    "VVV": ["www", "wwz", "wzz", "zzz"],
+    "ggH": ["ggh_amcPS"],
+    "VBF": ["vbf_powheg_dipole"],
+}
+
+parameters["stack_groups"] = ["DY", "EWK", "TT+ST", "VV", "VVV"]
+parameters["data_groups"] = ["Data"]
+parameters["step_groups"] = ["VBF", "ggH"]
 
 if __name__ == "__main__":
     timer = Timer(ordered=False)
@@ -182,15 +245,15 @@ if __name__ == "__main__":
             for path in tqdm.tqdm(all_paths):
                 if len(path) == 0:
                     continue
-                workflow(client, [path], parameters, timer)
+                workflow(client, [path], parameters, timer=timer)
         else:
             for year, groups in paths_grouped.items():
                 print(f"Processing {year}")
                 for group, g_paths in tqdm.tqdm(groups.items()):
                     if len(g_paths) == 0:
                         continue
-                    workflow(client, g_paths, parameters, timer)
+                    workflow(client, g_paths, parameters, timer=timer)
 
     if args.plot:
-        plotter(client, parameters, timer)
+        plotter(client, parameters, timer=timer)
     timer.summary()

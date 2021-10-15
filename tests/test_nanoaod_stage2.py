@@ -7,8 +7,9 @@ import time
 import dask
 from dask.distributed import Client
 
-from nanoaod.postprocessor import workflow, plotter
+from nanoaod.postprocessor import workflow
 from python.utils import almost_equal
+from plotting.plotter import plotter
 
 __all__ = ["dask"]
 
@@ -26,6 +27,14 @@ parameters = {
     "plot_vars": ["dimuon_mass"],
     "save_hists": False,
     "save_plots": False,
+    "plot_ratio": True,
+    "14TeV_label": False,
+    "grouping": {
+        "dy_m105_160_vbf_amc": "DY",
+    },
+    "stack_groups": ["DY"],
+    "data_group": [],
+    "step_groups": [],
 }
 
 
