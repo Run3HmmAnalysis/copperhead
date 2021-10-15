@@ -4,8 +4,6 @@ from functools import partial
 import dask.dataframe as dd
 import pandas as pd
 import numpy as np
-import matplotlib.pyplot as plt
-import mplhep as hep
 from hist import Hist
 from hist.intervals import poisson_interval
 from config.variables import variables_lookup, Variable
@@ -14,6 +12,14 @@ from python.utils import save_hist, load_histograms
 
 os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
 pd.options.mode.chained_assignment = None
+
+import matplotlib.pyplot as plt
+import mplhep as hep
+
+style = hep.style.CMS
+style["mathtext.fontset"] = "cm"
+style["mathtext.default"] = "rm"
+plt.style.use(style)
 
 grouping = {
     # "ggh_powheg": "ggH",
@@ -181,7 +187,6 @@ def plot(hist, parameters={}):
         return
     var = hist["hist"].values[0].axes[-1]
     plotsize = 8
-    ratio_plot_size = 0.25
 
     # temporary
     r = "h-peak"
@@ -194,7 +199,6 @@ def plot(hist, parameters={}):
     year = years[0]
 
     stack_groups = ["DY", "EWK", "TTbar", "Single top", "VV", "VVV"]
-    data_groups = ["Data"]
     step_groups = ["VBF", "ggH"]
 
     class Entry(object):
@@ -217,12 +221,6 @@ def plot(hist, parameters={}):
                 self.stack = True
                 self.plot_opts = {"alpha": 0.8, "edgecolor": (0, 0, 0)}
                 self.yerr = False
-            elif entry_type == "data":
-                self.groups = data_groups
-                self.histtype = "errorbar"
-                self.stack = False
-                self.plot_opts = {"color": "k", "marker": ".", "markersize": 10}
-                self.yerr = True
             else:
                 raise Exception(f"Wrong entry type: {entry_type}")
 
@@ -279,7 +277,7 @@ def plot(hist, parameters={}):
                     )
             plottables_df.sort_values(by="integral", inplace=True)
             all_df.sort_values(by="integral", inplace=True)
-            print(all_df)
+            # print(all_df)
             return plottables_df
 
     stat_err_opts = {
@@ -292,23 +290,11 @@ def plot(hist, parameters={}):
     }
     ratio_err_opts = {"step": "post", "facecolor": (0, 0, 0, 0.3), "linewidth": 0}
 
-    entry_types = ["stack", "step", "data"]
+    entry_types = ["stack", "step"]
     entries = {et: Entry(et, parameters) for et in entry_types}
 
-    fig = plt.figure()
-    style = hep.style.CMS
-    style["mathtext.fontset"] = "cm"
-    style["mathtext.default"] = "rm"
-    plt.style.use(style)
-
-    fig.clf()
-    fig.set_size_inches(plotsize * 1.2, plotsize * (1 + ratio_plot_size))
-    gs = fig.add_gridspec(
-        2, 1, height_ratios=[(1 - ratio_plot_size), ratio_plot_size], hspace=0.07
-    )
-
-    # Top panel: Data/MC
-    plt1 = fig.add_subplot(gs[0])
+    fig, ax = plt.subplots()
+    fig.set_size_inches(plotsize, plotsize)
 
     for entry in entries.values():
         if len(entry.entry_list) == 0:
@@ -326,7 +312,7 @@ def plot(hist, parameters={}):
         hep.histplot(
             plottables,
             label=labels,
-            ax=plt1,
+            ax=ax,
             yerr=yerr,
             stack=entry.stack,
             histtype=entry.histtype,
@@ -339,79 +325,22 @@ def plot(hist, parameters={}):
             total_sumw2 = sum(sumw2).values()
             if sum(total_bkg) > 0:
                 err = poisson_interval(total_bkg, total_sumw2)
-                plt1.fill_between(
+                ax.fill_between(
                     x=plottables[0].axes[0].edges,
                     y1=np.r_[err[0, :], err[0, -1]],
                     y2=np.r_[err[1, :], err[1, -1]],
                     **stat_err_opts,
                 )
 
-    plt1.set_yscale("log")
-    plt1.set_ylim(0.01, 1e9)
-    # plt1.set_xlim(var.xmin,var.xmax)
-    # plt1.set_xlim(edges[0], edges[-1])
-    plt1.set_xlabel("")
-    plt1.tick_params(axis="x", labelbottom=False)
-    plt1.legend(prop={"size": "x-small"})
-
-    # Bottom panel: Data/MC ratio plot
-    plt2 = fig.add_subplot(gs[1], sharex=plt1)
-
-    num = den = []
-
-    if len(entries["data"].entry_list) > 0:
-        # get Data yields
-        num_df = entries["data"].get_plottables(hist, year, r, c, var.name)
-        num = num_df["hist"].values.tolist()
-        if len(num) > 0:
-            num = sum(num).values()
-
-    if len(entries["stack"].entry_list) > 0:
-        # get MC yields and sumw2
-        den_df = entries["stack"].get_plottables(hist, year, r, c, var.name)
-        den = den_df["hist"].values.tolist()
-        den_sumw2 = den_df["sumw2"].values.tolist()
-        if len(den) > 0:
-            edges = den[0].axes[0].edges
-            den = sum(den).values()  # total MC
-            den_sumw2 = sum(den_sumw2).values()
-
-    if len(num) * len(den) > 0:
-        # compute Data/MC ratio
-        ratio = np.divide(num, den)
-        yerr = np.zeros_like(num)
-        yerr[den > 0] = np.sqrt(num[den > 0]) / den[den > 0]
-        hep.histplot(
-            ratio,
-            bins=edges,
-            ax=plt2,
-            yerr=yerr,
-            histtype="errorbar",
-            **entries["data"].plot_opts,
-        )
-
-    if sum(den) > 0:
-        # compute MC uncertainty
-        unity = np.ones_like(den)
-        w2 = np.zeros_like(den)
-        w2[den > 0] = den_sumw2[den > 0] / den[den > 0] ** 2
-        den_unc = poisson_interval(unity, w2)
-        plt2.fill_between(
-            edges,
-            np.r_[den_unc[0], den_unc[0, -1]],
-            np.r_[den_unc[1], den_unc[1, -1]],
-            label="Stat. unc.",
-            **ratio_err_opts,
-        )
-
-    plt2.axhline(1, ls="--")
-    plt2.set_ylim([0.5, 1.5])
-    plt2.set_ylabel("Data/MC", loc="center")
-    plt2.set_xlabel(var.label, loc="right")
-    plt2.legend(prop={"size": "x-small"})
+    ax.legend(prop={"size": "x-small"})
+    ax.set_yscale("log")
+    ax.set_xlabel(var.label, loc="right")
+    ax.set_ylim(0.01, 1e9)
+    # ax.set_xlim(var.xmin,var.xmax)
+    # ax.set_xlim(edges[0], edges[-1])
 
     hep.cms.label(
-        ax=plt1, data=False, label="Preliminary", year="HL-LHC", rlabel="14 TeV"
+        ax=ax, data=False, label="Preliminary", year="HL-LHC", rlabel="14 TeV"
     )
 
     path = parameters["plots_path"]
