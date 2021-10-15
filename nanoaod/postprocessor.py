@@ -5,13 +5,10 @@ import dask.dataframe as dd
 import pandas as pd
 import numpy as np
 import pickle
-import matplotlib.pyplot as plt
-import mplhep as hep
 from hist import Hist
-from hist.intervals import poisson_interval
 from nanoaod.config.variables import variables_lookup, Variable
 from python.utils import load_from_parquet
-from python.utils import save_hist, load_histograms
+from python.utils import save_hist
 
 os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
 pd.options.mode.chained_assignment = None

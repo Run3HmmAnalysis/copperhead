@@ -194,7 +194,7 @@ if __name__ == "__main__":
         "vbf_powheg_dipole"
         # 'dy_m105_160_amc'
     ]
-    datasets = grouping.keys()
+    datasets = parameters["grouping"].keys()
 
     parameters["hist_vars"] = ["dimuon_mass"]
     parameters["hist_vars"] += ["score_" + m for m in parameters["dnn_models"]]

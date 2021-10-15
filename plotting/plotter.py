@@ -133,7 +133,7 @@ def plot(hist, parameters={}):
                             hist.dataset.isin(group_entries), "hist"
                         ].values
                     ]
-                except:
+                except Exception:
                     hist_values_group = [
                         hist[region, channel, "value", :].project(var_name)
                         for hist in hist.loc[

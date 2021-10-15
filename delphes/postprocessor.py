@@ -3,12 +3,10 @@ from functools import partial
 
 import dask.dataframe as dd
 import pandas as pd
-import numpy as np
 from hist import Hist
-from hist.intervals import poisson_interval
 from delphes.config.variables import variables_lookup, Variable
 from python.utils import load_from_parquet
-from python.utils import save_hist, load_histograms
+from python.utils import save_hist
 
 os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
 pd.options.mode.chained_assignment = None
@@ -68,45 +66,6 @@ def workflow(client, paths, parameters, timer=None):
     if timer:
         timer.add_checkpoint("Histogramming")
     return hist_df
-
-
-def plotter(client, parameters, hist_df=None, timer=None):
-    if hist_df is None:
-        # Load histograms
-        argsets = []
-        for year in parameters["years"]:
-            for var_name in parameters["hist_vars"]:
-                for dataset in parameters["datasets"]:
-                    argsets.append(
-                        {"year": year, "var_name": var_name, "dataset": dataset}
-                    )
-        hist_futures = client.map(
-            partial(load_histograms, parameters=parameters), argsets
-        )
-        hist_rows = client.gather(hist_futures)
-        hist_df = pd.concat(hist_rows).reset_index(drop=True)
-
-    hists_to_plot = []
-    keys = []
-    for year in parameters["years"]:
-        for var_name in hist_df.var_name.unique():
-            if var_name not in parameters["plot_vars"]:
-                continue
-            hists_to_plot.append(
-                hist_df.loc[(hist_df.var_name == var_name) & (hist_df.year == year)]
-            )
-            keys.append(f"plot: {year} {var_name}")
-    if timer:
-        timer.add_checkpoint("Loading histograms")
-
-    plot_futures = client.map(
-        partial(plot, parameters=parameters), hists_to_plot, key=keys
-    )
-    yields = client.gather(plot_futures)
-    if timer:
-        timer.add_checkpoint("Plotting")
-
-    return yields
 
 
 def histogram(args, df=pd.DataFrame(), parameters={}):
