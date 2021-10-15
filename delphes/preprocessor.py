@@ -4,7 +4,7 @@ import json
 import awkward as ak
 from coffea.nanoevents import DelphesSchema, NanoEventsFactory
 
-from delphes.cross_sections import cross_sections
+from delphes.config.cross_sections import cross_sections
 
 
 def get_sum_wgts(file):

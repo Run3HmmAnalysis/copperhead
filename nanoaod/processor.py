@@ -32,8 +32,8 @@ from nanoaod.muons import fill_muons
 from nanoaod.jets import prepare_jets, fill_jets, fill_softjets
 from nanoaod.jets import jet_id, jet_puid, gen_jet_pair_mass
 
-from config.parameters import parameters
-from config.variables import variables
+from nanoaod.config.parameters import parameters
+from nanoaod.config.variables import variables
 
 
 class DimuonProcessor(processor.ProcessorABC):

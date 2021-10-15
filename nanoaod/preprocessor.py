@@ -5,8 +5,8 @@ import tqdm
 
 import uproot
 
-from config.parameters import parameters
-from config.cross_sections import cross_sections
+from nanoaod.config.parameters import parameters
+from nanoaod.config.cross_sections import cross_sections
 
 
 def load_sample(dataset, parameters):

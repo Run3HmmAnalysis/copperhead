@@ -9,7 +9,7 @@ from coffea.processor import dask_executor, run_uproot_job
 from python.utils import mkdir
 from delphes.preprocessor import get_fileset
 from delphes.processor import DimuonProcessorDelphes
-from delphes.datasets import datasets
+from delphes.config.datasets import datasets
 
 from dask.distributed import Client
 

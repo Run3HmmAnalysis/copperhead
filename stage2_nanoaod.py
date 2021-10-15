@@ -7,7 +7,7 @@ from dask.distributed import Client
 from python.timer import Timer
 from nanoaod.postprocessor import workflow, plotter, grouping_alt
 from nanoaod.postprocessor import grouping
-from config.mva_bins import mva_bins
+from nanoaod.config.mva_bins import mva_bins
 
 __all__ = ["dask"]
 

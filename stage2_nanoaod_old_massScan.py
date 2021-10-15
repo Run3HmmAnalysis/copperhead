@@ -4,7 +4,7 @@ import argparse
 from nanoaod.postprocessor_old import postprocess, save_shapes
 from nanoaod.postprocessor_old import make_datacards, prepare_root_files
 from nanoaod.postprocessor_old import overlap_study_unbinned
-from config.variables import Variable
+from nanoaod.config.variables import Variable
 import pandas as pd
 
 parser = argparse.ArgumentParser()

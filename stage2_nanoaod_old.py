@@ -6,7 +6,7 @@ from nanoaod.postprocessor_old import save_shapes, make_datacards
 from nanoaod.postprocessor_old import rebin, dnn_training
 from nanoaod.postprocessor_old import prepare_root_files
 from nanoaod.postprocessor_old import overlap_study_unbinned, plot_rocs
-from config.variables import variables, Variable
+from nanoaod.config.variables import variables, Variable
 import pandas as pd
 
 parser = argparse.ArgumentParser()

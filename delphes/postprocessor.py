@@ -6,7 +6,7 @@ import pandas as pd
 import numpy as np
 from hist import Hist
 from hist.intervals import poisson_interval
-from config.variables import variables_lookup, Variable
+from delphes.config.variables import variables_lookup, Variable
 from python.utils import load_from_parquet
 from python.utils import save_hist, load_histograms
 

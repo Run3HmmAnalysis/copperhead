@@ -7,7 +7,7 @@ import coffea.processor as processor
 from nanoaod.processor import DimuonProcessor
 from nanoaod.preprocessor import load_samples
 from python.utils import mkdir
-from config.parameters import parameters as pars
+from nanoaod.config.parameters import parameters as pars
 
 import dask
 from dask.distributed import Client

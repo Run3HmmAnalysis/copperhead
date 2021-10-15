@@ -2,7 +2,7 @@ import pandas as pd
 import awkward as ak
 import coffea.processor as processor
 
-from delphes.parameters import parameters
+from delphes.config.parameters import parameters
 from delphes.muons import fill_muons
 from delphes.jets import fill_jets
 
