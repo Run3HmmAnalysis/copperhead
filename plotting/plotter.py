@@ -112,7 +112,9 @@ def plot(hist, parameters={}):
             self.labels = self.entry_dict.values()
             self.groups = list(set(self.entry_dict.values()))
 
-        def get_plottables(self, hist, year, region, channel, variation, var_name):
+        def get_plottables(self, hist, year, var_name, dimensions):
+            slicer_value = tuple(list(dimensions) + ["value", slice(None)])
+            slicer_sumw2 = tuple(list(dimensions) + ["sumw2", slice(None)])
             plottables_df = pd.DataFrame(columns=["label", "hist", "sumw2", "integral"])
             all_df = pd.DataFrame(columns=["label", "integral"])
             for group in self.groups:
@@ -120,32 +122,18 @@ def plot(hist, parameters={}):
                 all_labels = hist.loc[
                     hist.dataset.isin(group_entries), "dataset"
                 ].values
-                try:
-                    hist_values_group = [
-                        hist[region, channel, variation, "value", :].project(var_name)
-                        for hist in hist.loc[
-                            hist.dataset.isin(group_entries), "hist"
-                        ].values
-                    ]
-                    hist_sumw2_group = [
-                        hist[region, channel, variation, "sumw2", :].project(var_name)
-                        for hist in hist.loc[
-                            hist.dataset.isin(group_entries), "hist"
-                        ].values
-                    ]
-                except Exception:
-                    hist_values_group = [
-                        hist[region, channel, "value", :].project(var_name)
-                        for hist in hist.loc[
-                            hist.dataset.isin(group_entries), "hist"
-                        ].values
-                    ]
-                    hist_sumw2_group = [
-                        hist[region, channel, "sumw2", :].project(var_name)
-                        for hist in hist.loc[
-                            hist.dataset.isin(group_entries), "hist"
-                        ].values
-                    ]
+                hist_values_group = [
+                    hist[slicer_value].project(var_name)
+                    for hist in hist.loc[
+                        hist.dataset.isin(group_entries), "hist"
+                    ].values
+                ]
+                hist_sumw2_group = [
+                    hist[slicer_sumw2].project(var_name)
+                    for hist in hist.loc[
+                        hist.dataset.isin(group_entries), "hist"
+                    ].values
+                ]
                 if len(hist_values_group) == 0:
                     continue
                 nevts = sum(hist_values_group).sum()
@@ -196,7 +184,6 @@ def plot(hist, parameters={}):
 
     fig = plt.figure()
 
-    # fig.clf()
     if parameters["plot_ratio"]:
         fig.set_size_inches(plotsize * 1.2, plotsize * (1 + ratio_plot_size))
         gs = fig.add_gridspec(
@@ -212,9 +199,11 @@ def plot(hist, parameters={}):
     for entry in entries.values():
         if len(entry.entry_list) == 0:
             continue
-        plottables_df = entry.get_plottables(
-            hist, year, region, channel, variation, var.name
-        )
+        if parameters["has_variations"]:
+            dimensions = (region, channel, variation)
+        else:
+            dimensions = (region, channel)
+        plottables_df = entry.get_plottables(hist, year, var.name, dimensions)
         plottables = plottables_df["hist"].values.tolist()
         sumw2 = plottables_df["sumw2"].values.tolist()
         labels = plottables_df["label"].values.tolist()

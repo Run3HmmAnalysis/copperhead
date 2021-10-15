@@ -26,6 +26,7 @@ parameters = {
     "save_plots": False,
     "plot_ratio": False,
     "14TeV_label": True,
+    "has_variations": False,
     "grouping": {
         "dy_m100_mg": "DY",
     },

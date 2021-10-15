@@ -29,6 +29,7 @@ parameters = {
     "save_plots": False,
     "plot_ratio": True,
     "14TeV_label": False,
+    "has_variations": True,
     "grouping": {
         "dy_m105_160_vbf_amc": "DY",
     },

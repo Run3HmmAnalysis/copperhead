@@ -100,6 +100,7 @@ parameters = {
     "save_plots": True,
     "plot_ratio": True,
     "14TeV_label": False,
+    "has_variations": True,
 }
 
 parameters["mva_bins"] = mva_bins

@@ -88,6 +88,7 @@ parameters = {
     "save_plots": True,
     "plot_ratio": False,
     "14TeV_label": True,
+    "has_variations": False,
 }
 
 parameters["grouping"] = {
