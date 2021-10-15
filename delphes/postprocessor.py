@@ -288,7 +288,6 @@ def plot(hist, parameters={}):
         "edgecolor": (0, 0, 0, 0.5),
         "linewidth": 0,
     }
-    ratio_err_opts = {"step": "post", "facecolor": (0, 0, 0, 0.3), "linewidth": 0}
 
     entry_types = ["stack", "step"]
     entries = {et: Entry(et, parameters) for et in entry_types}
