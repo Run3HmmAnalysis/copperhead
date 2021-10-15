@@ -101,25 +101,28 @@ def workflow(client, paths, parameters, timer=None):
                 argsets.append({"year": year, "var_name": var_name, "dataset": dataset})
     # Make histograms
     hist_futures = client.map(partial(histogram, df=df, parameters=parameters), argsets)
-    client.gather(hist_futures)
     hist_rows = client.gather(hist_futures)
     hist_df = pd.concat(hist_rows).reset_index(drop=True)
     if timer:
         timer.add_checkpoint("Histogramming")
-
     return hist_df
 
 
-def plotter(client, parameters, timer=None):
-    # Load histograms
-    argsets = []
-    for year in parameters["years"]:
-        for var_name in parameters["hist_vars"]:
-            for dataset in parameters["datasets"]:
-                argsets.append({"year": year, "var_name": var_name, "dataset": dataset})
-    hist_futures = client.map(partial(load_histograms, parameters=parameters), argsets)
-    hist_rows = client.gather(hist_futures)
-    hist_df = pd.concat(hist_rows).reset_index(drop=True)
+def plotter(client, parameters, hist_df=None, timer=None):
+    if hist_df is None:
+        # Load histograms
+        argsets = []
+        for year in parameters["years"]:
+            for var_name in parameters["hist_vars"]:
+                for dataset in parameters["datasets"]:
+                    argsets.append(
+                        {"year": year, "var_name": var_name, "dataset": dataset}
+                    )
+        hist_futures = client.map(
+            partial(load_histograms, parameters=parameters), argsets
+        )
+        hist_rows = client.gather(hist_futures)
+        hist_df = pd.concat(hist_rows).reset_index(drop=True)
 
     hists_to_plot = []
     keys = []
@@ -131,17 +134,17 @@ def plotter(client, parameters, timer=None):
                 hist_df.loc[(hist_df.var_name == var_name) & (hist_df.year == year)]
             )
             keys.append(f"plot: {year} {var_name}")
-
     if timer:
         timer.add_checkpoint("Loading histograms")
 
     plot_futures = client.map(
         partial(plot, parameters=parameters), hists_to_plot, key=keys
     )
-    client.gather(plot_futures)
-
+    yields = client.gather(plot_futures)
     if timer:
         timer.add_checkpoint("Plotting")
+
+    return yields
 
 
 def histogram(args, df=pd.DataFrame(), parameters={}):
@@ -317,6 +320,7 @@ def plot(hist, parameters={}):
     fig, ax = plt.subplots()
     fig.set_size_inches(plotsize, plotsize)
 
+    total_yield = 0
     for entry in entries.values():
         if len(entry.entry_list) == 0:
             continue
@@ -324,6 +328,7 @@ def plot(hist, parameters={}):
         plottables = plottables_df["hist"].values.tolist()
         sumw2 = plottables_df["sumw2"].values.tolist()
         labels = plottables_df["label"].values.tolist()
+        total_yield += sum([p.sum() for p in plottables])
 
         if len(plottables) == 0:
             continue
@@ -364,8 +369,10 @@ def plot(hist, parameters={}):
         ax=ax, data=False, label="Preliminary", year="HL-LHC", rlabel="14 TeV"
     )
 
-    path = parameters["plots_path"]
-    out_name = f"{path}/{var.name}_{year}.png"
-    fig.savefig(out_name)
-    print(f"Saved: {out_name}")
-    return
+    if parameters["save_plots"]:
+        path = parameters["plots_path"]
+        out_name = f"{path}/{var.name}_{year}.png"
+        fig.savefig(out_name)
+        print(f"Saved: {out_name}")
+
+    return total_yield

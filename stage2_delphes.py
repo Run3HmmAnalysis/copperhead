@@ -84,6 +84,8 @@ parameters = {
     "channels": ["vbf", "vbf_01j", "vbf_2j"],
     # 'channels': ['ggh_01j', 'ggh_2j'],
     "regions": ["h-peak", "h-sidebands"],
+    "save_hists": True,
+    "save_plots": True,
 }
 
 

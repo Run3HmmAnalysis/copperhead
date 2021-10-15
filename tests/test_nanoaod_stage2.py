@@ -7,7 +7,7 @@ import time
 import dask
 from dask.distributed import Client
 
-from nanoaod.postprocessor import workflow
+from nanoaod.postprocessor import workflow, plotter
 from python.utils import almost_equal
 
 __all__ = ["dask"]
@@ -15,13 +15,17 @@ __all__ = ["dask"]
 
 parameters = {
     "ncpus": 1,
-    "years": ["2018"],
+    "years": [2018],
+    "datasets": ["dy_m105_160_vbf_amc"],
     "channels": ["vbf"],
     "regions": ["h-peak"],
     "syst_variations": ["nominal"],
     "dnn_models": [],
     "bdt_models": [],
+    "hist_vars": ["dimuon_mass"],
+    "plot_vars": ["dimuon_mass"],
     "save_hists": False,
+    "save_plots": False,
 }
 
 
@@ -35,17 +39,17 @@ if __name__ == "__main__":
         memory_limit="4GB",
     )
 
-    parameters["hist_vars"] = ["dimuon_mass"]
-    parameters["plot_vars"] = ["dimuon_mass"]
-    parameters["datasets"] = ["dy_m100_mg"]
-
     file_name = "dy_nanoaod_stage1_output.parquet"
     path = f"{os.getcwd()}/tests/samples/{file_name}"
 
-    out = workflow(client, [path], parameters)
+    out_hist = workflow(client, [path], parameters)
+    out_plot = plotter(client, parameters, hist_df=out_hist)
 
     elapsed = round(time.time() - tick, 3)
     print(f"Finished everything in {elapsed} s.")
+
     assert almost_equal(
-        out["hist"][0]["h-peak", "vbf", "nominal", "value", :].sum(), 6.761677545416264
+        out_hist["hist"][0]["h-peak", "vbf", "nominal", "value", :].sum(),
+        6.761677545416264,
     )
+    assert almost_equal(sum(out_plot), 6.761677545416264)

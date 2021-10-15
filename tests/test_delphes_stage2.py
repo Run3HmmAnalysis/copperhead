@@ -7,7 +7,7 @@ import time
 import dask
 from dask.distributed import Client
 
-from delphes.postprocessor import workflow
+from delphes.postprocessor import workflow, plotter
 from python.utils import almost_equal
 
 __all__ = ["dask"]
@@ -19,6 +19,7 @@ parameters = {
     "channels": ["vbf"],
     "regions": ["h-peak"],
     "save_hists": False,
+    "save_plots": False,
 }
 
 
@@ -39,10 +40,12 @@ if __name__ == "__main__":
     file_name = "dy_delphes_stage1_output.parquet"
     path = f"{os.getcwd()}/tests/samples/{file_name}"
 
-    out = workflow(client, [path], parameters)
+    out_hist = workflow(client, [path], parameters)
+    out_plot = plotter(client, parameters, hist_df=out_hist)
 
     elapsed = round(time.time() - tick, 3)
     print(f"Finished everything in {elapsed} s.")
     assert almost_equal(
-        out["hist"][0]["h-peak", "vbf", "value", :].sum(), 4515.761427143451
+        out_hist["hist"][0]["h-peak", "vbf", "value", :].sum(), 4515.761427143451
     )
+    assert almost_equal(sum(out_plot), 4515.761427143451)

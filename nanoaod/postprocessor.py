@@ -214,7 +214,6 @@ def workflow(client, paths, parameters, timer=None):
                 argsets.append({"year": year, "var_name": var_name, "dataset": dataset})
     # Make histograms
     hist_futures = client.map(partial(histogram, df=df, parameters=parameters), argsets)
-    client.gather(hist_futures)
     hist_rows = client.gather(hist_futures)
     hist_df = pd.concat(hist_rows).reset_index(drop=True)
     if timer:
@@ -222,16 +221,21 @@ def workflow(client, paths, parameters, timer=None):
     return hist_df
 
 
-def plotter(client, parameters, timer=None):
-    # Load histograms
-    argsets = []
-    for year in parameters["years"]:
-        for var_name in parameters["hist_vars"]:
-            for dataset in parameters["datasets"]:
-                argsets.append({"year": year, "var_name": var_name, "dataset": dataset})
-    hist_futures = client.map(partial(load_histograms, parameters=parameters), argsets)
-    hist_rows = client.gather(hist_futures)
-    hist_df = pd.concat(hist_rows).reset_index(drop=True)
+def plotter(client, parameters, hist_df=None, timer=None):
+    if hist_df is None:
+        # Load histograms
+        argsets = []
+        for year in parameters["years"]:
+            for var_name in parameters["hist_vars"]:
+                for dataset in parameters["datasets"]:
+                    argsets.append(
+                        {"year": year, "var_name": var_name, "dataset": dataset}
+                    )
+        hist_futures = client.map(
+            partial(load_histograms, parameters=parameters), argsets
+        )
+        hist_rows = client.gather(hist_futures)
+        hist_df = pd.concat(hist_rows).reset_index(drop=True)
 
     hists_to_plot = []
     keys = []
@@ -249,9 +253,11 @@ def plotter(client, parameters, timer=None):
     plot_futures = client.map(
         partial(plot, parameters=parameters), hists_to_plot, key=keys
     )
-    client.gather(plot_futures)
+    yields = client.gather(plot_futures)
     if timer:
         timer.add_checkpoint("Plotting")
+
+    return yields
 
 
 def prepare_features(df, parameters, variation="nominal", add_year=True):
@@ -591,6 +597,7 @@ def plot(hist, parameters={}):
     # Top panel: Data/MC
     plt1 = fig.add_subplot(gs[0])
 
+    total_yield = 0
     for entry in entries.values():
         if len(entry.entry_list) == 0:
             continue
@@ -600,6 +607,7 @@ def plot(hist, parameters={}):
         plottables = plottables_df["hist"].values.tolist()
         sumw2 = plottables_df["sumw2"].values.tolist()
         labels = plottables_df["label"].values.tolist()
+        total_yield += sum([p.sum() for p in plottables])
 
         if len(plottables) == 0:
             continue
@@ -699,8 +707,10 @@ def plot(hist, parameters={}):
 
     hep.cms.label(ax=plt1, data=True, label="Preliminary", year=year)
 
-    path = parameters["plots_path"]
-    out_name = f"{path}/{var.name}_{year}.png"
-    fig.savefig(out_name)
-    print(f"Saved: {out_name}")
-    return
+    if parameters["save_plots"]:
+        path = parameters["plots_path"]
+        out_name = f"{path}/{var.name}_{year}.png"
+        fig.savefig(out_name)
+        print(f"Saved: {out_name}")
+
+    return total_yield
