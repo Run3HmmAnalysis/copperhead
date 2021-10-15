@@ -81,9 +81,9 @@ class SamplesInfo(object):
         self.is_mc = True
 
         if "purdue" in datasets_from:
-            from config.datasets import datasets
+            from nanoaod.config.datasets import datasets
         elif "pisa" in datasets_from:
-            from config.datasets_pisa import datasets
+            from nanoaod.config.datasets_pisa import datasets
 
         self.paths = datasets[self.year]
 
