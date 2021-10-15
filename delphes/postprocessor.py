@@ -183,7 +183,8 @@ def histogram(args, df=pd.DataFrame(), parameters={}):
             hist.fill(r, c, "value", data, weight=weight)
             hist.fill(r, c, "sumw2", data, weight=weight * weight)
 
-    save_hist(hist, var.name, dataset, year, parameters)
+    if parameters["save_hists"]:
+        save_hist(hist, var.name, dataset, year, parameters)
     hist_row = pd.DataFrame(
         [{"year": year, "var_name": var.name, "dataset": dataset, "hist": hist}]
     )

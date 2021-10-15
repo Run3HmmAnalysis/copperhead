@@ -15,13 +15,10 @@ __all__ = ["dask"]
 
 parameters = {
     "ncpus": 1,
-    "label": "test",
-    "path": "/depot/cms/hmm/coffea/",
-    "hist_path": "/depot/cms/hmm/coffea/snowmass_histograms/",
-    "plots_path": "./plots_test/snowmass/",
     "years": ["snowmass"],
-    "channels": ["vbf", "vbf_01j", "vbf_2j"],
-    "regions": ["h-peak", "h-sidebands"],
+    "channels": ["vbf"],
+    "regions": ["h-peak"],
+    "save_hists": False
 }
 
 
@@ -46,6 +43,4 @@ if __name__ == "__main__":
 
     elapsed = round(time.time() - tick, 3)
     print(f"Finished everything in {elapsed} s.")
-    assert almost_equal(
-        out["hist"][0]["h-peak", "vbf", "value", :].sum(), 4515.761427143451
-    )
+    assert almost_equal(out["hist"][0]["h-peak", "vbf", "value", :].sum(), 4515.761427143451)
