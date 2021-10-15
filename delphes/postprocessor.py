@@ -4,7 +4,6 @@ from functools import partial
 import dask.dataframe as dd
 import pandas as pd
 import numpy as np
-import pickle
 import matplotlib.pyplot as plt
 import mplhep as hep
 from hist import Hist
