@@ -6,7 +6,6 @@ from dask.distributed import Client
 
 from python.timer import Timer
 from delphes.postprocessor import workflow
-from delphes.postprocessor import grouping
 from plotting.plotter import plotter
 
 __all__ = ["dask"]

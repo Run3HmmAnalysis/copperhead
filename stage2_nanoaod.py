@@ -6,7 +6,6 @@ from dask.distributed import Client
 
 from python.timer import Timer
 from nanoaod.postprocessor import workflow
-from nanoaod.postprocessor import grouping
 from nanoaod.config.mva_bins import mva_bins
 from plotting.plotter import plotter
 
