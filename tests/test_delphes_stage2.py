@@ -7,7 +7,7 @@ import time
 import dask
 from dask.distributed import Client
 
-from delphes.postprocessor import workflow, plotter, grouping_alt
+from delphes.postprocessor import workflow
 from python.utils import almost_equal
 
 __all__ = ["dask"]
@@ -46,4 +46,6 @@ if __name__ == "__main__":
 
     elapsed = round(time.time() - tick, 3)
     print(f"Finished everything in {elapsed} s.")
-    assert almost_equal(out["hist"][0]["h-peak", "vbf", "value", :].sum(), 4515.761427143451)
+    assert almost_equal(
+        out["hist"][0]["h-peak", "vbf", "value", :].sum(), 4515.761427143451
+    )

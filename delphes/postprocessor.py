@@ -52,11 +52,12 @@ grouping_alt = {
 }
 
 
-def workflow(client, paths, parameters, timer):
+def workflow(client, paths, parameters, timer=None):
     # Load dataframes
     df_future = client.map(load_from_parquet, paths)
     df_future = client.gather(df_future)
-    timer.add_checkpoint("Loaded data from Parquet")
+    if timer:
+        timer.add_checkpoint("Loaded data from Parquet")
 
     # Merge dataframes
     try:
@@ -70,7 +71,8 @@ def workflow(client, paths, parameters, timer):
     df = dd.from_pandas(df, npartitions=npart)
     if npart > 2 * parameters["ncpus"]:
         df = df.repartition(npartitions=parameters["ncpus"])
-    timer.add_checkpoint("Combined into a single Dask DataFrame")
+    if timer:
+        timer.add_checkpoint("Combined into a single Dask DataFrame")
 
     keep_columns = ["s", "year", "r", "c"]
     keep_columns += [c for c in df.columns if "wgt" in c]
@@ -81,7 +83,8 @@ def workflow(client, paths, parameters, timer):
 
     df.dropna(axis=1, inplace=True)
     df.reset_index(inplace=True)
-    timer.add_checkpoint("Prepared for histogramming")
+    if timer:
+        timer.add_checkpoint("Prepared for histogramming")
 
     argsets = []
     for year in df.year.unique():
@@ -91,12 +94,15 @@ def workflow(client, paths, parameters, timer):
     # Make histograms
     hist_futures = client.map(partial(histogram, df=df, parameters=parameters), argsets)
     client.gather(hist_futures)
-    # hist_rows = client.gather(hist_futures)
-    # hist_df = pd.concat(hist_rows).reset_index(drop=True)
-    timer.add_checkpoint("Histogramming")
+    hist_rows = client.gather(hist_futures)
+    hist_df = pd.concat(hist_rows).reset_index(drop=True)
+    if timer:
+        timer.add_checkpoint("Histogramming")
+
+    return hist_df
 
 
-def plotter(client, parameters, timer):
+def plotter(client, parameters, timer=None):
     # Load histograms
     argsets = []
     for year in parameters["years"]:
@@ -118,14 +124,16 @@ def plotter(client, parameters, timer):
             )
             keys.append(f"plot: {year} {var_name}")
 
-    timer.add_checkpoint("Loading histograms")
+    if timer:
+        timer.add_checkpoint("Loading histograms")
 
     plot_futures = client.map(
         partial(plot, parameters=parameters), hists_to_plot, key=keys
     )
     client.gather(plot_futures)
 
-    timer.add_checkpoint("Plotting")
+    if timer:
+        timer.add_checkpoint("Plotting")
 
 
 def histogram(args, df=pd.DataFrame(), parameters={}):
