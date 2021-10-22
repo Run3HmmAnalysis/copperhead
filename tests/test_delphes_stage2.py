@@ -7,7 +7,7 @@ import time
 import dask
 from dask.distributed import Client
 
-from delphes.postprocessor import workflow
+from delphes.postprocessor import workflow, to_templates
 from python.utils import almost_equal
 from plotting.plotter import plotter
 
@@ -24,6 +24,7 @@ parameters = {
     "plot_vars": ["dimuon_mass"],
     "save_hists": False,
     "save_plots": False,
+    "save_templates": False,
     "plot_ratio": False,
     "14TeV_label": True,
     "has_variations": False,
@@ -53,6 +54,7 @@ if __name__ == "__main__":
 
     out_hist = workflow(client, [path], parameters)
     out_plot = plotter(client, parameters, hist_df=out_hist)
+    out_tmp = to_templates(client, parameters, hist_df=out_hist)
 
     elapsed = round(time.time() - tick, 3)
     print(f"Finished everything in {elapsed} s.")
@@ -60,3 +62,4 @@ if __name__ == "__main__":
         out_hist["hist"][0]["h-peak", "vbf", "value", :].sum(), 4515.761427143451
     )
     assert almost_equal(sum(out_plot), 4515.761427143451)
+    assert almost_equal(sum(out_tmp), 4515.761427143451)

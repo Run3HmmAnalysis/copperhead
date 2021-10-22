@@ -3,10 +3,13 @@ from functools import partial
 
 import dask.dataframe as dd
 import pandas as pd
+import numpy as np
 from hist import Hist
 from delphes.config.variables import variables_lookup, Variable
 from python.utils import load_from_parquet
 from python.utils import save_hist
+import uproot3
+from uproot3_methods.classes.TH1 import from_numpy
 
 os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
 pd.options.mode.chained_assignment = None
@@ -126,3 +129,76 @@ def histogram(args, df=pd.DataFrame(), parameters={}):
         [{"year": year, "var_name": var.name, "dataset": dataset, "hist": hist}]
     )
     return hist_row
+
+
+def to_templates(client, parameters, hist_df=None):
+    # Load saved histograms
+    if hist_df is None:
+        argsets = []
+        for year in parameters["years"]:
+            for var_name in parameters["hist_vars"]:
+                for dataset in parameters["datasets"]:
+                    argsets.append(
+                        {"year": year, "var_name": var_name, "dataset": dataset}
+                    )
+        hist_futures = client.map(
+            partial(load_histograms, parameters=parameters), argsets
+        )
+        hist_rows = client.gather(hist_futures)
+        hist_df = pd.concat(hist_rows).reset_index(drop=True)
+
+    hists_to_convert = []
+    for year in parameters["years"]:
+        for var_name in hist_df.var_name.unique():
+            if var_name not in parameters["plot_vars"]:
+                continue
+            hists_to_convert.append(
+                hist_df.loc[(hist_df.var_name == var_name) & (hist_df.year == year)]
+            )
+
+    temp_futures = client.map(
+        partial(make_templates, parameters=parameters), hists_to_convert
+    )
+    yields = client.gather(temp_futures)
+    return yields
+
+
+def make_templates(hist, parameters={}):
+    if hist.shape[0] == 0:
+        return
+    var = hist["hist"].values[0].axes[-1]
+
+    # temporary
+    region = "h-peak"
+    channel = "vbf"
+    years = hist.year.unique()
+    if len(years) > 1:
+        print(
+            f"Histograms for more than one year provided. Will make plots only for {years[0]}."
+        )
+    year = years[0]
+    if parameters["save_templates"]:
+        path = parameters["templates_path"]
+    else:
+        path = "/tmp/"
+
+    total_yield = 0
+    for dataset in hist.dataset.unique():
+        out_fn = f"{path}/{dataset}_{var.name}_{year}.root"
+        out_file = uproot3.recreate(out_fn)
+        myhist = hist.loc[hist.dataset == dataset, "hist"].values[0]
+        the_hist = myhist[region, channel, "value", :].project(var.name).values()
+        the_sumw2 = myhist[region, channel, "sumw2", :].project(var.name).values()
+        edges = myhist[region, channel, "value", :].project(var.name).axes[0].edges
+        centers = (edges[:-1] + edges[1:]) / 2.0
+
+        name = f"{dataset}_{region}_{channel}"
+        th1_data = from_numpy([the_hist, edges])
+        th1_data._fName = name
+        th1_data._fSumw2 = np.array(the_sumw2)
+        th1_data._fTsumw2 = np.array(the_sumw2).sum()
+        th1_data._fTsumwx2 = np.array(the_sumw2 * centers).sum()
+        out_file[name] = th1_data
+        out_file.close()
+        total_yield += the_hist.sum()
+    return total_yield
