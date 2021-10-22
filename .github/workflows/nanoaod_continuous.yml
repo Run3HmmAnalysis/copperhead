@@ -1,4 +1,4 @@
-name: nanoaod
+name: nanoaod continuous
 
 on:
   push:
@@ -15,7 +15,7 @@ jobs:
       matrix:
         os: [ubuntu-latest]
         python-version: [3.7]
-    name: coffea latest
+    name: nanoaod continuous
 
     steps:
       - uses: actions/checkout@master
