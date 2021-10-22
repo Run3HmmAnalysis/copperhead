@@ -8,6 +8,7 @@ from hist import Hist
 from delphes.config.variables import variables_lookup, Variable
 from python.utils import load_from_parquet
 from python.utils import save_hist
+from python.utils import load_histograms
 import uproot3
 from uproot3_methods.classes.TH1 import from_numpy
 
