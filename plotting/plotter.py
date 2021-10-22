@@ -2,7 +2,7 @@ from functools import partial
 import pandas as pd
 import numpy as np
 from hist.intervals import poisson_interval
-from python.utils import load_histograms
+from python.io import load_histogram
 from plotting.entry import Entry
 
 import matplotlib.pyplot as plt
@@ -25,7 +25,6 @@ ratio_err_opts = {"step": "post", "facecolor": (0, 0, 0, 0.3), "linewidth": 0}
 
 
 def plotter(client, parameters, hist_df=None, timer=None):
-
     # Load saved histograms
     if hist_df is None:
         argsets = []
@@ -36,7 +35,7 @@ def plotter(client, parameters, hist_df=None, timer=None):
                         {"year": year, "var_name": var_name, "dataset": dataset}
                     )
         hist_futures = client.map(
-            partial(load_histograms, parameters=parameters), argsets
+            partial(load_histogram, parameters=parameters), argsets
         )
         hist_rows = client.gather(hist_futures)
         hist_df = pd.concat(hist_rows).reset_index(drop=True)

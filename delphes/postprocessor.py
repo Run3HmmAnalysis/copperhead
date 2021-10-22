@@ -6,9 +6,9 @@ import pandas as pd
 import numpy as np
 from hist import Hist
 from delphes.config.variables import variables_lookup, Variable
-from python.utils import load_from_parquet
-from python.utils import save_hist
-from python.utils import load_histograms
+from python.io import load_pandas_from_parquet
+from python.io import save_histogram
+from python.io import load_histogram
 import uproot3
 from uproot3_methods.classes.TH1 import from_numpy
 
@@ -18,7 +18,7 @@ pd.options.mode.chained_assignment = None
 
 def workflow(client, paths, parameters, timer=None):
     # Load dataframes
-    df_future = client.map(load_from_parquet, paths)
+    df_future = client.map(load_pandas_from_parquet, paths)
     df_future = client.gather(df_future)
     if timer:
         timer.add_checkpoint("Loaded data from Parquet")
@@ -125,7 +125,7 @@ def histogram(args, df=pd.DataFrame(), parameters={}):
             hist.fill(region, channel, "sumw2", data, weight=weight * weight)
 
     if parameters["save_hists"]:
-        save_hist(hist, var.name, dataset, year, parameters)
+        save_histogram(hist, var.name, dataset, year, parameters)
     hist_row = pd.DataFrame(
         [{"year": year, "var_name": var.name, "dataset": dataset, "hist": hist}]
     )
@@ -143,7 +143,7 @@ def to_templates(client, parameters, hist_df=None):
                         {"year": year, "var_name": var_name, "dataset": dataset}
                     )
         hist_futures = client.map(
-            partial(load_histograms, parameters=parameters), argsets
+            partial(load_histogram, parameters=parameters), argsets
         )
         hist_rows = client.gather(hist_futures)
         hist_df = pd.concat(hist_rows).reset_index(drop=True)

@@ -6,7 +6,8 @@ from functools import partial
 from coffea.nanoevents import DelphesSchema
 from coffea.processor import dask_executor, run_uproot_job
 
-from python.utils import mkdir, saving_func_parquet
+from python.utils import mkdir
+from python.io import save_dask_pandas_to_parquet
 from delphes.preprocessor import get_fileset
 from delphes.processor import DimuonProcessorDelphes
 from delphes.config.datasets import datasets
@@ -96,7 +97,7 @@ def submit_job(arg_set, parameters):
         "retries": 0,
     }
     processor_args = {
-        "apply_to_output": partial(saving_func_parquet, out_dir=out_dir),
+        "apply_to_output": partial(save_dask_pandas_to_parquet, out_dir=out_dir),
     }
 
     try:

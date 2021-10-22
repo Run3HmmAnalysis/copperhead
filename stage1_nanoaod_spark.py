@@ -7,6 +7,7 @@ import coffea.processor as processor
 from nanoaod.processor import DimuonProcessor
 from nanoaod.preprocessor import load_samples
 from python.utils import mkdir
+from python.io import save_spark_pandas_to_parquet
 from nanoaod.config.parameters import parameters as pars
 
 import dask
@@ -20,7 +21,6 @@ from coffea.processor.spark.detail import (
     _spark_initialize,
     _spark_stop,
 )
-from pyspark import TaskContext
 from functools import partial
 
 os.environ["ARROW_PRE_0_15_IPC_FORMAT"] = "1"
@@ -132,24 +132,6 @@ parameters = {
 parameters["out_dir"] = f"{parameters['global_out_path']}/" f"{parameters['out_path']}"
 
 
-def saving_func(output, out_dir):
-    ctx = TaskContext()
-    name = f"part_{ctx.partitionId()}"
-    # print("Stage: {0}, Partition: {1}, Host: {2}".format(
-    #     ctx.stageId(), ctx.partitionId(), socket.gethostname()))
-
-    for ds in output.s.unique():
-        df = output[output.s == ds]
-        if df.shape[0] == 0:
-            return
-        mkdir(f"{out_dir}/{ds}")
-        path = f"{out_dir}/{ds}/{name}.parquet"
-        df.to_parquet(
-            path=path,
-        )
-        print(f"Saved to {path}")
-
-
 def submit_job(arg_set, parameters):
     mkdir(parameters["out_dir"])
     if parameters["pt_variations"] == ["nominal"]:
@@ -169,7 +151,7 @@ def submit_job(arg_set, parameters):
         "do_timer": False,
         "do_btag_syst": False,
         "pt_variations": parameters["pt_variations"],
-        "apply_to_output": partial(saving_func, out_dir=out_dir),
+        "apply_to_output": partial(save_spark_pandas_to_parquet, out_dir=out_dir),
     }
     try:
         run_spark_job(

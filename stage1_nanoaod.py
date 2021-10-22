@@ -6,7 +6,8 @@ import coffea.processor as processor
 from coffea.processor import dask_executor, run_uproot_job
 from nanoaod.processor import DimuonProcessor
 from nanoaod.preprocessor import load_samples
-from python.utils import mkdir, saving_func_parquet
+from python.utils import mkdir
+from python.io import save_dask_pandas_to_parquet
 from nanoaod.config.parameters import parameters as pars
 
 import dask
@@ -135,7 +136,7 @@ def submit_job(arg_set, parameters):
         "do_timer": False,
         "do_btag_syst": False,
         "pt_variations": parameters["pt_variations"],
-        "apply_to_output": partial(saving_func_parquet, out_dir=out_dir),
+        "apply_to_output": partial(save_dask_pandas_to_parquet, out_dir=out_dir),
     }
 
     try:

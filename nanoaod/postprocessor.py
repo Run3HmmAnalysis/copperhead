@@ -7,8 +7,8 @@ import numpy as np
 import pickle
 from hist import Hist
 from nanoaod.config.variables import variables_lookup, Variable
-from python.utils import load_from_parquet
-from python.utils import save_hist
+from python.io import load_pandas_from_parquet
+from python.io import save_histogram
 
 os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
 pd.options.mode.chained_assignment = None
@@ -86,7 +86,7 @@ decorrelation_scheme = {
 
 def workflow(client, paths, parameters, timer=None):
     # Load dataframes
-    df_future = client.map(load_from_parquet, paths)
+    df_future = client.map(load_pandas_from_parquet, paths)
     df_future = client.gather(df_future)
     if timer:
         timer.add_checkpoint("Loaded data from Parquet")
@@ -370,7 +370,7 @@ def histogram(args, df=pd.DataFrame(), parameters={}):
                     # TODO: add treatment of PDF systematics
                     # (MC replicas)
     if parameters["save_hists"]:
-        save_hist(hist, var.name, dataset, year, parameters)
+        save_histogram(hist, var.name, dataset, year, parameters)
     hist_row = pd.DataFrame(
         [{"year": year, "var_name": var.name, "dataset": dataset, "hist": hist}]
     )
