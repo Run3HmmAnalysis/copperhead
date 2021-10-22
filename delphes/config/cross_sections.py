@@ -1,7 +1,7 @@
 cross_sections = {
     # signal
-    "ggh_powheg": 0,
-    "vbf_powheg": 0,
+    "ggh_powheg": 0.01057,
+    "vbf_powheg": 0.0008210722,
     # drell-yan
     "dy_m100_mg": 246.5,
     # ttbar

@@ -78,21 +78,20 @@ parameters = {
     "maxchunks": mch,
     "local_cluster": local_cluster,
     "slurm_cluster_ip": slurm_cluster_ip,
-    "client": None,
     "lumi": 3000000.0,
 }
 
 parameters["out_dir"] = f"{parameters['global_out_path']}/{parameters['out_path']}"
 
 
-def submit_job(arg_set, parameters):
+def submit_job(client, parameters):
     mkdir(parameters["out_dir"])
     out_dir = f"{parameters['out_dir']}/"
     mkdir(out_dir)
 
     executor = dask_executor
     executor_args = {
-        "client": parameters["client"],
+        "client": client,
         "schema": DelphesSchema,
         "retries": 0,
     }
@@ -120,7 +119,7 @@ def submit_job(arg_set, parameters):
 if __name__ == "__main__":
     tick = time.time()
     if parameters["local_cluster"]:
-        parameters["client"] = Client(
+        client = Client(
             processes=True,
             n_workers=40,
             dashboard_address=dash_local,
@@ -128,7 +127,7 @@ if __name__ == "__main__":
             memory_limit="2.9GB",
         )
     else:
-        parameters["client"] = Client(
+        client = Client(
             parameters["slurm_cluster_ip"],
         )
     print("Client created")
@@ -176,7 +175,7 @@ if __name__ == "__main__":
         if name not in ds_names:
             continue
         parameters["fileset"] = {name: data}
-        out = submit_job({}, parameters)
+        out = submit_job(client, parameters)
         print(name, out)
 
     elapsed = round(time.time() - tick, 3)

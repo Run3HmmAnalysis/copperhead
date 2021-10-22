@@ -20,7 +20,7 @@ def get_sum_wgts(file):
     return result
 
 
-def get_fileset(datasets, parameters, save_to=None, load_from=None):
+def get_fileset(client, datasets, parameters, save_to=None, load_from=None):
     if load_from:
         with open(load_from, "r") as fp:
             fileset = json.load(fp)
@@ -34,8 +34,8 @@ def get_fileset(datasets, parameters, save_to=None, load_from=None):
             else:
                 filelist = glob.glob(parameters["server"] + path + "/*.root")
                 # filelist = [glob.glob(parameters["server"] + path + "/*.root")[0]]
-            futures = parameters["client"].map(get_sum_wgts, filelist)
-            results = parameters["client"].gather(futures)
+            futures = client.map(get_sum_wgts, filelist)
+            results = client.gather(futures)
             cleaned_filelist = [r[0] for r in results if r[1] > 0]
             # bad_files = [r[0] for r in results if r[1] <= 0]
             nEvts = sum([r[1] for r in results if r[1] > 0])

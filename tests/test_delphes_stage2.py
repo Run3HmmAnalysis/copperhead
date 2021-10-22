@@ -52,7 +52,7 @@ if __name__ == "__main__":
     file_name = "dy_delphes_stage1_output.parquet"
     path = f"{os.getcwd()}/tests/samples/{file_name}"
 
-    out_hist = workflow(client, [path], parameters)
+    out_hist = workflow(client, parameters, inputs=[path])
     out_plot = plotter(client, parameters, hist_df=out_hist)
     out_tmp = to_templates(client, parameters, hist_df=out_hist)
 

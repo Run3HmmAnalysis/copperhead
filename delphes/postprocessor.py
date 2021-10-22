@@ -9,35 +9,57 @@ from delphes.config.variables import variables_lookup, Variable
 from python.io import load_pandas_from_parquet
 from python.io import save_histogram, load_histogram
 from python.io import save_template
+
+import warnings
+
+warnings.simplefilter(action="ignore", category=FutureWarning)
 from uproot3_methods.classes.TH1 import from_numpy
 
 os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
 pd.options.mode.chained_assignment = None
 
 
-def workflow(client, paths, parameters, timer=None):
-    # Load dataframes
-    df_future = client.map(load_pandas_from_parquet, paths)
-    df_future = client.gather(df_future)
-    if timer:
-        timer.add_checkpoint("Loaded data from Parquet")
+def workflow(client, parameters, inputs=[], timer=None):
 
-    # Merge dataframes
-    try:
-        df = dd.concat([d for d in df_future if len(d.columns) > 0])
-    except Exception:
-        return
-    npart = df.npartitions
-    df = df.compute()
-    df["channel"] = "vbf"
-    df.reset_index(inplace=True, drop=True)
-    df = dd.from_pandas(df, npartitions=npart)
-    if npart > 2 * parameters["ncpus"]:
-        df = df.repartition(npartitions=parameters["ncpus"])
-    if timer:
-        timer.add_checkpoint("Combined into a single Dask DataFrame")
+    if isinstance(inputs, list):
+        # Load dataframes
+        df_future = client.map(load_pandas_from_parquet, inputs)
+        df_future = client.gather(df_future)
+        if timer:
+            timer.add_checkpoint("Loaded data from Parquet")
+        # Merge dataframes
+        try:
+            df = dd.concat([d for d in df_future if len(d.columns) > 0])
+        except Exception:
+            return
+
+        npart = df.npartitions
+        df = df.compute()
+        df.reset_index(inplace=True, drop=True)
+        df = dd.from_pandas(df, npartitions=npart)
+        if df.npartitions > 2 * parameters["ncpus"]:
+            df = df.repartition(npartitions=parameters["ncpus"])
+        if timer:
+            timer.add_checkpoint("Combined into a single Dask DataFrame")
+
+    elif isinstance(inputs, pd.DataFrame):
+        df = dd.from_pandas(inputs, npartitions=parameters["ncpus"])
+
+    elif isinstance(inputs, dd.DataFrame):
+        df = inputs
+        npart = df.npartitions
+        df = df.compute()
+        df.reset_index(inplace=True, drop=True)
+        df = dd.from_pandas(df, npartitions=npart)
+        if df.npartitions > 2 * parameters["ncpus"]:
+            df = df.repartition(npartitions=parameters["ncpus"])
+
+    else:
+        print("Wrong input type:", type(inputs))
+        return None
 
     # temporary
+    df["channel"] = "vbf"
     if ("dataset" not in df.columns) and ("s" in df.columns):
         df["dataset"] = df["s"]
     if ("region" not in df.columns) and ("r" in df.columns):
@@ -62,6 +84,7 @@ def workflow(client, paths, parameters, timer=None):
         for var_name in parameters["hist_vars"]:
             for dataset in df.dataset.unique():
                 argsets.append({"year": year, "var_name": var_name, "dataset": dataset})
+
     # Make histograms
     hist_futures = client.map(partial(histogram, df=df, parameters=parameters), argsets)
     hist_rows = client.gather(hist_futures)

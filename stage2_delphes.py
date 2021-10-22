@@ -245,14 +245,14 @@ if __name__ == "__main__":
             for path in tqdm.tqdm(all_paths):
                 if len(path) == 0:
                     continue
-                workflow(client, [path], parameters, timer=timer)
+                workflow(client, parameters, inputs=[path], timer=timer)
         else:
             for year, groups in paths_grouped.items():
                 print(f"Processing {year}")
                 for group, g_paths in tqdm.tqdm(groups.items()):
                     if len(g_paths) == 0:
                         continue
-                    workflow(client, g_paths, parameters, timer=timer)
+                    workflow(client, parameters, inputs=g_paths, timer=timer)
 
     if args.plot:
         plotter(client, parameters, timer=timer)
