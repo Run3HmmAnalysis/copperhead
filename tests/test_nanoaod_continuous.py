@@ -99,7 +99,8 @@ if __name__ == "__main__":
     assert out_df.shape == (8594, 100)
     assert almost_equal(dimuon_mass, 124.16069531)
     assert almost_equal(jj_mass, 1478.3898375)
-
+    print(out_hist["hist"][0]["h-peak", "vbf", "nominal", "value", :].sum())
+    print(sum(out_plot))
     assert almost_equal(
         out_hist["hist"][0]["h-peak", "vbf", "nominal", "value", :].sum(),
         31778.216313587644,
