@@ -1,7 +1,6 @@
 import pandas as pd
 import dask.dataframe as dd
 import pickle
-from pyspark import TaskContext
 from python.utils import mkdir
 
 
@@ -25,6 +24,7 @@ def save_dask_pandas_to_parquet(output, out_dir):
 
 
 def save_spark_pandas_to_parquet(output, out_dir):
+    from pyspark import TaskContext
     ctx = TaskContext()
     name = f"part_{ctx.partitionId()}"
     # print("Stage: {0}, Partition: {1}, Host: {2}".format(
