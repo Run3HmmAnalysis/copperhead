@@ -1,8 +1,8 @@
 import os
 
 
-def almost_equal(a, b):
-    return abs(a - b) < 10e-6
+def almost_equal(a, b, precision=10e-6):
+    return abs(a - b) < precision
 
 
 def mkdir(path):

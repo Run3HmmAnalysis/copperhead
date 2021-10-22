@@ -9,13 +9,13 @@ on:
   workflow_dispatch:
 
 jobs:
-  validation_latest:
+  validation:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
         os: [ubuntu-latest]
         python-version: [3.7]
-    name: nanoaod
+    name: separate (latest coffea)
 
     steps:
       - uses: actions/checkout@master
@@ -31,3 +31,24 @@ jobs:
         run: python -W ignore tests/test_nanoaod_stage1.py
       - name: stage 2
         run: python -W ignore tests/test_nanoaod_stage2.py
+
+  validation_continuous:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest]
+        python-version: [3.7]
+    name: continuous (latest coffea)
+
+    steps:
+      - uses: actions/checkout@master
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v2
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: install packages
+        run: |
+          python -m pip install coffea
+          python -m pip install dask[distributed]
+      - name: continuous (stages 1 & 2)
+        run: python -W ignore tests/test_nanoaod_continuous.py
