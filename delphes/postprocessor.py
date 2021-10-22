@@ -7,9 +7,8 @@ import numpy as np
 from hist import Hist
 from delphes.config.variables import variables_lookup, Variable
 from python.io import load_pandas_from_parquet
-from python.io import save_histogram
-from python.io import load_histogram
-import uproot3
+from python.io import save_histogram, load_histogram
+from python.io import save_template
 from uproot3_methods.classes.TH1 import from_numpy
 
 os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
@@ -178,28 +177,29 @@ def make_templates(hist, parameters={}):
             f"Histograms for more than one year provided. Will make plots only for {years[0]}."
         )
     year = years[0]
-    if parameters["save_templates"]:
-        path = parameters["templates_path"]
-    else:
-        path = "/tmp/"
 
     total_yield = 0
+    templates = []
     for dataset in hist.dataset.unique():
-        out_fn = f"{path}/{dataset}_{var.name}_{year}.root"
-        out_file = uproot3.recreate(out_fn)
         myhist = hist.loc[hist.dataset == dataset, "hist"].values[0]
         the_hist = myhist[region, channel, "value", :].project(var.name).values()
         the_sumw2 = myhist[region, channel, "sumw2", :].project(var.name).values()
         edges = myhist[region, channel, "value", :].project(var.name).axes[0].edges
+        edges = np.array(edges)
         centers = (edges[:-1] + edges[1:]) / 2.0
+        total_yield += the_hist.sum()
 
         name = f"{dataset}_{region}_{channel}"
-        th1_data = from_numpy([the_hist, edges])
-        th1_data._fName = name
-        th1_data._fSumw2 = np.array(the_sumw2)
-        th1_data._fTsumw2 = np.array(the_sumw2).sum()
-        th1_data._fTsumwx2 = np.array(the_sumw2 * centers).sum()
-        out_file[name] = th1_data
-        out_file.close()
-        total_yield += the_hist.sum()
+        th1 = from_numpy([the_hist, edges])
+        th1._fName = name
+        th1._fSumw2 = np.array(np.append([0], the_sumw2))
+        th1._fTsumw2 = np.array(the_sumw2).sum()
+        th1._fTsumwx2 = np.array(the_sumw2 * centers).sum()
+        templates.append(th1)
+
+    if parameters["save_templates"]:
+        path = parameters["templates_path"]
+        out_fn = f"{path}/{dataset}_{var.name}_{year}.root"
+        save_template(templates, out_fn, parameters)
+
     return total_yield

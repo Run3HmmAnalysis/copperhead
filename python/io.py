@@ -25,6 +25,7 @@ def save_dask_pandas_to_parquet(output, out_dir):
 
 def save_spark_pandas_to_parquet(output, out_dir):
     from pyspark import TaskContext
+
     ctx = TaskContext()
     name = f"part_{ctx.partitionId()}"
     # print("Stage: {0}, Partition: {1}, Host: {2}".format(
@@ -80,5 +81,11 @@ def load_histogram(argset, parameters):
     return hist_row
 
 
-def save_template(argset, parameters):
+def save_template(templates, out_name, parameters):
+    import uproot3
+
+    out_file = uproot3.recreate(out_name)
+    for tmp in templates:
+        out_file[tmp._fName] = tmp
+    out_file.close()
     return
