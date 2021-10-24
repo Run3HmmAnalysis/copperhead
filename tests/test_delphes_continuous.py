@@ -90,7 +90,7 @@ if __name__ == "__main__":
     assert almost_equal(dimuon_mass, 125.239198688)
     assert almost_equal(jj_mass, 78.593476)
     assert almost_equal(
-        out_hist["hist"][0]["h-peak", "vbf", "value", :].sum(), 13273.953074386647
+        out_hist["hist"][0]["h-peak", "vbf", "value", :].sum(), 14911.835814002365
     )
-    assert almost_equal(sum(out_plot), 13273.953074386647)
-    assert almost_equal(sum(out_tmp), 13273.953074386647)
+    assert almost_equal(sum(out_plot), 14911.835814002365)
+    assert almost_equal(sum(out_tmp), 14911.835814002365)

@@ -1,7 +1,9 @@
 cross_sections = {
     # signal
-    "ggh_powheg": 0.01057,
-    "vbf_powheg": 0.0008210722,
+    # compute as production mode xSec * 2.17*10-4
+    # src for 14 TeV cross sections: https://twiki.cern.ch/twiki/bin/view/LHCPhysics/CERNHLHE2019
+    "ggh_powheg": 0.01187424,
+    "vbf_powheg": 0.00092442,
     # drell-yan
     "dy_m100_mg": 246.5,
     # ttbar
