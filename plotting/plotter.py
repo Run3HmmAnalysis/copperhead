@@ -44,17 +44,6 @@ def plotter(client, parameters, hist_df=None, timer=None):
         hist_rows = client.gather(hist_futures)
         hist_df = pd.concat(hist_rows).reset_index(drop=True)
 
-    """
-    hists_to_plot = []
-    for year in parameters["years"]:
-        for var_name in hist_df.var_name.unique():
-            if var_name not in parameters["plot_vars"]:
-                continue
-            hists_to_plot.append(
-                hist_df.loc[(hist_df.var_name == var_name) & (hist_df.year == year)]
-            )
-    """
-
     arglists = {
         "year": parameters["years"],
         "var_name": [

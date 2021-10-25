@@ -8,6 +8,7 @@ import numpy as np
 from python.io import load_pandas_from_parquet
 from python.io import load_histogram
 from python.io import save_template
+from python.variable import Variable
 
 import warnings
 
@@ -94,26 +95,37 @@ def to_templates(client, parameters, hist_df=None):
         hist_rows = client.gather(hist_futures)
         hist_df = pd.concat(hist_rows).reset_index(drop=True)
 
-    hists_to_convert = []
-    for year in parameters["years"]:
-        for var_name in hist_df.var_name.unique():
-            if var_name not in parameters["plot_vars"]:
-                continue
-            hists_to_convert.append(
-                hist_df.loc[(hist_df.var_name == var_name) & (hist_df.year == year)]
-            )
+    arglists = {
+        "year": parameters["years"],
+        "var_name": [
+            v for v in hist_df.var_name.unique() if v in parameters["plot_vars"]
+        ],
+        "hist_df": [hist_df],
+    }
+    argsets = [
+        dict(zip(arglists.keys(), values))
+        for values in itertools.product(*arglists.values())
+    ]
 
-    temp_futures = client.map(
-        partial(make_templates, parameters=parameters), hists_to_convert
-    )
+    temp_futures = client.map(partial(make_templates, parameters=parameters), argsets)
     yields = client.gather(temp_futures)
     return yields
 
 
-def make_templates(hist, parameters={}):
+def make_templates(args, parameters={}):
+    year = args["year"]
+    var_name = args["var_name"]
+    hist = args["hist_df"].loc[
+        (args["hist_df"].var_name == var_name) & (args["hist_df"].year == year)
+    ]
+
+    if var_name in parameters["variables_lookup"].keys():
+        var = parameters["variables_lookup"][var_name]
+    else:
+        var = Variable(var_name, var_name, 50, 0, 5)
+
     if hist.shape[0] == 0:
         return
-    var = hist["hist"].values[0].axes[-1]
 
     # temporary
     region = "h-peak"
