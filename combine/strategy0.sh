@@ -5,4 +5,4 @@ combineTool.py -M Impacts -d $1_$2/combined.root --doFits -m 125 --autoBoundsPOI
 
 combineTool.py -M Impacts -d $1_$2/combined.root -m 125 --autoBoundsPOIs r --autoMaxPOIs r --cminDefaultMinimizerStrategy 0 --saveWorkspace --X-rtd FITTER_NEWER_GIVE_UP --X-rtd FITTER_BOUND --cminRunAllDiscreteCombinations --X-rtd MINIMIZER_freezeDisassociatedParams --cminDefaultMinimizerTolerance 0.01 --X-rtd MINIMIZER_MaxCalls=9999999 -t -1 --toysFrequentist --expectSignal 1 --X-rtd MINIMIZER_analytic -o impacts.json
 
-plotImpacts.py -i impacts.json -o impacts_str0_$1_$2_aug12
+plotImpacts.py -i impacts.json -o impacts_str0_$1_$2_aug20
