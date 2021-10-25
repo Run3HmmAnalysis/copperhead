@@ -38,6 +38,8 @@ def plotter(client, parameters, hist_df=None, timer=None):
 
     arg_plot = {
         "year": parameters["years"],
+        "region": parameters["regions"],
+        "channel": parameters["channels"],
         "var_name": [
             v for v in hist_df.var_name.unique() if v in parameters["plot_vars"]
         ],
@@ -56,6 +58,8 @@ def plotter(client, parameters, hist_df=None, timer=None):
 
 def plot(args, parameters={}):
     year = args["year"]
+    region = args["region"]
+    channel = args["channel"]
     var_name = args["var_name"]
     hist = args["df"].loc[(args["df"].var_name == var_name) & (args["df"].year == year)]
 
@@ -71,21 +75,12 @@ def plot(args, parameters={}):
     ratio_plot_size = 0.25
 
     # temporary
-    region = "h-peak"
-    channel = "vbf"
     variation = "nominal"
-    years = hist.year.unique()
-    if len(years) > 1:
-        print(
-            f"Histograms for more than one year provided. Will make plots only for {years[0]}."
-        )
-    year = years[0]
 
     slicer = {
         "region": region,
         "channel": channel,
     }
-
     if parameters["has_variations"]:
         slicer["variation"] = variation
 

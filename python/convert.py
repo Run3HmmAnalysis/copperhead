@@ -37,6 +37,8 @@ def to_templates(client, parameters, hist_df=None):
 
     argset = {
         "year": parameters["years"],
+        "region": parameters["regions"],
+        "channel": parameters["channels"],
         "var_name": [
             v for v in hist_df.var_name.unique() if v in parameters["plot_vars"]
         ],
@@ -169,6 +171,8 @@ def make_histograms(args, parameters={}):
 
 def make_templates(args, parameters={}):
     year = args["year"]
+    region = args["region"]
+    channel = args["channel"]
     var_name = args["var_name"]
     hist = args["hist_df"].loc[
         (args["hist_df"].var_name == var_name) & (args["hist_df"].year == year)
@@ -181,16 +185,6 @@ def make_templates(args, parameters={}):
 
     if hist.shape[0] == 0:
         return
-
-    # temporary
-    region = "h-peak"
-    channel = "vbf"
-    years = hist.year.unique()
-    if len(years) > 1:
-        print(
-            f"Histograms for more than one year provided. Will make plots only for {years[0]}."
-        )
-    year = years[0]
 
     total_yield = 0
     templates = []
