@@ -90,13 +90,9 @@ def submit_job(client, parameters):
     mkdir(out_dir)
 
     executor = dask_executor
-    executor_args = {
-        "client": client,
-        "schema": DelphesSchema,
-        "retries": 0,
-    }
+    executor_args = {"client": client, "schema": DelphesSchema, "retries": 0}
     processor_args = {
-        "apply_to_output": partial(save_dask_pandas_to_parquet, out_dir=out_dir),
+        "apply_to_output": partial(save_dask_pandas_to_parquet, out_dir=out_dir)
     }
 
     try:
@@ -127,9 +123,7 @@ if __name__ == "__main__":
             memory_limit="2.9GB",
         )
     else:
-        client = Client(
-            parameters["slurm_cluster_ip"],
-        )
+        client = Client(parameters["slurm_cluster_ip"])
     print("Client created")
 
     ds_names = [

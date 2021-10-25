@@ -46,12 +46,7 @@ def plotter(client, parameters, hist_df=None, timer=None):
         "df": [hist_df],
     }
 
-    yields = parallelize(
-        plot,
-        arg_plot,
-        client,
-        parameters,
-    )
+    yields = parallelize(plot, arg_plot, client, parameters)
 
     return yields
 
@@ -77,10 +72,7 @@ def plot(args, parameters={}):
     # temporary
     variation = "nominal"
 
-    slicer = {
-        "region": region,
-        "channel": channel,
-    }
+    slicer = {"region": region, "channel": channel}
     if parameters["has_variations"]:
         slicer["variation"] = variation
 

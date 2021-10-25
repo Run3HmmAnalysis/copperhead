@@ -18,9 +18,7 @@ def save_dask_pandas_to_parquet(output, out_dir):
         if df.shape[0] == 0:
             return
         mkdir(f"{out_dir}/{ds}")
-        df.to_parquet(
-            path=f"{out_dir}/{ds}/{name}.parquet",
-        )
+        df.to_parquet(path=f"{out_dir}/{ds}/{name}.parquet")
 
 
 def save_spark_pandas_to_parquet(output, out_dir):
@@ -37,9 +35,7 @@ def save_spark_pandas_to_parquet(output, out_dir):
             return
         mkdir(f"{out_dir}/{ds}")
         path = f"{out_dir}/{ds}/{name}.parquet"
-        df.to_parquet(
-            path=path,
-        )
+        df.to_parquet(path=path)
         print(f"Saved to {path}")
 
 

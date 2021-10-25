@@ -10,9 +10,7 @@ from delphes.config.cross_sections import cross_sections
 def get_sum_wgts(file):
     try:
         events = NanoEventsFactory.from_root(
-            file,
-            "Delphes",
-            schemaclass=DelphesSchema,
+            file, "Delphes", schemaclass=DelphesSchema
         ).events()
         result = (file, ak.sum(events.Event.Weight))
     except Exception:

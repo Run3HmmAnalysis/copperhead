@@ -284,10 +284,7 @@ class DelphesSchema(BaseSchema):
                 for k, v in output[name]["content"]["contents"].items()
             }
             output[name]["content"]["parameters"].update(
-                {
-                    "__doc__": offsets["parameters"]["__doc__"],
-                    "collection_name": name,
-                }
+                {"__doc__": offsets["parameters"]["__doc__"], "collection_name": name}
             )
 
             if name in self.singletons:

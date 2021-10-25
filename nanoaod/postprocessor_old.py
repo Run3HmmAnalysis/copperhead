@@ -1416,10 +1416,7 @@ def save_shapes(hist, model, args, mva_bins):
             "EWK": ["ewk_lljj_mll105_160_ptj0", "ewk_lljj_mll105_160_py_dipole"]
         },
     }
-    smp_var_shape_only = {
-        "SignalPartonShower": False,
-        "EWKPartonShower": False,
-    }
+    smp_var_shape_only = {"SignalPartonShower": False, "EWKPartonShower": False}
 
     variated_shapes = {}
 

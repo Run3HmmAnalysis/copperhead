@@ -20,10 +20,7 @@ if __name__ == "__main__":
     tick = time.time()
 
     client = dask.distributed.Client(
-        processes=True,
-        n_workers=1,
-        threads_per_worker=1,
-        memory_limit="2.9GB",
+        processes=True, n_workers=1, threads_per_worker=1, memory_limit="2.9GB"
     )
     print("Client created")
 
@@ -43,11 +40,7 @@ if __name__ == "__main__":
         "use_dataframes": True,
         "retries": 0,
     }
-    processor_args = {
-        "samp_info": samp_info,
-        "do_timer": False,
-        "do_btag_syst": False,
-    }
+    processor_args = {"samp_info": samp_info, "do_timer": False, "do_btag_syst": False}
     print(samp_info.fileset)
     output = run_uproot_job(
         samp_info.fileset,

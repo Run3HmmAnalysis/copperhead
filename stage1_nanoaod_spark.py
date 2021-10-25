@@ -17,10 +17,7 @@ dask.config.set({"temporary-directory": "/depot/cms/hmm/dask-temp/"})
 
 import pyspark.sql
 from pyarrow.util import guid
-from coffea.processor.spark.detail import (
-    _spark_initialize,
-    _spark_stop,
-)
+from coffea.processor.spark.detail import _spark_initialize, _spark_stop
 from functools import partial
 
 os.environ["ARROW_PRE_0_15_IPC_FORMAT"] = "1"
@@ -225,9 +222,7 @@ if __name__ == "__main__":
             memory_limit="2.9GB",
         )
     else:
-        parameters["client"] = Client(
-            parameters["slurm_cluster_ip"],
-        )
+        parameters["client"] = Client(parameters["slurm_cluster_ip"])
     print("Client created")
 
     spark_config = (

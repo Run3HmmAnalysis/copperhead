@@ -39,21 +39,12 @@ if __name__ == "__main__":
         "14TeV_label": True,
         "has_variations": False,
         "variables_lookup": variables_lookup,
-        "grouping": {
-            "ggh_powheg": "ggH",
-        },
-        "plot_groups": {
-            "stack": [],
-            "step": ["ggH"],
-            "errorbar": [],
-        },
+        "grouping": {"ggh_powheg": "ggH"},
+        "plot_groups": {"stack": [], "step": ["ggH"], "errorbar": []},
     }
 
     client = dask.distributed.Client(
-        processes=True,
-        n_workers=1,
-        threads_per_worker=1,
-        memory_limit="2.9GB",
+        processes=True, n_workers=1, threads_per_worker=1, memory_limit="2.9GB"
     )
     print("Client created")
 

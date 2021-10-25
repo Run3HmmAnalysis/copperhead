@@ -153,11 +153,7 @@ def make_histograms(args, parameters={}):
         )
         data = df.loc[slicer, var_name]
 
-        to_fill = {
-            var.name: data,
-            "region": region,
-            "channel": channel,
-        }
+        to_fill = {var.name: data, "region": region, "channel": channel}
         to_fill_value = to_fill.copy()
         to_fill_sumw2 = to_fill.copy()
         to_fill_value["val_sumw2"] = "value"

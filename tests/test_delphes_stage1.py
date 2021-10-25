@@ -19,14 +19,9 @@ __all__ = ["Client"]
 if __name__ == "__main__":
     tick = time.time()
 
-    parameters = {
-        "lumi": 3000000,
-    }
+    parameters = {"lumi": 3000000}
     client = dask.distributed.Client(
-        processes=True,
-        n_workers=1,
-        threads_per_worker=1,
-        memory_limit="2.9GB",
+        processes=True, n_workers=1, threads_per_worker=1, memory_limit="2.9GB"
     )
     print("Client created")
 

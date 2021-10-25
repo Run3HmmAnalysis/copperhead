@@ -211,9 +211,7 @@ if __name__ == "__main__":
             memory_limit="2.9GB",
         )
     else:
-        parameters["client"] = Client(
-            parameters["slurm_cluster_ip"],
-        )
+        parameters["client"] = Client(parameters["slurm_cluster_ip"])
     print("Client created")
 
     datasets_mc = []

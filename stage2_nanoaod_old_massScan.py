@@ -136,9 +136,7 @@ mva_bins = {
     },
 }
 
-dnn_models = [
-    "dnn_allyears_128_64_32",  # best DNN so far
-]
+dnn_models = ["dnn_allyears_128_64_32"]  # best DNN so far
 # bdt_models = []
 bdt_models = [
     # 'bdt_nest10000_weightCorrAndShuffle_2Aug',

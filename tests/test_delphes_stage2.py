@@ -31,14 +31,8 @@ parameters = {
     "14TeV_label": True,
     "has_variations": False,
     "variables_lookup": variables_lookup,
-    "grouping": {
-        "dy_m100_mg": "DY",
-    },
-    "plot_groups": {
-        "stack": ["DY"],
-        "step": [],
-        "errorbar": [],
-    },
+    "grouping": {"dy_m100_mg": "DY"},
+    "plot_groups": {"stack": ["DY"], "step": [], "errorbar": []},
 }
 
 
@@ -46,10 +40,7 @@ if __name__ == "__main__":
     tick = time.time()
 
     client = Client(
-        processes=True,
-        n_workers=1,
-        threads_per_worker=1,
-        memory_limit="4GB",
+        processes=True, n_workers=1, threads_per_worker=1, memory_limit="4GB"
     )
 
     file_name = "dy_delphes_stage1_output.parquet"

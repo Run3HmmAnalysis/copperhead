@@ -37,24 +37,15 @@ parameters = {
     "14TeV_label": False,
     "has_variations": True,
     "variables_lookup": variables_lookup,
-    "grouping": {
-        "vbf_powheg": "VBF",
-    },
-    "plot_groups": {
-        "stack": [],
-        "step": ["VBF"],
-        "errorbar": [],
-    },
+    "grouping": {"vbf_powheg": "VBF"},
+    "plot_groups": {"stack": [], "step": ["VBF"], "errorbar": []},
 }
 
 if __name__ == "__main__":
     tick = time.time()
 
     client = dask.distributed.Client(
-        processes=True,
-        n_workers=1,
-        threads_per_worker=1,
-        memory_limit="2.9GB",
+        processes=True, n_workers=1, threads_per_worker=1, memory_limit="2.9GB"
     )
     print("Client created")
 
@@ -74,11 +65,7 @@ if __name__ == "__main__":
         "use_dataframes": True,
         "retries": 0,
     }
-    processor_args = {
-        "samp_info": samp_info,
-        "do_timer": False,
-        "do_btag_syst": False,
-    }
+    processor_args = {"samp_info": samp_info, "do_timer": False, "do_btag_syst": False}
     print(samp_info.fileset)
 
     out_df = run_uproot_job(
@@ -111,9 +98,5 @@ if __name__ == "__main__":
         "val_sumw2": "value",
         "dimuon_mass": slice(None),
     }
-    assert almost_equal(
-        out_hist["hist"][0][slicer].sum(),
-        31778.216,
-        precision=0.01,
-    )
+    assert almost_equal(out_hist["hist"][0][slicer].sum(), 31778.216, precision=0.01)
     assert almost_equal(sum(out_plot), 31778.216, precision=0.01)

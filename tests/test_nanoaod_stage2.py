@@ -33,14 +33,8 @@ parameters = {
     "14TeV_label": False,
     "has_variations": True,
     "variables_lookup": variables_lookup,
-    "grouping": {
-        "dy_m105_160_vbf_amc": "DY",
-    },
-    "plot_groups": {
-        "stack": "DY",
-        "step": [],
-        "errorbar": [],
-    },
+    "grouping": {"dy_m105_160_vbf_amc": "DY"},
+    "plot_groups": {"stack": "DY", "step": [], "errorbar": []},
 }
 
 
@@ -48,10 +42,7 @@ if __name__ == "__main__":
     tick = time.time()
 
     client = Client(
-        processes=True,
-        n_workers=1,
-        threads_per_worker=1,
-        memory_limit="4GB",
+        processes=True, n_workers=1, threads_per_worker=1, memory_limit="4GB"
     )
 
     file_name = "dy_nanoaod_stage1_output.parquet"
@@ -71,8 +62,5 @@ if __name__ == "__main__":
         "val_sumw2": "value",
         "dimuon_mass": slice(None),
     }
-    assert almost_equal(
-        out_hist["hist"][0][slicer].sum(),
-        6.761677545416264,
-    )
+    assert almost_equal(out_hist["hist"][0][slicer].sum(), 6.761677545416264)
     assert almost_equal(sum(out_plot), 6.761677545416264)
