@@ -1,3 +1,4 @@
+import itertools
 import numpy as np
 import pandas as pd
 from hist import Hist
@@ -114,52 +115,63 @@ def make_histograms(args, parameters={}):
     # container type
     hist = hist.Double()
 
-    for region in regions:
-        for w in wgt_variations:
-            for v in syst_variations:
-                variation = get_variation(w, v)
-                if not variation:
-                    continue
-                if parameters["has_variations"]:
-                    var_name = f"{var.name} {v}"
-                    ch_name = f"channel {v}"
-                    if var_name not in df.columns:
-                        if var.name in df.columns:
-                            var_name = var.name
-                        else:
-                            continue
-                else:
+    loop_args = {
+        "region": regions,
+        "w": wgt_variations,
+        "v": syst_variations,
+        "channel": channels,
+    }
+    loop_args = [
+        dict(zip(loop_args.keys(), values))
+        for values in itertools.product(*loop_args.values())
+    ]
+    for loop_arg in loop_args:
+        region = loop_arg["region"]
+        channel = loop_arg["channel"]
+        w = loop_arg["w"]
+        v = loop_arg["v"]
+        variation = get_variation(w, v)
+        if not variation:
+            continue
+        if parameters["has_variations"]:
+            var_name = f"{var.name} {v}"
+            ch_name = f"channel {v}"
+            if var_name not in df.columns:
+                if var.name in df.columns:
                     var_name = var.name
-                    ch_name = "channel"
+                else:
+                    continue
+        else:
+            var_name = var.name
+            ch_name = "channel"
 
-                for channel in channels:
-                    slicer = (
-                        (df.dataset == dataset)
-                        & (df.region == region)
-                        & (df.year == year)
-                        & (df[ch_name] == channel)
-                    )
-                    data = df.loc[slicer, var_name]
+        slicer = (
+            (df.dataset == dataset)
+            & (df.region == region)
+            & (df.year == year)
+            & (df[ch_name] == channel)
+        )
+        data = df.loc[slicer, var_name]
 
-                    to_fill = {
-                        var.name: data,
-                        "region": region,
-                        "channel": channel,
-                    }
-                    to_fill_value = to_fill.copy()
-                    to_fill_sumw2 = to_fill.copy()
-                    to_fill_value["val_sumw2"] = "value"
-                    to_fill_sumw2["val_sumw2"] = "sumw2"
+        to_fill = {
+            var.name: data,
+            "region": region,
+            "channel": channel,
+        }
+        to_fill_value = to_fill.copy()
+        to_fill_sumw2 = to_fill.copy()
+        to_fill_value["val_sumw2"] = "value"
+        to_fill_sumw2["val_sumw2"] = "sumw2"
 
-                    if parameters["has_variations"]:
-                        to_fill_value["variation"] = variation
-                        to_fill_sumw2["variation"] = variation
-                        weight = df.loc[slicer, w]
-                    else:
-                        weight = df.loc[slicer, "lumi_wgt"] * df.loc[slicer, "mc_wgt"]
+        if parameters["has_variations"]:
+            to_fill_value["variation"] = variation
+            to_fill_sumw2["variation"] = variation
+            weight = df.loc[slicer, w]
+        else:
+            weight = df.loc[slicer, "lumi_wgt"] * df.loc[slicer, "mc_wgt"]
 
-                    hist.fill(**to_fill_value, weight=weight)
-                    hist.fill(**to_fill_sumw2, weight=weight * weight)
+        hist.fill(**to_fill_value, weight=weight)
+        hist.fill(**to_fill_sumw2, weight=weight * weight)
 
     if parameters["save_hists"]:
         save_histogram(hist, var.name, dataset, year, parameters)
