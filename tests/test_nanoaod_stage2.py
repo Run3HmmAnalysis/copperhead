@@ -64,8 +64,15 @@ if __name__ == "__main__":
     elapsed = round(time.time() - tick, 3)
     print(f"Finished everything in {elapsed} s.")
 
+    slicer = {
+        "region": "h-peak",
+        "channel": "vbf",
+        "variation": "nominal",
+        "val_sumw2": "value",
+        "dimuon_mass": slice(None),
+    }
     assert almost_equal(
-        out_hist["hist"][0]["h-peak", "vbf", "nominal", "value", :].sum(),
+        out_hist["hist"][0][slicer].sum(),
         6.761677545416264,
     )
     assert almost_equal(sum(out_plot), 6.761677545416264)

@@ -1,8 +1,10 @@
 from functools import partial
+import itertools
 import pandas as pd
 import numpy as np
 from hist.intervals import poisson_interval
 from python.io import load_histogram
+from python.variable import Variable
 from plotting.entry import Entry
 
 import matplotlib.pyplot as plt
@@ -27,19 +29,22 @@ ratio_err_opts = {"step": "post", "facecolor": (0, 0, 0, 0.3), "linewidth": 0}
 def plotter(client, parameters, hist_df=None, timer=None):
     # Load saved histograms
     if hist_df is None:
-        argsets = []
-        for year in parameters["years"]:
-            for var_name in parameters["hist_vars"]:
-                for dataset in parameters["datasets"]:
-                    argsets.append(
-                        {"year": year, "var_name": var_name, "dataset": dataset}
-                    )
+        arglists = {
+            "year": parameters["years"],
+            "var_name": parameters["hist_vars"],
+            "dataset": parameters["datasets"],
+        }
+        argsets = [
+            dict(zip(arglists.keys(), values))
+            for values in itertools.product(*arglists.values())
+        ]
         hist_futures = client.map(
             partial(load_histogram, parameters=parameters), argsets
         )
         hist_rows = client.gather(hist_futures)
         hist_df = pd.concat(hist_rows).reset_index(drop=True)
 
+    """
     hists_to_plot = []
     for year in parameters["years"]:
         for var_name in hist_df.var_name.unique():
@@ -48,17 +53,41 @@ def plotter(client, parameters, hist_df=None, timer=None):
             hists_to_plot.append(
                 hist_df.loc[(hist_df.var_name == var_name) & (hist_df.year == year)]
             )
+    """
 
-    plot_futures = client.map(partial(plot, parameters=parameters), hists_to_plot)
+    arglists = {
+        "year": parameters["years"],
+        "var_name": [
+            v for v in hist_df.var_name.unique() if v in parameters["plot_vars"]
+        ],
+        "hist_df": [hist_df],
+    }
+    argsets = [
+        dict(zip(arglists.keys(), values))
+        for values in itertools.product(*arglists.values())
+    ]
+
+    plot_futures = client.map(partial(plot, parameters=parameters), argsets)
     yields = client.gather(plot_futures)
 
     return yields
 
 
-def plot(hist, parameters={}):
+def plot(args, parameters={}):
+    year = args["year"]
+    var_name = args["var_name"]
+    hist = args["hist_df"].loc[
+        (args["hist_df"].var_name == var_name) & (args["hist_df"].year == year)
+    ]
+
+    if var_name in parameters["variables_lookup"].keys():
+        var = parameters["variables_lookup"][var_name]
+    else:
+        var = Variable(var_name, var_name, 50, 0, 5)
+
     if hist.shape[0] == 0:
         return
-    var = hist["hist"].values[0].axes[-1]
+
     plotsize = 8
     ratio_plot_size = 0.25
 
@@ -100,7 +129,8 @@ def plot(hist, parameters={}):
     for entry in entries.values():
         if len(entry.entry_list) == 0:
             continue
-        plottables_df = entry.get_plottables(hist, year, var.name, slicer)
+
+        plottables_df = entry.get_plottables(hist, year, var_name, slicer)
         plottables = plottables_df["hist"].values.tolist()
         sumw2 = plottables_df["sumw2"].values.tolist()
         labels = plottables_df["label"].values.tolist()
@@ -142,7 +172,7 @@ def plot(hist, parameters={}):
         ax1.set_xlabel("")
         ax1.tick_params(axis="x", labelbottom=False)
     else:
-        ax1.set_xlabel(var.label, loc="right")
+        ax1.set_xlabel(var.caption, loc="right")
 
     if parameters["plot_ratio"]:
 
@@ -198,7 +228,7 @@ def plot(hist, parameters={}):
         ax2.axhline(1, ls="--")
         ax2.set_ylim([0.5, 1.5])
         ax2.set_ylabel("Data/MC", loc="center")
-        ax2.set_xlabel(var.label, loc="right")
+        ax2.set_xlabel(var.caption, loc="right")
         ax2.legend(prop={"size": "x-small"})
 
     if parameters["14TeV_label"]:

@@ -61,8 +61,13 @@ if __name__ == "__main__":
     out_tmp = to_templates(client, parameters, hist_df=out_hist)
     elapsed = round(time.time() - tick, 3)
     print(f"Finished everything in {elapsed} s.")
-    assert almost_equal(
-        out_hist["hist"][0]["h-peak", "vbf", "value", :].sum(), 4515.761427143451
-    )
+
+    slicer = {
+        "region": "h-peak",
+        "channel": "vbf",
+        "val_sumw2": "value",
+        "dimuon_mass": slice(None),
+    }
+    assert almost_equal(out_hist["hist"][0][slicer].sum(), 4515.761427143451)
     assert almost_equal(sum(out_plot), 4515.761427143451)
     assert almost_equal(sum(out_tmp), 4515.761427143451)

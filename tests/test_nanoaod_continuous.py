@@ -103,8 +103,16 @@ if __name__ == "__main__":
     assert out_df.shape == (8594, 100)
     assert almost_equal(dimuon_mass, 124.16069531)
     assert almost_equal(jj_mass, 1478.3898375)
+
+    slicer = {
+        "region": "h-peak",
+        "channel": "vbf",
+        "variation": "nominal",
+        "val_sumw2": "value",
+        "dimuon_mass": slice(None),
+    }
     assert almost_equal(
-        out_hist["hist"][0]["h-peak", "vbf", "nominal", "value", :].sum(),
+        out_hist["hist"][0][slicer].sum(),
         31778.216,
         precision=0.01,
     )

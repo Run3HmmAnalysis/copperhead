@@ -1,4 +1,5 @@
 import pandas as pd
+import itertools
 from functools import partial
 from hist import Hist
 
@@ -7,11 +8,15 @@ from python.io import save_histogram
 
 
 def to_histograms(client, parameters, df):
-    argsets = []
-    for year in df.year.unique():
-        for var_name in parameters["hist_vars"]:
-            for dataset in df.dataset.unique():
-                argsets.append({"year": year, "var_name": var_name, "dataset": dataset})
+    arglists = {
+        "year": df.year.unique(),
+        "var_name": parameters["hist_vars"],
+        "dataset": df.dataset.unique(),
+    }
+    argsets = [
+        dict(zip(arglists.keys(), values))
+        for values in itertools.product(*arglists.values())
+    ]
 
     hist_futures = client.map(
         partial(make_histograms, df=df, parameters=parameters), argsets

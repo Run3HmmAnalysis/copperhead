@@ -40,23 +40,24 @@ class Entry(object):
         self.groups = list(set(self.entry_dict.values()))
 
     def get_plottables(self, hist, year, var_name, slicer):
+        slicer[var_name] = slice(None)
         slicer_value = slicer.copy()
         slicer_sumw2 = slicer.copy()
         slicer_value["val_sumw2"] = "value"
         slicer_sumw2["val_sumw2"] = "sumw2"
+
         plottables_df = pd.DataFrame(columns=["label", "hist", "sumw2", "integral"])
         all_df = pd.DataFrame(columns=["label", "integral"])
         for group in self.groups:
             group_entries = [e for e, g in self.entry_dict.items() if (group == g)]
             all_labels = hist.loc[hist.dataset.isin(group_entries), "dataset"].values
-            hist_values_group = [
-                hist[slicer_value].project(var_name)
-                for hist in hist.loc[hist.dataset.isin(group_entries), "hist"].values
-            ]
-            hist_sumw2_group = [
-                hist[slicer_sumw2].project(var_name)
-                for hist in hist.loc[hist.dataset.isin(group_entries), "hist"].values
-            ]
+
+            hist_values_group = []
+            hist_sumw2_group = []
+            for h in hist.loc[hist.dataset.isin(group_entries), "hist"].values:
+                hist_values_group.append(h[slicer_value].project(var_name))
+                hist_sumw2_group.append(h[slicer_sumw2].project(var_name))
+
             if len(hist_values_group) == 0:
                 continue
             nevts = sum(hist_values_group).sum()

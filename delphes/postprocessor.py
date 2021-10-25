@@ -1,5 +1,6 @@
 import os
 from functools import partial
+import itertools
 
 import dask.dataframe as dd
 import pandas as pd
@@ -76,15 +77,17 @@ def load_dataframe(client, parameters, inputs=[], timer=None):
 
 
 def to_templates(client, parameters, hist_df=None):
-
     if hist_df is None:
-        argsets = []
-        for year in parameters["years"]:
-            for var_name in parameters["hist_vars"]:
-                for dataset in parameters["datasets"]:
-                    argsets.append(
-                        {"year": year, "var_name": var_name, "dataset": dataset}
-                    )
+        arglists = {
+            "year": parameters["years"],
+            "var_name": parameters["hist_vars"],
+            "dataset": parameters["datasets"],
+        }
+        argsets = [
+            dict(zip(arglists.keys(), values))
+            for values in itertools.product(*arglists.values())
+        ]
+
         hist_futures = client.map(
             partial(load_histogram, parameters=parameters), argsets
         )
