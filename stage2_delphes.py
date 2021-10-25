@@ -5,7 +5,7 @@ import dask
 from dask.distributed import Client
 
 from python.timer import Timer
-from delphes.postprocessor import workflow
+from delphes.postprocessor import load_dataframe, to_histograms
 from plotting.plotter import plotter
 
 __all__ = ["dask"]
@@ -245,14 +245,16 @@ if __name__ == "__main__":
             for path in tqdm.tqdm(all_paths):
                 if len(path) == 0:
                     continue
-                workflow(client, parameters, inputs=[path], timer=timer)
+                df = load_dataframe(client, parameters, inputs=[path], timer=timer)
         else:
             for year, groups in paths_grouped.items():
                 print(f"Processing {year}")
                 for group, g_paths in tqdm.tqdm(groups.items()):
                     if len(g_paths) == 0:
                         continue
-                    workflow(client, parameters, inputs=g_paths, timer=timer)
+                    df = load_dataframe(client, parameters, inputs=g_paths, timer=timer)
+
+        to_histograms(client, parameters, df=df)
 
     if args.plot:
         plotter(client, parameters, timer=timer)

@@ -8,7 +8,7 @@ import coffea.processor as processor
 from coffea.processor import dask_executor, run_uproot_job
 from nanoaod.preprocessor import SamplesInfo
 from nanoaod.processor import DimuonProcessor
-from nanoaod.postprocessor import workflow
+from nanoaod.postprocessor import load_dataframe, to_histograms
 from plotting.plotter import plotter
 from python.utils import almost_equal
 
@@ -87,7 +87,8 @@ if __name__ == "__main__":
         chunksize=10000,
     )
 
-    out_hist = workflow(client, parameters, inputs=out_df)
+    df = load_dataframe(client, parameters, inputs=out_df)
+    out_hist = to_histograms(client, parameters, df=df)
     out_plot = plotter(client, parameters, hist_df=out_hist)
 
     elapsed = round(time.time() - tick, 3)
@@ -101,6 +102,7 @@ if __name__ == "__main__":
     assert almost_equal(jj_mass, 1478.3898375)
     assert almost_equal(
         out_hist["hist"][0]["h-peak", "vbf", "nominal", "value", :].sum(),
-        31778.216, precision=0.01
+        31778.216,
+        precision=0.01,
     )
     assert almost_equal(sum(out_plot), 31778.216, precision=0.01)

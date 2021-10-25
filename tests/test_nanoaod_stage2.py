@@ -7,7 +7,7 @@ import time
 import dask
 from dask.distributed import Client
 
-from nanoaod.postprocessor import workflow
+from nanoaod.postprocessor import load_dataframe, to_histograms
 from python.utils import almost_equal
 from plotting.plotter import plotter
 
@@ -54,7 +54,8 @@ if __name__ == "__main__":
     file_name = "dy_nanoaod_stage1_output.parquet"
     path = f"{os.getcwd()}/tests/samples/{file_name}"
 
-    out_hist = workflow(client, parameters, inputs=[path])
+    df = load_dataframe(client, parameters, inputs=[path])
+    out_hist = to_histograms(client, parameters, df=df)
     out_plot = plotter(client, parameters, hist_df=out_hist)
 
     elapsed = round(time.time() - tick, 3)

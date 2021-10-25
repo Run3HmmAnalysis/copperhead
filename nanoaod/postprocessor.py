@@ -84,14 +84,12 @@ decorrelation_scheme = {
 }
 
 
-def workflow(client, parameters, inputs=[], timer=None):
+def load_dataframe(client, parameters, inputs=[], timer=None):
 
     if isinstance(inputs, list):
         # Load dataframes
         df_future = client.map(load_pandas_from_parquet, inputs)
         df_future = client.gather(df_future)
-        if timer:
-            timer.add_checkpoint("Loaded data from Parquet")
         # Merge dataframes
         try:
             df = dd.concat([d for d in df_future if len(d.columns) > 0])
@@ -104,8 +102,6 @@ def workflow(client, parameters, inputs=[], timer=None):
         df = dd.from_pandas(df, npartitions=npart)
         if df.npartitions > 2 * parameters["ncpus"]:
             df = df.repartition(npartitions=parameters["ncpus"])
-        if timer:
-            timer.add_checkpoint("Combined into a single Dask DataFrame")
 
     elif isinstance(inputs, pd.DataFrame):
         df = dd.from_pandas(inputs, npartitions=parameters["ncpus"])
@@ -148,34 +144,34 @@ def workflow(client, parameters, inputs=[], timer=None):
                 df[score_name] = df.map_partitions(
                     dnn_evaluation, v, model, parameters, meta=(score_name, float)
                 )
-                if timer:
-                    timer.add_checkpoint(f"Evaluated {model} {v}")
+
             for model in parameters["bdt_models"]:
                 score_name = f"score_{model} {v}"
                 keep_columns += [score_name]
                 df[score_name] = df.map_partitions(
                     bdt_evaluation, v, model, parameters, meta=(score_name, float)
                 )
-                if timer:
-                    timer.add_checkpoint(f"Evaluated {model} {v}")
+
     df = df[[c for c in keep_columns if c in df.columns]]
     df = df.compute()
     df.dropna(axis=1, inplace=True)
     df.reset_index(inplace=True)
-    if timer:
-        timer.add_checkpoint("Prepared for histogramming")
+    return df
 
+
+def to_histograms(client, parameters, df):
     argsets = []
     for year in df.year.unique():
         for var_name in parameters["hist_vars"]:
             for dataset in df.dataset.unique():
                 argsets.append({"year": year, "var_name": var_name, "dataset": dataset})
     # Make histograms
-    hist_futures = client.map(partial(histogram, df=df, parameters=parameters), argsets)
+    hist_futures = client.map(
+        partial(make_histograms, df=df, parameters=parameters), argsets
+    )
     hist_rows = client.gather(hist_futures)
     hist_df = pd.concat(hist_rows).reset_index(drop=True)
-    if timer:
-        timer.add_checkpoint("Histogramming")
+
     return hist_df
 
 
@@ -310,7 +306,7 @@ def get_variation(wgt_variation, sys_variation):
             return None
 
 
-def histogram(args, df=pd.DataFrame(), parameters={}):
+def make_histograms(args, df=pd.DataFrame(), parameters={}):
     year = args["year"]
     var_name = args["var_name"]
     dataset = args["dataset"]

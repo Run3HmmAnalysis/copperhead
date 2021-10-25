@@ -7,7 +7,7 @@ import time
 import dask
 from dask.distributed import Client
 
-from delphes.postprocessor import workflow, to_templates
+from delphes.postprocessor import load_dataframe, to_histograms, to_templates
 from python.utils import almost_equal
 from plotting.plotter import plotter
 
@@ -52,7 +52,8 @@ if __name__ == "__main__":
     file_name = "dy_delphes_stage1_output.parquet"
     path = f"{os.getcwd()}/tests/samples/{file_name}"
 
-    out_hist = workflow(client, parameters, inputs=[path])
+    out_df = load_dataframe(client, parameters, inputs=[path])
+    out_hist = to_histograms(client, parameters, df=out_df)
     out_plot = plotter(client, parameters, hist_df=out_hist)
     out_tmp = to_templates(client, parameters, hist_df=out_hist)
 

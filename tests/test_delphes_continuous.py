@@ -8,7 +8,7 @@ from coffea.processor import dask_executor, run_uproot_job
 from coffea.nanoevents import DelphesSchema
 from delphes.preprocessor import get_fileset
 from delphes.processor import DimuonProcessorDelphes
-from delphes.postprocessor import workflow, to_templates
+from delphes.postprocessor import load_dataframe, to_histograms, to_templates
 from plotting.plotter import plotter
 from python.utils import almost_equal
 
@@ -76,7 +76,8 @@ if __name__ == "__main__":
         chunksize=10000,
     )
 
-    out_hist = workflow(client, parameters, inputs=out_df)
+    df = load_dataframe(client, parameters, inputs=out_df)
+    out_hist = to_histograms(client, parameters, df=df)
     out_plot = plotter(client, parameters, hist_df=out_hist)
     out_tmp = to_templates(client, parameters, hist_df=out_hist)
 
