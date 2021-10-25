@@ -73,10 +73,13 @@ def plot(hist, parameters={}):
         )
     year = years[0]
 
+    slicer = {
+        "region": region,
+        "channel": channel,
+    }
+
     if parameters["has_variations"]:
-        dimensions = (region, channel, variation)
-    else:
-        dimensions = (region, channel)
+        slicer["variation"] = variation
 
     entries = {et: Entry(et, parameters) for et in parameters["plot_groups"].keys()}
 
@@ -97,7 +100,7 @@ def plot(hist, parameters={}):
     for entry in entries.values():
         if len(entry.entry_list) == 0:
             continue
-        plottables_df = entry.get_plottables(hist, year, var.name, dimensions)
+        plottables_df = entry.get_plottables(hist, year, var.name, slicer)
         plottables = plottables_df["hist"].values.tolist()
         sumw2 = plottables_df["sumw2"].values.tolist()
         labels = plottables_df["label"].values.tolist()
@@ -149,14 +152,14 @@ def plot(hist, parameters={}):
 
         if len(entries["data"].entry_list) > 0:
             # get Data yields
-            num_df = entries["data"].get_plottables(hist, year, var.name, dimensions)
+            num_df = entries["data"].get_plottables(hist, year, var.name, slicer)
             num = num_df["hist"].values.tolist()
             if len(num) > 0:
                 num = sum(num).values()
 
         if len(entries["stack"].entry_list) > 0:
             # get MC yields and sumw2
-            den_df = entries["stack"].get_plottables(hist, year, var.name, dimensions)
+            den_df = entries["stack"].get_plottables(hist, year, var.name, slicer)
             den = den_df["hist"].values.tolist()
             den_sumw2 = den_df["sumw2"].values.tolist()
             if len(den) > 0:

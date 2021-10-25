@@ -39,9 +39,11 @@ class Entry(object):
         self.labels = self.entry_dict.values()
         self.groups = list(set(self.entry_dict.values()))
 
-    def get_plottables(self, hist, year, var_name, dimensions):
-        slicer_value = tuple(list(dimensions) + ["value", slice(None)])
-        slicer_sumw2 = tuple(list(dimensions) + ["sumw2", slice(None)])
+    def get_plottables(self, hist, year, var_name, slicer):
+        slicer_value = slicer.copy()
+        slicer_sumw2 = slicer.copy()
+        slicer_value["val_sumw2"] = "value"
+        slicer_sumw2["val_sumw2"] = "sumw2"
         plottables_df = pd.DataFrame(columns=["label", "hist", "sumw2", "integral"])
         all_df = pd.DataFrame(columns=["label", "integral"])
         for group in self.groups:

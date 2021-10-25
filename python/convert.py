@@ -66,24 +66,26 @@ def make_histograms(args, df=pd.DataFrame(), parameters={}):
     regions = [r for r in regions if r in df.region.unique()]
     channels = [c for c in channels if c in df[c_name].unique()]
 
-    # sometimes different years have different binnings (MVA score)
-    hist = Hist.new.StrCat(regions, name="region").StrCat(channels, name="channel")
+    # prepare multidimensional histogram
+    hist = (
+        Hist.new.StrCat(regions, name="region")
+        .StrCat(channels, name="channel")
+        .StrCat(["value", "sumw2"], name="val_sumw2")
+    )
+
+    # axis for observable variable
+    if "score" in var.name:
+        bins = parameters["mva_bins"][var.name.replace("score_", "")][f"{year}"]
+        hist = hist.Var(bins, name=var.name)
+    else:
+        hist = hist.Reg(var.nbins, var.xmin, var.xmax, name=var.name, label=var.caption)
+
+    # axis for systematic variation
     if parameters["has_variations"]:
         hist = hist.StrCat(variations, name="variation")
 
-    if "score" in var.name:
-        bins = parameters["mva_bins"][var.name.replace("score_", "")][f"{year}"]
-        hist = (
-            hist.StrCat(["value", "sumw2"], name="val_sumw2")
-            .Var(bins, name=var.name)
-            .Double()
-        )
-    else:
-        hist = (
-            hist.StrCat(["value", "sumw2"], name="val_sumw2")
-            .Reg(var.nbins, var.xmin, var.xmax, name=var.name, label=var.caption)
-            .Double()
-        )
+    # container type
+    hist = hist.Double()
 
     for region in regions:
         for w in wgt_variations:
@@ -111,18 +113,17 @@ def make_histograms(args, df=pd.DataFrame(), parameters={}):
                         & (df[ch_name] == channel)
                     )
                     data = df.loc[slicer, var_name]
-                    to_fill_value = {
+
+                    to_fill = {
                         var.name: data,
                         "region": region,
                         "channel": channel,
-                        "val_sumw2": "value",
                     }
-                    to_fill_sumw2 = {
-                        var.name: data,
-                        "region": region,
-                        "channel": channel,
-                        "val_sumw2": "sumw2",
-                    }
+                    to_fill_value = to_fill.copy()
+                    to_fill_sumw2 = to_fill.copy()
+                    to_fill_value["val_sumw2"] = "value"
+                    to_fill_sumw2["val_sumw2"] = "sumw2"
+
                     if parameters["has_variations"]:
                         to_fill_value["variation"] = variation
                         to_fill_sumw2["variation"] = variation
