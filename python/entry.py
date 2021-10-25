@@ -27,7 +27,7 @@ class Entry(object):
         else:
             raise Exception(f"Wrong entry type: {entry_type}")
 
-        self.groups = parameters["plot_groups"]["entry_type"]
+        self.groups = parameters["plot_groups"][entry_type]
         self.entry_dict = {
             e: g
             for e, g in parameters["grouping"].items()
