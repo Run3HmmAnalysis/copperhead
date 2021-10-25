@@ -5,8 +5,10 @@ import dask
 from dask.distributed import Client
 
 from python.timer import Timer
-from nanoaod.postprocessor import load_dataframe, to_histograms
+from nanoaod.postprocessor import load_dataframe
 from nanoaod.config.mva_bins import mva_bins
+from nanoaod.config.variables import variables_lookup
+from python.convert import to_histograms
 from plotting.plotter import plotter
 
 __all__ = ["dask"]
@@ -101,6 +103,7 @@ parameters = {
     "plot_ratio": True,
     "14TeV_label": False,
     "has_variations": True,
+    "variables_lookup": variables_lookup,
 }
 
 parameters["mva_bins"] = mva_bins

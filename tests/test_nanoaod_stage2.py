@@ -7,7 +7,9 @@ import time
 import dask
 from dask.distributed import Client
 
-from nanoaod.postprocessor import load_dataframe, to_histograms
+from nanoaod.postprocessor import load_dataframe
+from nanoaod.config.variables import variables_lookup
+from python.convert import to_histograms
 from python.utils import almost_equal
 from plotting.plotter import plotter
 
@@ -30,6 +32,7 @@ parameters = {
     "plot_ratio": True,
     "14TeV_label": False,
     "has_variations": True,
+    "variables_lookup": variables_lookup,
     "grouping": {
         "dy_m105_160_vbf_amc": "DY",
     },

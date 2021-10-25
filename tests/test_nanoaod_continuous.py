@@ -8,7 +8,9 @@ import coffea.processor as processor
 from coffea.processor import dask_executor, run_uproot_job
 from nanoaod.preprocessor import SamplesInfo
 from nanoaod.processor import DimuonProcessor
-from nanoaod.postprocessor import load_dataframe, to_histograms
+from nanoaod.postprocessor import load_dataframe
+from nanoaod.config.variables import variables_lookup
+from python.convert import to_histograms
 from plotting.plotter import plotter
 from python.utils import almost_equal
 
@@ -34,6 +36,7 @@ parameters = {
     "plot_ratio": True,
     "14TeV_label": False,
     "has_variations": True,
+    "variables_lookup": variables_lookup,
     "grouping": {
         "vbf_powheg": "VBF",
     },

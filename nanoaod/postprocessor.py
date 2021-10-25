@@ -1,14 +1,10 @@
 import os
-from functools import partial
 
 import dask.dataframe as dd
 import pandas as pd
 import numpy as np
 import pickle
-from hist import Hist
-from nanoaod.config.variables import variables_lookup, Variable
 from python.io import load_pandas_from_parquet
-from python.io import save_histogram
 
 os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
 pd.options.mode.chained_assignment = None
@@ -159,22 +155,6 @@ def load_dataframe(client, parameters, inputs=[], timer=None):
     return df
 
 
-def to_histograms(client, parameters, df):
-    argsets = []
-    for year in df.year.unique():
-        for var_name in parameters["hist_vars"]:
-            for dataset in df.dataset.unique():
-                argsets.append({"year": year, "var_name": var_name, "dataset": dataset})
-    # Make histograms
-    hist_futures = client.map(
-        partial(make_histograms, df=df, parameters=parameters), argsets
-    )
-    hist_rows = client.gather(hist_futures)
-    hist_df = pd.concat(hist_rows).reset_index(drop=True)
-
-    return hist_df
-
-
 def prepare_features(df, parameters, variation="nominal", add_year=True):
     global training_features
     if add_year:
@@ -291,101 +271,3 @@ def bdt_evaluation(df, variation, model, parameters):
                 ).ravel()
             df.loc[eval_filter, score_name] = np.arctanh((prediction))
     return df[score_name]
-
-
-def get_variation(wgt_variation, sys_variation):
-    if "nominal" in wgt_variation:
-        if "nominal" in sys_variation:
-            return "nominal"
-        else:
-            return sys_variation
-    else:
-        if "nominal" in sys_variation:
-            return wgt_variation
-        else:
-            return None
-
-
-def make_histograms(args, df=pd.DataFrame(), parameters={}):
-    year = args["year"]
-    var_name = args["var_name"]
-    dataset = args["dataset"]
-    if var_name in variables_lookup.keys():
-        var = variables_lookup[var_name]
-    else:
-        var = Variable(var_name, var_name, 50, 0, 5)
-
-    regions = parameters["regions"]
-    channels = parameters["channels"]
-    wgt_variations = [w for w in df.columns if ("wgt_" in w)]
-    syst_variations = parameters["syst_variations"]
-
-    variations = []
-    for w in wgt_variations:
-        for v in syst_variations:
-            variation = get_variation(w, v)
-            if variation:
-                variations.append(variation)
-
-    regions = [r for r in regions if r in df.region.unique()]
-    channels = [c for c in channels if c in df["channel nominal"].unique()]
-
-    # sometimes different years have different binnings (MVA score)
-    if "score" in var.name:
-        bins = parameters["mva_bins"][var.name.replace("score_", "")][f"{year}"]
-        hist = (
-            Hist.new.StrCat(regions, name="region")
-            .StrCat(channels, name="channel")
-            .StrCat(variations, name="variation")
-            .StrCat(["value", "sumw2"], name="val_err")
-            .Var(bins, name=var.name)
-            .Double()
-        )
-    else:
-        hist = (
-            Hist.new.StrCat(regions, name="region")
-            .StrCat(channels, name="channel")
-            .StrCat(variations, name="variation")
-            .StrCat(["value", "sumw2"], name="val_sumw2")
-            .Reg(var.nbins, var.xmin, var.xmax, name=var.name, label=var.caption)
-            .Double()
-        )
-
-    for region in regions:
-        for w in wgt_variations:
-            for v in syst_variations:
-                variation = get_variation(w, v)
-                if not variation:
-                    continue
-                var_name = f"{var.name} {v}"
-                if var_name not in df.columns:
-                    if var.name in df.columns:
-                        var_name = var.name
-                    else:
-                        continue
-                for channel in channels:
-                    slicer = (
-                        (df.dataset == dataset)
-                        & (df.region == region)
-                        & (df.year == year)
-                        & (df[f"channel {v}"] == channel)
-                    )
-                    data = df.loc[slicer, var_name]
-                    weight = df.loc[slicer, w]
-                    hist.fill(region, channel, variation, "value", data, weight=weight)
-                    hist.fill(
-                        region,
-                        channel,
-                        variation,
-                        "sumw2",
-                        data,
-                        weight=weight * weight,
-                    )
-                    # TODO: add treatment of PDF systematics
-                    # (MC replicas)
-    if parameters["save_hists"]:
-        save_histogram(hist, var.name, dataset, year, parameters)
-    hist_row = pd.DataFrame(
-        [{"year": year, "var_name": var.name, "dataset": dataset, "hist": hist}]
-    )
-    return hist_row

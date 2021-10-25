@@ -4,10 +4,8 @@ from functools import partial
 import dask.dataframe as dd
 import pandas as pd
 import numpy as np
-from hist import Hist
-from delphes.config.variables import variables_lookup, Variable
 from python.io import load_pandas_from_parquet
-from python.io import save_histogram, load_histogram
+from python.io import load_histogram
 from python.io import save_template
 
 import warnings
@@ -77,84 +75,8 @@ def load_dataframe(client, parameters, inputs=[], timer=None):
     return df
 
 
-def to_histograms(client, parameters, df):
-    argsets = []
-    for year in df.year.unique():
-        for var_name in parameters["hist_vars"]:
-            for dataset in df.dataset.unique():
-                argsets.append({"year": year, "var_name": var_name, "dataset": dataset})
-
-    hist_futures = client.map(
-        partial(make_histograms, df=df, parameters=parameters), argsets
-    )
-    hist_rows = client.gather(hist_futures)
-    hist_df = pd.concat(hist_rows).reset_index(drop=True)
-
-    return hist_df
-
-
-def make_histograms(args, df=pd.DataFrame(), parameters={}):
-    year = args["year"]
-    var_name = args["var_name"]
-    dataset = args["dataset"]
-    if var_name in variables_lookup.keys():
-        var = variables_lookup[var_name]
-    else:
-        var = Variable(var_name, var_name, 50, 0, 5)
-
-    regions = parameters["regions"]
-    channels = parameters["channels"]
-
-    regions = [r for r in regions if r in df.region.unique()]
-    channels = [c for c in channels if c in df.channel.unique()]
-
-    # sometimes different years have different binnings (MVA score)
-    if "score" in var.name:
-        bins = parameters["mva_bins"][var.name.replace("score_", "")][f"{year}"]
-        hist = (
-            Hist.new.StrCat(regions, name="region")
-            .StrCat(channels, name="channel")
-            .StrCat(["value", "sumw2"], name="val_err")
-            .Var(bins, name=var.name)
-            .Double()
-        )
-    else:
-        hist = (
-            Hist.new.StrCat(regions, name="region")
-            .StrCat(channels, name="channel")
-            .StrCat(["value", "sumw2"], name="val_sumw2")
-            .Reg(var.nbins, var.xmin, var.xmax, name=var.name, label=var.caption)
-            .Double()
-        )
-
-    for region in regions:
-        var_name = var.name
-        if var.name in df.columns:
-            var_name = var.name
-        else:
-            continue
-        for channel in channels:
-            slicer = (
-                (df.dataset == dataset)
-                & (df.region == region)
-                & (df.year == year)
-                & (df.channel == channel)
-            )
-            data = df.loc[slicer, var_name]
-            weight = df.loc[slicer, "lumi_wgt"] * df.loc[slicer, "mc_wgt"]
-            hist.fill(region, channel, "value", data, weight=weight)
-            hist.fill(region, channel, "sumw2", data, weight=weight * weight)
-
-    if parameters["save_hists"]:
-        save_histogram(hist, var.name, dataset, year, parameters)
-    hist_row = pd.DataFrame(
-        [{"year": year, "var_name": var.name, "dataset": dataset, "hist": hist}]
-    )
-    return hist_row
-
-
 def to_templates(client, parameters, hist_df=None):
-    # Load saved histograms
+
     if hist_df is None:
         argsets = []
         for year in parameters["years"]:

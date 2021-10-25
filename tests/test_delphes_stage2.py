@@ -7,7 +7,9 @@ import time
 import dask
 from dask.distributed import Client
 
-from delphes.postprocessor import load_dataframe, to_histograms, to_templates
+from delphes.postprocessor import load_dataframe, to_templates
+from delphes.config.variables import variables_lookup
+from python.convert import to_histograms
 from python.utils import almost_equal
 from plotting.plotter import plotter
 
@@ -28,6 +30,7 @@ parameters = {
     "plot_ratio": False,
     "14TeV_label": True,
     "has_variations": False,
+    "variables_lookup": variables_lookup,
     "grouping": {
         "dy_m100_mg": "DY",
     },
@@ -56,7 +59,6 @@ if __name__ == "__main__":
     out_hist = to_histograms(client, parameters, df=out_df)
     out_plot = plotter(client, parameters, hist_df=out_hist)
     out_tmp = to_templates(client, parameters, hist_df=out_hist)
-
     elapsed = round(time.time() - tick, 3)
     print(f"Finished everything in {elapsed} s.")
     assert almost_equal(

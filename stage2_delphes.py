@@ -5,7 +5,9 @@ import dask
 from dask.distributed import Client
 
 from python.timer import Timer
-from delphes.postprocessor import load_dataframe, to_histograms
+from delphes.postprocessor import load_dataframe
+from delphes.config.variables import variables_lookup
+from python.convert import to_histograms
 from plotting.plotter import plotter
 
 __all__ = ["dask"]
@@ -89,6 +91,7 @@ parameters = {
     "plot_ratio": False,
     "14TeV_label": True,
     "has_variations": False,
+    "variables_lookup": variables_lookup,
 }
 
 parameters["grouping"] = {
