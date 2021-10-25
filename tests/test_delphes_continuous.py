@@ -8,9 +8,9 @@ from coffea.processor import dask_executor, run_uproot_job
 from coffea.nanoevents import DelphesSchema
 from delphes.preprocessor import get_fileset
 from delphes.processor import DimuonProcessorDelphes
-from delphes.postprocessor import load_dataframe, to_templates
+from delphes.postprocessor import load_dataframe
 from delphes.config.variables import variables_lookup
-from python.convert import to_histograms
+from python.convert import to_histograms, to_templates
 from plotting.plotter import plotter
 from python.utils import almost_equal
 

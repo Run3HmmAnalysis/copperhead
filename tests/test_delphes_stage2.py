@@ -7,9 +7,9 @@ import time
 import dask
 from dask.distributed import Client
 
-from delphes.postprocessor import load_dataframe, to_templates
+from delphes.postprocessor import load_dataframe
 from delphes.config.variables import variables_lookup
-from python.convert import to_histograms
+from python.convert import to_histograms, to_templates
 from python.utils import almost_equal
 from plotting.plotter import plotter
 
