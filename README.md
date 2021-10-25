@@ -62,7 +62,7 @@ In [2]: cluster.scale(100)
 In [3]: print(cluster)
 SLURMCluster(346dd8d0, 'tcp://128.211.149.133:37608', workers=92, threads=92, memory=358.80 GB)
 ```
-The IP address (in this example `128.211.149.133:37608`) can be used to create a Dask client that would connect to this cluster. 
+The IP address (in this example `128.211.149.133:37608`) can be used to create a Dask client that would connect to this cluster.
 
 Number of workers in the cluster can be adjusted using `cluster.scale()`, which specifies maximum number of workers. The workers will be added as soon as the required resources (CPUs and memory) are available.
 
