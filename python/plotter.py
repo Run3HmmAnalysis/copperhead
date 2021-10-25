@@ -1,11 +1,10 @@
-from functools import partial
-import itertools
 import pandas as pd
 import numpy as np
 from hist.intervals import poisson_interval
+from python.workflow import parallelize
 from python.io import load_histogram
 from python.variable import Variable
-from plotting.entry import Entry
+from python.entry import Entry
 
 import matplotlib.pyplot as plt
 import mplhep as hep
@@ -27,37 +26,30 @@ ratio_err_opts = {"step": "post", "facecolor": (0, 0, 0, 0.3), "linewidth": 0}
 
 
 def plotter(client, parameters, hist_df=None, timer=None):
-    # Load saved histograms
+
     if hist_df is None:
-        arglists = {
+        arg_load = {
             "year": parameters["years"],
             "var_name": parameters["hist_vars"],
             "dataset": parameters["datasets"],
         }
-        argsets = [
-            dict(zip(arglists.keys(), values))
-            for values in itertools.product(*arglists.values())
-        ]
-        hist_futures = client.map(
-            partial(load_histogram, parameters=parameters), argsets
-        )
-        hist_rows = client.gather(hist_futures)
+        hist_rows = parallelize(load_histogram, arg_load, client, parameters)
         hist_df = pd.concat(hist_rows).reset_index(drop=True)
 
-    arglists = {
+    arg_plot = {
         "year": parameters["years"],
         "var_name": [
             v for v in hist_df.var_name.unique() if v in parameters["plot_vars"]
         ],
-        "hist_df": [hist_df],
+        "df": [hist_df],
     }
-    argsets = [
-        dict(zip(arglists.keys(), values))
-        for values in itertools.product(*arglists.values())
-    ]
 
-    plot_futures = client.map(partial(plot, parameters=parameters), argsets)
-    yields = client.gather(plot_futures)
+    yields = parallelize(
+        plot,
+        arg_plot,
+        client,
+        parameters,
+    )
 
     return yields
 
@@ -65,9 +57,7 @@ def plotter(client, parameters, hist_df=None, timer=None):
 def plot(args, parameters={}):
     year = args["year"]
     var_name = args["var_name"]
-    hist = args["hist_df"].loc[
-        (args["hist_df"].var_name == var_name) & (args["hist_df"].year == year)
-    ]
+    hist = args["df"].loc[(args["df"].var_name == var_name) & (args["df"].year == year)]
 
     if var_name in parameters["variables_lookup"].keys():
         var = parameters["variables_lookup"][var_name]

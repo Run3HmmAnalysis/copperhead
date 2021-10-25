@@ -11,7 +11,7 @@ from delphes.processor import DimuonProcessorDelphes
 from delphes.postprocessor import load_dataframe
 from delphes.config.variables import variables_lookup
 from python.convert import to_histograms, to_templates
-from plotting.plotter import plotter
+from python.plotter import plotter
 from python.utils import almost_equal
 
 import dask

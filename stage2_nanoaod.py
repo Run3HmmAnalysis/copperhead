@@ -9,7 +9,7 @@ from nanoaod.postprocessor import load_dataframe
 from nanoaod.config.mva_bins import mva_bins
 from nanoaod.config.variables import variables_lookup
 from python.convert import to_histograms
-from plotting.plotter import plotter
+from python.plotter import plotter
 
 __all__ = ["dask"]
 

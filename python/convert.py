@@ -1,9 +1,8 @@
 import numpy as np
 import pandas as pd
-import itertools
-from functools import partial
 from hist import Hist
 
+from python.workflow import parallelize
 from python.variable import Variable
 from python.io import load_histogram, save_histogram, save_template
 
@@ -14,20 +13,13 @@ from uproot3_methods.classes.TH1 import from_numpy
 
 
 def to_histograms(client, parameters, df):
-    arglists = {
+    argset = {
         "year": df.year.unique(),
         "var_name": parameters["hist_vars"],
         "dataset": df.dataset.unique(),
+        "df": [df],
     }
-    argsets = [
-        dict(zip(arglists.keys(), values))
-        for values in itertools.product(*arglists.values())
-    ]
-
-    hist_futures = client.map(
-        partial(make_histograms, df=df, parameters=parameters), argsets
-    )
-    hist_rows = client.gather(hist_futures)
+    hist_rows = parallelize(make_histograms, argset, client, parameters)
     hist_df = pd.concat(hist_rows).reset_index(drop=True)
 
     return hist_df
@@ -35,36 +27,22 @@ def to_histograms(client, parameters, df):
 
 def to_templates(client, parameters, hist_df=None):
     if hist_df is None:
-        arglists = {
+        argset_load = {
             "year": parameters["years"],
             "var_name": parameters["hist_vars"],
             "dataset": parameters["datasets"],
         }
-        argsets = [
-            dict(zip(arglists.keys(), values))
-            for values in itertools.product(*arglists.values())
-        ]
-
-        hist_futures = client.map(
-            partial(load_histogram, parameters=parameters), argsets
-        )
-        hist_rows = client.gather(hist_futures)
+        hist_rows = parallelize(load_histogram, argset_load, client, parameters)
         hist_df = pd.concat(hist_rows).reset_index(drop=True)
 
-    arglists = {
+    argset = {
         "year": parameters["years"],
         "var_name": [
             v for v in hist_df.var_name.unique() if v in parameters["plot_vars"]
         ],
         "hist_df": [hist_df],
     }
-    argsets = [
-        dict(zip(arglists.keys(), values))
-        for values in itertools.product(*arglists.values())
-    ]
-
-    temp_futures = client.map(partial(make_templates, parameters=parameters), argsets)
-    yields = client.gather(temp_futures)
+    yields = parallelize(make_templates, argset, client, parameters)
     return yields
 
 
@@ -81,7 +59,8 @@ def get_variation(wgt_variation, sys_variation):
             return None
 
 
-def make_histograms(args, df=pd.DataFrame(), parameters={}):
+def make_histograms(args, parameters={}):
+    df = args["df"]
     year = args["year"]
     var_name = args["var_name"]
     dataset = args["dataset"]
