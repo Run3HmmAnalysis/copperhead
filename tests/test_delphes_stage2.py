@@ -35,9 +35,9 @@ parameters = {
         "dy_m100_mg": "DY",
     },
     "plot_groups": {
-        "stack": "DY",
+        "stack": ["DY"],
         "step": [],
-        "data": [],
+        "errorbar": [],
     },
 }
 

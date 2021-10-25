@@ -84,8 +84,6 @@ def plot(args, parameters={}):
     if parameters["has_variations"]:
         slicer["variation"] = variation
 
-    entries = {et: Entry(et, parameters) for et in parameters["plot_groups"].keys()}
-
     fig = plt.figure()
 
     if parameters["plot_ratio"]:
@@ -98,6 +96,9 @@ def plot(args, parameters={}):
     else:
         fig, ax1 = plt.subplots()
         fig.set_size_inches(plotsize, plotsize)
+
+    # stack, step, and errorbar entries
+    entries = {et: Entry(et, parameters) for et in parameters["plot_groups"].keys()}
 
     total_yield = 0
     for entry in entries.values():
@@ -154,9 +155,9 @@ def plot(args, parameters={}):
         ax2 = fig.add_subplot(gs[1], sharex=ax1)
         num = den = []
 
-        if len(entries["data"].entry_list) > 0:
+        if len(entries["errorbar"].entry_list) > 0:
             # get Data yields
-            num_df = entries["data"].get_plottables(hist, year, var.name, slicer)
+            num_df = entries["errorbar"].get_plottables(hist, year, var.name, slicer)
             num = num_df["hist"].values.tolist()
             if len(num) > 0:
                 num = sum(num).values()
@@ -182,7 +183,7 @@ def plot(args, parameters={}):
                 ax=ax2,
                 yerr=yerr,
                 histtype="errorbar",
-                **entries["data"].plot_opts,
+                **entries["errorbar"].plot_opts,
             )
 
         if sum(den) > 0:

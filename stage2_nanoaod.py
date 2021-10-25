@@ -167,7 +167,7 @@ grouping_alt = {
 parameters["plot_groups"] = {
     "stack": ["DY", "EWK", "TT+ST", "VV", "VVV"],
     "step": ["VBF", "ggH"],
-    "data": ["Data"],
+    "errorbar": ["Data"],
 }
 
 

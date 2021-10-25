@@ -39,7 +39,7 @@ parameters = {
     "plot_groups": {
         "stack": "DY",
         "step": [],
-        "data": [],
+        "errorbar": [],
     },
 }
 

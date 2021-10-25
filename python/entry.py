@@ -10,19 +10,16 @@ class Entry(object):
         self.entry_type = entry_type
         self.labels = []
         if entry_type == "step":
-            self.groups = parameters["plot_groups"]["step"]
             self.histtype = "step"
             self.stack = False
             self.plot_opts = {"linewidth": 3}
             self.yerr = False
         elif entry_type == "stack":
-            self.groups = parameters["plot_groups"]["stack"]
             self.histtype = "fill"
             self.stack = True
             self.plot_opts = {"alpha": 0.8, "edgecolor": (0, 0, 0)}
             self.yerr = False
-        elif entry_type == "data":
-            self.groups = parameters["plot_groups"]["data"]
+        elif entry_type == "errorbar":
             self.histtype = "errorbar"
             self.stack = False
             self.plot_opts = {"color": "k", "marker": ".", "markersize": 10}
@@ -30,6 +27,7 @@ class Entry(object):
         else:
             raise Exception(f"Wrong entry type: {entry_type}")
 
+        self.groups = parameters["plot_groups"]["entry_type"]
         self.entry_dict = {
             e: g
             for e, g in parameters["grouping"].items()
@@ -47,10 +45,9 @@ class Entry(object):
         slicer_sumw2["val_sumw2"] = "sumw2"
 
         plottables_df = pd.DataFrame(columns=["label", "hist", "sumw2", "integral"])
-        all_df = pd.DataFrame(columns=["label", "integral"])
+
         for group in self.groups:
             group_entries = [e for e, g in self.entry_dict.items() if (group == g)]
-            all_labels = hist.loc[hist.dataset.isin(group_entries), "dataset"].values
 
             hist_values_group = []
             hist_sumw2_group = []
@@ -60,8 +57,8 @@ class Entry(object):
 
             if len(hist_values_group) == 0:
                 continue
-            nevts = sum(hist_values_group).sum()
 
+            nevts = sum(hist_values_group).sum()
             if nevts > 0:
                 plottables_df = plottables_df.append(
                     pd.DataFrame(
@@ -76,19 +73,6 @@ class Entry(object):
                     ),
                     ignore_index=True,
                 )
-            for label, h in zip(all_labels, hist_values_group):
-                all_df = all_df.append(
-                    pd.DataFrame(
-                        [
-                            {
-                                "label": label,
-                                "integral": h.sum(),
-                            }
-                        ]
-                    ),
-                    ignore_index=True,
-                )
+
         plottables_df.sort_values(by="integral", inplace=True)
-        all_df.sort_values(by="integral", inplace=True)
-        # print(all_df)
         return plottables_df

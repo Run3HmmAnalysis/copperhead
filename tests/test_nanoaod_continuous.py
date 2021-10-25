@@ -43,7 +43,7 @@ parameters = {
     "plot_groups": {
         "stack": [],
         "step": ["VBF"],
-        "data": [],
+        "errorbar": [],
     },
 }
 

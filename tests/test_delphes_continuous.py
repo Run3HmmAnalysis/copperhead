@@ -45,7 +45,7 @@ if __name__ == "__main__":
         "plot_groups": {
             "stack": [],
             "step": ["ggH"],
-            "data": [],
+            "errorbar": [],
         },
     }
 
