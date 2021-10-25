@@ -1,6 +1,7 @@
 # H→µµ analysis framework
 
 ![Flake8](https://github.com/kondratyevd/hmumu-coffea/actions/workflows/flake8.yml/badge.svg)
+[![pre-commit](https://img.shields.io/badge/pre--commit-enabled-brightgreen?logo=pre-commit&logoColor=white)](https://github.com/pre-commit/pre-commit)
 ![Nanoaod](https://github.com/kondratyevd/hmumu-coffea/actions/workflows/nanoaod.yml/badge.svg)
 ![Delphes](https://github.com/kondratyevd/hmumu-coffea/actions/workflows/delphes.yml/badge.svg)
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
