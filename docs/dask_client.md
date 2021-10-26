@@ -9,14 +9,9 @@ client = Client(
     memory_limit='2.9GB',
 )
 ```
-Connecting to an existing Slurm cluster (see next section about where to get the IP address):
-```python
-from dask.distributed import Client
-client = Client(128.211.149.133:37608)
-```
 
-### Dask+Slurm cluster
-The `iPython` session that creates the cluster should be started in a new bash session / screen.
+### Slurm cluster
+Slurm cluster is created from an `iPython` session which should be started in a new bash session / screen.
 ```
 dkondra@hammer-c000:~/hmumu-coffea $ ipython -i slurm_cluster_prep.py
 Python 3.7.9 | packaged by conda-forge | (default, Dec  9 2020, 21:08:20)
@@ -29,7 +24,12 @@ In [2]: cluster.scale(100)
 In [3]: print(cluster)
 SLURMCluster(346dd8d0, 'tcp://128.211.149.133:37608', workers=92, threads=92, memory=358.80 GB)
 ```
-The IP address (in this example `128.211.149.133:37608`) can be used to create a Dask client that would connect to this cluster.
+The IP address (in this example `128.211.149.133:37608`) can be used to create a Dask client that would connect to this cluster:
+
+```python
+from dask.distributed import Client
+client = Client(128.211.149.133:37608)
+```
 
 Number of workers in the cluster can be adjusted using `cluster.scale()`, which specifies maximum number of workers. The workers will be added as soon as the required resources (CPUs and memory) are available.
 
