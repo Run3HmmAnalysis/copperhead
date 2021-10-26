@@ -22,13 +22,16 @@ The analysis workflow is efficiently parallelised using [dask/distributed](https
 git clone https://github.com/kondratyevd/hmumu-coffea
 cd hmumu-coffea
 pip install --user --upgrade -r requirements.txt
-
+```
+If accessing datasets via xRootD will be needed:
+```bash
 source /cvmfs/cms.cern.ch/cmsset_default.sh
 . setup_proxy.sh
 ```
 
 ## Test run
 Running full analysis workflow on a single input file.
+
 **NanoAOD workflow** (should take around 1.5-2 minutes to complete):
 ```bash
 python3 -W ignore tests/test_nanoaod_continuous.py
