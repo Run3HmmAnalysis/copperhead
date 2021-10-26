@@ -19,27 +19,21 @@ The analysis workflow is efficiently parallelised using [dask/distributed](https
 
 ## Installation instructions (tested at Purdue Hammer cluster):
 ```bash
-module load anaconda/5.3.1-py37
-conda create --name hmumu python=3.7
-source activate hmumu
-conda install -c conda-forge pytest dask xrootd
-pip install --user coffea matplotlib==3.4.2 dask_jobqueue mplhep
-source /cvmfs/cms.cern.ch/cmsset_default.sh
-
 git clone https://github.com/kondratyevd/hmumu-coffea
 cd hmumu-coffea
+pip install --user --upgrade -r requirements.txt
+
+source /cvmfs/cms.cern.ch/cmsset_default.sh
 . setup_proxy.sh
 ```
 
 ## Test run
 Running full analysis workflow on a single input file.
-### NanoAOD workflow
-Should take around 1.5-2 minutes to complete.
+**NanoAOD workflow** (should take around 1.5-2 minutes to complete):
 ```bash
 python3 -W ignore tests/test_nanoaod_continuous.py
 ```
-### Delphes workflow
-Takes a few seconds to complete.
+**Delphes workflow** (takes a few seconds to complete):
 ```bash
 python3 -W ignore tests/test_delphes_continuous.py
 ```
