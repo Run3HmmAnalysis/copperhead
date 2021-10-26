@@ -3,8 +3,8 @@ import argparse
 import traceback
 from functools import partial
 
+from coffea.processor import DaskExecutor, Runner
 from coffea.nanoevents import DelphesSchema
-from coffea.processor import dask_executor, run_uproot_job
 
 from python.io import mkdir, save_dask_pandas_to_parquet
 from delphes.preprocessor import get_fileset
@@ -88,21 +88,22 @@ def submit_job(client, parameters):
     out_dir = f"{parameters['out_dir']}/"
     mkdir(out_dir)
 
-    executor = dask_executor
-    executor_args = {"client": client, "schema": DelphesSchema, "retries": 0}
+    executor_args = {"client": client, "retries": 0}
+    executor = DaskExecutor(**executor_args)
     processor_args = {
         "apply_to_output": partial(save_dask_pandas_to_parquet, out_dir=out_dir)
     }
-
+    run = Runner(
+        executor=executor,
+        schema=DelphesSchema,
+        chunksize=parameters["chunksize"],
+        maxchunks=parameters["maxchunks"],
+    )
     try:
-        run_uproot_job(
+        run(
             parameters["fileset"],
             "Delphes",
-            DimuonProcessorDelphes(**processor_args),
-            executor,
-            executor_args=executor_args,
-            chunksize=parameters["chunksize"],
-            maxchunks=parameters["maxchunks"],
+            processor_instance=DimuonProcessorDelphes(**processor_args),
         )
     except Exception as e:
         tb = traceback.format_exc()

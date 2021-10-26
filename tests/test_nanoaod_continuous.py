@@ -4,8 +4,9 @@ import sys
 [sys.path.append(i) for i in [".", ".."]]
 import time
 
-import coffea.processor as processor
-from coffea.processor import dask_executor, run_uproot_job
+from coffea.processor import DaskExecutor, Runner
+from coffea.nanoevents import NanoAODSchema
+
 from nanoaod.preprocessor import SamplesInfo
 from nanoaod.processor import DimuonProcessor
 from nanoaod.postprocessor import load_dataframe
@@ -58,23 +59,17 @@ if __name__ == "__main__":
     samp_info.year = "2018"
     samp_info.load("vbf_powheg", use_dask=False)
     samp_info.lumi_weights["vbf_powheg"] = 1.0
-    executor = dask_executor
-    executor_args = {
-        "client": client,
-        "schema": processor.NanoAODSchema,
-        "use_dataframes": True,
-        "retries": 0,
-    }
-    processor_args = {"samp_info": samp_info, "do_timer": False, "do_btag_syst": False}
     print(samp_info.fileset)
 
-    out_df = run_uproot_job(
+    executor_args = {"client": client, "use_dataframes": True, "retries": 0}
+    processor_args = {"samp_info": samp_info, "do_timer": False, "do_btag_syst": False}
+
+    executor = DaskExecutor(**executor_args)
+    run = Runner(executor=executor, schema=NanoAODSchema, chunksize=10000)
+    out_df = run(
         samp_info.fileset,
         "Events",
-        DimuonProcessor(**processor_args),
-        executor,
-        executor_args=executor_args,
-        chunksize=10000,
+        processor_instance=DimuonProcessor(**processor_args),
     )
 
     df = load_dataframe(client, parameters, inputs=out_df)

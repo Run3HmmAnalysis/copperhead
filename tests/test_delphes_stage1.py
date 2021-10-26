@@ -4,7 +4,7 @@ import sys
 [sys.path.append(i) for i in [".", ".."]]
 import time
 
-from coffea.processor import dask_executor, run_uproot_job
+from coffea.processor import DaskExecutor, Runner
 from coffea.nanoevents import DelphesSchema
 from delphes.preprocessor import get_fileset
 from delphes.processor import DimuonProcessorDelphes
@@ -31,21 +31,11 @@ if __name__ == "__main__":
 
     fileset = get_fileset(client, datasets, parameters)
 
-    executor = dask_executor
-    executor_args = {
-        "client": client,
-        "schema": DelphesSchema,
-        "use_dataframes": True,
-        "retries": 0,
-    }
-    output = run_uproot_job(
-        fileset,
-        "Delphes",
-        DimuonProcessorDelphes(),
-        executor,
-        executor_args=executor_args,
-        chunksize=10000,
-    )
+    executor_args = {"client": client, "use_dataframes": True, "retries": 0}
+    executor = DaskExecutor(**executor_args)
+    run = Runner(executor=executor, schema=DelphesSchema, chunksize=10000)
+    output = run(fileset, "Delphes", processor_instance=DimuonProcessorDelphes())
+
     df = output.compute()
     print(df)
 

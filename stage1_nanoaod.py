@@ -2,8 +2,9 @@ import time
 import argparse
 import traceback
 
-import coffea.processor as processor
-from coffea.processor import dask_executor, run_uproot_job
+from coffea.processor import DaskExecutor, Runner
+from coffea.nanoevents import NanoAODSchema
+
 from nanoaod.processor import DimuonProcessor
 from nanoaod.preprocessor import load_samples
 from python.io import mkdir, save_dask_pandas_to_parquet
@@ -123,13 +124,7 @@ def submit_job(arg_set, parameters):
         out_dir = f"{parameters['out_dir']}_jec/"
     mkdir(out_dir)
 
-    executor = dask_executor
-    executor_args = {
-        "client": parameters["client"],
-        "schema": processor.NanoAODSchema,
-        # 'use_dataframes': True,
-        "retries": 0,
-    }
+    executor_args = {"client": parameters["client"], "retries": 0}
     processor_args = {
         "samp_info": parameters["samp_infos"],
         "do_timer": False,
@@ -138,15 +133,19 @@ def submit_job(arg_set, parameters):
         "apply_to_output": partial(save_dask_pandas_to_parquet, out_dir=out_dir),
     }
 
+    executor = DaskExecutor(**executor_args)
+    run = Runner(
+        executor=executor,
+        schema=NanoAODSchema,
+        chunksize=parameters["chunksize"],
+        maxchunks=parameters["maxchunks"],
+    )
+
     try:
-        run_uproot_job(
+        run(
             parameters["samp_infos"].fileset,
             "Events",
-            DimuonProcessor(**processor_args),
-            executor,
-            executor_args=executor_args,
-            chunksize=parameters["chunksize"],
-            maxchunks=parameters["maxchunks"],
+            processor_instance=DimuonProcessor(**processor_args),
         )
 
     except Exception as e:
