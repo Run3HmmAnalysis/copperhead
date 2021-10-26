@@ -204,8 +204,8 @@ parameters["muSFFileList"] = {
     ],
 }
 
-parameters["zpt_weights_file"] = for_all_years("data/zpt/zpt_weights.histo.json")
-parameters["puid_sf_file"] = for_all_years("data/puid_sf/PUIDMaps.root")
+parameters["zpt_weights_file"] = for_all_years("data/zpt_weights.histo.json")
+parameters["puid_sf_file"] = for_all_years("data/PUIDMaps.root")
 parameters["res_calib_path"] = for_all_years("data/res_calib/")
 
 parameters.update(

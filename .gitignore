@@ -9,7 +9,6 @@ combine/*/*
 *~
 *#
 *__pycache__*
-*root
 .ipynb_checkpoints/*
 *lock
 plots/*
