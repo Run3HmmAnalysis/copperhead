@@ -17,13 +17,19 @@ The data processing is implemented via [columnar approach](https://indico.cern.c
 
 The analysis workflow is efficiently parallelised using [dask/distributed](https://github.com/dask/distributed) with either a local cluster, or a distributed `Slurm` cluster. Job distribution in the first stage can also be performed using [Apache Spark](https://github.com/apache/spark), but it leads to failures when processing large datasets due to unresolved memory issues.
 
-## Installation instructions (tested at Purdue Hammer cluster):
+## Installation instructions
+General installation:
 ```bash
 git clone https://github.com/kondratyevd/hmumu-coffea
 cd hmumu-coffea
-pip install --user --upgrade -r requirements.txt
+python3 -m pip install --user --upgrade -r requirements.txt
 ```
-If accessing datasets via xRootD will be needed:
+Temporary hack for `Delphes` schema:
+```bash
+COFFEADIR=$(python3 -c 'import coffea; print(coffea.__path__[0])')
+cp coffea_replacement/delphes.py $COFFEADIR/nanoevents/schemas/
+```
+If accessing datasets via `xRootD` will be needed:
 ```bash
 source /cvmfs/cms.cern.ch/cmsset_default.sh
 . setup_proxy.sh

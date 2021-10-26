@@ -25,14 +25,13 @@ jobs:
           python-version: ${{ matrix.python-version }}
       - name: install packages
         run: |
-          python -m pip install coffea
-          python -m pip install dask[distributed]
-          COFFEADIR=$(python -c 'import coffea; print(coffea.__path__[0])')
+          python3 -m pip install --user --upgrade -r requirements.txt
+          COFFEADIR=$(python3 -c 'import coffea; print(coffea.__path__[0])')
           cp coffea_replacement/delphes.py $COFFEADIR/nanoevents/schemas/
       - name: stage 1
-        run: python -W ignore tests/test_delphes_stage1.py
+        run: python3 -W ignore tests/test_delphes_stage1.py
       - name: stage 2
-        run: python -W ignore tests/test_delphes_stage2.py
+        run: python3 -W ignore tests/test_delphes_stage2.py
 
   validation_continuous:
     runs-on: ${{ matrix.os }}
@@ -50,9 +49,8 @@ jobs:
           python-version: ${{ matrix.python-version }}
       - name: install packages
         run: |
-          python -m pip install coffea
-          python -m pip install dask[distributed]
-          COFFEADIR=$(python -c 'import coffea; print(coffea.__path__[0])')
+          python3 -m pip install --user --upgrade -r requirements.txt
+          COFFEADIR=$(python3 -c 'import coffea; print(coffea.__path__[0])')
           cp coffea_replacement/delphes.py $COFFEADIR/nanoevents/schemas/
       - name: continuous (stages 1 & 2)
-        run: python -W ignore tests/test_delphes_continuous.py
+        run: python3 -W ignore tests/test_delphes_continuous.py

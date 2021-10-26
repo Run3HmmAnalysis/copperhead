@@ -25,12 +25,11 @@ jobs:
           python-version: ${{ matrix.python-version }}
       - name: install packages
         run: |
-          python -m pip install coffea
-          python -m pip install dask[distributed]
+          python3 -m pip install --user --upgrade -r requirements.txt
       - name: stage 1
-        run: python -W ignore tests/test_nanoaod_stage1.py
+        run: python3 -W ignore tests/test_nanoaod_stage1.py
       - name: stage 2
-        run: python -W ignore tests/test_nanoaod_stage2.py
+        run: python3 -W ignore tests/test_nanoaod_stage2.py
 
   validation_continuous:
     runs-on: ${{ matrix.os }}
@@ -48,7 +47,6 @@ jobs:
           python-version: ${{ matrix.python-version }}
       - name: install packages
         run: |
-          python -m pip install coffea
-          python -m pip install dask[distributed]
+          python3 -m pip install --user --upgrade -r requirements.txt
       - name: continuous (stages 1 & 2)
-        run: python -W ignore tests/test_nanoaod_continuous.py
+        run: python3 -W ignore tests/test_nanoaod_continuous.py
