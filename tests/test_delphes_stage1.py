@@ -8,7 +8,7 @@ from coffea.processor import dask_executor, run_uproot_job
 from coffea.nanoevents import DelphesSchema
 from delphes.preprocessor import get_fileset
 from delphes.processor import DimuonProcessorDelphes
-from tests.test_tools import almost_equal
+from test_tools import almost_equal
 
 import dask
 from dask.distributed import Client

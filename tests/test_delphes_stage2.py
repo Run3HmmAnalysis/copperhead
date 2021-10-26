@@ -10,8 +10,8 @@ from dask.distributed import Client
 from delphes.postprocessor import load_dataframe
 from delphes.config.variables import variables_lookup
 from python.convert import to_histograms, to_templates
-from tests.test_tools import almost_equal
 from python.plotter import plotter
+from test_tools import almost_equal
 
 __all__ = ["dask"]
 

@@ -8,7 +8,7 @@ import coffea.processor as processor
 from coffea.processor import dask_executor, run_uproot_job
 from nanoaod.processor import DimuonProcessor
 from nanoaod.preprocessor import SamplesInfo
-from tests.test_tools import almost_equal
+from test_tools import almost_equal
 
 import dask
 from dask.distributed import Client

@@ -12,7 +12,7 @@ from delphes.postprocessor import load_dataframe
 from delphes.config.variables import variables_lookup
 from python.convert import to_histograms, to_templates
 from python.plotter import plotter
-from tests.test_tools import almost_equal
+from test_tools import almost_equal
 
 import dask
 from dask.distributed import Client
