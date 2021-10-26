@@ -5,11 +5,17 @@
 ![Nanoaod](https://github.com/kondratyevd/hmumu-coffea/actions/workflows/nanoaod.yml/badge.svg)
 ![Delphes](https://github.com/kondratyevd/hmumu-coffea/actions/workflows/delphes.yml/badge.svg)
 
-The framework was originally designed for the [Run 2 H→µµ search](https://inspirehep.net/literature/1815813) by the CMS Collaboration. The results in the channel targeting the VBF Higgs production mode were reproduced with 1% precision.
+The framework was originally designed for the [search for the Higgs boson decays into two muons](https://inspirehep.net/literature/1815813) with the CMS detector at the Large Hadron Collider. The published results in the channel targeting the VBF Higgs production mode were reproduced with 1% precision.
 
-The data processing is implemented via [columnar approach](https://indico.cern.ch/event/759388/contributions/3306852/attachments/1816027/2968106/ncsmith-how2019-columnar.pdf), making use of the tools implemented in [Coffea](https://github.com/CoffeaTeam/coffea) package. The inputs to the framework can be in `NanoAOD` format (for LHC Run 2 and Run 3 analyses), or in `Delphes` format (for HL-LHC predictions).
+Currently the framework is under development to integrate both of the main Higgs production modes (ggH and VBF), and predict the sensitivity of the CMS H→µµ analysis in LHC Run 3 and at HL-LHC.
 
-The analysis workflow is efficiently parallelised using [dask/distributed](https://github.com/dask/distributed) with either a local cluster, or a distributed `Slurm` cluster. Job distribution can also be done using [Apache Spark](https://github.com/apache/spark), but it leads to failures when processing large datasets due to unresolved memory issues.
+### Data formats, packages and tools used in the implementation
+The data processing is implemented via [columnar approach](https://indico.cern.ch/event/759388/contributions/3306852/attachments/1816027/2968106/ncsmith-how2019-columnar.pdf), making use of the tools provided by [coffea](https://github.com/CoffeaTeam/coffea) package. The inputs to the framework can be in `NanoAOD` format (for Run 2 and Run 3 analyses), or in `Delphes` format (for HL-LHC predictions).
+
+- In the first stage of the processing includes event and object selection, application of corrections, and construction of new variables. The data columns are handled via coffea's `NanoEvents` format which relies on *jagged arrays* implemented in [AwkwardArray](https://github.com/scikit-hep/awkward-1.0) package, then converted to flat [Pandas](https://github.com/pandas-dev/pandas) dataframes and saved as [Apache Parquet](https://github.com/apache/parquet-format) files.
+- The second stage of the processing (WIP) contains / will contain training and evaluation of MVA methods (boosted decision trees, deep neural networks), event categorization, parametric fits, producing and plotting histograms, and preparing the datacards for statistical analysis. The second stage mainly relies on Pandas dataframe, and uses [scikit-hep/hist](https://github.com/scikit-hep/hist) and [scikit-hep/mplhep](https://github.com/scikit-hep/mplhep) for histogramming and plotting, respectively.
+
+The analysis workflow is efficiently parallelised using [dask/distributed](https://github.com/dask/distributed) with either a local cluster, or a distributed `Slurm` cluster. Job distribution in the first stage can also be performed using [Apache Spark](https://github.com/apache/spark), but it leads to failures when processing large datasets due to unresolved memory issues.
 
 ### Installation instructions (tested at Purdue Hammer cluster):
 ```bash
