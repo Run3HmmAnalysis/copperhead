@@ -1,6 +1,3 @@
-import pandas as pd
-
-
 class Entry(object):
     """
     Different types of entries to put on the plot
@@ -36,43 +33,3 @@ class Entry(object):
         self.entry_list = self.entry_dict.keys()
         self.labels = self.entry_dict.values()
         self.groups = list(set(self.entry_dict.values()))
-
-    def get_plottables(self, hist, year, var_name, slicer):
-        slicer[var_name] = slice(None)
-        slicer_value = slicer.copy()
-        slicer_sumw2 = slicer.copy()
-        slicer_value["val_sumw2"] = "value"
-        slicer_sumw2["val_sumw2"] = "sumw2"
-
-        plottables_df = pd.DataFrame(columns=["label", "hist", "sumw2", "integral"])
-
-        for group in self.groups:
-            group_entries = [e for e, g in self.entry_dict.items() if (group == g)]
-
-            hist_values_group = []
-            hist_sumw2_group = []
-            for h in hist.loc[hist.dataset.isin(group_entries), "hist"].values:
-                hist_values_group.append(h[slicer_value].project(var_name))
-                hist_sumw2_group.append(h[slicer_sumw2].project(var_name))
-
-            if len(hist_values_group) == 0:
-                continue
-
-            nevts = sum(hist_values_group).sum()
-            if nevts > 0:
-                plottables_df = plottables_df.append(
-                    pd.DataFrame(
-                        [
-                            {
-                                "label": group,
-                                "hist": sum(hist_values_group),
-                                "sumw2": sum(hist_sumw2_group),
-                                "integral": sum(hist_values_group).sum(),
-                            }
-                        ]
-                    ),
-                    ignore_index=True,
-                )
-
-        plottables_df.sort_values(by="integral", inplace=True)
-        return plottables_df

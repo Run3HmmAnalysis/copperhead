@@ -97,7 +97,7 @@ def plot(args, parameters={}):
         if len(entry.entry_list) == 0:
             continue
 
-        plottables_df = entry.get_plottables(hist, year, var_name, slicer)
+        plottables_df = get_plottables(hist, entry, year, var_name, slicer)
         plottables = plottables_df["hist"].values.tolist()
         sumw2 = plottables_df["sumw2"].values.tolist()
         labels = plottables_df["label"].values.tolist()
@@ -149,14 +149,14 @@ def plot(args, parameters={}):
 
         if len(entries["errorbar"].entry_list) > 0:
             # get Data yields
-            num_df = entries["errorbar"].get_plottables(hist, year, var.name, slicer)
+            num_df = get_plottables(hist, entries["errorbar"], year, var.name, slicer)
             num = num_df["hist"].values.tolist()
             if len(num) > 0:
                 num = sum(num).values()
 
         if len(entries["stack"].entry_list) > 0:
             # get MC yields and sumw2
-            den_df = entries["stack"].get_plottables(hist, year, var.name, slicer)
+            den_df = get_plottables(hist, entries["stack"], year, var.name, slicer)
             den = den_df["hist"].values.tolist()
             den_sumw2 = den_df["sumw2"].values.tolist()
             if len(den) > 0:
@@ -212,3 +212,44 @@ def plot(args, parameters={}):
         print(f"Saved: {out_name}")
 
     return total_yield
+
+
+def get_plottables(hist, entry, year, var_name, slicer):
+    slicer[var_name] = slice(None)
+    slicer_value = slicer.copy()
+    slicer_sumw2 = slicer.copy()
+    slicer_value["val_sumw2"] = "value"
+    slicer_sumw2["val_sumw2"] = "sumw2"
+
+    plottables_df = pd.DataFrame(columns=["label", "hist", "sumw2", "integral"])
+
+    for group in entry.groups:
+        group_entries = [e for e, g in entry.entry_dict.items() if (group == g)]
+
+        hist_values_group = []
+        hist_sumw2_group = []
+        for h in hist.loc[hist.dataset.isin(group_entries), "hist"].values:
+            hist_values_group.append(h[slicer_value].project(var_name))
+            hist_sumw2_group.append(h[slicer_sumw2].project(var_name))
+
+        if len(hist_values_group) == 0:
+            continue
+
+        nevts = sum(hist_values_group).sum()
+        if nevts > 0:
+            plottables_df = plottables_df.append(
+                pd.DataFrame(
+                    [
+                        {
+                            "label": group,
+                            "hist": sum(hist_values_group),
+                            "sumw2": sum(hist_sumw2_group),
+                            "integral": sum(hist_values_group).sum(),
+                        }
+                    ]
+                ),
+                ignore_index=True,
+            )
+
+    plottables_df.sort_values(by="integral", inplace=True)
+    return plottables_df
