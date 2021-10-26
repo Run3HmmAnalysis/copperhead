@@ -10,8 +10,8 @@ from dask.distributed import Client
 from nanoaod.postprocessor import load_dataframe
 from nanoaod.config.variables import variables_lookup
 from python.convert import to_histograms
-from python.utils import almost_equal
 from python.plotter import plotter
+from tests.test_tools import almost_equal
 
 __all__ = ["dask"]
 

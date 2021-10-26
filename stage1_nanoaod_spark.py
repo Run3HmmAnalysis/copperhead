@@ -6,8 +6,7 @@ import traceback
 import coffea.processor as processor
 from nanoaod.processor import DimuonProcessor
 from nanoaod.preprocessor import load_samples
-from python.utils import mkdir
-from python.io import save_spark_pandas_to_parquet
+from python.io import mkdir, save_spark_pandas_to_parquet
 from nanoaod.config.parameters import parameters as pars
 
 import dask

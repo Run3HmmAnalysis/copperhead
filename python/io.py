@@ -1,7 +1,14 @@
+import os
 import pandas as pd
 import dask.dataframe as dd
 import pickle
-from python.utils import mkdir
+
+
+def mkdir(path):
+    try:
+        os.mkdir(path)
+    except Exception:
+        pass
 
 
 def save_dask_pandas_to_parquet(output, out_dir):
