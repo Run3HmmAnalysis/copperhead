@@ -1,26 +1,25 @@
 import pytest
-import asyncio
 import dask
 from dask.distributed import Client
 from dask.distributed import Scheduler, Worker
 from dask_jobqueue import SLURMCluster
-from coffea.processor.executor import dask_executor
-from python.processor import DimuonProcessor
+from coffea.processor import dask_executor
+from nanoaod.processor import DimuonProcessor
+from delphes.processor import DimuonProcessorDelphes
+
 dask.config.set({"temporary-directory": "/tmp/dask-temp/"})
-dask.config.set({'distributed.worker.timeouts.connect': '60s'})
+dask.config.set({"distributed.worker.timeouts.connect": "60s"})
 
-__all__ = ['pytest', 'asyncio', 'dask',
-           'Client', 'Scheduler', 'Worker',
-           'SLURMCluster', 'dask_executor',
-           'DimuonProcessor']
+__all__ = [
+    "pytest",
+    "dask",
+    "Client",
+    "Scheduler",
+    "Worker",
+    "SLURMCluster",
+    "dask_executor",
+    "DimuonProcessor",
+    "DimuonProcessorDelphes",
+]
 
-print('Dask version:', dask.__version__)
-
-
-async def f(scheduler_address):
-    r = await Worker(scheduler_address,
-                     resources={'processor': 0, 'reducer': 1},
-                     ncores=1,
-                     nthreads=1,
-                     memory_limit='64GB')
-    await r.finished()
+print("Dask version:", dask.__version__)

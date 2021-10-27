@@ -471,10 +471,7 @@ def getEffSigma(_h):
 
 if __name__ == "__main__":
     parameters = {"ncpus": 40}
-    # paths = glob.glob('/depot/cms/hmm/coffea/2016_sep26/data_*/*.parquet')
-    paths = glob.glob("/depot/cms/hmm/coffea/2016_sep26/data_D/*.parquet")
-    # paths = glob.glob('/depot/cms/hmm/coffea/2016_sep26/ggh_amcPS/*.parquet')
-
+    paths = glob.glob("/depot/cms/hmm/coffea/2016_sep26/data_*/*.parquet")
     client = Client(
         processes=True,
         n_workers=parameters["ncpus"],

@@ -17,4 +17,3 @@ for m in "${mass_points[@]}"; do
     #combine -M Significance allyears.txt
     cd -
 done
-
