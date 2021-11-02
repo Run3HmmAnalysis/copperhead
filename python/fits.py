@@ -6,6 +6,7 @@ import pandas as pd
 import glob
 from fitmodels import *
 
+
 rt.gROOT.SetBatch(True)
 rt.gStyle.SetOptStat(0)
 
@@ -20,15 +21,18 @@ parser.add_argument(
     "--isBlinded", default=True, help="Do you want to run blinded bkg fit?"
 )
 parser.add_argument(
-    "--doBackgroundFit", default=True, help="Do you want to run bkg fit?"
+    "--doBackgroundFit", default=False, help="Do you want to run bkg fit?"
+)
+parser.add_argument(
+    "--doCorePdfFit", default=False, help="Do you want to run corePdf bkg fit?"
 )
 parser.add_argument(
     "--doSignalFit", default=False, help="Do you want to run signal fit?"
 )
 parser.add_argument(
-    "--generateBkgFromMC", default=False, help="Do you want to generate bkg from MC?"
+    "--getBkgModelFromMC", default=False, help="Do you want to get bkg model from MC?"
 )
-parser.add_argument("--intLumi", default=3000, help="Integrated Luminosity")
+parser.add_argument("--intLumi", default=3000, help="Integrated Luminosity in 1/fb")
 parser.add_argument(
     "--ext", type=str, default="_new", help="The extension of output File names"
 )
@@ -78,79 +82,196 @@ def workflow(client, paths, parameters):
     df = df.compute()
     df.reset_index(inplace=True, drop=True)
     # modelNames = ["bwZRedux","bwGamma"]
-    modelNames = ["bwz_redux_model", "bwg_model"]
     # modelNames = ["bwg_model"]
     fittedmodels = {}
     isBlinded = args.isBlinded
     processName = args.process
     category = args.category
+    tag = "_"+processName+"_"+category
     lumi = args.intLumi
-    name = "data_BackgroundFit" + args.ext
-    title = "Background"
-    ws = createWorkspace(isBlinded)
-    add_data(ws, df)
-    ws.Print()
-    # plotter(ws,["ds"],"0", "ds_data","Data")
-    for fitmodel in modelNames:
-        add_model(ws, fitmodel, processName, category)
-        # background_fit(ws, fitmodel, "0", 1 , 0)
-    # plotter(ws,["ds","bwz_redux_model"+processName+"_"+category,"bwg_model"+processName+"_"+category],category, "ds_data_bwZreduxmodel","Data and BWZRedux model")
+    ws = createWorkspace()
+
     if args.doBackgroundFit:
-        background_fit(ws, "ds", modelNames, processName, category, True, name, title)
-    # plotter(ws,["ds","bwg_model"+processName+"_"+category],category, "ds_data_bwZreduxmodel","Data and BWZRedux model")
-    if args.doSignalFit:
-        signal_fit(df, fitrange, "0")
-    if args.generateBkgFromMC:
-        name = "fake_data_BackgroundFit" + ext
-        fake_data = generateData(
-            ws, "bwz_redux_model", processName, category, 100, lumi
-        )
-        add_data(ws, fake_data, "_fake", False)
+        modelNames = ["bwz_redux_model", "bwg_model"]
+        add_data(ws, df, isBlinded)
         ws.Print()
-        # plotter(ws,["ds_fake"], category, "data_bwZreduxmodel","BWZRedux model fake Data")
-        background_fit(
-            ws, "ds_fake", modelNames, processName, category, True, name, title
+        fixparam = False
+        if(isBlinded):
+            print("++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
+        plotter(ws,["ds"],isBlinded, processName, category, "ds_ggh_MC","MC")
+        for fitmodel in modelNames:
+            add_model(ws, fitmodel, tag)
+        # plotter(ws,["ds","bwz_redux_model"+tag,"bwg_model"+tag], isBlinded, category, "ds_data_bwZreduxmodel","Data and BWZRedux model")        name = "data_BackgroundFit" + args.ext
+        title = "Background"
+        fit(ws, "ds", modelNames, isBlinded, fixparam, tag, True, name, title)
+        #fit(ws, "ds", modelNames, tag, False, name, title)
+    # plotter(ws,["ds","bwg_model"+tag], isBlinded, category, "ds_data_bwZreduxmodel","Data and BWZRedux model")
+        saveWorkspace(ws, "workspace_BackgroundFit"+tag+args.ext)
+
+
+    if args.doSignalFit:
+        isBlinded = False
+        fixparam = True
+        modelNames = ["dcb_model"]
+        add_data(ws, df, isBlinded)
+        if(isBlinded):
+            print("++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
+        #plotter(ws,["ds"],isBlinded, processName, category, "ds_ggh_MC","MC")
+        for fitmodel in modelNames:
+            add_model(ws, fitmodel, tag)
+        # plotter(ws,["ds","bwz_redux_model"+tag,"bwg_model"+tag], isBlinded, category, "ds_data_bwZreduxmodel","Data and BWZRedux model")        name = "data_BackgroundFit" + args.ext
+        name = "ggH_SignalFit" + args.ext
+        title = "Signal"
+        ws.Print()
+        fit(ws, "ds", modelNames, isBlinded, fixparam, tag, True, name, title)
+        saveWorkspace(ws, "workspace_sigFit"+tag+args.ext)
+
+    if args.getBkgModelFromMC:
+        modelNames = ["bwz_redux_model", "bwg_model"]
+        fixparam = False
+        isBlinded = False
+        name = "fake_data_BackgroundFit" + args.ext
+        title = "Background"
+        for fitmodel in modelNames:
+            add_model(ws, fitmodel, tag)
+        fake_data = generateData(
+            ws, "bwz_redux_model", tag, 100, lumi
         )
+        add_data(ws, fake_data, False, "_fake", False)
+        ws.Print()
+        # plotter(ws,["ds_fake"], False, category, "data_bwZreduxmodel","BWZRedux model fake Data")
+        fit(
+            ws, "ds_fake", modelNames, isBlinded, fixparam, tag, True, name, title
+        )
+        saveWorkspace(ws, "workspace_BackgroundFit"+tag+args.ext)
 
 
-def createWorkspace(blinded=True):
+    if args.doCorePdfFit:
+        corePDF_results = {}
+        hists_All = {}
+        nCats=5
+        coreModelNames = ["bwz_redux_model"]
+        for fitmodel in coreModelNames:
+            add_model(ws, fitmodel, "_"+processName+"_corepdf")
+        fixparam = False
+        isBlinded = False
+        name = "fake_data_Background_corPdfFit" + args.ext
+        title = "Background"
+        #fake_data = rt.RooDataSet("full_dataset", "full_dataset")
+        #outputfile_fakedata = rt.TFile("data_histograms_EachCat_and_Full.root","recreate")
+        dataStack = rt.THStack("full_data","full_data")
+        for icat in range(nCats):
+            #tag = "_"+processName+"_cat"+icat
+            hist_name = "hist"+"_"+processName+"_cat"+str(icat)
+            #hist = rt.TH1F(hist_name,hist_name,80,110.,150.)
+            ds = generateData(
+                ws, "bwz_redux_model", "_"+processName+"_corepdf", 100, lumi
+            )
+            hist = rt.RooAbsData.createHistogram(ds,hist_name,ws.var("mass"),rt.RooFit.Binning(80))
+            #hist.Write()
+            #print(hist.GetName())
+            hists_All[hist_name] = hist
+            print(hists_All)
+            print(hists_All[hist_name].Integral())
+            #fake_data.append(ds)
+            dataStack.Add(hist)
+            add_data(ws, hist, False, hist_name+"_fake", False)
+        print(hists_All)
+        dataStack_Full = dataStack.GetStack().Last()
+        hists_All[dataStack_Full.GetName()] = dataStack_Full
+        #dataStack_Full.Write()
+        #outputfile_fakedata.Close()
+        print(hists_All)
+        fullDataSet = rt.RooDataHist("core_Data","core_Data",rt.RooArgList(ws.var("mass")),dataStack_Full)
+        add_data(ws, fullDataSet, False, "_Core_fake", False)
+        #add_data(ws, fake_data, False, "_fake", False)
+        ws.Print()
+        # plotter(ws,["ds_fake"], False, category, "data_bwZreduxmodel","BWZRedux model fake Data")
+        fit(
+            ws, "ds_Core_fake", coreModelNames, isBlinded, fixparam, "_"+processName+"_corepdf", True, name, title
+        )
+        norm_Core = rt.RooRealVar("bkg_norm_Core", "bkg_norm_Core", fullDataSet.sumEntries(), -float('inf'), float('inf'))
+        for icat in range(nCats):
+            histName = "hist"+"_"+processName+"_cat"+str(icat)
+            ws_corepdf = rt.RooWorkspace("ws_corepdf", False)
+            ws_corepdf.Import(ws.pdf("bwz_redux_model"+"_"+processName+"_corepdf"))
+            prefix = "cat"+str(icat)
+            print(hists_All)
+            transferHist = hists_All[histName].Clone()
+            transferHist.Divide(dataStack_Full)
+            transferHist.Scale( 1 / transferHist.Integral())
+            transferDataSet = rt.RooDataHist("transfer_"+prefix,"transfer_"+prefix,rt.RooArgList(ws.var("mass")), transferHist)
+            transferDataName = transferDataSet.GetName()
+            ws.Import(transferDataSet)
+            ws_corepdf.Import(transferDataSet)
+            chebyOrder = 3 if icat < 1 else 2
+            add_model(ws, "chebychev_"+str(chebyOrder)+"_model", "_"+processName+"_"+prefix)
+            #transferFuncName = "chebychev_"+str(chebyOrder)+"_"+processName+"_"+prefix
+            transferFuncName = "chebychev"+str(chebyOrder)
+            fit(ws, transferDataName, [transferFuncName], isBlinded, fixparam, "_"+processName+"_"+prefix, True, name, title)
+            coreBWZRedux = rt.RooProdPdf("bkg_bwzredux_"+"_"+processName+"_"+prefix,"bkg_bwzredux_"+"_"+processName+"_"+prefix, ws.pdf("bwz_redux_model"+"_"+processName+"_corepdf"), ws.pdf(transferFuncName+"_"+processName+"_"+prefix))
+            ws_corepdf.Import(coreBWZRedux,rt.RooFit.RecycleConflictNodes())
+            cat_dataSet = rt.RooDataHist("data_"+prefix,"data_"+prefix,rt.RooArgList(ws.var("mass")),transferDataSet)
+            ndata_cat = cat_dataSet.sumEntries()
+            norm_cat = rt.RooRealVar("bkg_"+prefix+"_pdf_norm", "bkg_"+prefix+"_pdf_norm", ndata_cat, -float('inf'), float('inf'))
+            ws_corepdf.Import(cat_dataSet)
+            ws_corepdf.Import(norm_cat)
+            ws_corepdf.Import(norm_Core)
+            saveWorkspace(ws_corepdf, "workspace_BackgroundFit"+prefix+args.ext)
+
+
+
+def createWorkspace():
     w = rt.RooWorkspace("w", "w")
     fitrange = {"low": 110, "high": 150, "SR_left": 120, "SR_right": 130}
     mass = rt.RooRealVar("mass", "mass", fitrange["low"], fitrange["high"])
+    mass.setRange("unblindReg_left", fitrange["low"], fitrange["SR_left"] + 0.1)
+    mass.setRange("unblindReg_right", fitrange["SR_right"] - 0.1, fitrange["high"])
     mass.setRange("window", fitrange["low"], fitrange["high"])
-    if blinded:
-        mass.setRange("unblindReg_left", fitrange["low"], fitrange["SR_left"] + 0.1)
-        mass.setRange("unblindReg_right", fitrange["SR_right"] - 0.1, fitrange["high"])
     mass.SetTitle("m_{#mu#mu}")
     mass.setUnit("GeV")
-    getattr(w, "import")(mass)
+    w.Import(mass)
     w.Print()
     return w
 
 
-def add_model(workspace, modelName, processName, category):
+def add_model(workspace, modelName, tag):
     if modelName == "bwz_redux_model":
         bwZredux_model, bwZredux_params = bwZredux(
-            workspace.obj("mass"), processName, category
+            workspace.obj("mass"), tag
         )
-        getattr(workspace, "import")(bwZredux_model)
+        workspace.Import(bwZredux_model)
     elif modelName == "bwg_model":
         bwGamma_model, bwGamma_params = bwGamma(
-            workspace.obj("mass"), processName, category
+            workspace.obj("mass"), tag
         )
-        getattr(workspace, "import")(bwGamma_model)
+        workspace.Import(bwGamma_model)
+    elif modelName == "dcb_model":
+        dcb_model, dcb_params = doubleCB(
+            workspace.obj("mass"), tag
+        )
+        workspace.Import(dcb_model)
+    elif "chebychev" in modelName:
+        chebychev_model, chebychev_params = chebychev(
+            workspace.obj("mass"), tag, int(modelName.split("_")[1])
+        )
+        workspace.Import(chebychev_model)
     else:
         print("The " + modelName + " does not exist!!!!!!!")
 
 
-def add_data(workspace, data, name="", convertData=True):
+def add_data(workspace, data, isBlinded, name="", convertData=True):
     if convertData:
         ds = filldataset(
             data["dimuon_mass"].values, workspace.obj("mass"), dsName="ds" + name
-        )
-        getattr(workspace, "import")(ds)
+        ) 
+        if isBlinded:
+            ds = ds.reduce(rt.RooFit.CutRange("unblindReg_left,unblindReg_right"))
+        workspace.Import(ds)
     else:
-        getattr(workspace, "import")(data, "ds" + name)
+        if isBlinded:
+            data = data.reduce(CutRange("unblindReg_left,unblindReg_right"))
+        workspace.Import(data, "ds" + name)
 
 
 def filldataset(data, x, dsName="ds"):
@@ -164,47 +285,36 @@ def filldataset(data, x, dsName="ds"):
     return ds
 
 
-def background_fit(ws, dsName, modelName, processName, category, save, name, title):
-    print("In cat", category)
+def fit(ws, dsName, modelName, isBlinded, fixParameters, tag, save, name, title):
+    print("In cat", tag.split("_")[2])
     pdfs = {}
     for model in modelName:
-        print(model + processName + "_" + category)
-        pdfs[model + processName + "_" + category] = ws.pdf(
-            model + processName + "_" + category
+        print(model + tag)
+        pdfs[model + tag] = ws.pdf(
+            model + tag
         )
-        if dsName == "ds":
-            result = pdfs[model + processName + "_" + category].fitTo(
+        if dsName == "ds":            
+            result = pdfs[model + tag].fitTo(
                 ws.data(dsName), rt.RooFit.Save()
-            )
+            )                
         else:
-            result = pdfs[model + processName + "_" + category].fitTo(
+            result = pdfs[model + tag].fitTo(
                 ws.obj(dsName), rt.RooFit.Save()
             )
+        if fixParameters:
+            pdfs[model + tag].getParameters(rt.RooArgSet()).setAttribAll("Constant")
+            #pdfs[model + tag].getParameters(rt.RooArgSet()).find("mean"+tag).setConstant()
     if save:
-        plot(ws, dsName, pdfs, processName, category, name, title)
+        plot(ws, dsName, pdfs, isBlinded, tag.split("_")[1], tag.split("_")[2], name, title)
 
 
-def signal_fit(column, fitrange, category, save=True):
-    print(column)
-    print("In cat", category)
-    model, params = doubleCB(mass)
-    mass.setRange("window", fitrange["low"], fitrange["high"])
-    ds = filldataset(column["dimuon_mass"].values, mass, dsName="ds")
-    # ds.Print()
-    result = model.fitTo(ds, rt.RooFit.Save())
-    if save:
-        name = "ggH_signalFit"
-        title = "Signal"
-        plot(mass, ds, model, category, name, title)
-
-
-def generateData(ws, pdfName, processName, category, cs, lumi):
-    return ws.pdf(pdfName + processName + "_" + category).generate(
+def generateData(ws, pdfName, tag, cs, lumi):
+    return ws.pdf(pdfName + tag).generate(
         rt.RooArgSet(ws.obj("mass")), cs * lumi
     )
 
 
-def plotter(ws, objNames, category, OutputFilename, title):
+def plotter(ws, objNames, isBlinded, processName, category, OutputFilename, title):
     c = rt.TCanvas("c_cat" + category, "c_cat" + category, 800, 800)
     xframe = ws.obj("mass").frame(rt.RooFit.Title(title + " in cat" + category))
     count = 0
@@ -214,15 +324,16 @@ def plotter(ws, objNames, category, OutputFilename, title):
             ws.pdf(name).plotOn(
                 xframe,
                 rt.RooFit.Range("window"),
+                rt.RooFit.NormRange("window"),
                 rt.RooFit.LineColor(colors[count]),
                 rt.RooFit.Name(name),
             )
             count += 1
             # ws.pdf(name).plotOn(xframe,rt.RooFit.Range("window"))
         elif "ds_fake" in name:
-            ws.obj(name).plotOn(xframe)
+            ws.obj(name).plotOn(xframe, rt.RooFit.Binning(80))
         elif "ds" in name:
-            ws.data(name).plotOn(xframe)
+            ws.data(name).plotOn(xframe, rt.RooFit.Binning(80))
     xframe.Draw()
     c.Update()
     c.SaveAs(OutputFilename + "_cat" + category + ".root")
@@ -231,7 +342,7 @@ def plotter(ws, objNames, category, OutputFilename, title):
     c.SaveAs(OutputFilename + "_cat" + category + ".C")
 
 
-def plot(ws, datasetName, models, processName, category, name, title):
+def plot(ws, datasetName, models, isBlinded, processName, category, name, title):
     c = rt.TCanvas("c_cat" + category, "c_cat" + category, 800, 800)
     offset = 0.5
     upper_pad = rt.TPad("upper_pad", "upper_pad", 0, 0.25, 1, 1)
@@ -247,28 +358,46 @@ def plot(ws, datasetName, models, processName, category, name, title):
     # dataset.plotOn(xframe,rt.RooFit.CutRange("unblindReg_left"))
     # dataset.plotOn(xframe,rt.RooFit.CutRange("unblindReg_right"))
     if datasetName == "ds":
-        ws.data(datasetName).plotOn(xframe)
+        ws.data(datasetName).plotOn(xframe, rt.RooFit.Binning(80))
     else:
-        ws.obj(datasetName).plotOn(xframe)
+        ws.obj(datasetName).plotOn(xframe, rt.RooFit.Binning(80))
     leg0 = rt.TLegend(0.15 + offset, 0.6, 0.5 + offset, 0.82)
     leg0.SetFillStyle(0)
     leg0.SetLineColor(0)
     leg0.SetTextSize(0.03)
     # leg0.AddEntry(h_data,"Data","lep")
-    count = 0
-    for model_key in models:
-        models[model_key].plotOn(
-            xframe,
-            rt.RooFit.Range("window"),
-            rt.RooFit.LineColor(colors[count]),
-            rt.RooFit.Name(models[model_key].GetName()),
-        )
-        leg0.AddEntry(
-            models[model_key],
-            "#splitline{" + models[model_key].GetName() + "}{model}",
-            "l",
-        )
-        count += 1
+    if isBlinded:
+        count = 0
+        for model_key in models:
+            models[model_key].plotOn(
+                xframe,
+                rt.RooFit.Range("window"),
+                rt.RooFit.NormRange("unblindReg_left,unblindReg_right"),
+                rt.RooFit.LineColor(colors[count]),
+                rt.RooFit.Name(models[model_key].GetName()),
+            )
+            leg0.AddEntry(
+                models[model_key],
+                "#splitline{" + models[model_key].GetName() + "}{model}",
+                "l",
+            )
+            count += 1
+    else:
+        count = 0
+        for model_key in models:
+            models[model_key].plotOn(
+                xframe,
+                rt.RooFit.Range("window"),
+                #rt.RooFit.NormRange("window"),
+                rt.RooFit.LineColor(colors[count]),
+                rt.RooFit.Name(models[model_key].GetName()),
+            )
+            leg0.AddEntry(
+                models[model_key],
+                "#splitline{" + models[model_key].GetName() + "}{model}",
+                "l",
+            )
+            count += 1
     # upper_pad = rt.TPad("up_cat"+category,"up_cat"+category,0.0,0.2,1.0,1.0,21)
     # lower_pad = rt.TPad("lp_cat"+category,"lp_cat"+category,0.0,0.0,1.0,0.2,22)
     xframe.SetMinimum(0.0001)
@@ -276,7 +405,8 @@ def plot(ws, datasetName, models, processName, category, name, title):
     if "ggH" in name:
         print("Fitting ggH signal")
         # Add TLatex to plot
-        h_pdf = model.createHistogram("h_pdf", mass, rt.RooFit.Binning(80))
+        for model_key in models:
+            h_pdf = models[model_key].createHistogram("h_pdf", mass, rt.RooFit.Binning(80))
         print(h_pdf.GetMaximum())
         effSigma = getEffSigma(h_pdf)
         effSigma_low, effSigma_high = (
@@ -382,6 +512,8 @@ def plot(ws, datasetName, models, processName, category, name, title):
     xframe2.SetTitle("")
     xframe2.addPlotable(hpull, "P")
     xframe2.GetYaxis().SetTitle("Pull")
+    if isBlinded:
+        xframe2.GetYaxis().SetRangeUser(-4,4)
     xframe2.GetYaxis().SetTitleOffset(0.3)
     xframe2.GetYaxis().SetTitleSize(0.08)
     xframe2.GetYaxis().SetLabelSize(0.08)
@@ -399,6 +531,41 @@ def plot(ws, datasetName, models, processName, category, name, title):
     c.SaveAs(processName + name + "_cat" + category + ".pdf")
     c.SaveAs(processName + name + "_cat" + category + ".png")
     c.SaveAs(processName + name + "_cat" + category + ".C")
+
+def saveWorkspace(ws, outputFileName):
+    outfile = rt.TFile(outputFileName+".root","recreate")
+    ws.Write()
+    outfile.Close()
+    del ws
+    
+def GOF(ws, pdfName, dsName, tag, ndata):
+    normalization = rt.RooRealVar("normaliazation", "normalization", ndata, .5 * ndata, 2*ndata)
+    model = rt.RooExtendPdf("ext", "ext", ws.pdf(pdfName), norm)
+    xframe = ws.var("mass"+tag).frame()
+    ds = ws.data(dsName)
+    ds.plotOn(xframe, rt.RooFit.Name("ds"))
+    model.plotOn(xframe, rt.RooFit.Name("model"))
+    nparam = model.getParameters(ds).getSize()
+    chi2 = xframe.chiSquare("model", "ds", nparam)
+    nBins = ds.numEntries()
+    if float(ndata) / nBins < 5:
+        ntoys = 500
+        print(" can't use asymptotic approximation!! need to run toys")
+        prob = getPValue(chi2*(nBins-nparam), nBins-nparam)
+
+    else:
+        prob = getPValue(chi2*(nBins-nparam), nBins-nparam)
+
+    print("chi2/ndof = "+str(chi2))
+    print("chi2"+str(chi2*(nBins-nparam)))
+    print("p-value = "+str(prob))
+
+    return chi2, prob
+
+
+def getPValue(chi2, ndof):
+    prob = rt.TMath.Prob(chi2, ndof)
+    return prob
 
 
 def getEffSigma(_h):
@@ -472,8 +639,8 @@ def getEffSigma(_h):
 if __name__ == "__main__":
     parameters = {"ncpus": 40}
     # paths = glob.glob('/depot/cms/hmm/coffea/2016_sep26/data_*/*.parquet')
-    paths = glob.glob("/depot/cms/hmm/coffea/2016_sep26/data_D/*.parquet")
-    # paths = glob.glob('/depot/cms/hmm/coffea/2016_sep26/ggh_amcPS/*.parquet')
+    #paths = glob.glob("/depot/cms/hmm/coffea/2016_sep26/data_D/*.parquet")
+    paths = glob.glob('/depot/cms/hmm/coffea/2016_sep26/ggh_amcPS/*.parquet')
 
     client = Client(
         processes=True,

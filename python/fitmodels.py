@@ -1,18 +1,11 @@
-import prettytable
-import string
-import re
-import argparse
 from ROOT import *
 
-import sys
-
-
-def linear(x, processName, category):
-    m = RooRealVar("slope" + processName + "_" + category, "slope", -0.33, -10, 0)
-    b = RooRealVar("offset" + processName + "_" + category, "offset", 15, 2, 1000)
+def linear(x, tag):
+    m = RooRealVar("slope" + tag, "slope", -0.33, -10, 0)
+    b = RooRealVar("offset" + tag, "offset", 15, 2, 1000)
 
     linear_model = RooGenericPdf(
-        "linear_model" + processName + "_" + category,
+        "linear_model" + tag,
         "@1*(@0-140)+@2",
         RooArgList(x, m, b),
     )
@@ -23,12 +16,12 @@ def linear(x, processName, category):
 # breit weigner for photons scaled by falling exp
 # no breit weigner for the Z
 # --------------------------------------------------------
-def bwGamma(x, processName, category):
+def bwGamma(x, tag):
     expParam = RooRealVar(
-        "bwg_expParam" + processName + "_" + category, "expParam", -1e-03, -1e-01, 1e-01
+        "bwg_expParam" + tag, "expParam", -1e-03, -1e-01, 1e-01
     )
     bwmodel = RooGenericPdf(
-        "bwg_model" + processName + "_" + category,
+        "bwg_model" + tag,
         "exp(@0*@1)*pow(@0,-2)",
         RooArgList(x, expParam),
     )
@@ -40,20 +33,20 @@ def bwGamma(x, processName, category):
 # breit weigner Z scaled by falling exp
 # no mixture, no photon contribution
 # --------------------------------------------------------
-def bwZ(x, processName, category):
+def bwZ(x, tag):
     bwWidth = RooRealVar(
-        "bwz_Width" + processName + "_" + category, "widthZ", 2.5, 0, 30
+        "bwz_Width" + tag, "widthZ", 2.5, 0, 30
     )
-    bwmZ = RooRealVar("bwz_mZ" + processName + "_" + category, "mZ", 91.2, 90, 92)
+    bwmZ = RooRealVar("bwz_mZ" + tag, "mZ", 91.2, 90, 92)
     expParam = RooRealVar(
-        "bwz_expParam" + processName + "_" + category, "expParam", -1e-03, -1e-02, 1e-02
+        "bwz_expParam" + tag, "expParam", -1e-03, -1e-02, 1e-02
     )
 
     bwWidth.setConstant(True)
     bwmZ.setConstant(True)
 
     bwmodel = RooGenericPdf(
-        "bwz_model" + processName + "_" + category,
+        "bwz_model" + tag,
         "exp(@0*@3)*(@2)/(pow(@0-@1,2)+0.25*pow(@2,2))",
         RooArgList(x, bwmZ, bwWidth, expParam),
     )
@@ -63,38 +56,38 @@ def bwZ(x, processName, category):
 # --------------------------------------------------------
 # breit weigner mixture scaled by falling exp (run1 bg)
 # --------------------------------------------------------
-def bwZGamma(x, processName, category, mix_min=0.001):
+def bwZGamma(x, tag, mix_min=0.001):
     bwWidth = RooRealVar(
-        "bwzg_Width" + processName + "_" + category, "widthZ", 2.5, 0, 30
+        "bwzg_Width" + tag, "widthZ", 2.5, 0, 30
     )
-    bwmZ = RooRealVar("bwzg_mZ" + processName + "_" + category, "mZ", 91.2, 90, 92)
+    bwmZ = RooRealVar("bwzg_mZ" + tag, "mZ", 91.2, 90, 92)
 
     expParam = RooRealVar(
-        "bwzg_expParam" + processName + "_" + category,
+        "bwzg_expParam" + tag,
         "expParam",
         -0.0053,
         -0.0073,
         -0.0033,
     )
     mixParam = RooRealVar(
-        "bwzg_mixParam" + processName + "_" + category, "mix", 0.379, 0.2, 1
+        "bwzg_mixParam" + tag, "mix", 0.379, 0.2, 1
     )
 
     bwWidth.setConstant(True)
     bwmZ.setConstant(True)
 
     phoExpMmumu = RooGenericPdf(
-        "phoExpMmumu" + processName + "_" + category,
+        "phoExpMmumu" + tag,
         "exp(@0*@1)*pow(@0,-2)",
         RooArgList(x, expParam),
     )
     bwExpMmumu = RooGenericPdf(
-        "bwExpMmumu" + processName + "_" + category,
+        "bwExpMmumu" + tag,
         "exp(@0*@3)*(@2)/(pow(@0-@1,2)+0.25*pow(@2,2))",
         RooArgList(x, bwmZ, bwWidth, expParam),
     )
     bwmodel = RooAddPdf(
-        "bwzg_model" + processName + "_" + category,
+        "bwzg_model" + tag,
         "bwzg_model",
         RooArgList(bwExpMmumu, phoExpMmumu),
         RooArgList(mixParam),
@@ -107,13 +100,13 @@ def bwZGamma(x, processName, category, mix_min=0.001):
 # perturbed exponential times bwz
 # with an off power for the breit weigner
 # ----------------------------------------
-def bwZredux(x, processName, category):
-    a1 = RooRealVar("bwz_redux_a1" + processName + "_" + category, "a1", 1.39, 0.7, 2.1)
+def bwZredux(x, tag):
+    a1 = RooRealVar("bwz_redux_a1" + tag, "a1", 1.39, 0.7, 2.1)
     a2 = RooRealVar(
-        "bwz_redux_a2" + processName + "_" + category, "a2", 0.46, 0.30, 0.62
+        "bwz_redux_a2" + tag, "a2", 0.46, 0.30, 0.62
     )
     a3 = RooRealVar(
-        "bwz_redux_a3" + processName + "_" + category, "a3", -0.26, -0.40, -0.12
+        "bwz_redux_a3" + tag, "a3", -0.26, -0.40, -0.12
     )
 
     # a1.setConstant()
@@ -121,13 +114,13 @@ def bwZredux(x, processName, category):
     # a3.setConstant()
 
     f = RooFormulaVar(
-        "bwz_redux_f" + processName + "_" + category,
+        "bwz_redux_f" + tag,
         "(@1*(@0/100)+@2*(@0/100)^2)",
         RooArgList(x, a2, a3),
     )
     # expmodel = RooGenericPdf("bwz_redux_model", "exp(@2)*(2.5)/(pow(@0-91.2,@1)+0.25*pow(2.5,@1))", RooArgList(x, a1, f))
     expmodel = RooGenericPdf(
-        "bwz_redux_model" + processName + "_" + category,
+        "bwz_redux_model" + tag,
         "bwz_redux_model",
         "exp(@2)*(2.5)/(pow(@0-91.2,@1)+pow(2.5/2,@1))",
         RooArgList(x, a1, f),
@@ -139,20 +132,20 @@ def bwZredux(x, processName, category):
 # perturbed exponential times bwz
 # with an off power for the breit weigner
 # ----------------------------------------
-def bwZreduxFixed(x, processName, category):
+def bwZreduxFixed(x, tag):
     a1 = RooRealVar(
-        "bwz_redux_fixed_a1" + processName + "_" + category, "a1", 2.0, 0.7, 2.1
+        "bwz_redux_fixed_a1" + tag, "a1", 2.0, 0.7, 2.1
     )
     a2 = RooRealVar(
-        "bwz_redux_fixed_a2" + processName + "_" + category, "a2", 0.36, 0.0, 50.0
+        "bwz_redux_fixed_a2" + tag, "a2", 0.36, 0.0, 50.0
     )
     a3 = RooRealVar(
-        "bwz_redux_fixed_a3" + processName + "_" + category, "a3", -0.36, -50.0, 0
+        "bwz_redux_fixed_a3" + tag, "a3", -0.36, -50.0, 0
     )
     bwmZ = RooRealVar(
-        "bwz_redux_fixed_mZ" + processName + "_" + category, "mZ", 91.2, 89, 93
+        "bwz_redux_fixed_mZ" + tag, "mZ", 91.2, 89, 93
     )
-    w = RooRealVar("bwz_redux_fixed_w" + processName + "_" + category, "w", 2.5, 0, 10)
+    w = RooRealVar("bwz_redux_fixed_w" + tag, "w", 2.5, 0, 10)
 
     a1.setConstant()
     # a2.setConstant()
@@ -161,13 +154,13 @@ def bwZreduxFixed(x, processName, category):
     w.setConstant()
 
     f = RooFormulaVar(
-        "bwz_redux_fixed_f" + processName + "_" + category,
+        "bwz_redux_fixed_f" + tag,
         "(@1*(@0/100)+@2*(@0/100)^2)",
         RooArgList(x, a2, a3),
     )
     # expmodel = RooGenericPdf("bwz_redux_model", "exp(@2)*(2.5)/(pow(@0-91.2,@1)+0.25*pow(2.5,@1))", RooArgList(x, a1, f))
     expmodel = RooGenericPdf(
-        "bwz_redux_fixed_model" + processName + "_" + category,
+        "bwz_redux_fixed_model" + tag,
         "bwz_redux_fixed_model",
         "exp(@2)*(2.5)/(pow(@0-@3,@1)+pow(@4/2,@1))",
         RooArgList(x, a1, f, bwmZ, w),
@@ -178,21 +171,21 @@ def bwZreduxFixed(x, processName, category):
 # ----------------------------------------
 # hgg falling exponential
 # ----------------------------------------
-def higgsGammaGamma(x, processName, category):
-    a1 = RooRealVar("hgg_a1" + processName + "_" + category, "a1", -5, -1000, 1000)
-    a2 = RooRealVar("hgg_a2" + processName + "_" + category, "a2", -5, -1000, 1000)
-    one = RooRealVar("hgg_one" + processName + "_" + category, "one", 1.0, -10, 10)
+def higgsGammaGamma(x, tag):
+    a1 = RooRealVar("hgg_a1" + tag, "a1", -5, -1000, 1000)
+    a2 = RooRealVar("hgg_a2" + tag, "a2", -5, -1000, 1000)
+    one = RooRealVar("hgg_one" + tag, "one", 1.0, -10, 10)
     one.setConstant()
 
     # a1.setConstant(True)
 
     f = RooFormulaVar(
-        "hgg_f" + processName + "_" + category,
+        "hgg_f" + tag,
         "@1*(@0/100)+@2*(@0/100)^2",
         RooArgList(x, a1, a2),
     )
     expmodel = RooExponential(
-        "hggexp_model" + processName + "_" + category, "hggexp_model", f, one
+        "hggexp_model" + tag, "hggexp_model", f, one
     )  # exp(1*f(x))
 
     return expmodel, [a1, a2, one, f]
@@ -201,7 +194,7 @@ def higgsGammaGamma(x, processName, category):
 # ----------------------------------------
 # chebychev
 # ----------------------------------------
-def chebychev(x, processName, category, order=7):
+def chebychev(x, tag, order=7):
     # c0 = RooRealVar("c0","c0", 1.0,-1.0,1.0)
     # c1 = RooRealVar("c1","c1", 1.0,-1.0,1.0)
     # c2 = RooRealVar("c2","c2", 1.0,-1.0,1.0)
@@ -210,7 +203,7 @@ def chebychev(x, processName, category, order=7):
     params = []
     for i in range(0, order):
         c = RooRealVar(
-            "c" + str(i) + processName + "_" + category,
+            "c" + str(i) + tag,
             "c" + str(i),
             1.0 / 2 ** i,
             -1.0,
@@ -220,7 +213,7 @@ def chebychev(x, processName, category, order=7):
         params.append(c)
 
     chebychev = RooChebychev(
-        "chebychev" + str(order) + processName + "_" + category,
+        "chebychev" + str(order) + tag,
         "chebychev" + str(order),
         x,
         args,
@@ -231,7 +224,7 @@ def chebychev(x, processName, category, order=7):
 # ----------------------------------------
 # bernstein
 # ----------------------------------------
-def bernstein(x, processName, category, order=5):
+def bernstein(x, tag, order=5):
     # c0 = RooRealVar("c0","c0", 1.0,-1.0,1.0)
     # c1 = RooRealVar("c1","c1", 1.0,-1.0,1.0)
     # c2 = RooRealVar("c2","c2", 1.0,-1.0,1.0)
@@ -240,7 +233,7 @@ def bernstein(x, processName, category, order=5):
     params = []
     for i in range(0, order):
         c = RooRealVar(
-            "c" + str(i) + processName + "_" + category,
+            "c" + str(i) + tag,
             "c" + str(i),
             1.0 / 2 ** i,
             -1.0,
@@ -250,7 +243,7 @@ def bernstein(x, processName, category, order=5):
         params.append(c)
 
     bernstein = RooBernstein(
-        "bernstein" + str(order) + processName + "_" + category,
+        "bernstein" + str(order) + tag,
         "bernstein" + str(order),
         x,
         args,
@@ -261,7 +254,7 @@ def bernstein(x, processName, category, order=5):
 # ----------------------------------------
 # h2mupoly
 # ----------------------------------------
-def h2mupoly(x, processName, category, order=5):
+def h2mupoly(x, tag, order=5):
     # c0 = RooRealVar("c0","c0", 1.0,-1.0,1.0)
 
     args = RooArgList()
@@ -270,7 +263,7 @@ def h2mupoly(x, processName, category, order=5):
     poly_str = ""
     for i in range(0, order):
         c = RooRealVar(
-            "c" + str(i) + processName + "_" + category,
+            "c" + str(i) + tag,
             "c" + str(i),
             1.0 / 2 ** i,
             -1.0,
@@ -286,7 +279,7 @@ def h2mupoly(x, processName, category, order=5):
     # print "h2mupoly = "+poly_str
 
     h2mupoly = RooGenericPdf(
-        "h2mu" + processName + "_" + category + "poly%d" % order,
+        "h2mu" + tag + "poly%d" % order,
         "h2mupoly%d" % order,
         poly_str,
         args,
@@ -297,7 +290,7 @@ def h2mupoly(x, processName, category, order=5):
 # ----------------------------------------
 # h2mupolyf
 # ----------------------------------------
-def h2mupolyf(x, processName, category, order=10):
+def h2mupolyf(x, tag, order=10):
     # c0 = RooRealVar("c0","c0", 1.0,-1.0,1.0)
 
     args = RooArgList()
@@ -306,7 +299,7 @@ def h2mupolyf(x, processName, category, order=10):
     poly_str = ""
     for i in range(0, order):
         c = RooRealVar(
-            "c" + str(i) + processName + "_" + category,
+            "c" + str(i) + tag,
             "c" + str(i),
             1.0 / 2,
             -1.0,
@@ -322,7 +315,7 @@ def h2mupolyf(x, processName, category, order=10):
     # print "h2mupolyf = "+poly_str
 
     h2mupolyf = RooGenericPdf(
-        "h2mu" + processName + "_" + category + "polyf%d" % order,
+        "h2mu" + tag + "polyf%d" % order,
         "h2mupolyf%d" % order,
         poly_str,
         args,
@@ -333,7 +326,7 @@ def h2mupolyf(x, processName, category, order=10):
 # ----------------------------------------
 # h2mupolypow
 # ----------------------------------------
-def h2mupolypow(x, processName, category, order=6):
+def h2mupolypow(x, tag, order=6):
     # c0 = RooRealVar("c0","c0", 1.0,-1.0,1.0)
 
     args = RooArgList()
@@ -345,14 +338,14 @@ def h2mupolypow(x, processName, category, order=6):
     ib = 2
     for o in range(0, order):
         c = RooRealVar(
-            "c" + str(o) + processName + "_" + category,
+            "c" + str(o) + tag,
             "c" + str(o),
             1.0 / 2,
             -1.0,
             1.0,
         )
         b = RooRealVar(
-            "b" + str(o) + processName + "_" + category,
+            "b" + str(o) + tag,
             "b" + str(o),
             1.0 / 2,
             -3.14,
@@ -376,7 +369,7 @@ def h2mupolypow(x, processName, category, order=6):
     # print "h2mupolypow = "+poly_str
 
     h2mupolypow = RooGenericPdf(
-        "h2mu" + processName + "_" + category + "polypow%d" % order,
+        "h2mu" + tag + "polypow%d" % order,
         "h2mupolypow%d" % order,
         poly_str,
         args,
@@ -388,13 +381,13 @@ def h2mupolypow(x, processName, category, order=6):
 # breit weigner scaled by falling exp, then add a line
 # for ttbar
 # --------------------------------------------------------
-def bwZPlusLinear(x, processName, category):
+def bwZPlusLinear(x, tag):
     bwWidth = RooRealVar(
-        "bwzl_widthZ" + processName + "_" + category, "widthZ", 2.5, 0, 30
+        "bwzl_widthZ" + tag, "widthZ", 2.5, 0, 30
     )
-    bwmZ = RooRealVar("bwzl_mZ" + processName + "_" + category, "mZ", 91.2, 85, 95)
+    bwmZ = RooRealVar("bwzl_mZ" + tag, "mZ", 91.2, 85, 95)
     expParam = RooRealVar(
-        "bwzl_expParam" + processName + "_" + category,
+        "bwzl_expParam" + tag,
         "expParam",
         -1e-03,
         -1e-01,
@@ -405,26 +398,26 @@ def bwZPlusLinear(x, processName, category):
     bwmZ.setConstant(True)
 
     slopeParam = RooRealVar(
-        "bwzl_slope" + processName + "_" + category, "slope", -0.2, -50, 0
+        "bwzl_slope" + tag, "slope", -0.2, -50, 0
     )
     offsetParam = RooRealVar(
-        "bwzl_offset" + processName + "_" + category, "offset", 39, 0, 1000
+        "bwzl_offset" + tag, "offset", 39, 0, 1000
     )
 
-    mix1 = RooRealVar("bwzl_mix1" + processName + "_" + category, "mix1", 0.95, 0, 1)
+    mix1 = RooRealVar("bwzl_mix1" + tag, "mix1", 0.95, 0, 1)
 
     linMmumu = RooGenericPdf(
-        "bwzl_linMmumu" + processName + "_" + category,
+        "bwzl_linMmumu" + tag,
         "@1*@0+@2",
         RooArgList(x, slopeParam, offsetParam),
     )
     bwExpMmumu = RooGenericPdf(
-        "bwzl_bwExpMmumu" + processName + "_" + category,
+        "bwzl_bwExpMmumu" + tag,
         "exp(@0*@3)*(@2)/(pow(@0-@1,2)+0.25*pow(@2,2))",
         RooArgList(x, bwmZ, bwWidth, expParam),
     )
     model = RooAddPdf(
-        "bwzl_model" + processName + "_" + category,
+        "bwzl_model" + tag,
         "bwzl_model",
         RooArgList(bwExpMmumu, linMmumu),
         RooArgList(mix1),
@@ -446,13 +439,13 @@ def bwZPlusLinear(x, processName, category):
 # breit weigner mixture (z + photons) scaled by falling exp (run1 bg)
 # then add a line for ttbar
 # --------------------------------------------------------------------
-def bwZGammaPlusLinear(x, processName, category):
+def bwZGammaPlusLinear(x, tag):
     bwWidth = RooRealVar(
-        "bwzgl_widthZ" + processName + "_" + category, "widthZ", 2.5, 0, 30
+        "bwzgl_widthZ" + tag, "widthZ", 2.5, 0, 30
     )
-    bwmZ = RooRealVar("bwzgl_mZ" + processName + "_" + category, "mZ", 91.2, 85, 95)
+    bwmZ = RooRealVar("bwzgl_mZ" + tag, "mZ", 91.2, 85, 95)
     expParam = RooRealVar(
-        "bwzgl_expParam" + processName + "_" + category,
+        "bwzgl_expParam" + tag,
         "expParam",
         -0.0053,
         -0.0073,
@@ -463,38 +456,38 @@ def bwZGammaPlusLinear(x, processName, category):
     bwmZ.setConstant(True)
 
     slopeParam = RooRealVar(
-        "bwl_slope" + processName + "_" + category, "slope", -0.2, -50, 0
+        "bwl_slope" + tag, "slope", -0.2, -50, 0
     )
     offsetParam = RooRealVar(
-        "bwl_offset" + processName + "_" + category, "offset", 39, 0, 1000
+        "bwl_offset" + tag, "offset", 39, 0, 1000
     )
 
     mix1 = RooRealVar(
-        "bwzgl_mix1" + processName + "_" + category, "mix1", 0.10, 0.01, 0.20
+        "bwzgl_mix1" + tag, "mix1", 0.10, 0.01, 0.20
     )
-    mix2 = RooRealVar("bwzgl_mix2" + processName + "_" + category, "mix2", 0.39, 0.1, 1)
+    mix2 = RooRealVar("bwzgl_mix2" + tag, "mix2", 0.39, 0.1, 1)
 
     expParam.setConstant(True)
     mix1.setConstant(True)
     mix2.setConstant(True)
 
     linMmumu = RooGenericPdf(
-        "bwzgl_linMmumu" + processName + "_" + category,
+        "bwzgl_linMmumu" + tag,
         "@1*@0+@2",
         RooArgList(x, slopeParam, offsetParam),
     )
     phoExpMmumu = RooGenericPdf(
-        "bwzgl_phoExpMmumu" + processName + "_" + category,
+        "bwzgl_phoExpMmumu" + tag,
         "exp(@0*@1)*pow(@0,-2)",
         RooArgList(x, expParam),
     )
     bwExpMmumu = RooGenericPdf(
-        "bwzgl_bwExpMmumu" + processName + "_" + category,
+        "bwzgl_bwExpMmumu" + tag,
         "exp(@0*@3)*(@2)/(pow(@0-@1,2)+0.25*pow(@2,2))",
         RooArgList(x, bwmZ, bwWidth, expParam),
     )
     model = RooAddPdf(
-        "bwzgl_model" + processName + "_" + category,
+        "bwzgl_model" + tag,
         "bwl_model",
         RooArgList(linMmumu, bwExpMmumu, phoExpMmumu),
         RooArgList(mix1, mix2),
@@ -514,21 +507,21 @@ def bwZGammaPlusLinear(x, processName, category):
     ]
 
 
-def doubleCB(x, processName, category):
+def doubleCB(x, tag):
     # gSystem.Load("libHiggsAnalysisCombinedLimit")
     gSystem.Load("python/RooDoubleCB/RooDoubleCB")
     mean = RooRealVar(
-        "mean" + processName + "_" + category, "mean", 125.0, 120.0, 130.0
+        "mean" + tag, "mean", 125.0, 120.0, 130.0
     )
-    sigma = RooRealVar("sigma" + processName + "_" + category, "sigma", 2, 0.0, 5.0)
-    alpha1 = RooRealVar("alpha1" + processName + "_" + category, "alpha1", 2, 0.001, 25)
-    n1 = RooRealVar("n1" + processName + "_" + category, "n1", 1.5, 0, 25)
+    sigma = RooRealVar("sigma" + tag, "sigma", 2, 0.0, 5.0)
+    alpha1 = RooRealVar("alpha1" + tag, "alpha1", 2, 0.001, 25)
+    n1 = RooRealVar("n1" + tag, "n1", 1.5, 0, 25)
     alpha2 = RooRealVar(
-        "alpha2" + processName + "_" + category, "alpha2", 2.0, 0.001, 25
+        "alpha2" + tag, "alpha2", 2.0, 0.001, 25
     )
-    n2 = RooRealVar("n2" + processName + "_" + category, "n2", 1.5, 0, 25)
+    n2 = RooRealVar("n2" + tag, "n2", 1.5, 0, 25)
     model = RooDoubleCB(
-        "dcb_model" + processName + "_" + category,
+        "dcb_model" + tag,
         "dcb_model",
         x,
         mean,
