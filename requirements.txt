@@ -1,0 +1,5 @@
+coffea
+dask[distributed]
+pytest
+dask_jobqueue >= 0.7.3
+mplhep >= 0.3.7

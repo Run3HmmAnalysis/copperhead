@@ -8,4 +8,3 @@ echo Starting slaves
 #(old) srun spark-class org.apache.spark.deploy.worker.Worker $SPARK_MASTER -d $SPARK_WORKER_DIR &
 #srun -n600 --reservation=COFFEA --partition=hammer-a -A cms spark-class org.apache.spark.deploy.worker.Worker $SPARK_MASTER -d $SPARK_WORKER_DIR
 srun -N16 -n128  --reservation=COFFEA -A cms spark-class org.apache.spark.deploy.worker.Worker $SPARK_MASTER -d $SPARK_WORKER_DIR
-

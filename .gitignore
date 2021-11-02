@@ -3,7 +3,15 @@ combine/*root
 combine/*log
 combine/*pdf
 combine/*txt
+combine/*json
+combine/*out
 combine/*/*
 *~
 *#
 *__pycache__*
+.ipynb_checkpoints/*
+*lock
+plots/*
+plots_new/*
+plots_test/*
+output/*
