@@ -1,5 +1,6 @@
 from ROOT import *
 
+
 def linear(x, tag):
     m = RooRealVar("slope" + tag, "slope", -0.33, -10, 0)
     b = RooRealVar("offset" + tag, "offset", 15, 2, 1000)
@@ -17,9 +18,7 @@ def linear(x, tag):
 # no breit weigner for the Z
 # --------------------------------------------------------
 def bwGamma(x, tag):
-    expParam = RooRealVar(
-        "bwg_expParam" + tag, "expParam", -1e-03, -1e-01, 1e-01
-    )
+    expParam = RooRealVar("bwg_expParam" + tag, "expParam", -1e-03, -1e-01, 1e-01)
     bwmodel = RooGenericPdf(
         "bwg_model" + tag,
         "exp(@0*@1)*pow(@0,-2)",
@@ -34,13 +33,9 @@ def bwGamma(x, tag):
 # no mixture, no photon contribution
 # --------------------------------------------------------
 def bwZ(x, tag):
-    bwWidth = RooRealVar(
-        "bwz_Width" + tag, "widthZ", 2.5, 0, 30
-    )
+    bwWidth = RooRealVar("bwz_Width" + tag, "widthZ", 2.5, 0, 30)
     bwmZ = RooRealVar("bwz_mZ" + tag, "mZ", 91.2, 90, 92)
-    expParam = RooRealVar(
-        "bwz_expParam" + tag, "expParam", -1e-03, -1e-02, 1e-02
-    )
+    expParam = RooRealVar("bwz_expParam" + tag, "expParam", -1e-03, -1e-02, 1e-02)
 
     bwWidth.setConstant(True)
     bwmZ.setConstant(True)
@@ -57,9 +52,7 @@ def bwZ(x, tag):
 # breit weigner mixture scaled by falling exp (run1 bg)
 # --------------------------------------------------------
 def bwZGamma(x, tag, mix_min=0.001):
-    bwWidth = RooRealVar(
-        "bwzg_Width" + tag, "widthZ", 2.5, 0, 30
-    )
+    bwWidth = RooRealVar("bwzg_Width" + tag, "widthZ", 2.5, 0, 30)
     bwmZ = RooRealVar("bwzg_mZ" + tag, "mZ", 91.2, 90, 92)
 
     expParam = RooRealVar(
@@ -69,9 +62,7 @@ def bwZGamma(x, tag, mix_min=0.001):
         -0.0073,
         -0.0033,
     )
-    mixParam = RooRealVar(
-        "bwzg_mixParam" + tag, "mix", 0.379, 0.2, 1
-    )
+    mixParam = RooRealVar("bwzg_mixParam" + tag, "mix", 0.379, 0.2, 1)
 
     bwWidth.setConstant(True)
     bwmZ.setConstant(True)
@@ -102,12 +93,8 @@ def bwZGamma(x, tag, mix_min=0.001):
 # ----------------------------------------
 def bwZredux(x, tag):
     a1 = RooRealVar("bwz_redux_a1" + tag, "a1", 1.39, 0.7, 2.1)
-    a2 = RooRealVar(
-        "bwz_redux_a2" + tag, "a2", 0.46, 0.30, 0.62
-    )
-    a3 = RooRealVar(
-        "bwz_redux_a3" + tag, "a3", -0.26, -0.40, -0.12
-    )
+    a2 = RooRealVar("bwz_redux_a2" + tag, "a2", 0.46, 0.30, 0.62)
+    a3 = RooRealVar("bwz_redux_a3" + tag, "a3", -0.26, -0.40, -0.12)
 
     # a1.setConstant()
     # a2.setConstant()
@@ -133,18 +120,10 @@ def bwZredux(x, tag):
 # with an off power for the breit weigner
 # ----------------------------------------
 def bwZreduxFixed(x, tag):
-    a1 = RooRealVar(
-        "bwz_redux_fixed_a1" + tag, "a1", 2.0, 0.7, 2.1
-    )
-    a2 = RooRealVar(
-        "bwz_redux_fixed_a2" + tag, "a2", 0.36, 0.0, 50.0
-    )
-    a3 = RooRealVar(
-        "bwz_redux_fixed_a3" + tag, "a3", -0.36, -50.0, 0
-    )
-    bwmZ = RooRealVar(
-        "bwz_redux_fixed_mZ" + tag, "mZ", 91.2, 89, 93
-    )
+    a1 = RooRealVar("bwz_redux_fixed_a1" + tag, "a1", 2.0, 0.7, 2.1)
+    a2 = RooRealVar("bwz_redux_fixed_a2" + tag, "a2", 0.36, 0.0, 50.0)
+    a3 = RooRealVar("bwz_redux_fixed_a3" + tag, "a3", -0.36, -50.0, 0)
+    bwmZ = RooRealVar("bwz_redux_fixed_mZ" + tag, "mZ", 91.2, 89, 93)
     w = RooRealVar("bwz_redux_fixed_w" + tag, "w", 2.5, 0, 10)
 
     a1.setConstant()
@@ -382,9 +361,7 @@ def h2mupolypow(x, tag, order=6):
 # for ttbar
 # --------------------------------------------------------
 def bwZPlusLinear(x, tag):
-    bwWidth = RooRealVar(
-        "bwzl_widthZ" + tag, "widthZ", 2.5, 0, 30
-    )
+    bwWidth = RooRealVar("bwzl_widthZ" + tag, "widthZ", 2.5, 0, 30)
     bwmZ = RooRealVar("bwzl_mZ" + tag, "mZ", 91.2, 85, 95)
     expParam = RooRealVar(
         "bwzl_expParam" + tag,
@@ -397,12 +374,8 @@ def bwZPlusLinear(x, tag):
     bwWidth.setConstant(True)
     bwmZ.setConstant(True)
 
-    slopeParam = RooRealVar(
-        "bwzl_slope" + tag, "slope", -0.2, -50, 0
-    )
-    offsetParam = RooRealVar(
-        "bwzl_offset" + tag, "offset", 39, 0, 1000
-    )
+    slopeParam = RooRealVar("bwzl_slope" + tag, "slope", -0.2, -50, 0)
+    offsetParam = RooRealVar("bwzl_offset" + tag, "offset", 39, 0, 1000)
 
     mix1 = RooRealVar("bwzl_mix1" + tag, "mix1", 0.95, 0, 1)
 
@@ -440,9 +413,7 @@ def bwZPlusLinear(x, tag):
 # then add a line for ttbar
 # --------------------------------------------------------------------
 def bwZGammaPlusLinear(x, tag):
-    bwWidth = RooRealVar(
-        "bwzgl_widthZ" + tag, "widthZ", 2.5, 0, 30
-    )
+    bwWidth = RooRealVar("bwzgl_widthZ" + tag, "widthZ", 2.5, 0, 30)
     bwmZ = RooRealVar("bwzgl_mZ" + tag, "mZ", 91.2, 85, 95)
     expParam = RooRealVar(
         "bwzgl_expParam" + tag,
@@ -455,16 +426,10 @@ def bwZGammaPlusLinear(x, tag):
     bwWidth.setConstant(True)
     bwmZ.setConstant(True)
 
-    slopeParam = RooRealVar(
-        "bwl_slope" + tag, "slope", -0.2, -50, 0
-    )
-    offsetParam = RooRealVar(
-        "bwl_offset" + tag, "offset", 39, 0, 1000
-    )
+    slopeParam = RooRealVar("bwl_slope" + tag, "slope", -0.2, -50, 0)
+    offsetParam = RooRealVar("bwl_offset" + tag, "offset", 39, 0, 1000)
 
-    mix1 = RooRealVar(
-        "bwzgl_mix1" + tag, "mix1", 0.10, 0.01, 0.20
-    )
+    mix1 = RooRealVar("bwzgl_mix1" + tag, "mix1", 0.10, 0.01, 0.20)
     mix2 = RooRealVar("bwzgl_mix2" + tag, "mix2", 0.39, 0.1, 1)
 
     expParam.setConstant(True)
@@ -510,15 +475,11 @@ def bwZGammaPlusLinear(x, tag):
 def doubleCB(x, tag):
     # gSystem.Load("libHiggsAnalysisCombinedLimit")
     gSystem.Load("python/RooDoubleCB/RooDoubleCB")
-    mean = RooRealVar(
-        "mean" + tag, "mean", 125.0, 120.0, 130.0
-    )
+    mean = RooRealVar("mean" + tag, "mean", 125.0, 120.0, 130.0)
     sigma = RooRealVar("sigma" + tag, "sigma", 2, 0.0, 5.0)
     alpha1 = RooRealVar("alpha1" + tag, "alpha1", 2, 0.001, 25)
     n1 = RooRealVar("n1" + tag, "n1", 1.5, 0, 25)
-    alpha2 = RooRealVar(
-        "alpha2" + tag, "alpha2", 2.0, 0.001, 25
-    )
+    alpha2 = RooRealVar("alpha2" + tag, "alpha2", 2.0, 0.001, 25)
     n2 = RooRealVar("n2" + tag, "n2", 1.5, 0, 25)
     model = RooDoubleCB(
         "dcb_model" + tag,
