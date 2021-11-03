@@ -4,7 +4,7 @@ import argparse
 import dask.dataframe as dd
 import pandas as pd
 import glob
-from fitmodels import norm, CutRange, chebychev, doubleCB, bwGamma, bwZredux
+from fitmodels import chebychev, doubleCB, bwGamma, bwZredux
 
 rt.gROOT.SetBatch(True)
 rt.gStyle.SetOptStat(0)
@@ -312,7 +312,7 @@ def add_data(workspace, data, isBlinded, name="", convertData=True):
         workspace.Import(ds)
     else:
         if isBlinded:
-            data = data.reduce(CutRange("unblindReg_left,unblindReg_right"))
+            data = data.reduce(rt.RooFit.CutRange("unblindReg_left,unblindReg_right"))
         workspace.Import(data, "ds" + name)
 
 
@@ -586,9 +586,10 @@ def saveWorkspace(ws, outputFileName):
 
 
 def GOF(ws, pdfName, dsName, tag, ndata):
-    # normalization =
-    rt.RooRealVar("normaliazation", "normalization", ndata, 0.5 * ndata, 2 * ndata)
-    model = rt.RooExtendPdf("ext", "ext", ws.pdf(pdfName), norm)
+    normalization = rt.RooRealVar(
+        "normaliazation", "normalization", ndata, 0.5 * ndata, 2 * ndata
+    )
+    model = rt.RooExtendPdf("ext", "ext", ws.pdf(pdfName), normalization)
     xframe = ws.var("mass" + tag).frame()
     ds = ws.data(dsName)
     ds.plotOn(xframe, rt.RooFit.Name("ds"))
