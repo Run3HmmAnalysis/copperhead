@@ -151,8 +151,8 @@ namespace {
     };
     static const char* includePaths[] = {
 "/include",
-"/home/purohita/.conda/envs/cent7/5.3.1-py37/hmumu_Snowmass/include/",
-"/home/purohita/Hmm/Snowmass2021/DoubleCBFit/RooDoubleCB/",
+"/home/dkondra/.conda/envs/cent7/5.3.1-py37/hmumu/include/",
+"/home/dkondra/hmumu-coffea-dev/fits/hmumu-coffea/dev/RooDoubleCB/",
 0
     };
     static const char* fwdDeclCode = R"DICTFWDDCLS(
