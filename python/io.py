@@ -20,8 +20,8 @@ def save_dask_pandas_to_parquet(output, out_dir):
             name = key[-32:]
     if not name:
         return
-    for ds in output.s.unique():
-        df = output[output.s == ds]
+    for ds in output.dataset.unique():
+        df = output[output.dataset == ds]
         if df.shape[0] == 0:
             return
         mkdir(f"{out_dir}/{ds}")
@@ -36,8 +36,8 @@ def save_spark_pandas_to_parquet(output, out_dir):
     # print("Stage: {0}, Partition: {1}, Host: {2}".format(
     #     ctx.stageId(), ctx.partitionId(), socket.gethostname()))
 
-    for ds in output.s.unique():
-        df = output[output.s == ds]
+    for ds in output.dataset.unique():
+        df = output[output.dataset == ds]
         if df.shape[0] == 0:
             return
         mkdir(f"{out_dir}/{ds}")
