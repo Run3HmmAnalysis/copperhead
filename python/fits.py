@@ -4,8 +4,7 @@ import argparse
 import dask.dataframe as dd
 import pandas as pd
 import glob
-from fitmodels import *
-
+from fitmodels import norm, CutRange, chebychev, doubleCB, bwGamma, bwZredux
 
 rt.gROOT.SetBatch(True)
 rt.gStyle.SetOptStat(0)
@@ -83,7 +82,7 @@ def workflow(client, paths, parameters):
     df.reset_index(inplace=True, drop=True)
     # modelNames = ["bwZRedux","bwGamma"]
     # modelNames = ["bwg_model"]
-    fittedmodels = {}
+    # fittedmodels = {}
     isBlinded = args.isBlinded
     processName = args.process
     category = args.category
@@ -101,7 +100,8 @@ def workflow(client, paths, parameters):
         plotter(ws, ["ds"], isBlinded, processName, category, "ds_ggh_MC", "MC")
         for fitmodel in modelNames:
             add_model(ws, fitmodel, tag)
-        # plotter(ws,["ds","bwz_redux_model"+tag,"bwg_model"+tag], isBlinded, category, "ds_data_bwZreduxmodel","Data and BWZRedux model")        name = "data_BackgroundFit" + args.ext
+        # plotter(ws,["ds","bwz_redux_model"+tag,"bwg_model"+tag], isBlinded, category, "ds_data_bwZreduxmodel","Data and BWZRedux model")
+        name = "data_BackgroundFit" + args.ext
         title = "Background"
         fit(ws, "ds", modelNames, isBlinded, fixparam, tag, True, name, title)
         # fit(ws, "ds", modelNames, tag, False, name, title)
@@ -141,7 +141,7 @@ def workflow(client, paths, parameters):
         saveWorkspace(ws, "workspace_BackgroundFit" + tag + args.ext)
 
     if args.doCorePdfFit:
-        corePDF_results = {}
+        # corePDF_results = {}
         hists_All = {}
         nCats = 5
         coreModelNames = ["bwz_redux_model"]
@@ -334,9 +334,9 @@ def fit(ws, dsName, modelName, isBlinded, fixParameters, tag, save, name, title)
         print(model + tag)
         pdfs[model + tag] = ws.pdf(model + tag)
         if dsName == "ds":
-            result = pdfs[model + tag].fitTo(ws.data(dsName), rt.RooFit.Save())
+            pdfs[model + tag].fitTo(ws.data(dsName), rt.RooFit.Save())
         else:
-            result = pdfs[model + tag].fitTo(ws.obj(dsName), rt.RooFit.Save())
+            pdfs[model + tag].fitTo(ws.obj(dsName), rt.RooFit.Save())
         if fixParameters:
             pdfs[model + tag].getParameters(rt.RooArgSet()).setAttribAll("Constant")
             # pdfs[model + tag].getParameters(rt.RooArgSet()).find("mean"+tag).setConstant()
@@ -586,9 +586,8 @@ def saveWorkspace(ws, outputFileName):
 
 
 def GOF(ws, pdfName, dsName, tag, ndata):
-    normalization = rt.RooRealVar(
-        "normaliazation", "normalization", ndata, 0.5 * ndata, 2 * ndata
-    )
+    # normalization =
+    rt.RooRealVar("normaliazation", "normalization", ndata, 0.5 * ndata, 2 * ndata)
     model = rt.RooExtendPdf("ext", "ext", ws.pdf(pdfName), norm)
     xframe = ws.var("mass" + tag).frame()
     ds = ws.data(dsName)
@@ -598,7 +597,7 @@ def GOF(ws, pdfName, dsName, tag, ndata):
     chi2 = xframe.chiSquare("model", "ds", nparam)
     nBins = ds.numEntries()
     if float(ndata) / nBins < 5:
-        ntoys = 500
+        # ntoys = 500
         print(" can't use asymptotic approximation!! need to run toys")
         prob = getPValue(chi2 * (nBins - nparam), nBins - nparam)
 
@@ -628,7 +627,8 @@ def getEffSigma(_h):
     nWindow = int(rms / binw) if (rms / binw) < 0.1 * nbins else int(0.1 * nbins)
     # Determine minimum width of distribution which holds 0.693 of total
     rlim = 0.683 * total
-    wmin, iscanmin = 9999999, -999
+    wmin = 9999999
+    # iscanmin = -999
     for iscan in range(-1 * nWindow, nWindow + 1):
         # Find bin idx in scan: iscan from mean
         i_centre = int((mu - xmin) / binw + 1 + iscan)
@@ -680,7 +680,7 @@ def getEffSigma(_h):
         w = (x_up - x_down + binw - dx) * 0.5
         if w < wmin:
             wmin = w
-            iscanmin = iscan
+            # iscanmin = iscan
         # Return effSigma
         return wmin
 

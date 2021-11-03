@@ -1,4 +1,15 @@
-from ROOT import *
+from ROOT import (
+    gSystem,
+    RooRealVar,
+    RooGenericPdf,
+    RooArgList,
+    RooAddPdf,
+    RooFormulaVar,
+    RooExponential,
+    RooChebychev,
+    RooBernstein,
+    RooDoubleCB,
+)
 
 
 def linear(x, tag):
@@ -6,9 +17,7 @@ def linear(x, tag):
     b = RooRealVar("offset" + tag, "offset", 15, 2, 1000)
 
     linear_model = RooGenericPdf(
-        "linear_model" + tag,
-        "@1*(@0-140)+@2",
-        RooArgList(x, m, b),
+        "linear_model" + tag, "@1*(@0-140)+@2", RooArgList(x, m, b)
     )
     return linear_model, [m, b]
 
@@ -20,9 +29,7 @@ def linear(x, tag):
 def bwGamma(x, tag):
     expParam = RooRealVar("bwg_expParam" + tag, "expParam", -1e-03, -1e-01, 1e-01)
     bwmodel = RooGenericPdf(
-        "bwg_model" + tag,
-        "exp(@0*@1)*pow(@0,-2)",
-        RooArgList(x, expParam),
+        "bwg_model" + tag, "exp(@0*@1)*pow(@0,-2)", RooArgList(x, expParam)
     )
 
     return bwmodel, [expParam]
@@ -55,22 +62,14 @@ def bwZGamma(x, tag, mix_min=0.001):
     bwWidth = RooRealVar("bwzg_Width" + tag, "widthZ", 2.5, 0, 30)
     bwmZ = RooRealVar("bwzg_mZ" + tag, "mZ", 91.2, 90, 92)
 
-    expParam = RooRealVar(
-        "bwzg_expParam" + tag,
-        "expParam",
-        -0.0053,
-        -0.0073,
-        -0.0033,
-    )
+    expParam = RooRealVar("bwzg_expParam" + tag, "expParam", -0.0053, -0.0073, -0.0033)
     mixParam = RooRealVar("bwzg_mixParam" + tag, "mix", 0.379, 0.2, 1)
 
     bwWidth.setConstant(True)
     bwmZ.setConstant(True)
 
     phoExpMmumu = RooGenericPdf(
-        "phoExpMmumu" + tag,
-        "exp(@0*@1)*pow(@0,-2)",
-        RooArgList(x, expParam),
+        "phoExpMmumu" + tag, "exp(@0*@1)*pow(@0,-2)", RooArgList(x, expParam)
     )
     bwExpMmumu = RooGenericPdf(
         "bwExpMmumu" + tag,
@@ -101,9 +100,7 @@ def bwZredux(x, tag):
     # a3.setConstant()
 
     f = RooFormulaVar(
-        "bwz_redux_f" + tag,
-        "(@1*(@0/100)+@2*(@0/100)^2)",
-        RooArgList(x, a2, a3),
+        "bwz_redux_f" + tag, "(@1*(@0/100)+@2*(@0/100)^2)", RooArgList(x, a2, a3)
     )
     # expmodel = RooGenericPdf("bwz_redux_model", "exp(@2)*(2.5)/(pow(@0-91.2,@1)+0.25*pow(2.5,@1))", RooArgList(x, a1, f))
     expmodel = RooGenericPdf(
@@ -133,9 +130,7 @@ def bwZreduxFixed(x, tag):
     w.setConstant()
 
     f = RooFormulaVar(
-        "bwz_redux_fixed_f" + tag,
-        "(@1*(@0/100)+@2*(@0/100)^2)",
-        RooArgList(x, a2, a3),
+        "bwz_redux_fixed_f" + tag, "(@1*(@0/100)+@2*(@0/100)^2)", RooArgList(x, a2, a3)
     )
     # expmodel = RooGenericPdf("bwz_redux_model", "exp(@2)*(2.5)/(pow(@0-91.2,@1)+0.25*pow(2.5,@1))", RooArgList(x, a1, f))
     expmodel = RooGenericPdf(
@@ -158,11 +153,7 @@ def higgsGammaGamma(x, tag):
 
     # a1.setConstant(True)
 
-    f = RooFormulaVar(
-        "hgg_f" + tag,
-        "@1*(@0/100)+@2*(@0/100)^2",
-        RooArgList(x, a1, a2),
-    )
+    f = RooFormulaVar("hgg_f" + tag, "@1*(@0/100)+@2*(@0/100)^2", RooArgList(x, a1, a2))
     expmodel = RooExponential(
         "hggexp_model" + tag, "hggexp_model", f, one
     )  # exp(1*f(x))
@@ -181,21 +172,12 @@ def chebychev(x, tag, order=7):
     args = RooArgList()
     params = []
     for i in range(0, order):
-        c = RooRealVar(
-            "c" + str(i) + tag,
-            "c" + str(i),
-            1.0 / 2 ** i,
-            -1.0,
-            1.0,
-        )
+        c = RooRealVar("c" + str(i) + tag, "c" + str(i), 1.0 / 2 ** i, -1.0, 1.0)
         args.add(c)
         params.append(c)
 
     chebychev = RooChebychev(
-        "chebychev" + str(order) + tag,
-        "chebychev" + str(order),
-        x,
-        args,
+        "chebychev" + str(order) + tag, "chebychev" + str(order), x, args
     )
     return chebychev, params
 
@@ -211,21 +193,12 @@ def bernstein(x, tag, order=5):
     args = RooArgList()
     params = []
     for i in range(0, order):
-        c = RooRealVar(
-            "c" + str(i) + tag,
-            "c" + str(i),
-            1.0 / 2 ** i,
-            -1.0,
-            1.0,
-        )
+        c = RooRealVar("c" + str(i) + tag, "c" + str(i), 1.0 / 2 ** i, -1.0, 1.0)
         args.add(c)
         params.append(c)
 
     bernstein = RooBernstein(
-        "bernstein" + str(order) + tag,
-        "bernstein" + str(order),
-        x,
-        args,
+        "bernstein" + str(order) + tag, "bernstein" + str(order), x, args
     )
     return bernstein, params
 
@@ -241,13 +214,7 @@ def h2mupoly(x, tag, order=5):
     params = []
     poly_str = ""
     for i in range(0, order):
-        c = RooRealVar(
-            "c" + str(i) + tag,
-            "c" + str(i),
-            1.0 / 2 ** i,
-            -1.0,
-            1.0,
-        )
+        c = RooRealVar("c" + str(i) + tag, "c" + str(i), 1.0 / 2 ** i, -1.0, 1.0)
         args.add(c)
         params.append(c)
         if i == 0:
@@ -258,10 +225,7 @@ def h2mupoly(x, tag, order=5):
     # print "h2mupoly = "+poly_str
 
     h2mupoly = RooGenericPdf(
-        "h2mu" + tag + "poly%d" % order,
-        "h2mupoly%d" % order,
-        poly_str,
-        args,
+        "h2mu" + tag + "poly%d" % order, "h2mupoly%d" % order, poly_str, args
     )
     return h2mupoly, params
 
@@ -277,13 +241,7 @@ def h2mupolyf(x, tag, order=10):
     params = []
     poly_str = ""
     for i in range(0, order):
-        c = RooRealVar(
-            "c" + str(i) + tag,
-            "c" + str(i),
-            1.0 / 2,
-            -1.0,
-            1.0,
-        )
+        c = RooRealVar("c" + str(i) + tag, "c" + str(i), 1.0 / 2, -1.0, 1.0)
         args.add(c)
         params.append(c)
         if i == 0:
@@ -294,10 +252,7 @@ def h2mupolyf(x, tag, order=10):
     # print "h2mupolyf = "+poly_str
 
     h2mupolyf = RooGenericPdf(
-        "h2mu" + tag + "polyf%d" % order,
-        "h2mupolyf%d" % order,
-        poly_str,
-        args,
+        "h2mu" + tag + "polyf%d" % order, "h2mupolyf%d" % order, poly_str, args
     )
     return h2mupolyf, params
 
@@ -316,20 +271,8 @@ def h2mupolypow(x, tag, order=6):
     ic = 1
     ib = 2
     for o in range(0, order):
-        c = RooRealVar(
-            "c" + str(o) + tag,
-            "c" + str(o),
-            1.0 / 2,
-            -1.0,
-            1.0,
-        )
-        b = RooRealVar(
-            "b" + str(o) + tag,
-            "b" + str(o),
-            1.0 / 2,
-            -3.14,
-            3.14,
-        )
+        c = RooRealVar("c" + str(o) + tag, "c" + str(o), 1.0 / 2, -1.0, 1.0)
+        b = RooRealVar("b" + str(o) + tag, "b" + str(o), 1.0 / 2, -3.14, 3.14)
         args.add(c)
         args.add(b)
         params.append(c)
@@ -348,10 +291,7 @@ def h2mupolypow(x, tag, order=6):
     # print "h2mupolypow = "+poly_str
 
     h2mupolypow = RooGenericPdf(
-        "h2mu" + tag + "polypow%d" % order,
-        "h2mupolypow%d" % order,
-        poly_str,
-        args,
+        "h2mu" + tag + "polypow%d" % order, "h2mupolypow%d" % order, poly_str, args
     )
     return h2mupolypow, params
 
@@ -363,13 +303,7 @@ def h2mupolypow(x, tag, order=6):
 def bwZPlusLinear(x, tag):
     bwWidth = RooRealVar("bwzl_widthZ" + tag, "widthZ", 2.5, 0, 30)
     bwmZ = RooRealVar("bwzl_mZ" + tag, "mZ", 91.2, 85, 95)
-    expParam = RooRealVar(
-        "bwzl_expParam" + tag,
-        "expParam",
-        -1e-03,
-        -1e-01,
-        1e-01,
-    )
+    expParam = RooRealVar("bwzl_expParam" + tag, "expParam", -1e-03, -1e-01, 1e-01)
 
     bwWidth.setConstant(True)
     bwmZ.setConstant(True)
@@ -380,9 +314,7 @@ def bwZPlusLinear(x, tag):
     mix1 = RooRealVar("bwzl_mix1" + tag, "mix1", 0.95, 0, 1)
 
     linMmumu = RooGenericPdf(
-        "bwzl_linMmumu" + tag,
-        "@1*@0+@2",
-        RooArgList(x, slopeParam, offsetParam),
+        "bwzl_linMmumu" + tag, "@1*@0+@2", RooArgList(x, slopeParam, offsetParam)
     )
     bwExpMmumu = RooGenericPdf(
         "bwzl_bwExpMmumu" + tag,
@@ -396,16 +328,10 @@ def bwZPlusLinear(x, tag):
         RooArgList(mix1),
     )
 
-    return model, [
-        bwWidth,
-        bwmZ,
-        expParam,
-        mix1,
-        slopeParam,
-        offsetParam,
-        bwExpMmumu,
-        linMmumu,
-    ]
+    return (
+        model,
+        [bwWidth, bwmZ, expParam, mix1, slopeParam, offsetParam, bwExpMmumu, linMmumu],
+    )
 
 
 # --------------------------------------------------------------------
@@ -415,13 +341,7 @@ def bwZPlusLinear(x, tag):
 def bwZGammaPlusLinear(x, tag):
     bwWidth = RooRealVar("bwzgl_widthZ" + tag, "widthZ", 2.5, 0, 30)
     bwmZ = RooRealVar("bwzgl_mZ" + tag, "mZ", 91.2, 85, 95)
-    expParam = RooRealVar(
-        "bwzgl_expParam" + tag,
-        "expParam",
-        -0.0053,
-        -0.0073,
-        -0.0033,
-    )
+    expParam = RooRealVar("bwzgl_expParam" + tag, "expParam", -0.0053, -0.0073, -0.0033)
 
     bwWidth.setConstant(True)
     bwmZ.setConstant(True)
@@ -437,14 +357,10 @@ def bwZGammaPlusLinear(x, tag):
     mix2.setConstant(True)
 
     linMmumu = RooGenericPdf(
-        "bwzgl_linMmumu" + tag,
-        "@1*@0+@2",
-        RooArgList(x, slopeParam, offsetParam),
+        "bwzgl_linMmumu" + tag, "@1*@0+@2", RooArgList(x, slopeParam, offsetParam)
     )
     phoExpMmumu = RooGenericPdf(
-        "bwzgl_phoExpMmumu" + tag,
-        "exp(@0*@1)*pow(@0,-2)",
-        RooArgList(x, expParam),
+        "bwzgl_phoExpMmumu" + tag, "exp(@0*@1)*pow(@0,-2)", RooArgList(x, expParam)
     )
     bwExpMmumu = RooGenericPdf(
         "bwzgl_bwExpMmumu" + tag,
@@ -458,18 +374,21 @@ def bwZGammaPlusLinear(x, tag):
         RooArgList(mix1, mix2),
     )
 
-    return model, [
-        bwWidth,
-        bwmZ,
-        expParam,
-        mix1,
-        mix2,
-        slopeParam,
-        offsetParam,
-        phoExpMmumu,
-        bwExpMmumu,
-        linMmumu,
-    ]
+    return (
+        model,
+        [
+            bwWidth,
+            bwmZ,
+            expParam,
+            mix1,
+            mix2,
+            slopeParam,
+            offsetParam,
+            phoExpMmumu,
+            bwExpMmumu,
+            linMmumu,
+        ],
+    )
 
 
 def doubleCB(x, tag):
@@ -482,14 +401,6 @@ def doubleCB(x, tag):
     alpha2 = RooRealVar("alpha2" + tag, "alpha2", 2.0, 0.001, 25)
     n2 = RooRealVar("n2" + tag, "n2", 1.5, 0, 25)
     model = RooDoubleCB(
-        "dcb_model" + tag,
-        "dcb_model",
-        x,
-        mean,
-        sigma,
-        alpha1,
-        n1,
-        alpha2,
-        n2,
+        "dcb_model" + tag, "dcb_model", x, mean, sigma, alpha1, n1, alpha2, n2
     )
     return model, [mean, sigma, alpha1, n1, alpha2, n2]
