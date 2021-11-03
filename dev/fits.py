@@ -5,6 +5,7 @@ import dask.dataframe as dd
 import pandas as pd
 import glob
 from fitmodels import chebychev, doubleCB, bwGamma, bwZredux
+from fitter import Fitter
 
 rt.gROOT.SetBatch(True)
 rt.gStyle.SetOptStat(0)
@@ -88,11 +89,15 @@ def workflow(client, paths, parameters):
     category = args.category
     tag = "_" + processName + "_" + category
     lumi = args.intLumi
-    ws = createWorkspace()
+
+    my_fitter = Fitter(
+        fitranges={"low": 110, "high": 150, "SR_left": 120, "SR_right": 130}
+    )
+    ws = my_fitter.workspace
 
     if args.doBackgroundFit:
         modelNames = ["bwz_redux_model", "bwg_model"]
-        add_data(ws, df, isBlinded)
+        my_fitter.add_data(df, isBlinded)
         ws.Print()
         fixparam = False
         if isBlinded:
@@ -112,7 +117,7 @@ def workflow(client, paths, parameters):
         isBlinded = False
         fixparam = True
         modelNames = ["dcb_model"]
-        add_data(ws, df, isBlinded)
+        my_fitter.add_data(df, isBlinded)
         if isBlinded:
             print("++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
         # plotter(ws,["ds"],isBlinded, processName, category, "ds_ggh_MC","MC")
@@ -134,7 +139,7 @@ def workflow(client, paths, parameters):
         for fitmodel in modelNames:
             add_model(ws, fitmodel, tag)
         fake_data = generateData(ws, "bwz_redux_model", tag, 100, lumi)
-        add_data(ws, fake_data, False, "_fake", False)
+        my_fitter.add_data(fake_data, False, "_fake", False)
         ws.Print()
         # plotter(ws,["ds_fake"], False, category, "data_bwZreduxmodel","BWZRedux model fake Data")
         fit(ws, "ds_fake", modelNames, isBlinded, fixparam, tag, True, name, title)
@@ -171,7 +176,7 @@ def workflow(client, paths, parameters):
             print(hists_All[hist_name].Integral())
             # fake_data.append(ds)
             dataStack.Add(hist)
-            add_data(ws, hist, False, hist_name + "_fake", False)
+            my_fitter.add_data(hist, False, hist_name + "_fake", False)
         print(hists_All)
         dataStack_Full = dataStack.GetStack().Last()
         hists_All[dataStack_Full.GetName()] = dataStack_Full
@@ -181,7 +186,7 @@ def workflow(client, paths, parameters):
         fullDataSet = rt.RooDataHist(
             "core_Data", "core_Data", rt.RooArgList(ws.var("mass")), dataStack_Full
         )
-        add_data(ws, fullDataSet, False, "_Core_fake", False)
+        my_fitter.add_data(fullDataSet, False, "_Core_fake", False)
         # add_data(ws, fake_data, False, "_fake", False)
         ws.Print()
         # plotter(ws,["ds_fake"], False, category, "data_bwZreduxmodel","BWZRedux model fake Data")
@@ -269,20 +274,6 @@ def workflow(client, paths, parameters):
             saveWorkspace(ws_corepdf, "workspace_BackgroundFit" + prefix + args.ext)
 
 
-def createWorkspace():
-    w = rt.RooWorkspace("w", "w")
-    fitrange = {"low": 110, "high": 150, "SR_left": 120, "SR_right": 130}
-    mass = rt.RooRealVar("mass", "mass", fitrange["low"], fitrange["high"])
-    mass.setRange("unblindReg_left", fitrange["low"], fitrange["SR_left"] + 0.1)
-    mass.setRange("unblindReg_right", fitrange["SR_right"] - 0.1, fitrange["high"])
-    mass.setRange("window", fitrange["low"], fitrange["high"])
-    mass.SetTitle("m_{#mu#mu}")
-    mass.setUnit("GeV")
-    w.Import(mass)
-    w.Print()
-    return w
-
-
 def add_model(workspace, modelName, tag):
     if modelName == "bwz_redux_model":
         bwZredux_model, bwZredux_params = bwZredux(workspace.obj("mass"), tag)
@@ -302,18 +293,20 @@ def add_model(workspace, modelName, tag):
         print("The " + modelName + " does not exist!!!!!!!")
 
 
+"""
 def add_data(workspace, data, isBlinded, name="", convertData=True):
     if convertData:
         ds = filldataset(
             data["dimuon_mass"].values, workspace.obj("mass"), dsName="ds" + name
         )
         if isBlinded:
-            ds = ds.reduce(rt.RooFit.CutRange("unblindReg_left,unblindReg_right"))
+            ds = ds.reduce(rt.RooFit.CutRange("sideband_left,sideband_right"))
         workspace.Import(ds)
     else:
         if isBlinded:
-            data = data.reduce(rt.RooFit.CutRange("unblindReg_left,unblindReg_right"))
+            data = data.reduce(rt.RooFit.CutRange("sideband_left,sideband_right"))
         workspace.Import(data, "ds" + name)
+"""
 
 
 def filldataset(data, x, dsName="ds"):
@@ -398,8 +391,8 @@ def plot(ws, datasetName, models, isBlinded, processName, category, name, title)
     upper_pad.cd()
     mass = ws.obj("mass")
     xframe = mass.frame(rt.RooFit.Title(title + " Fit in cat" + category))
-    # dataset.plotOn(xframe,rt.RooFit.CutRange("unblindReg_left"))
-    # dataset.plotOn(xframe,rt.RooFit.CutRange("unblindReg_right"))
+    # dataset.plotOn(xframe,rt.RooFit.CutRange("sideband_left"))
+    # dataset.plotOn(xframe,rt.RooFit.CutRange("sideband_right"))
     if datasetName == "ds":
         ws.data(datasetName).plotOn(xframe, rt.RooFit.Binning(80))
     else:
@@ -415,7 +408,7 @@ def plot(ws, datasetName, models, isBlinded, processName, category, name, title)
             models[model_key].plotOn(
                 xframe,
                 rt.RooFit.Range("window"),
-                rt.RooFit.NormRange("unblindReg_left,unblindReg_right"),
+                rt.RooFit.NormRange("sideband_left,sideband_right"),
                 rt.RooFit.LineColor(colors[count]),
                 rt.RooFit.Name(models[model_key].GetName()),
             )
@@ -687,10 +680,10 @@ def getEffSigma(_h):
 
 
 if __name__ == "__main__":
-    parameters = {"ncpus": 40}
+    parameters = {"ncpus": 1}
     # paths = glob.glob('/depot/cms/hmm/coffea/2016_sep26/data_*/*.parquet')
-    # paths = glob.glob("/depot/cms/hmm/coffea/2016_sep26/data_D/*.parquet")
-    paths = glob.glob("/depot/cms/hmm/coffea/2016_sep26/ggh_amcPS/*.parquet")
+    paths = glob.glob("/depot/cms/hmm/coffea/2016_sep26/data_D/*.parquet")
+    # paths = glob.glob("/depot/cms/hmm/coffea/2016_sep26/ggh_amcPS/*.parquet")
 
     client = Client(
         processes=True,
