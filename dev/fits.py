@@ -123,7 +123,7 @@ def workflow(client, paths, parameters):
         # plotter(ws,["ds"],isBlinded, processName, category, "ds_ggh_MC","MC")
         for fitmodel in modelNames:
             add_model(ws, fitmodel, tag)
-        # plotter(ws,["ds","bwz_redux_model"+tag,"bwg_model"+tag], isBlinded, category, "ds_data_bwZreduxmodel","Data and BWZRedux model")        name = "data_BackgroundFit" + args.ext
+        # plotter(ws,["ds","bwz_redux_model"+tag,"bwg_model"+tag], isBlinded, category, "ds_data_bwZreduxmodel","Data and BWZRedux model")
         name = "ggH_SignalFit" + args.ext
         title = "Signal"
         ws.Print()
@@ -291,33 +291,6 @@ def add_model(workspace, modelName, tag):
         workspace.Import(chebychev_model)
     else:
         print("The " + modelName + " does not exist!!!!!!!")
-
-
-"""
-def add_data(workspace, data, isBlinded, name="", convertData=True):
-    if convertData:
-        ds = filldataset(
-            data["dimuon_mass"].values, workspace.obj("mass"), dsName="ds" + name
-        )
-        if isBlinded:
-            ds = ds.reduce(rt.RooFit.CutRange("sideband_left,sideband_right"))
-        workspace.Import(ds)
-    else:
-        if isBlinded:
-            data = data.reduce(rt.RooFit.CutRange("sideband_left,sideband_right"))
-        workspace.Import(data, "ds" + name)
-"""
-
-
-def filldataset(data, x, dsName="ds"):
-    cols = rt.RooArgSet(x)
-    ds = rt.RooDataSet(dsName, dsName, cols)
-    for datum in data:
-        if (datum < x.getMax()) and (datum > x.getMin()):
-            x.setVal(datum)
-            ds.add(cols)
-    # ds.Print()
-    return ds
 
 
 def fit(ws, dsName, modelName, isBlinded, fixParameters, tag, save, name, title):
