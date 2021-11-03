@@ -55,7 +55,7 @@ namespace ROOT {
    {
       ::RooDoubleCB *ptr = 0;
       static ::TVirtualIsAProxy* isa_proxy = new ::TInstrumentedIsAProxy< ::RooDoubleCB >(0);
-      static ::ROOT::TGenericClassInfo
+      static ::ROOT::TGenericClassInfo 
          instance("RooDoubleCB", ::RooDoubleCB::Class_Version(), "RooDoubleCB.h", 16,
                   typeid(::RooDoubleCB), ::ROOT::Internal::DefineBehavior(ptr, ptr),
                   &::RooDoubleCB::Dictionary, isa_proxy, 4,

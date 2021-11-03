@@ -3,18 +3,18 @@ repos:
     rev: v3.2.0
     hooks:
     -   id: trailing-whitespace
-        exclude: ^data/
+        exclude: ^(data/|dev/RooDoubleCB)
     -   id: end-of-file-fixer
-        exclude: ^data/
+        exclude: ^(data/|dev/RooDoubleCB)
     -   id: check-yaml
     -   id: check-added-large-files
 -   repo: https://github.com/psf/black
     rev: 19.3b0
     hooks:
     -   id: black
-        exclude: ^data/
+        exclude: ^(data/|dev/RooDoubleCB)
 -   repo: https://github.com/pycqa/flake8
     rev: 4.0.1
     hooks:
     -   id: flake8
-        exclude: ^data/
+        exclude: ^(data/|dev/RooDoubleCB)
