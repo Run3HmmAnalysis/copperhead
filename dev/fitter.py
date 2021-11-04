@@ -1,4 +1,5 @@
 import ROOT as rt
+from fitmodels import chebychev, doubleCB, bwGamma, bwZredux
 
 
 class Fitter(object):
@@ -6,8 +7,19 @@ class Fitter(object):
         self.fitranges = kwargs.pop(
             "fitranges", {"low": 110, "high": 150, "SR_left": 120, "SR_right": 130}
         )
+        self.process_name = kwargs.pop("process_name", "ggH")
+        self.category = kwargs.pop("category", "cat0")
+        self.tag = f"_{self.process_name}_{self.category}"
+
+        self.fitmodels = {
+            "bwz_redux_model": bwZredux,
+            "bwg_model": bwGamma,
+            "dcb_model": doubleCB,
+            "chebychev_model": chebychev,
+        }
+        self.requires_order = ["chebychev_model"]
+
         self.workspace = self.create_workspace()
-        return
 
     def create_workspace(self):
         w = rt.RooWorkspace("w", "w")
@@ -29,7 +41,7 @@ class Fitter(object):
 
     def add_data(self, data, isBlinded, name="", convertData=True):
         if convertData:
-            ds = self.filldataset(
+            ds = self.fill_dataset(
                 data["dimuon_mass"].values,
                 self.workspace.obj("mass"),
                 dsName="ds" + name,
@@ -42,11 +54,35 @@ class Fitter(object):
                 data = data.reduce(rt.RooFit.CutRange("sideband_left,sideband_right"))
             self.workspace.Import(data, "ds" + name)
 
-    def filldataset(self, data, x, dsName="ds"):
+    def fill_dataset(self, data, x, dsName="ds"):
         cols = rt.RooArgSet(x)
         ds = rt.RooDataSet(dsName, dsName, cols)
+        # is this the optimal way to fill the dataset?
         for datum in data:
             if (datum < x.getMax()) and (datum > x.getMin()):
                 x.setVal(datum)
                 ds.add(cols)
         return ds
+
+    def add_model(self, model_name, order=None, tag=None):
+        if model_name not in self.fitmodels.keys():
+            print(f"Error: model {model_name} does not exist!")
+            return
+
+        if tag is None:
+            tag = self.tag
+
+        if order is None:
+            model, params = self.fitmodels[model_name](self.workspace.obj("mass"), tag)
+        else:
+            if model_name in self.requires_order:
+                model, params = self.fitmodels[model_name](
+                    self.workspace.obj("mass"), tag, order
+                )
+            else:
+                print(f"Warning: model {model_name} does not require to specify order!")
+                model, params = self.fitmodels[model_name](
+                    self.workspace.obj("mass"), tag
+                )
+
+        self.workspace.Import(model)

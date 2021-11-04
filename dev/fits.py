@@ -4,7 +4,6 @@ import argparse
 import dask.dataframe as dd
 import pandas as pd
 import glob
-from fitmodels import chebychev, doubleCB, bwGamma, bwZredux
 from fitter import Fitter
 
 rt.gROOT.SetBatch(True)
@@ -91,7 +90,9 @@ def workflow(client, paths, parameters):
     lumi = args.intLumi
 
     my_fitter = Fitter(
-        fitranges={"low": 110, "high": 150, "SR_left": 120, "SR_right": 130}
+        fitranges={"low": 110, "high": 150, "SR_left": 120, "SR_right": 130},
+        process_name=processName,
+        category=category,
     )
     ws = my_fitter.workspace
 
@@ -104,7 +105,7 @@ def workflow(client, paths, parameters):
             print("++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
         plotter(ws, ["ds"], isBlinded, processName, category, "ds_ggh_MC", "MC")
         for fitmodel in modelNames:
-            add_model(ws, fitmodel, tag)
+            my_fitter.add_model(fitmodel)
         # plotter(ws,["ds","bwz_redux_model"+tag,"bwg_model"+tag], isBlinded, category, "ds_data_bwZreduxmodel","Data and BWZRedux model")
         name = "data_BackgroundFit" + args.ext
         title = "Background"
@@ -122,11 +123,12 @@ def workflow(client, paths, parameters):
             print("++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
         # plotter(ws,["ds"],isBlinded, processName, category, "ds_ggh_MC","MC")
         for fitmodel in modelNames:
-            add_model(ws, fitmodel, tag)
+            my_fitter.add_model(fitmodel)
         # plotter(ws,["ds","bwz_redux_model"+tag,"bwg_model"+tag], isBlinded, category, "ds_data_bwZreduxmodel","Data and BWZRedux model")
         name = "ggH_SignalFit" + args.ext
         title = "Signal"
         ws.Print()
+
         fit(ws, "ds", modelNames, isBlinded, fixparam, tag, True, name, title)
         saveWorkspace(ws, "workspace_sigFit" + tag + args.ext)
 
@@ -137,7 +139,7 @@ def workflow(client, paths, parameters):
         name = "fake_data_BackgroundFit" + args.ext
         title = "Background"
         for fitmodel in modelNames:
-            add_model(ws, fitmodel, tag)
+            my_fitter.add_model(fitmodel)
         fake_data = generateData(ws, "bwz_redux_model", tag, 100, lumi)
         my_fitter.add_data(fake_data, False, "_fake", False)
         ws.Print()
@@ -151,7 +153,7 @@ def workflow(client, paths, parameters):
         nCats = 5
         coreModelNames = ["bwz_redux_model"]
         for fitmodel in coreModelNames:
-            add_model(ws, fitmodel, "_" + processName + "_corepdf")
+            my_fitter.add_model(fitmodel, tag=f"_{processName}_corepdf")
         fixparam = False
         isBlinded = False
         name = "fake_data_Background_corPdfFit" + args.ext
@@ -229,10 +231,8 @@ def workflow(client, paths, parameters):
             ws.Import(transferDataSet)
             ws_corepdf.Import(transferDataSet)
             chebyOrder = 3 if icat < 1 else 2
-            add_model(
-                ws,
-                "chebychev_" + str(chebyOrder) + "_model",
-                "_" + processName + "_" + prefix,
+            my_fitter.add_model(
+                "chebychev_model", tag=f"_{processName}_{prefix}", order=chebyOrder
             )
             # transferFuncName = "chebychev_"+str(chebyOrder)+"_"+processName+"_"+prefix
             transferFuncName = "chebychev" + str(chebyOrder)
@@ -272,25 +272,6 @@ def workflow(client, paths, parameters):
             ws_corepdf.Import(norm_cat)
             ws_corepdf.Import(norm_Core)
             saveWorkspace(ws_corepdf, "workspace_BackgroundFit" + prefix + args.ext)
-
-
-def add_model(workspace, modelName, tag):
-    if modelName == "bwz_redux_model":
-        bwZredux_model, bwZredux_params = bwZredux(workspace.obj("mass"), tag)
-        workspace.Import(bwZredux_model)
-    elif modelName == "bwg_model":
-        bwGamma_model, bwGamma_params = bwGamma(workspace.obj("mass"), tag)
-        workspace.Import(bwGamma_model)
-    elif modelName == "dcb_model":
-        dcb_model, dcb_params = doubleCB(workspace.obj("mass"), tag)
-        workspace.Import(dcb_model)
-    elif "chebychev" in modelName:
-        chebychev_model, chebychev_params = chebychev(
-            workspace.obj("mass"), tag, int(modelName.split("_")[1])
-        )
-        workspace.Import(chebychev_model)
-    else:
-        print("The " + modelName + " does not exist!!!!!!!")
 
 
 def fit(ws, dsName, modelName, isBlinded, fixParameters, tag, save, name, title):
@@ -655,8 +636,10 @@ def getEffSigma(_h):
 if __name__ == "__main__":
     parameters = {"ncpus": 1}
     # paths = glob.glob('/depot/cms/hmm/coffea/2016_sep26/data_*/*.parquet')
-    paths = glob.glob("/depot/cms/hmm/coffea/2016_sep26/data_D/*.parquet")
-    # paths = glob.glob("/depot/cms/hmm/coffea/2016_sep26/ggh_amcPS/*.parquet")
+    if args.doSignalFit:
+        paths = glob.glob("/depot/cms/hmm/coffea/2016_sep26/ggh_amcPS/*.parquet")
+    else:
+        paths = glob.glob("/depot/cms/hmm/coffea/2016_sep26/data_D/*.parquet")
 
     client = Client(
         processes=True,
