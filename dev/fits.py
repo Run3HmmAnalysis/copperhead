@@ -5,6 +5,7 @@ import dask.dataframe as dd
 import pandas as pd
 import glob
 from fitter import Fitter
+from fitmodels import chebychev, doubleCB, bwGamma, bwZredux
 
 rt.gROOT.SetBatch(True)
 rt.gStyle.SetOptStat(0)
@@ -59,9 +60,7 @@ def workflow(client, paths, parameters):
     df = dd.concat([d for d in df_future if len(d.columns) > 0])
     df = df.compute()
     df.reset_index(inplace=True, drop=True)
-    # modelNames = ["bwZRedux","bwGamma"]
-    # modelNames = ["bwg_model"]
-    # fittedmodels = {}
+
     isBlinded = args.isBlinded
     process = args.process
     category = args.category
@@ -70,72 +69,60 @@ def workflow(client, paths, parameters):
 
     my_fitter = Fitter(
         fitranges={"low": 110, "high": 150, "SR_left": 120, "SR_right": 130},
+        fitmodels={
+            "bwz_redux": bwZredux,
+            "bwgamma": bwGamma,
+            "dcb": doubleCB,
+            "chebychev": chebychev,
+        },
+        requires_order=["chebychev"],
         process=process,
         category=category,
     )
 
     if args.doBackgroundFit:
-        model_names = ["bwz_redux_model", "bwg_model"]
-        ds_name = "background_ds"
-
-        my_fitter.add_data(df, name=ds_name, blinded=isBlinded)
-        my_fitter.add_models(model_names)
-        my_fitter.workspace.Print()
-        my_fitter.fit(
-            ds_name,
-            model_names,
+        my_fitter.simple_fit(
+            dataset=df,
+            ds_name="background_ds",
             blinded=isBlinded,
+            models=["bwz_redux", "bwgamma"],
             fix_parameters=False,
-            name=f"data_BackgroundFit{args.ext}",
+            label=f"data_BackgroundFit{args.ext}",
             title="Background",
             save=True,
+            ws_out_name=f"workspace_BackgroundFit{tag}{args.ext}",
         )
-        my_fitter.save_workspace(f"workspace_BackgroundFit{tag}{args.ext}")
 
     if args.doSignalFit:
-        isBlinded = False
-        model_names = ["dcb_model"]
-        ds_name = "signal_ds"
-
-        my_fitter.add_data(df, name=ds_name, blinded=isBlinded)
-        my_fitter.add_models(model_names)
-        my_fitter.workspace.Print()
-
-        my_fitter.fit(
-            ds_name,
-            model_names,
-            blinded=isBlinded,
+        my_fitter.simple_fit(
+            dataset=df,
+            ds_name="signal_ds",
+            blinded=False,
+            models=["dcb"],
             fix_parameters=True,
-            name=f"ggH_SignalFit{args.ext}",
+            label=f"ggH_SignalFit{args.ext}",
             title="Signal",
             save=True,
+            ws_out_name=f"workspace_sigFit{tag}{args.ext}",
         )
-        my_fitter.save_workspace(f"workspace_sigFit{tag}{args.ext}")
 
     if args.getBkgModelFromMC:
-        isBlinded = False
-        model_names = ["bwz_redux_model", "bwg_model"]
-        ds_name = "fakedata_ds"
-
-        fake_data = my_fitter.generate_data("bwz_redux_model", tag, GEN_XSEC, lumi)
-        my_fitter.add_data(fake_data, name=ds_name, blinded=False)
-        my_fitter.add_models(model_names)
-        my_fitter.workspace.Print()
-
-        my_fitter.fit(
-            ds_name,
-            model_names,
-            blinded=isBlinded,
+        fake_data = my_fitter.generate_data("bwz_redux", tag, GEN_XSEC, lumi)
+        my_fitter.simple_fit(
+            dataset=fake_data,
+            ds_name="fakedata_ds",
+            blinded=False,
+            models=["bwz_redux", "bwgamma"],
             fix_parameters=False,
-            name=f"fake_data_BackgroundFit{args.ext}",
+            label=f"fake_data_BackgroundFit{args.ext}",
             title="Background",
             save=True,
+            ws_out_name=f"workspace_BackgroundFit{tag}{args.ext}",
         )
-        my_fitter.save_workspace(f"workspace_BackgroundFit{tag}{args.ext}")
 
     if args.doCorePdfFit:
         isBlinded = False
-        core_model_names = ["bwz_redux_model"]
+        core_model_names = ["bwz_redux"]
 
         my_fitter.add_models(
             [{"name": m, "tag": f"_{process}_corepdf"} for m in core_model_names]
@@ -150,7 +137,7 @@ def workflow(client, paths, parameters):
         for icat in range(NCATS):
             hist_name = f"hist_{process}_cat{icat}"
             fake_data = my_fitter.generate_data(
-                "bwz_redux_model", f"_{process}_corepdf", GEN_XSEC, lumi
+                "bwz_redux", f"_{process}_corepdf", GEN_XSEC, lumi
             )
             # fake_ds.append(fake_data)
             hist = rt.RooAbsData.createHistogram(
@@ -220,7 +207,7 @@ def workflow(client, paths, parameters):
 
             cheby_order = 3 if icat < 1 else 2
             my_fitter.add_model(
-                "chebychev_model", tag=f"_{process}_{suffix}", order=cheby_order
+                "chebychev", tag=f"_{process}_{suffix}", order=cheby_order
             )
             transfer_func_names = [f"chebychev{cheby_order}"]
 
@@ -238,7 +225,7 @@ def workflow(client, paths, parameters):
             ws_corepdf = rt.RooWorkspace("ws_corepdf", False)
             ws_corepdf.Import(
                 my_fitter.workspace.pdf(
-                    f"bwz_redux_model_{process}_corepdf"
+                    f"bwz_redux_{process}_corepdf"
                 )
             )
             ws_corepdf.Import(transfer_dataset)
@@ -246,7 +233,7 @@ def workflow(client, paths, parameters):
                 "bkg_bwzredux_" + "_" + process + "_" + suffix,
                 "bkg_bwzredux_" + "_" + process + "_" + suffix,
                 my_fitter.workspace.pdf(
-                    "bwz_redux_model" + "_" + process + "_corepdf"
+                    "bwz_redux" + "_" + process + "_corepdf"
                 ),
                 my_fitter.workspace.pdf(
                     transfer_func_name + "_" + process + "_" + suffix

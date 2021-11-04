@@ -1,6 +1,5 @@
 import ROOT as rt
 import pandas as pd
-from fitmodels import chebychev, doubleCB, bwGamma, bwZredux
 from fit_plots import plot
 
 
@@ -9,20 +8,45 @@ class Fitter(object):
         self.fitranges = kwargs.pop(
             "fitranges", {"low": 110, "high": 150, "SR_left": 120, "SR_right": 130}
         )
+        self.fitmodels = kwargs.pop("fitmodels", {})
+        self.requires_order = kwargs.pop("requires_order", [])
         self.process = kwargs.pop("process", "ggH")
         self.category = kwargs.pop("category", "cat0")
         self.tag = f"_{self.process}_{self.category}"
 
-        self.fitmodels = {
-            "bwz_redux_model": bwZredux,
-            "bwg_model": bwGamma,
-            "dcb_model": doubleCB,
-            "chebychev_model": chebychev,
-        }
-        self.requires_order = ["chebychev_model"]
         self.data_registry = {}
+        self.model_registry = []
 
         self.workspace = self.create_workspace()
+
+    def simple_fit(
+        self,
+        dataset=None,
+        ds_name="",
+        blinded=False,
+        models=[],
+        fix_parameters=False,
+        label="",
+        title="",
+        save=True,
+        ws_out_name="",
+    ):
+        if (dataset is None) or (ds_name == "") or (len(models) == 0):
+            return
+        self.add_data(dataset, name=ds_name, blinded=blinded)
+        self.add_models(models)
+        self.workspace.Print()
+        self.fit(
+            ds_name,
+            models,
+            blinded=blinded,
+            fix_parameters=fix_parameters,
+            label=label,
+            title=title,
+            save=save,
+        )
+        if save:
+            self.save_workspace(ws_out_name)
 
     def create_workspace(self):
         w = rt.RooWorkspace("w", "w")
@@ -81,6 +105,8 @@ class Fitter(object):
         return ds
 
     def generate_data(self, pdf_name, tag, xSec, lumi):
+        if pdf_name not in self.model_registry:
+            self.add_model(pdf_name)
         return self.workspace.pdf(pdf_name + tag).generate(
             rt.RooArgSet(self.workspace.obj("mass")), xSec * lumi
         )
@@ -116,7 +142,8 @@ class Fitter(object):
                 model, params = self.fitmodels[model_name](
                     self.workspace.obj("mass"), tag
                 )
-
+        if model_name not in self.model_registry:
+            self.model_registry.append(model_name)
         self.workspace.Import(model)
 
     def fit(
@@ -127,7 +154,7 @@ class Fitter(object):
         fix_parameters=False,
         tag=None,
         save=False,
-        name="",
+        label="",
         title="",
     ):
         if ds_name not in self.data_registry.keys():
@@ -151,6 +178,6 @@ class Fitter(object):
                 blinded,
                 tag.split("_")[1],
                 tag.split("_")[2],
-                name,
+                label,
                 title,
             )
