@@ -9,9 +9,9 @@ class Fitter(object):
         self.fitranges = kwargs.pop(
             "fitranges", {"low": 110, "high": 150, "SR_left": 120, "SR_right": 130}
         )
-        self.process_name = kwargs.pop("process_name", "ggH")
+        self.process = kwargs.pop("process", "ggH")
         self.category = kwargs.pop("category", "cat0")
-        self.tag = f"_{self.process_name}_{self.category}"
+        self.tag = f"_{self.process}_{self.category}"
 
         self.fitmodels = {
             "bwz_redux_model": bwZredux,
@@ -41,6 +41,12 @@ class Fitter(object):
         w.Import(mass)
         w.Print()
         return w
+
+    def save_workspace(self, out_name):
+        outfile = rt.TFile(out_name + ".root", "recreate")
+        self.workspace.Write()
+        outfile.Close()
+        del self.workspace
 
     def add_data(self, data, name="ds", blinded=False):
         if name in self.data_registry.keys():
@@ -73,6 +79,11 @@ class Fitter(object):
                 x.setVal(datum)
                 ds.add(cols)
         return ds
+
+    def generate_data(self, pdf_name, tag, xSec, lumi):
+        return self.workspace.pdf(pdf_name + tag).generate(
+            rt.RooArgSet(self.workspace.obj("mass")), xSec * lumi
+        )
 
     def add_models(self, models):
         for model in models:
