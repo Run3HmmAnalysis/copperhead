@@ -26,7 +26,7 @@ colors = [
 ]
 
 
-def plotter(ws, objNames, isBlinded, processName, category, OutputFilename, title):
+def plotter(ws, objNames, isBlinded, channel, category, OutputFilename, title):
     c = rt.TCanvas("c_cat" + category, "c_cat" + category, 800, 800)
     xframe = ws.obj("mass").frame(rt.RooFit.Title(title + " in cat" + category))
     count = 0
@@ -54,7 +54,7 @@ def plotter(ws, objNames, isBlinded, processName, category, OutputFilename, titl
     c.SaveAs(OutputFilename + "_cat" + category + ".C")
 
 
-def plot(ws, datasetName, models, isBlinded, processName, category, label, title):
+def plot(ws, datasetName, models, isBlinded, channel, category, label, title):
     c = rt.TCanvas("c_cat" + category, "c_cat" + category, 800, 800)
     offset = 0.5
     upper_pad = rt.TPad("upper_pad", "upper_pad", 0, 0.25, 1, 1)
@@ -241,10 +241,10 @@ def plot(ws, datasetName, models, isBlinded, processName, category, label, title
     xframe2.Draw()
     c.Modified()
     c.Update()
-    # c.SaveAs(processName + label + "_cat" + category + ".root")
-    # c.SaveAs(processName + label + "_cat" + category + ".pdf")
-    c.SaveAs(processName + label + "_cat" + category + ".png")
-    # c.SaveAs(processName + label + "_cat" + category + ".C")
+    # c.SaveAs(channel + label + "_cat" + category + ".root")
+    # c.SaveAs(channel + label + "_cat" + category + ".pdf")
+    c.SaveAs(channel + label + "_cat" + category + ".png")
+    # c.SaveAs(channel + label + "_cat" + category + ".C")
 
 
 def getEffSigma(_h):

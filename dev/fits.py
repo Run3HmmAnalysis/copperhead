@@ -15,7 +15,7 @@ NCATS = 5
 
 parser = argparse.ArgumentParser()
 parser.add_argument(
-    "--process", type=str, default="ggH", help="Which process you want to run?"
+    "--channel", type=str, default="ggH", help="Which channel you want to run?"
 )
 parser.add_argument(
     "--category", type=str, default="0", help="Which category you want to run?"
@@ -65,9 +65,9 @@ def workflow(client, paths, parameters):
     df_signal = df.loc[sig_cut, "dimuon_mass"]
     df_background = df.loc[~sig_cut, "dimuon_mass"]
 
-    process = args.process
+    channel = args.channel
     category = args.category
-    tag = f"_{process}_{category}"
+    tag = f"_{channel}_{category}"
 
     my_fitter = Fitter(
         fitranges={"low": 110, "high": 150, "SR_left": 120, "SR_right": 130},
@@ -78,7 +78,7 @@ def workflow(client, paths, parameters):
             "chebyshev": chebyshev,
         },
         requires_order=["chebyshev"],
-        process=process,
+        channel=channel,
         category=category,
     )
 
@@ -126,7 +126,7 @@ def workflow(client, paths, parameters):
         core_model_names = ["bwz_redux"]
 
         my_fitter.add_models(
-            [{"name": m, "tag": f"_{process}_corepdf"} for m in core_model_names]
+            [{"name": m, "tag": f"_{channel}_corepdf"} for m in core_model_names]
         )
 
         # corePDF_results = {}
@@ -136,9 +136,9 @@ def workflow(client, paths, parameters):
         hists_all = {}
         data_stack = rt.THStack("full_data", "full_data")
         for icat in range(NCATS):
-            hist_name = f"hist_{process}_cat{icat}"
+            hist_name = f"hist_{channel}_cat{icat}"
             fake_data = my_fitter.generate_data(
-                "bwz_redux", f"_{process}_corepdf", GEN_XSEC, args.intLumi
+                "bwz_redux", f"_{channel}_corepdf", GEN_XSEC, args.intLumi
             )
             # fake_ds.append(fake_data)
             hist = rt.RooAbsData.createHistogram(
@@ -172,7 +172,7 @@ def workflow(client, paths, parameters):
             core_model_names,
             blinded=False,
             fix_parameters=False,
-            tag=f"_{process}_corepdf",
+            tag=f"_{channel}_corepdf",
             label=f"fake_data_Background_corPdfFit{args.ext}",
             title="Background",
             save=True,
@@ -188,7 +188,7 @@ def workflow(client, paths, parameters):
         """
 
         for icat in range(NCATS):
-            hist_name = f"hist_{process}_cat{icat}"
+            hist_name = f"hist_{channel}_cat{icat}"
             suffix = f"cat{icat}"
 
             transfer_hist = hists_all[hist_name].Clone()
@@ -206,7 +206,7 @@ def workflow(client, paths, parameters):
 
             cheby_order = 3 if icat < 1 else 2
             my_fitter.add_model(
-                "chebyshev", tag=f"_{process}_{suffix}", order=cheby_order
+                "chebyshev", tag=f"_{channel}_{suffix}", order=cheby_order
             )
             transfer_func_names = [f"chebyshev{cheby_order}"]
 
@@ -215,7 +215,7 @@ def workflow(client, paths, parameters):
                 transfer_func_names,
                 blinded=False,
                 fix_parameters=False,
-                tag=f"_{process}_{suffix}",
+                tag=f"_{channel}_{suffix}",
                 label=f"fake_data_Background_corPdfFit{args.ext}",
                 title="Background",
                 save=True,
@@ -224,31 +224,31 @@ def workflow(client, paths, parameters):
             ws_corepdf = rt.RooWorkspace("ws_corepdf", False)
             ws_corepdf.Import(
                 my_fitter.workspace.pdf(
-                    f"bwz_redux_{process}_corepdf"
+                    f"bwz_redux_{channel}_corepdf"
                 )
             )
             ws_corepdf.Import(transfer_dataset)
             coreBWZRedux = rt.RooProdPdf(
-                "bkg_bwzredux_" + "_" + process + "_" + suffix,
-                "bkg_bwzredux_" + "_" + process + "_" + suffix,
+                f"bkg_bwzredux_{channel}_{suffix}",
+                f"bkg_bwzredux_{channel}_{suffix}",
                 my_fitter.workspace.pdf(
-                    "bwz_redux" + "_" + process + "_corepdf"
+                    f"bwz_redux_{channel}_corepdf"
                 ),
                 my_fitter.workspace.pdf(
-                    transfer_func_name + "_" + process + "_" + suffix
+                    f"{transfer_func_name}_{channel}_{suffix}"
                 ),
             )
             ws_corepdf.Import(coreBWZRedux, rt.RooFit.RecycleConflictNodes())
             cat_dataSet = rt.RooDataHist(
-                "data_" + suffix,
-                "data_" + suffix,
+                f"data_{suffix}",
+                f"data_{suffix}",
                 rt.RooArgList(my_fitter.workspace.var("mass")),
                 transfer_dataset,
             )
             ndata_cat = cat_dataSet.sumEntries()
             norm_cat = rt.RooRealVar(
-                "bkg_" + suffix + "_pdf_norm",
-                "bkg_" + suffix + "_pdf_norm",
+                f"bkg_{suffix}_pdf_norm",
+                f"bkg_{suffix}_pdf_norm",
                 ndata_cat,
                 -float("inf"),
                 float("inf"),
@@ -256,7 +256,7 @@ def workflow(client, paths, parameters):
             ws_corepdf.Import(cat_dataSet)
             ws_corepdf.Import(norm_cat)
             ws_corepdf.Import(norm_Core)
-            saveWorkspace(ws_corepdf, "workspace_BackgroundFit" + suffix + args.ext)
+            saveWorkspace(ws_corepdf, f"workspace_BackgroundFit{suffix}{args.ext}")
             """
 
 

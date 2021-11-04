@@ -10,9 +10,9 @@ class Fitter(object):
         )
         self.fitmodels = kwargs.pop("fitmodels", {})
         self.requires_order = kwargs.pop("requires_order", [])
-        self.process = kwargs.pop("process", "ggH")
+        self.channel = kwargs.pop("channel", "ggH")
         self.category = kwargs.pop("category", "cat0")
-        self.tag = f"_{self.process}_{self.category}"
+        self.tag = f"_{self.channel}_{self.category}"
 
         self.data_registry = {}
         self.model_registry = []
