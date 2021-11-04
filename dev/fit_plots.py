@@ -241,10 +241,10 @@ def plot(ws, datasetName, models, isBlinded, processName, category, name, title)
     xframe2.Draw()
     c.Modified()
     c.Update()
-    c.SaveAs(processName + name + "_cat" + category + ".root")
-    c.SaveAs(processName + name + "_cat" + category + ".pdf")
+    # c.SaveAs(processName + name + "_cat" + category + ".root")
+    # c.SaveAs(processName + name + "_cat" + category + ".pdf")
     c.SaveAs(processName + name + "_cat" + category + ".png")
-    c.SaveAs(processName + name + "_cat" + category + ".C")
+    # c.SaveAs(processName + name + "_cat" + category + ".C")
 
 
 def getEffSigma(_h):

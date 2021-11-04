@@ -20,6 +20,7 @@ class Fitter(object):
             "chebychev_model": chebychev,
         }
         self.requires_order = ["chebychev_model"]
+        self.data_registry = {}
 
         self.workspace = self.create_workspace()
 
@@ -42,6 +43,11 @@ class Fitter(object):
         return w
 
     def add_data(self, data, name="ds", blinded=False):
+        if name in self.data_registry.keys():
+            raise Exception(
+                f"Error: Dataset with name {name} already exists in workspace!"
+            )
+
         if isinstance(data, pd.DataFrame):
             data = self.fill_dataset(
                 data["dimuon_mass"].values, self.workspace.obj("mass"), name=name
@@ -56,6 +62,7 @@ class Fitter(object):
         if blinded:
             data = data.reduce(rt.RooFit.CutRange("sideband_left,sideband_right"))
 
+        self.data_registry[name] = type(data)
         self.workspace.Import(data, name)
 
     def fill_dataset(self, data, x, name="ds"):
@@ -67,9 +74,16 @@ class Fitter(object):
                 ds.add(cols)
         return ds
 
-    def add_models(self, model_names):
-        for model_name in model_names:
-            self.add_model(model_name)
+    def add_models(self, models):
+        for model in models:
+            if isinstance(model, dict):
+                if "name" not in model.keys():
+                    continue
+                order = model.pop("order", None)
+                tag = model.pop("tag", None)
+                self.add_model(model["name"], order=order, tag=tag)
+            elif isinstance(model, str):
+                self.add_model(model)
 
     def add_model(self, model_name, order=None, tag=None):
         if model_name not in self.fitmodels.keys():
@@ -104,18 +118,17 @@ class Fitter(object):
         save=False,
         name="",
         title="",
-        load_as_data=False,
     ):
+        if ds_name not in self.data_registry.keys():
+            raise Exception(f"Error: Dataset {ds_name} not in workspace!")
+
         print(f"In cat {self.category}")
         pdfs = {}
         if tag is None:
             tag = self.tag
         for model in model_names:
             pdfs[model + tag] = self.workspace.pdf(model + tag)
-            if load_as_data:
-                pdfs[model + tag].fitTo(self.workspace.data(ds_name), rt.RooFit.Save())
-            else:
-                pdfs[model + tag].fitTo(self.workspace.obj(ds_name), rt.RooFit.Save())
+            pdfs[model + tag].fitTo(self.workspace.obj(ds_name), rt.RooFit.Save())
             if fix_parameters:
                 pdfs[model + tag].getParameters(rt.RooArgSet()).setAttribAll("Constant")
 
