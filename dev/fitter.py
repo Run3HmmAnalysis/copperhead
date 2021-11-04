@@ -1,5 +1,6 @@
 import ROOT as rt
 from fitmodels import chebychev, doubleCB, bwGamma, bwZredux
+from fit_plots import plot
 
 
 class Fitter(object):
@@ -86,3 +87,39 @@ class Fitter(object):
                 )
 
         self.workspace.Import(model)
+
+    def fit(
+        self,
+        ds_name,
+        model_names,
+        blinded=False,
+        fix_parameters=False,
+        tag=None,
+        save=False,
+        name="",
+        title="",
+    ):
+        print(f"In cat {self.category}")
+        pdfs = {}
+        if tag is None:
+            tag = self.tag
+        for model in model_names:
+            pdfs[model + tag] = self.workspace.pdf(model + tag)
+            if ds_name == "ds":
+                pdfs[model + tag].fitTo(self.workspace.data(ds_name), rt.RooFit.Save())
+            else:
+                pdfs[model + tag].fitTo(self.workspace.obj(ds_name), rt.RooFit.Save())
+            if fix_parameters:
+                pdfs[model + tag].getParameters(rt.RooArgSet()).setAttribAll("Constant")
+
+        if save:
+            plot(
+                self.workspace,
+                ds_name,
+                pdfs,
+                blinded,
+                tag.split("_")[1],
+                tag.split("_")[2],
+                name,
+                title,
+            )
