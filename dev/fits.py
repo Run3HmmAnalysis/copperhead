@@ -5,7 +5,7 @@ import dask.dataframe as dd
 import pandas as pd
 import glob
 from fitter import Fitter
-from fitmodels import chebychev, doubleCB, bwGamma, bwZredux
+from fitmodels import chebyshev, doubleCB, bwGamma, bwZredux
 
 rt.gROOT.SetBatch(True)
 rt.gStyle.SetOptStat(0)
@@ -73,9 +73,9 @@ def workflow(client, paths, parameters):
             "bwz_redux": bwZredux,
             "bwgamma": bwGamma,
             "dcb": doubleCB,
-            "chebychev": chebychev,
+            "chebyshev": chebyshev,
         },
-        requires_order=["chebychev"],
+        requires_order=["chebyshev"],
         process=process,
         category=category,
     )
@@ -207,9 +207,9 @@ def workflow(client, paths, parameters):
 
             cheby_order = 3 if icat < 1 else 2
             my_fitter.add_model(
-                "chebychev", tag=f"_{process}_{suffix}", order=cheby_order
+                "chebyshev", tag=f"_{process}_{suffix}", order=cheby_order
             )
-            transfer_func_names = [f"chebychev{cheby_order}"]
+            transfer_func_names = [f"chebyshev{cheby_order}"]
 
             my_fitter.fit(
                 transfer_data_name,

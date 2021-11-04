@@ -157,9 +157,9 @@ def higgsGammaGamma(x, tag):
 
 
 # ----------------------------------------
-# chebychev
+# chebyshev
 # ----------------------------------------
-def chebychev(x, tag, order=7):
+def chebyshev(x, tag, order=7):
     # c0 = RooRealVar("c0","c0", 1.0,-1.0,1.0)
     # c1 = RooRealVar("c1","c1", 1.0,-1.0,1.0)
     # c2 = RooRealVar("c2","c2", 1.0,-1.0,1.0)
@@ -171,8 +171,8 @@ def chebychev(x, tag, order=7):
         args.add(c)
         params.append(c)
 
-    chebychev = rt.RooChebychev(f"chebychev{order}" + tag, f"chebychev{order}", x, args)
-    return chebychev, params
+    chebyshev = rt.RooChebychev(f"chebyshev{order}" + tag, f"chebyshev{order}", x, args)
+    return chebyshev, params
 
 
 # ----------------------------------------
