@@ -70,7 +70,6 @@ class Fitter(object):
         outfile = rt.TFile(out_name + ".root", "recreate")
         self.workspace.Write()
         outfile.Close()
-        del self.workspace
 
     def add_data(self, data, name="ds", blinded=False):
         if name in self.data_registry.keys():
@@ -82,6 +81,8 @@ class Fitter(object):
             data = self.fill_dataset(
                 data["dimuon_mass"].values, self.workspace.obj("mass"), name=name
             )
+        elif isinstance(data, pd.Series):
+            data = self.fill_dataset(data.values, self.workspace.obj("mass"), name=name)
         elif not (
             isinstance(data, rt.TH1F)
             or isinstance(data, rt.RooDataSet)

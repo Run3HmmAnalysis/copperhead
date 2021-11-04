@@ -56,10 +56,14 @@ def workflow(client, paths, parameters):
     df_future = client.gather(df_future)
 
     # Select only one column and concatenate
-    df_future = [d[["dimuon_mass"]] for d in df_future]
+    df_future = [d[["dimuon_mass", "s"]] for d in df_future]
     df = dd.concat([d for d in df_future if len(d.columns) > 0])
     df = df.compute()
     df.reset_index(inplace=True, drop=True)
+
+    sig_cut = df.s.str.contains("ggh")
+    df_signal = df.loc[sig_cut, "dimuon_mass"]
+    df_background = df.loc[~sig_cut, "dimuon_mass"]
 
     process = args.process
     category = args.category
@@ -80,7 +84,7 @@ def workflow(client, paths, parameters):
 
     if args.doBackgroundFit:
         my_fitter.simple_fit(
-            dataset=df,
+            dataset=df_background,
             ds_name="background_ds",
             blinded=args.isBlinded,
             models=["bwz_redux", "bwgamma"],
@@ -93,7 +97,7 @@ def workflow(client, paths, parameters):
 
     if args.doSignalFit:
         my_fitter.simple_fit(
-            dataset=df,
+            dataset=df_signal,
             ds_name="signal_ds",
             blinded=False,
             models=["dcb"],
@@ -289,12 +293,11 @@ def getPValue(chi2, ndof):
 
 
 if __name__ == "__main__":
-    parameters = {"ncpus": 1}
+    parameters = {"ncpus": 20}
     # paths = glob.glob('/depot/cms/hmm/coffea/2016_sep26/data_*/*.parquet')
-    if args.doSignalFit:
-        paths = glob.glob("/depot/cms/hmm/coffea/2016_sep26/ggh_amcPS/*.parquet")
-    else:
-        paths = glob.glob("/depot/cms/hmm/coffea/2016_sep26/data_D/*.parquet")
+    paths = []
+    paths.extend(glob.glob("/depot/cms/hmm/coffea/2016_sep26/ggh_amcPS/*.parquet"))
+    paths.extend(glob.glob("/depot/cms/hmm/coffea/2016_sep26/data_D/*.parquet"))
 
     client = Client(
         processes=True,
