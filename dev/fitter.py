@@ -1,4 +1,5 @@
 import ROOT as rt
+import pandas as pd
 from fitmodels import chebychev, doubleCB, bwGamma, bwZredux
 from fit_plots import plot
 
@@ -40,30 +41,35 @@ class Fitter(object):
         w.Print()
         return w
 
-    def add_data(self, data, isBlinded, name="", convertData=True):
-        if convertData:
-            ds = self.fill_dataset(
-                data["dimuon_mass"].values,
-                self.workspace.obj("mass"),
-                dsName="ds" + name,
+    def add_data(self, data, name="ds", blinded=False):
+        if isinstance(data, pd.DataFrame):
+            data = self.fill_dataset(
+                data["dimuon_mass"].values, self.workspace.obj("mass"), name=name
             )
-            if isBlinded:
-                ds = ds.reduce(rt.RooFit.CutRange("sideband_left,sideband_right"))
-            self.workspace.Import(ds)
-        else:
-            if isBlinded:
-                data = data.reduce(rt.RooFit.CutRange("sideband_left,sideband_right"))
-            self.workspace.Import(data, "ds" + name)
+        elif not (
+            isinstance(data, rt.TH1F)
+            or isinstance(data, rt.RooDataSet)
+            or isinstance(data, rt.RooDataHist)
+        ):
+            raise Exception(f"Error: trying to add data of wrong type: {type(data)}")
 
-    def fill_dataset(self, data, x, dsName="ds"):
+        if blinded:
+            data = data.reduce(rt.RooFit.CutRange("sideband_left,sideband_right"))
+
+        self.workspace.Import(data, name)
+
+    def fill_dataset(self, data, x, name="ds"):
         cols = rt.RooArgSet(x)
-        ds = rt.RooDataSet(dsName, dsName, cols)
-        # is this the optimal way to fill the dataset?
+        ds = rt.RooDataSet(name, name, cols)
         for datum in data:
             if (datum < x.getMax()) and (datum > x.getMin()):
                 x.setVal(datum)
                 ds.add(cols)
         return ds
+
+    def add_models(self, model_names):
+        for model_name in model_names:
+            self.add_model(model_name)
 
     def add_model(self, model_name, order=None, tag=None):
         if model_name not in self.fitmodels.keys():
@@ -98,6 +104,7 @@ class Fitter(object):
         save=False,
         name="",
         title="",
+        load_as_data=False,
     ):
         print(f"In cat {self.category}")
         pdfs = {}
@@ -105,7 +112,7 @@ class Fitter(object):
             tag = self.tag
         for model in model_names:
             pdfs[model + tag] = self.workspace.pdf(model + tag)
-            if ds_name == "ds":
+            if load_as_data:
                 pdfs[model + tag].fitTo(self.workspace.data(ds_name), rt.RooFit.Save())
             else:
                 pdfs[model + tag].fitTo(self.workspace.obj(ds_name), rt.RooFit.Save())

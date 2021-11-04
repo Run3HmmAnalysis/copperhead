@@ -70,16 +70,15 @@ def workflow(client, paths, parameters):
         process_name=processName,
         category=category,
     )
-    ws = my_fitter.workspace
 
     if args.doBackgroundFit:
         model_names = ["bwz_redux_model", "bwg_model"]
-        my_fitter.add_data(df, isBlinded)
-        ds_name = "ds"
+        ds_name = "background_ds"
+        my_fitter.add_data(df, name=ds_name, blinded=isBlinded)
+
         my_fitter.workspace.Print()
 
-        for fitmodel in model_names:
-            my_fitter.add_model(fitmodel)
+        my_fitter.add_models(model_names)
 
         my_fitter.fit(
             ds_name,
@@ -96,11 +95,11 @@ def workflow(client, paths, parameters):
     if args.doSignalFit:
         isBlinded = False
         model_names = ["dcb_model"]
-        ds_name = "ds"
-        my_fitter.add_data(df, isBlinded)
+        ds_name = "signal_ds"
 
-        for fitmodel in model_names:
-            my_fitter.add_model(fitmodel)
+        my_fitter.add_data(df, name=ds_name, blinded=isBlinded)
+
+        my_fitter.add_models(model_names)
 
         my_fitter.workspace.Print()
         my_fitter.fit(
@@ -117,13 +116,13 @@ def workflow(client, paths, parameters):
     if args.getBkgModelFromMC:
         model_names = ["bwz_redux_model", "bwg_model"]
         isBlinded = False
-        for fitmodel in model_names:
-            my_fitter.add_model(fitmodel)
+        my_fitter.add_models(model_names)
         fake_data = generateData(my_fitter.workspace, "bwz_redux_model", tag, 100, lumi)
-        my_fitter.add_data(fake_data, False, "_fake", False)
+        fakedata_name = "fakedata_ds"
+        my_fitter.add_data(fake_data, name=fakedata_name, blinded=False)
         my_fitter.workspace.Print()
         my_fitter.fit(
-            "ds_fake",
+            fakedata_name,
             model_names,
             blinded=isBlinded,
             fix_parameters=False,
@@ -165,7 +164,7 @@ def workflow(client, paths, parameters):
             print(hists_All[hist_name].Integral())
             # fake_data.append(ds)
             dataStack.Add(hist)
-            my_fitter.add_data(hist, False, hist_name + "_fake", False)
+            my_fitter.add_data(hist, name=hist_name + "_fake", blinded=False)
         print(hists_All)
         dataStack_Full = dataStack.GetStack().Last()
         hists_All[dataStack_Full.GetName()] = dataStack_Full
@@ -178,11 +177,12 @@ def workflow(client, paths, parameters):
             rt.RooArgList(my_fitter.workspace.var("mass")),
             dataStack_Full,
         )
-        my_fitter.add_data(fullDataSet, False, "_Core_fake", False)
+        ds_core_fake_name = "ds_core_fake"
+        my_fitter.add_data(fullDataSet, name=ds_core_fake_name, blinded=False)
 
         my_fitter.workspace.Print()
         my_fitter.fit(
-            "ds_Core_fake",
+            ds_core_fake_name,
             core_model_names,
             blinded=isBlinded,
             fix_parameters=False,
@@ -203,7 +203,9 @@ def workflow(client, paths, parameters):
             histName = "hist" + "_" + processName + "_cat" + str(icat)
             ws_corepdf = rt.RooWorkspace("ws_corepdf", False)
             ws_corepdf.Import(
-                ws.pdf("bwz_redux_model" + "_" + processName + "_corepdf")
+                my_fitter.workspace.pdf(
+                    "bwz_redux_model" + "_" + processName + "_corepdf"
+                )
             )
             prefix = "cat" + str(icat)
             print(hists_All)
@@ -224,6 +226,7 @@ def workflow(client, paths, parameters):
                 "chebychev_model", tag=f"_{processName}_{prefix}", order=chebyOrder
             )
             transferFuncName = "chebychev" + str(chebyOrder)
+
             my_fitter.fit(
                 transferDataName,
                 [transferFuncName],
@@ -233,6 +236,7 @@ def workflow(client, paths, parameters):
                 name=f"fake_data_Background_corPdfFit{args.ext}",
                 title="Background",
                 save=True,
+                load_as_data=True,  # needed to avoid segmentation violation
             )
             coreBWZRedux = rt.RooProdPdf(
                 "bkg_bwzredux_" + "_" + processName + "_" + prefix,
