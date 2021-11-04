@@ -61,11 +61,9 @@ def workflow(client, paths, parameters):
     df = df.compute()
     df.reset_index(inplace=True, drop=True)
 
-    isBlinded = args.isBlinded
     process = args.process
     category = args.category
     tag = f"_{process}_{category}"
-    lumi = args.intLumi
 
     my_fitter = Fitter(
         fitranges={"low": 110, "high": 150, "SR_left": 120, "SR_right": 130},
@@ -84,7 +82,7 @@ def workflow(client, paths, parameters):
         my_fitter.simple_fit(
             dataset=df,
             ds_name="background_ds",
-            blinded=isBlinded,
+            blinded=args.isBlinded,
             models=["bwz_redux", "bwgamma"],
             fix_parameters=False,
             label=f"data_BackgroundFit{args.ext}",
@@ -107,7 +105,7 @@ def workflow(client, paths, parameters):
         )
 
     if args.getBkgModelFromMC:
-        fake_data = my_fitter.generate_data("bwz_redux", tag, GEN_XSEC, lumi)
+        fake_data = my_fitter.generate_data("bwz_redux", tag, GEN_XSEC, args.intLumi)
         my_fitter.simple_fit(
             dataset=fake_data,
             ds_name="fakedata_ds",
@@ -121,7 +119,6 @@ def workflow(client, paths, parameters):
         )
 
     if args.doCorePdfFit:
-        isBlinded = False
         core_model_names = ["bwz_redux"]
 
         my_fitter.add_models(
@@ -137,7 +134,7 @@ def workflow(client, paths, parameters):
         for icat in range(NCATS):
             hist_name = f"hist_{process}_cat{icat}"
             fake_data = my_fitter.generate_data(
-                "bwz_redux", f"_{process}_corepdf", GEN_XSEC, lumi
+                "bwz_redux", f"_{process}_corepdf", GEN_XSEC, args.intLumi
             )
             # fake_ds.append(fake_data)
             hist = rt.RooAbsData.createHistogram(
@@ -169,10 +166,10 @@ def workflow(client, paths, parameters):
         my_fitter.fit(
             ds_core_fake_name,
             core_model_names,
-            blinded=isBlinded,
+            blinded=False,
             fix_parameters=False,
             tag=f"_{process}_corepdf",
-            name=f"fake_data_Background_corPdfFit{args.ext}",
+            label=f"fake_data_Background_corPdfFit{args.ext}",
             title="Background",
             save=True,
         )
@@ -201,9 +198,7 @@ def workflow(client, paths, parameters):
             )
             transfer_data_name = transfer_dataset.GetName()
 
-            my_fitter.add_data(
-                transfer_dataset, name=transfer_data_name, blinded=isBlinded
-            )
+            my_fitter.add_data(transfer_dataset, name=transfer_data_name, blinded=False)
 
             cheby_order = 3 if icat < 1 else 2
             my_fitter.add_model(
@@ -214,10 +209,10 @@ def workflow(client, paths, parameters):
             my_fitter.fit(
                 transfer_data_name,
                 transfer_func_names,
-                blinded=isBlinded,
+                blinded=False,
                 fix_parameters=False,
                 tag=f"_{process}_{suffix}",
-                name=f"fake_data_Background_corPdfFit{args.ext}",
+                label=f"fake_data_Background_corPdfFit{args.ext}",
                 title="Background",
                 save=True,
             )
