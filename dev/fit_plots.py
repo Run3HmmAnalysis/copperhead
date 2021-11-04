@@ -54,7 +54,8 @@ def plotter(ws, objNames, isBlinded, channel, category, OutputFilename, title):
     c.SaveAs(OutputFilename + "_cat" + category + ".C")
 
 
-def plot(ws, datasetName, models, isBlinded, channel, category, label, title):
+def plot(fitter, ds_name, models, blinded, category, label, title):
+    ws = fitter.workspace
     c = rt.TCanvas("c_cat" + category, "c_cat" + category, 800, 800)
     offset = 0.5
     upper_pad = rt.TPad("upper_pad", "upper_pad", 0, 0.25, 1, 1)
@@ -69,46 +70,37 @@ def plot(ws, datasetName, models, isBlinded, channel, category, label, title):
     xframe = mass.frame(rt.RooFit.Title(title + " Fit in cat" + category))
     # dataset.plotOn(xframe,rt.RooFit.CutRange("sideband_left"))
     # dataset.plotOn(xframe,rt.RooFit.CutRange("sideband_right"))
-    if datasetName == "ds":
-        ws.data(datasetName).plotOn(xframe, rt.RooFit.Binning(80))
-    else:
-        ws.obj(datasetName).plotOn(xframe, rt.RooFit.Binning(80))
+
+    ws.obj(ds_name).plotOn(xframe, rt.RooFit.Binning(80))
+
     leg0 = rt.TLegend(0.15 + offset, 0.6, 0.5 + offset, 0.82)
     leg0.SetFillStyle(0)
     leg0.SetLineColor(0)
     leg0.SetTextSize(0.03)
     # leg0.AddEntry(h_data,"Data","lep")
-    if isBlinded:
+    if blinded:
         count = 0
-        for model_key in models:
-            models[model_key].plotOn(
+        for model_key, model in models.items():
+            model.plotOn(
                 xframe,
                 rt.RooFit.Range("window"),
                 rt.RooFit.NormRange("sideband_left,sideband_right"),
                 rt.RooFit.LineColor(colors[count]),
-                rt.RooFit.Name(models[model_key].GetName()),
+                rt.RooFit.Name(model.GetName()),
             )
-            leg0.AddEntry(
-                models[model_key],
-                "#splitline{" + models[model_key].GetName() + "}{model}",
-                "l",
-            )
+            leg0.AddEntry(model, "#splitline{" + model.GetName() + "}{model}", "l")
             count += 1
     else:
         count = 0
-        for model_key in models:
-            models[model_key].plotOn(
+        for model_key, model in models.items():
+            model.plotOn(
                 xframe,
                 rt.RooFit.Range("window"),
                 # rt.RooFit.NormRange("window"),
                 rt.RooFit.LineColor(colors[count]),
-                rt.RooFit.Name(models[model_key].GetName()),
+                rt.RooFit.Name(model.GetName()),
             )
-            leg0.AddEntry(
-                models[model_key],
-                "#splitline{" + models[model_key].GetName() + "}{model}",
-                "l",
-            )
+            leg0.AddEntry(model, "#splitline{" + model.GetName() + "}{model}", "l")
             count += 1
     # upper_pad = rt.TPad("up_cat"+category,"up_cat"+category,0.0,0.2,1.0,1.0,21)
     # lower_pad = rt.TPad("lp_cat"+category,"lp_cat"+category,0.0,0.0,1.0,0.2,22)
@@ -117,10 +109,8 @@ def plot(ws, datasetName, models, isBlinded, channel, category, label, title):
     if "ggH" in label:
         print("Fitting ggH signal")
         # Add TLatex to plot
-        for model_key in models:
-            h_pdf = models[model_key].createHistogram(
-                "h_pdf", mass, rt.RooFit.Binning(80)
-            )
+        for model_key, model in models.items():
+            h_pdf = model.createHistogram("h_pdf", mass, rt.RooFit.Binning(80))
         print(h_pdf.GetMaximum())
         effSigma = getEffSigma(h_pdf)
         effSigma_low, effSigma_high = (
@@ -226,7 +216,7 @@ def plot(ws, datasetName, models, isBlinded, channel, category, label, title):
     xframe2.SetTitle("")
     xframe2.addPlotable(hpull, "P")
     xframe2.GetYaxis().SetTitle("Pull")
-    if isBlinded:
+    if blinded:
         xframe2.GetYaxis().SetRangeUser(-4, 4)
     xframe2.GetYaxis().SetTitleOffset(0.3)
     xframe2.GetYaxis().SetTitleSize(0.08)
@@ -241,10 +231,11 @@ def plot(ws, datasetName, models, isBlinded, channel, category, label, title):
     xframe2.Draw()
     c.Modified()
     c.Update()
-    # c.SaveAs(channel + label + "_cat" + category + ".root")
-    # c.SaveAs(channel + label + "_cat" + category + ".pdf")
-    c.SaveAs(channel + label + "_cat" + category + ".png")
-    # c.SaveAs(channel + label + "_cat" + category + ".C")
+    out_name = f"fit_{label}_{fitter.channel}_{category}{fitter.filename_ext}"
+    # extensions = [".root", ".pdf", ".png", ".C"]
+    extensions = [".png"]
+    for e in extensions:
+        c.SaveAs(f"{out_name}{e}")
 
 
 def getEffSigma(_h):

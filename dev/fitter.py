@@ -11,8 +11,7 @@ class Fitter(object):
         self.fitmodels = kwargs.pop("fitmodels", {})
         self.requires_order = kwargs.pop("requires_order", [])
         self.channel = kwargs.pop("channel", "ggH")
-        self.category = kwargs.pop("category", "cat0")
-        self.tag = f"_{self.channel}_{self.category}"
+        self.filename_ext = kwargs.pop("filename_ext", "")
 
         self.data_registry = {}
         self.model_registry = []
@@ -22,31 +21,40 @@ class Fitter(object):
     def simple_fit(
         self,
         dataset=None,
-        ds_name="",
+        label="test",
+        category="cat0",
         blinded=False,
-        models=[],
+        model_names=[],
         fix_parameters=False,
-        label="",
         title="",
         save=True,
-        ws_out_name="",
     ):
-        if (dataset is None) or (ds_name == "") or (len(models) == 0):
-            return
-        self.add_data(dataset, name=ds_name, blinded=blinded)
-        self.add_models(models)
+        if dataset is None:
+            raise Exception("Error: dataset not provided!")
+        if len(model_names) == 0:
+            raise Exception("Error: empty list of fit models!")
+
+        ds_name = f"ds_{label}"
+        self.add_data(dataset, ds_name=ds_name, blinded=blinded)
+
+        for model_name in model_names:
+            self.add_model(model_name, category=category)
+
         self.workspace.Print()
         self.fit(
             ds_name,
-            models,
+            model_names,
             blinded=blinded,
             fix_parameters=fix_parameters,
+            category=category,
             label=label,
             title=title,
             save=save,
         )
         if save:
-            self.save_workspace(ws_out_name)
+            self.save_workspace(
+                f"workspace_{self.channel}_{category}_{label}{self.filename_ext}"
+            )
 
     def create_workspace(self):
         w = rt.RooWorkspace("w", "w")
@@ -67,22 +75,24 @@ class Fitter(object):
         return w
 
     def save_workspace(self, out_name):
-        outfile = rt.TFile(out_name + ".root", "recreate")
+        outfile = rt.TFile(f"{out_name}.root", "recreate")
         self.workspace.Write()
         outfile.Close()
 
-    def add_data(self, data, name="ds", blinded=False):
-        if name in self.data_registry.keys():
+    def add_data(self, data, ds_name="ds", blinded=False):
+        if ds_name in self.data_registry.keys():
             raise Exception(
-                f"Error: Dataset with name {name} already exists in workspace!"
+                f"Error: Dataset with name {ds_name} already exists in workspace!"
             )
 
         if isinstance(data, pd.DataFrame):
             data = self.fill_dataset(
-                data["dimuon_mass"].values, self.workspace.obj("mass"), name=name
+                data["dimuon_mass"].values, self.workspace.obj("mass"), ds_name=ds_name
             )
         elif isinstance(data, pd.Series):
-            data = self.fill_dataset(data.values, self.workspace.obj("mass"), name=name)
+            data = self.fill_dataset(
+                data.values, self.workspace.obj("mass"), ds_name=ds_name
+            )
         elif not (
             isinstance(data, rt.TH1F)
             or isinstance(data, rt.RooDataSet)
@@ -93,44 +103,31 @@ class Fitter(object):
         if blinded:
             data = data.reduce(rt.RooFit.CutRange("sideband_left,sideband_right"))
 
-        self.data_registry[name] = type(data)
-        self.workspace.Import(data, name)
+        self.data_registry[ds_name] = type(data)
+        self.workspace.Import(data, ds_name)
 
-    def fill_dataset(self, data, x, name="ds"):
+    def fill_dataset(self, data, x, ds_name="ds"):
         cols = rt.RooArgSet(x)
-        ds = rt.RooDataSet(name, name, cols)
+        ds = rt.RooDataSet(ds_name, ds_name, cols)
         for datum in data:
             if (datum < x.getMax()) and (datum > x.getMin()):
                 x.setVal(datum)
                 ds.add(cols)
         return ds
 
-    def generate_data(self, pdf_name, tag, xSec, lumi):
-        if pdf_name not in self.model_registry:
-            self.add_model(pdf_name)
-        return self.workspace.pdf(pdf_name + tag).generate(
+    def generate_data(self, model_name, category, xSec, lumi):
+        tag = f"_{self.channel}_{category}"
+        model_key = model_name + tag
+        if model_key not in self.model_registry:
+            self.add_model(model_name, category=category)
+        return self.workspace.pdf(model_key).generate(
             rt.RooArgSet(self.workspace.obj("mass")), xSec * lumi
         )
 
-    def add_models(self, models):
-        for model in models:
-            if isinstance(model, dict):
-                if "name" not in model.keys():
-                    continue
-                order = model.pop("order", None)
-                tag = model.pop("tag", None)
-                self.add_model(model["name"], order=order, tag=tag)
-            elif isinstance(model, str):
-                self.add_model(model)
-
-    def add_model(self, model_name, order=None, tag=None):
+    def add_model(self, model_name, order=None, category="cat0"):
         if model_name not in self.fitmodels.keys():
-            print(f"Error: model {model_name} does not exist!")
-            return
-
-        if tag is None:
-            tag = self.tag
-
+            raise Exception(f"Error: model {model_name} does not exist!")
+        tag = f"_{self.channel}_{category}"
         if order is None:
             model, params = self.fitmodels[model_name](self.workspace.obj("mass"), tag)
         else:
@@ -139,12 +136,13 @@ class Fitter(object):
                     self.workspace.obj("mass"), tag, order
                 )
             else:
-                print(f"Warning: model {model_name} does not require to specify order!")
-                model, params = self.fitmodels[model_name](
-                    self.workspace.obj("mass"), tag
+                raise Exception(
+                    f"Warning: model {model_name} does not require to specify order!"
                 )
-        if model_name not in self.model_registry:
-            self.model_registry.append(model_name)
+
+        model_key = model_name + tag
+        if model_key not in self.model_registry:
+            self.model_registry.append(model_key)
         self.workspace.Import(model)
 
     def fit(
@@ -153,32 +151,22 @@ class Fitter(object):
         model_names,
         blinded=False,
         fix_parameters=False,
-        tag=None,
         save=False,
+        category="cat0",
         label="",
         title="",
     ):
         if ds_name not in self.data_registry.keys():
             raise Exception(f"Error: Dataset {ds_name} not in workspace!")
 
-        print(f"In cat {self.category}")
         pdfs = {}
-        if tag is None:
-            tag = self.tag
-        for model in model_names:
-            pdfs[model + tag] = self.workspace.pdf(model + tag)
-            pdfs[model + tag].fitTo(self.workspace.obj(ds_name), rt.RooFit.Save())
+        tag = f"_{self.channel}_{category}"
+        for model_name in model_names:
+            model_key = model_name + tag
+            pdfs[model_key] = self.workspace.pdf(model_key)
+            pdfs[model_key].fitTo(self.workspace.obj(ds_name), rt.RooFit.Save())
             if fix_parameters:
-                pdfs[model + tag].getParameters(rt.RooArgSet()).setAttribAll("Constant")
+                pdfs[model_key].getParameters(rt.RooArgSet()).setAttribAll("Constant")
 
         if save:
-            plot(
-                self.workspace,
-                ds_name,
-                pdfs,
-                blinded,
-                tag.split("_")[1],
-                tag.split("_")[2],
-                label,
-                title,
-            )
+            plot(self, ds_name, pdfs, blinded, category, label, title)

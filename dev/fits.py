@@ -18,7 +18,7 @@ parser.add_argument(
     "--channel", type=str, default="ggH", help="Which channel you want to run?"
 )
 parser.add_argument(
-    "--category", type=str, default="0", help="Which category you want to run?"
+    "--category", type=str, default="cat0", help="Which category you want to run?"
 )
 parser.add_argument(
     "--isBlinded", default=True, help="Do you want to run blinded bkg fit?"
@@ -37,7 +37,7 @@ parser.add_argument(
 )
 parser.add_argument("--intLumi", default=3000, help="Integrated Luminosity in 1/fb")
 parser.add_argument(
-    "--ext", type=str, default="_new", help="The extension of output File names"
+    "--ext", type=str, default="", help="The extension of output File names"
 )
 args = parser.parse_args()
 
@@ -65,9 +65,7 @@ def workflow(client, paths, parameters):
     df_signal = df.loc[sig_cut, "dimuon_mass"]
     df_background = df.loc[~sig_cut, "dimuon_mass"]
 
-    channel = args.channel
     category = args.category
-    tag = f"_{channel}_{category}"
 
     my_fitter = Fitter(
         fitranges={"low": 110, "high": 150, "SR_left": 120, "SR_right": 130},
@@ -78,56 +76,54 @@ def workflow(client, paths, parameters):
             "chebyshev": chebyshev,
         },
         requires_order=["chebyshev"],
-        channel=channel,
-        category=category,
+        channel=args.channel,
+        filename_ext=args.ext,
     )
 
     if args.doBackgroundFit:
         my_fitter.simple_fit(
             dataset=df_background,
-            ds_name="background_ds",
+            label="background",
+            category=args.category,
             blinded=args.isBlinded,
-            models=["bwz_redux", "bwgamma"],
+            model_names=["bwz_redux", "bwgamma"],
             fix_parameters=False,
-            label=f"data_BackgroundFit{args.ext}",
             title="Background",
             save=True,
-            ws_out_name=f"workspace_BackgroundFit{tag}{args.ext}",
         )
 
     if args.doSignalFit:
         my_fitter.simple_fit(
             dataset=df_signal,
-            ds_name="signal_ds",
+            label="ggh_signal",
+            category=args.category,
             blinded=False,
-            models=["dcb"],
+            model_names=["dcb"],
             fix_parameters=True,
-            label=f"ggH_SignalFit{args.ext}",
             title="Signal",
             save=True,
-            ws_out_name=f"workspace_sigFit{tag}{args.ext}",
         )
 
     if args.getBkgModelFromMC:
-        fake_data = my_fitter.generate_data("bwz_redux", tag, GEN_XSEC, args.intLumi)
+        fake_data = my_fitter.generate_data(
+            "bwz_redux", args.category, GEN_XSEC, args.intLumi
+        )
         my_fitter.simple_fit(
             dataset=fake_data,
-            ds_name="fakedata_ds",
+            label="fakedata",
+            category=args.category,
             blinded=False,
-            models=["bwz_redux", "bwgamma"],
+            model_names=["bwz_redux", "bwgamma"],
             fix_parameters=False,
-            label=f"fake_data_BackgroundFit{args.ext}",
             title="Background",
             save=True,
-            ws_out_name=f"workspace_BackgroundFit{tag}{args.ext}",
         )
 
     if args.doCorePdfFit:
         core_model_names = ["bwz_redux"]
 
-        my_fitter.add_models(
-            [{"name": m, "tag": f"_{channel}_corepdf"} for m in core_model_names]
-        )
+        for model_name in core_model_names:
+            my_fitter.add_model(model_name, category="corepdf")
 
         # corePDF_results = {}
         # fake_ds = rt.RooDataSet("full_dataset", "full_dataset")
@@ -136,9 +132,9 @@ def workflow(client, paths, parameters):
         hists_all = {}
         data_stack = rt.THStack("full_data", "full_data")
         for icat in range(NCATS):
-            hist_name = f"hist_{channel}_cat{icat}"
+            hist_name = f"hist_{my_fitter.channel}_cat{icat}"
             fake_data = my_fitter.generate_data(
-                "bwz_redux", f"_{channel}_corepdf", GEN_XSEC, args.intLumi
+                "bwz_redux", f"_{my_fitter.channel}_corepdf", GEN_XSEC, args.intLumi
             )
             # fake_ds.append(fake_data)
             hist = rt.RooAbsData.createHistogram(
@@ -150,7 +146,7 @@ def workflow(client, paths, parameters):
             # hist.Write()
             hists_all[hist_name] = hist
             data_stack.Add(hist)
-            my_fitter.add_data(hist, name=f"{hist_name}_fake", blinded=False)
+            my_fitter.add_data(hist, ds_name=f"{hist_name}_fake", blinded=False)
 
         data_stack_full = data_stack.GetStack().Last()
         hists_all[data_stack_full.GetName()] = data_stack_full
@@ -164,7 +160,7 @@ def workflow(client, paths, parameters):
             data_stack_full,
         )
         ds_core_fake_name = "ds_core_fake"
-        my_fitter.add_data(full_dataset, name=ds_core_fake_name, blinded=False)
+        my_fitter.add_data(full_dataset, ds_name=ds_core_fake_name, blinded=False)
 
         my_fitter.workspace.Print()
         my_fitter.fit(
@@ -172,8 +168,8 @@ def workflow(client, paths, parameters):
             core_model_names,
             blinded=False,
             fix_parameters=False,
-            tag=f"_{channel}_corepdf",
-            label=f"fake_data_Background_corPdfFit{args.ext}",
+            category="corepdf",
+            label="fake_data_Background_corPdfFit",
             title="Background",
             save=True,
         )
@@ -188,26 +184,26 @@ def workflow(client, paths, parameters):
         """
 
         for icat in range(NCATS):
-            hist_name = f"hist_{channel}_cat{icat}"
-            suffix = f"cat{icat}"
+            category = f"cat{icat}"
+            hist_name = f"hist_{my_fitter.channel}_{category}"
 
             transfer_hist = hists_all[hist_name].Clone()
             transfer_hist.Divide(data_stack_full)
             transfer_hist.Scale(1 / transfer_hist.Integral())
             transfer_dataset = rt.RooDataHist(
-                f"transfer_{suffix}",
-                f"transfer_{suffix}",
+                f"transfer_{category}",
+                f"transfer_{category}",
                 rt.RooArgList(my_fitter.workspace.var("mass")),
                 transfer_hist,
             )
             transfer_data_name = transfer_dataset.GetName()
 
-            my_fitter.add_data(transfer_dataset, name=transfer_data_name, blinded=False)
+            my_fitter.add_data(
+                transfer_dataset, ds_name=transfer_data_name, blinded=False
+            )
 
             cheby_order = 3 if icat < 1 else 2
-            my_fitter.add_model(
-                "chebyshev", tag=f"_{channel}_{suffix}", order=cheby_order
-            )
+            my_fitter.add_model("chebyshev", category=category, order=cheby_order)
             transfer_func_names = [f"chebyshev{cheby_order}"]
 
             my_fitter.fit(
@@ -215,8 +211,8 @@ def workflow(client, paths, parameters):
                 transfer_func_names,
                 blinded=False,
                 fix_parameters=False,
-                tag=f"_{channel}_{suffix}",
-                label=f"fake_data_Background_corPdfFit{args.ext}",
+                category=category,
+                label="fake_data_Background_corPdfFit",
                 title="Background",
                 save=True,
             )
@@ -224,31 +220,31 @@ def workflow(client, paths, parameters):
             ws_corepdf = rt.RooWorkspace("ws_corepdf", False)
             ws_corepdf.Import(
                 my_fitter.workspace.pdf(
-                    f"bwz_redux_{channel}_corepdf"
+                    f"bwz_redux_{my_fitter.channel}_corepdf"
                 )
             )
             ws_corepdf.Import(transfer_dataset)
             coreBWZRedux = rt.RooProdPdf(
-                f"bkg_bwzredux_{channel}_{suffix}",
-                f"bkg_bwzredux_{channel}_{suffix}",
+                f"bkg_bwzredux_{my_fitter.channel}_{category}",
+                f"bkg_bwzredux_{my_fitter.channel}_{category}",
                 my_fitter.workspace.pdf(
-                    f"bwz_redux_{channel}_corepdf"
+                    f"bwz_redux_{my_fitter.channel}_corepdf"
                 ),
                 my_fitter.workspace.pdf(
-                    f"{transfer_func_name}_{channel}_{suffix}"
+                    f"{transfer_func_name}_{my_fitter.channel}_{category}"
                 ),
             )
             ws_corepdf.Import(coreBWZRedux, rt.RooFit.RecycleConflictNodes())
             cat_dataSet = rt.RooDataHist(
-                f"data_{suffix}",
-                f"data_{suffix}",
+                f"data_{category}",
+                f"data_{category}",
                 rt.RooArgList(my_fitter.workspace.var("mass")),
                 transfer_dataset,
             )
             ndata_cat = cat_dataSet.sumEntries()
             norm_cat = rt.RooRealVar(
-                f"bkg_{suffix}_pdf_norm",
-                f"bkg_{suffix}_pdf_norm",
+                f"bkg_{category}_pdf_norm",
+                f"bkg_{category}_pdf_norm",
                 ndata_cat,
                 -float("inf"),
                 float("inf"),
@@ -256,7 +252,7 @@ def workflow(client, paths, parameters):
             ws_corepdf.Import(cat_dataSet)
             ws_corepdf.Import(norm_cat)
             ws_corepdf.Import(norm_Core)
-            saveWorkspace(ws_corepdf, f"workspace_BackgroundFit{suffix}{args.ext}")
+            saveWorkspace(ws_corepdf, f"workspace_BackgroundFit{category}")
             """
 
 
