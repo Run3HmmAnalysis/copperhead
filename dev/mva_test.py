@@ -3,8 +3,8 @@ import dask.dataframe as dd
 import pandas as pd
 import glob
 
-from train_dnn import train_dnn
-from train_bdt import train_bdt
+from trainer import Trainer
+from dnn_models import run2_model_purdue
 
 training_datasets = {
     "background": ["dy_m100_mg", "ttbar_dl"],
@@ -50,14 +50,6 @@ def workflow(client, paths, parameters):
     df = df.compute()
     df.reset_index(inplace=True, drop=True)
 
-    # Convert dictionary of datasets to a more useful dataframe
-    df_info = prepare_info(training_datasets)
-    df = df[df.dataset.isin(df_info.dataset.unique())]
-
-    # Assign numerical classes to each event
-    cls_map = dict(df_info[["dataset", "iclass"]].values)
-    df["class"] = df.dataset.map(cls_map)
-
     # We will train separate methods depending on njets
     # (in VBF category it will always be 2 or more)
     njets_cats = {
@@ -65,26 +57,20 @@ def workflow(client, paths, parameters):
         "cat_1jet": df.njets == 1,
         "cat_2orMoreJets": df.njets >= 2,
     }
+    trainers = {}
     for cat_name, cat_filter in njets_cats.items():
-        if parameters["train_dnn"]:
-            train_dnn(df[cat_filter], cat_name, df_info, features)
-        if parameters["train_bdt"]:
-            train_bdt(df[cat_filter], cat_name, df_info, features)
-
-
-def prepare_info(ds_dict):
-    df_info = pd.DataFrame()
-    for icls, (cls, ds_list) in enumerate(ds_dict.items()):
-        for ds in ds_list:
-            df_info.loc[ds, "dataset"] = ds
-            df_info.loc[ds, "class"] = cls
-            df_info.loc[ds, "iclass"] = icls
-    df_info["iclass"] = df_info["iclass"].astype(int)
-    return df_info
+        trainers[cat_name] = Trainer(
+            df=df[cat_filter],
+            cat_name=cat_name,
+            ds_dict=training_datasets,
+            features=features,
+        )
+        trainers[cat_name].add_models({"test": run2_model_purdue})
+        trainers[cat_name].run_training()
 
 
 if __name__ == "__main__":
-    parameters = {"ncpus": 20, "train_dnn": True, "train_bdt": False}
+    parameters = {"ncpus": 20}
     paths = []
     for group, ds_list in training_datasets.items():
         for dataset in ds_list:
