@@ -127,8 +127,8 @@ if __name__ == "__main__":
     print("Client created")
 
     ds_names = [
-        # "ggh_powheg",
-        # "vbf_powheg",
+        "ggh_powheg",
+        "vbf_powheg",
         "dy_m100_mg",
         "ttbar_dl",
         "tttj",
@@ -148,10 +148,11 @@ if __name__ == "__main__":
     my_datasets = {name: path for name, path in datasets.items() if name in ds_names}
     fileset_json = "/depot/cms/hmm/coffea/snowmass_datasets.json"
     fileset = get_fileset(
+        client,
         my_datasets,
         parameters,
-        save_to=fileset_json,
-        # load_from=fileset_json,
+        # save_to=fileset_json,
+        load_from=fileset_json,
     )
 
     # Process all datasets at once
