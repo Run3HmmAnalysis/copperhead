@@ -1,12 +1,15 @@
+import sys
+import os
+
+os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
+[sys.path.append(i) for i in [".", ".."]]
+
 import pandas as pd
 import numpy as np
 from sklearn.metrics import roc_curve
 import matplotlib.pyplot as plt
 import mplhep as hep
-
-import sys
-
-[sys.path.append(i) for i in [".", ".."]]
+from tensorflow.keras.models import load_model
 
 from python.workflow import parallelize
 from python.io import mkdir
@@ -23,7 +26,7 @@ class Trainer(object):
         self.cat_name = kwargs.pop("cat_name", "")
         self.ds_dict = kwargs.pop("ds_dict", {})
         self.features = kwargs.pop("features", [])
-        self.plot_path = kwargs.pop("plot_path", "./")
+        self.out_path = kwargs.pop("out_path", "./")
         self.models = {}
         self.nfolds = 4
 
@@ -35,6 +38,24 @@ class Trainer(object):
         print(self.df["class"].value_counts())
         print("Training features:")
         print(self.features)
+
+        self.fold_filters_list = []
+        for ifold in range(self.nfolds):
+            i_fold_filters = {}
+            train_folds = [(ifold + f) % self.nfolds for f in [0, 1]]
+            val_folds = [(ifold + f) % self.nfolds for f in [2]]
+            eval_folds = [(ifold + f) % self.nfolds for f in [3]]
+            i_fold_filters["ifold"] = ifold
+            i_fold_filters["train_filter"] = self.df.event.mod(self.nfolds).isin(
+                train_folds
+            )
+            i_fold_filters["val_filter"] = self.df.event.mod(self.nfolds).isin(
+                val_folds
+            )
+            i_fold_filters["eval_filter"] = self.df.event.mod(self.nfolds).isin(
+                eval_folds
+            )
+            self.fold_filters_list.append(i_fold_filters)
 
     def prepare_dataset(self):
         # Convert dictionary of datasets to a more useful dataframe
@@ -62,75 +83,87 @@ class Trainer(object):
 
     def add_models(self, model_dict):
         self.models = model_dict
+        self.trained_models = {n: {} for n in self.models.keys()}
+        self.scalers = {n: {} for n in self.models.keys()}
 
     def run_training(self, client=None):
-        fold_filters = []
-        for ifold in range(self.nfolds):
-            i_fold_filters = {}
-            train_folds = [(ifold + f) % self.nfolds for f in [0, 1]]
-            val_folds = [(ifold + f) % self.nfolds for f in [2]]
-            eval_folds = [(ifold + f) % self.nfolds for f in [3]]
-            i_fold_filters["train_filter"] = self.df.event.mod(self.nfolds).isin(
-                train_folds
-            )
-            i_fold_filters["val_filter"] = self.df.event.mod(self.nfolds).isin(
-                val_folds
-            )
-            i_fold_filters["eval_filter"] = self.df.event.mod(self.nfolds).isin(
-                eval_folds
-            )
-            i_fold_filters["ifold"] = ifold
-            fold_filters.append(i_fold_filters)
-        arg_set = {"model_name": self.models.keys(), "fold_filters": fold_filters}
         if client:
-            rets = parallelize(self.train_models, arg_set, client)
-            for ret in rets:
-                self.df.loc[ret["filter"], ret["score_name"]] = ret["prediction"]
+            arg_set = {
+                "model_name": self.models.keys(),
+                "fold_filters": self.fold_filters_list,
+            }
+            rets = parallelize(self.train_model_ifold, arg_set, client)
+
         else:
+            rets = []
             for model_name in self.models.keys():
-                for ff in fold_filters:
-                    ret = self.train_models(
+                for ff in self.fold_filters_list:
+                    ret = self.train_model_ifold(
                         {"fold_filters": ff, "model_name": model_name}
                     )
-                    self.df.loc[ret["filter"], ret["score_name"]] = ret["prediction"]
+                    rets.append(ret)
+        for ret in rets:
+            model_name = ret["model_name"]
+            ifold = ret["ifold"]
+            self.trained_models[model_name][ifold] = ret["model_save_path"]
+            self.scalers[model_name][ifold] = ret["scalers_save_path"]
 
-    def train_models(self, args, parameters={}):
-        fold_filters = args["fold_filters"]
+    def run_evaluation(self, client=None):
+        if client:
+            arg_set = {
+                "model_name": self.models.keys(),
+                "fold_filters": self.fold_filters_list,
+            }
+            rets = parallelize(self.evaluate_model_ifold, arg_set, client)
+        else:
+            rets = []
+            for model_name in self.models.keys():
+                for ff in self.fold_filters_list:
+                    ret = self.evaluate_model_ifold(
+                        {"fold_filters": ff, "model_name": model_name}
+                    )
+                    rets.append(ret)
+        for ret in rets:
+            ifold = ret["ifold"]
+            model_name = ret["model_name"]
+            eval_filter = self.fold_filters_list[ifold]["eval_filter"]
+            score_name = f"{model_name}_score"
+            self.df.loc[eval_filter, score_name] = ret["prediction"]
+
+    def train_model_ifold(self, args, parameters={}):
         model_name = args["model_name"]
-        df = self.df
+        fold_filters = args["fold_filters"]
         ifold = fold_filters["ifold"]
+        df = self.df
         print(f"Training model {model_name}, fold #{ifold}...")
 
         train_filter = fold_filters["train_filter"]
         val_filter = fold_filters["val_filter"]
-        eval_filter = fold_filters["eval_filter"]
 
         other_columns = ["event", "lumi_wgt", "mc_wgt"]
 
-        df_train = df[train_filter]
-        df_val = df[val_filter]
-        df_eval = df[eval_filter]
+        x_train = df.loc[train_filter, self.features]
+        y_train = df.loc[train_filter, "class"]
+        x_val = df.loc[val_filter, self.features]
+        y_val = df.loc[val_filter, "class"]
 
-        x_train = df_train[self.features]
-        y_train = df_train["class"]
-        x_val = df_val[self.features]
-        y_val = df_val["class"]
-        x_eval = df_eval[self.features]
-        # y_eval = df_eval["class"]
-
-        x_train, x_val, x_eval = self.scale_data(x_train, x_val, x_eval, self.features)
-        x_train[other_columns] = df_train[other_columns]
-        x_val[other_columns] = df_val[other_columns]
-        x_eval[other_columns] = df_eval[other_columns]
+        normalized, scalers_save_path = self.normalize_data(
+            reference=x_train,
+            features=self.features,
+            to_normalize_dict={"x_train": x_train, "x_val": x_val},
+            model_name=model_name,
+            ifold=ifold,
+        )
+        x_train = normalized["x_train"]
+        x_val = normalized["x_val"]
+        x_train[other_columns] = df.loc[train_filter, other_columns]
+        x_val[other_columns] = df.loc[val_filter, other_columns]
 
         model = self.models[model_name]
         model = model(len(self.features), label="test")
         model.compile(
             loss="binary_crossentropy", optimizer="adam", metrics=["accuracy"]
         )
-        score_name = f"{model_name}_score"
-
-        # model.summary()
 
         # Train
         history = model.fit(
@@ -142,24 +175,54 @@ class Trainer(object):
             validation_data=(x_val[self.features], y_val),
             shuffle=True,
         )
+
+        out_path = f"{self.out_path}/models/"
+        mkdir(out_path)
+        model_save_path = f"{out_path}/model_{model_name}_{ifold}.h5"
+        model.save(model_save_path)
+
         self.plot_history(history, model_name, ifold)
-        # Evaluate instantly
-        prediction = np.array(model.predict(x_eval[self.features])).ravel()
+
         ret = {
-            "filter": eval_filter,
-            "score_name": score_name,
-            "prediction": prediction,
+            "model_name": model_name,
+            "ifold": ifold,
+            "model_save_path": model_save_path,
+            "scalers_save_path": scalers_save_path,
         }
         return ret
 
-    def scale_data(self, x_train, x_val, x_eval, inputs):
-        x_mean = np.mean(x_train[inputs].values, axis=0)
-        x_std = np.std(x_train[inputs].values, axis=0)
-        training_data = (x_train[inputs] - x_mean) / x_std
-        validation_data = (x_val[inputs] - x_mean) / x_std
-        evaluation_data = (x_eval[inputs] - x_mean) / x_std
-        # np.save(f"output/trained_models/{model}/scalers_{label}", [x_mean, x_std])
-        return training_data, validation_data, evaluation_data
+    def evaluate_model_ifold(self, args, parameters={}):
+        model_name = args["model_name"]
+        fold_filters = args["fold_filters"]
+        ifold = fold_filters["ifold"]
+        df = self.df
+        print(f"Evaluating model {model_name}, fold #{ifold}...")
+
+        eval_filter = fold_filters["eval_filter"]
+        other_columns = ["event", "lumi_wgt", "mc_wgt"]
+
+        scalers = np.load(self.scalers[model_name][ifold] + ".npy")
+        x_eval = (df.loc[eval_filter, self.features] - scalers[0]) / scalers[1]
+        x_eval[other_columns] = df.loc[eval_filter, other_columns]
+        model = load_model(self.trained_models[model_name][ifold])
+
+        prediction = np.array(model.predict(x_eval[self.features])).ravel()
+        ret = {"model_name": model_name, "ifold": ifold, "prediction": prediction}
+        return ret
+
+    def normalize_data(self, reference, features, to_normalize_dict, model_name, ifold):
+        mean = np.mean(reference[features].values, axis=0)
+        std = np.std(reference[features].values, axis=0)
+        out_path = f"{self.out_path}/scalers/"
+        mkdir(out_path)
+        save_path = f"{out_path}/scalers_{model_name}_{ifold}"
+        np.save(save_path, [mean, std])
+
+        normalized = {}
+        for key, item in to_normalize_dict.items():
+            item_normalized = (item[features] - mean) / std
+            normalized[key] = item_normalized
+        return normalized, save_path
 
     def plot_history(self, history, model_name, ifold):
         fig = plt.figure()
@@ -170,7 +233,7 @@ class Trainer(object):
         ax.set_ylabel("Loss")
         ax.set_xlabel("epoch")
         ax.legend(["Training", "Validation"], loc="best")
-        out_path = f"{self.plot_path}/losses/"
+        out_path = f"{self.out_path}/losses/"
         mkdir(out_path)
         out_name = f"{out_path}/loss_{model_name}_{ifold}.png"
         fig.savefig(out_name)
@@ -192,5 +255,5 @@ class Trainer(object):
         ax.legend(prop={"size": "x-small"})
         ax.set_xlabel("FPR")
         ax.set_ylabel("TPR")
-        out_name = f"{self.plot_path}/rocs.png"
+        out_name = f"{self.out_path}/rocs.png"
         fig.savefig(out_name)

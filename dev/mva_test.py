@@ -61,14 +61,14 @@ def workflow(client, paths, parameters):
 
     # We will train separate methods depending on njets
     # (in VBF category it will always be 2 or more)
-    njets_cats = {
+    categories = {
         "cat_0jets": df.njets == 0,
         "cat_1jet": df.njets == 1,
         "cat_2orMoreJets": df.njets >= 2,
     }
     trainers = {}
-    for cat_name, cat_filter in njets_cats.items():
-        out_dir = "/home/dkondra/hmumu-coffea-dev/mva/hmumu-coffea/dev/mva_plots/"
+    for cat_name, cat_filter in categories.items():
+        out_dir = "/home/dkondra/hmumu-coffea-dev/mva/hmumu-coffea/dev/mva_output/"
         mkdir(out_dir)
         out_dir = f"{out_dir}/{cat_name}"
         mkdir(out_dir)
@@ -79,10 +79,11 @@ def workflow(client, paths, parameters):
             cat_name=cat_name,
             ds_dict=training_datasets,
             features=features,
-            plot_path=out_dir,
+            out_path=out_dir,
         )
         trainers[cat_name].add_models({"test1": test_model_1, "test2": test_model_2})
         trainers[cat_name].run_training(client)
+        trainers[cat_name].run_evaluation(client)
 
         trainers[cat_name].plot_roc_curves()
         trainers[cat_name].df["channel"] = "vbf"  # temporary
