@@ -102,7 +102,7 @@ def make_histograms(args, parameters={}):
     )
 
     # axis for observable variable
-    if "score" in var.name:
+    if ("score" in var.name) and ("mva_bins" in parameters.keys()):
         bins = parameters["mva_bins"][var.name.replace("score_", "")][f"{year}"]
         hist = hist.Var(bins, name=var.name)
     else:
