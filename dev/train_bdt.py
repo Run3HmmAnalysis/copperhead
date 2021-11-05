@@ -1,2 +1,2 @@
-def train_bdt(df, training_datasets, training_features):
+def train_bdt(df, cat_name, df_info, features):
     return
