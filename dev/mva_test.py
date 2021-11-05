@@ -4,7 +4,7 @@ import pandas as pd
 import glob
 
 from trainer import Trainer
-from dnn_models import run2_model_purdue
+from dnn_models import test_model_1, test_model_2
 
 training_datasets = {
     "background": ["dy_m100_mg", "ttbar_dl"],
@@ -65,8 +65,9 @@ def workflow(client, paths, parameters):
             ds_dict=training_datasets,
             features=features,
         )
-        trainers[cat_name].add_models({"test": run2_model_purdue})
-        trainers[cat_name].run_training()
+        trainers[cat_name].add_models({"test1": test_model_1, "test2": test_model_2})
+        trainers[cat_name].run_training(client)
+        trainers[cat_name].plot_roc_curves()
 
 
 if __name__ == "__main__":
