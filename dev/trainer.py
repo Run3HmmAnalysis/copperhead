@@ -7,6 +7,7 @@ import mplhep as hep
 import sys
 
 [sys.path.append(i) for i in [".", ".."]]
+
 from python.workflow import parallelize
 
 style = hep.style.CMS
@@ -76,6 +77,7 @@ class Trainer(object):
             i_fold_filters["eval_filter"] = self.df.event.mod(self.nfolds).isin(
                 eval_folds
             )
+            i_fold_filters["ifold"] = ifold
             fold_filters.append(i_fold_filters)
         arg_set = {"model_name": self.models.keys(), "fold_filters": fold_filters}
         if client:
@@ -94,6 +96,8 @@ class Trainer(object):
         fold_filters = args["fold_filters"]
         model_name = args["model_name"]
         df = self.df
+        ifold = fold_filters["ifold"]
+        print(f"Training model {model_name}, fold #{ifold}...")
 
         train_filter = fold_filters["train_filter"]
         val_filter = fold_filters["val_filter"]
@@ -155,19 +159,23 @@ class Trainer(object):
         # np.save(f"output/trained_models/{model}/scalers_{label}", [x_mean, x_std])
         return training_data, validation_data, evaluation_data
 
-    def plot_roc_curves(self):
+    def plot_roc_curves(self, out_path="./"):
         roc_curves = {}
 
         fig = plt.figure()
         fig, ax = plt.subplots()
         for model_name, model in self.models.items():
             score_name = f"{model_name}_score"
-            roc_curves[score_name] = roc_curve(self.df["class"], self.df[score_name])
+            roc_curves[score_name] = roc_curve(
+                y_true=self.df["class"],
+                y_score=self.df[score_name],
+                sample_weight=self.df["lumi_wgt"] * self.df["mc_wgt"],
+            )
             ax.plot(
                 roc_curves[score_name][0], roc_curves[score_name][1], label=score_name
             )
         ax.legend(prop={"size": "x-small"})
         ax.set_xlabel("FPR")
         ax.set_ylabel("TPR")
-        out_name = f"rocs_{self.cat_name}.png"
+        out_name = f"{out_path}/rocs.png"
         fig.savefig(out_name)

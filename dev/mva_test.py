@@ -3,6 +3,15 @@ import dask.dataframe as dd
 import pandas as pd
 import glob
 
+import sys
+
+[sys.path.append(i) for i in [".", ".."]]
+
+from python.variable import Variable
+from python.convert import to_histograms
+from python.plotter import plotter
+from python.io import mkdir
+
 from trainer import Trainer
 from dnn_models import test_model_1, test_model_2
 
@@ -67,11 +76,46 @@ def workflow(client, paths, parameters):
         )
         trainers[cat_name].add_models({"test1": test_model_1, "test2": test_model_2})
         trainers[cat_name].run_training(client)
-        trainers[cat_name].plot_roc_curves()
+
+        out_dir = "/home/dkondra/hmumu-coffea-dev/mva/hmumu-coffea/mva_plots/"
+        mkdir(out_dir)
+        out_dir = f"{out_dir}/{cat_name}"
+        mkdir(out_dir)
+        parameters["plots_path"] = out_dir
+
+        trainers[cat_name].plot_roc_curves(out_path=parameters["plots_path"])
+        trainers[cat_name].df["channel"] = "vbf"  # temporary
+
+        hist_df = to_histograms(client, parameters, trainers[cat_name].df)
+        plotter(client, parameters, hist_df)
 
 
 if __name__ == "__main__":
-    parameters = {"ncpus": 20}
+    parameters = {
+        "ncpus": 20,
+        "variables_lookup": {
+            "test1_score": Variable("test1_score", "test1_score", 50, 0, 1),
+            "test2_score": Variable("test2_score", "test2_score", 50, 0, 1),
+        },
+        "years": ["snowmass"],
+        "regions": ["h-peak"],
+        "channels": ["vbf"],
+        "has_variations": False,
+        "save_hists": False,
+        "hist_vars": ["test1_score", "test2_score"],
+        "plot_vars": ["test1_score", "test2_score"],
+        "plot_ratio": False,
+        "datasets": ["dy_m100_mg", "ttbar_dl", "ggh_powheg", "vbf_powheg"],
+        "grouping": {
+            "dy_m100_mg": "DY",
+            "ttbar_dl": "TTbar",
+            "ggh_powheg": "ggH",
+            "vbf_powheg": "VBF",
+        },
+        "plot_groups": {"stack": ["DY", "TTbar"], "step": ["VBF", "ggH"]},
+        "14TeV_label": True,
+        "save_plots": True,
+    }
     paths = []
     for group, ds_list in training_datasets.items():
         for dataset in ds_list:
