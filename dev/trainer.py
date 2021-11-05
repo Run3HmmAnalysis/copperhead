@@ -28,7 +28,6 @@ class Trainer(object):
         self.features = kwargs.pop("features", [])
         self.out_path = kwargs.pop("out_path", "./")
         self.models = {}
-        self.nfolds = 4
 
         self.prepare_dataset()
         print()
@@ -39,23 +38,37 @@ class Trainer(object):
         print("Training features:")
         print(self.features)
 
+        # The part below is needed for cross-validation.
+        # Training will be done in 4 steps and at each step
+        # the dataset will be split as shown below:
+        #
+        # T = training (50% of data)
+        # V = validation (25% of data)
+        # E = evaluation (25% of data)
+        # ----------------
+        # step 0: T T V E
+        # step 1: E T T V
+        # step 2: V E T T
+        # step 3: T V E T
+        # ----------------
+        # (splitting is based on event number mod 4)
+        #
+        # This ensures that all data is used for training
+        # and for a given model evaluation is never done
+        # on the same data as training.
+
+        self.nfolds = 4
+        folds_def = {"train": [0, 1], "val": [2], "eval": [3]}
         self.fold_filters_list = []
-        for ifold in range(self.nfolds):
-            i_fold_filters = {}
-            train_folds = [(ifold + f) % self.nfolds for f in [0, 1]]
-            val_folds = [(ifold + f) % self.nfolds for f in [2]]
-            eval_folds = [(ifold + f) % self.nfolds for f in [3]]
-            i_fold_filters["ifold"] = ifold
-            i_fold_filters["train_filter"] = self.df.event.mod(self.nfolds).isin(
-                train_folds
-            )
-            i_fold_filters["val_filter"] = self.df.event.mod(self.nfolds).isin(
-                val_folds
-            )
-            i_fold_filters["eval_filter"] = self.df.event.mod(self.nfolds).isin(
-                eval_folds
-            )
-            self.fold_filters_list.append(i_fold_filters)
+        for step in range(self.nfolds):
+            fold_filters = {}
+            fold_filters["step"] = step
+            for fname, folds in folds_def.items():
+                folds_shifted = [(step + f) % self.nfolds for f in folds]
+                fold_filters[f"{fname}_filter"] = self.df.event.mod(self.nfolds).isin(
+                    folds_shifted
+                )
+            self.fold_filters_list.append(fold_filters)
 
     def prepare_dataset(self):
         # Convert dictionary of datasets to a more useful dataframe
@@ -92,21 +105,21 @@ class Trainer(object):
                 "model_name": self.models.keys(),
                 "fold_filters": self.fold_filters_list,
             }
-            rets = parallelize(self.train_model_ifold, arg_set, client)
+            rets = parallelize(self.train_model, arg_set, client)
 
         else:
             rets = []
             for model_name in self.models.keys():
                 for ff in self.fold_filters_list:
-                    ret = self.train_model_ifold(
+                    ret = self.train_model(
                         {"fold_filters": ff, "model_name": model_name}
                     )
                     rets.append(ret)
         for ret in rets:
             model_name = ret["model_name"]
-            ifold = ret["ifold"]
-            self.trained_models[model_name][ifold] = ret["model_save_path"]
-            self.scalers[model_name][ifold] = ret["scalers_save_path"]
+            step = ret["step"]
+            self.trained_models[model_name][step] = ret["model_save_path"]
+            self.scalers[model_name][step] = ret["scalers_save_path"]
 
     def run_evaluation(self, client=None):
         if client:
@@ -114,28 +127,28 @@ class Trainer(object):
                 "model_name": self.models.keys(),
                 "fold_filters": self.fold_filters_list,
             }
-            rets = parallelize(self.evaluate_model_ifold, arg_set, client)
+            rets = parallelize(self.evaluate_model, arg_set, client)
         else:
             rets = []
             for model_name in self.models.keys():
                 for ff in self.fold_filters_list:
-                    ret = self.evaluate_model_ifold(
+                    ret = self.evaluate_model(
                         {"fold_filters": ff, "model_name": model_name}
                     )
                     rets.append(ret)
         for ret in rets:
-            ifold = ret["ifold"]
+            step = ret["step"]
             model_name = ret["model_name"]
-            eval_filter = self.fold_filters_list[ifold]["eval_filter"]
+            eval_filter = self.fold_filters_list[step]["eval_filter"]
             score_name = f"{model_name}_score"
             self.df.loc[eval_filter, score_name] = ret["prediction"]
 
-    def train_model_ifold(self, args, parameters={}):
+    def train_model(self, args, parameters={}):
         model_name = args["model_name"]
         fold_filters = args["fold_filters"]
-        ifold = fold_filters["ifold"]
+        step = fold_filters["step"]
         df = self.df
-        print(f"Training model {model_name}, fold #{ifold}...")
+        print(f"Training model {model_name}, step #{step+1} out of {self.nfolds}...")
 
         train_filter = fold_filters["train_filter"]
         val_filter = fold_filters["val_filter"]
@@ -152,7 +165,7 @@ class Trainer(object):
             features=self.features,
             to_normalize_dict={"x_train": x_train, "x_val": x_val},
             model_name=model_name,
-            ifold=ifold,
+            step=step,
         )
         x_train = normalized["x_train"]
         x_val = normalized["x_val"]
@@ -178,44 +191,44 @@ class Trainer(object):
 
         out_path = f"{self.out_path}/models/"
         mkdir(out_path)
-        model_save_path = f"{out_path}/model_{model_name}_{ifold}.h5"
+        model_save_path = f"{out_path}/model_{model_name}_{step}.h5"
         model.save(model_save_path)
 
-        self.plot_history(history, model_name, ifold)
+        self.plot_history(history, model_name, step)
 
         ret = {
             "model_name": model_name,
-            "ifold": ifold,
+            "step": step,
             "model_save_path": model_save_path,
             "scalers_save_path": scalers_save_path,
         }
         return ret
 
-    def evaluate_model_ifold(self, args, parameters={}):
+    def evaluate_model(self, args, parameters={}):
         model_name = args["model_name"]
         fold_filters = args["fold_filters"]
-        ifold = fold_filters["ifold"]
+        step = fold_filters["step"]
         df = self.df
-        print(f"Evaluating model {model_name}, fold #{ifold}...")
+        print(f"Evaluating model {model_name}, step #{step+1} out of {self.nfolds}...")
 
         eval_filter = fold_filters["eval_filter"]
         other_columns = ["event", "lumi_wgt", "mc_wgt"]
 
-        scalers = np.load(self.scalers[model_name][ifold] + ".npy")
+        scalers = np.load(self.scalers[model_name][step] + ".npy")
         x_eval = (df.loc[eval_filter, self.features] - scalers[0]) / scalers[1]
         x_eval[other_columns] = df.loc[eval_filter, other_columns]
-        model = load_model(self.trained_models[model_name][ifold])
+        model = load_model(self.trained_models[model_name][step])
 
         prediction = np.array(model.predict(x_eval[self.features])).ravel()
-        ret = {"model_name": model_name, "ifold": ifold, "prediction": prediction}
+        ret = {"model_name": model_name, "step": step, "prediction": prediction}
         return ret
 
-    def normalize_data(self, reference, features, to_normalize_dict, model_name, ifold):
+    def normalize_data(self, reference, features, to_normalize_dict, model_name, step):
         mean = np.mean(reference[features].values, axis=0)
         std = np.std(reference[features].values, axis=0)
         out_path = f"{self.out_path}/scalers/"
         mkdir(out_path)
-        save_path = f"{out_path}/scalers_{model_name}_{ifold}"
+        save_path = f"{out_path}/scalers_{model_name}_{step}"
         np.save(save_path, [mean, std])
 
         normalized = {}
@@ -224,18 +237,18 @@ class Trainer(object):
             normalized[key] = item_normalized
         return normalized, save_path
 
-    def plot_history(self, history, model_name, ifold):
+    def plot_history(self, history, model_name, step):
         fig = plt.figure()
         fig, ax = plt.subplots()
         ax.plot(history.history["loss"])
         ax.plot(history.history["val_loss"])
-        ax.set_title(f"Loss of {model_name}, fold #{ifold}")
+        ax.set_title(f"Loss of {model_name}, fold #{step}")
         ax.set_ylabel("Loss")
         ax.set_xlabel("epoch")
         ax.legend(["Training", "Validation"], loc="best")
         out_path = f"{self.out_path}/losses/"
         mkdir(out_path)
-        out_name = f"{out_path}/loss_{model_name}_{ifold}.png"
+        out_name = f"{out_path}/loss_{model_name}_{step}.png"
         fig.savefig(out_name)
 
     def plot_roc_curves(self):
