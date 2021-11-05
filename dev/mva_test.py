@@ -68,22 +68,23 @@ def workflow(client, paths, parameters):
     }
     trainers = {}
     for cat_name, cat_filter in njets_cats.items():
-        trainers[cat_name] = Trainer(
-            df=df[cat_filter],
-            cat_name=cat_name,
-            ds_dict=training_datasets,
-            features=features,
-        )
-        trainers[cat_name].add_models({"test1": test_model_1, "test2": test_model_2})
-        trainers[cat_name].run_training(client)
-
-        out_dir = "/home/dkondra/hmumu-coffea-dev/mva/hmumu-coffea/mva_plots/"
+        out_dir = "/home/dkondra/hmumu-coffea-dev/mva/hmumu-coffea/dev/mva_plots/"
         mkdir(out_dir)
         out_dir = f"{out_dir}/{cat_name}"
         mkdir(out_dir)
         parameters["plots_path"] = out_dir
 
-        trainers[cat_name].plot_roc_curves(out_path=parameters["plots_path"])
+        trainers[cat_name] = Trainer(
+            df=df[cat_filter],
+            cat_name=cat_name,
+            ds_dict=training_datasets,
+            features=features,
+            plot_path=out_dir,
+        )
+        trainers[cat_name].add_models({"test1": test_model_1, "test2": test_model_2})
+        trainers[cat_name].run_training(client)
+
+        trainers[cat_name].plot_roc_curves()
         trainers[cat_name].df["channel"] = "vbf"  # temporary
 
         hist_df = to_histograms(client, parameters, trainers[cat_name].df)

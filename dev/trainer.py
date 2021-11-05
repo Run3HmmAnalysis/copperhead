@@ -9,6 +9,7 @@ import sys
 [sys.path.append(i) for i in [".", ".."]]
 
 from python.workflow import parallelize
+from python.io import mkdir
 
 style = hep.style.CMS
 style["mathtext.fontset"] = "cm"
@@ -22,6 +23,7 @@ class Trainer(object):
         self.cat_name = kwargs.pop("cat_name", "")
         self.ds_dict = kwargs.pop("ds_dict", {})
         self.features = kwargs.pop("features", [])
+        self.plot_path = kwargs.pop("plot_path", "./")
         self.models = {}
         self.nfolds = 4
 
@@ -131,8 +133,7 @@ class Trainer(object):
         # model.summary()
 
         # Train
-        # history =
-        model.fit(
+        history = model.fit(
             x_train[self.features],
             y_train,
             epochs=100,
@@ -141,6 +142,7 @@ class Trainer(object):
             validation_data=(x_val[self.features], y_val),
             shuffle=True,
         )
+        self.plot_history(history, model_name, ifold)
         # Evaluate instantly
         prediction = np.array(model.predict(x_eval[self.features])).ravel()
         ret = {
@@ -159,9 +161,22 @@ class Trainer(object):
         # np.save(f"output/trained_models/{model}/scalers_{label}", [x_mean, x_std])
         return training_data, validation_data, evaluation_data
 
-    def plot_roc_curves(self, out_path="./"):
-        roc_curves = {}
+    def plot_history(self, history, model_name, ifold):
+        fig = plt.figure()
+        fig, ax = plt.subplots()
+        ax.plot(history.history["loss"])
+        ax.plot(history.history["val_loss"])
+        ax.set_title(f"Loss of {model_name}, fold #{ifold}")
+        ax.set_ylabel("Loss")
+        ax.set_xlabel("epoch")
+        ax.legend(["Training", "Validation"], loc="best")
+        out_path = f"{self.plot_path}/losses/"
+        mkdir(out_path)
+        out_name = f"{out_path}/loss_{model_name}_{ifold}.png"
+        fig.savefig(out_name)
 
+    def plot_roc_curves(self):
+        roc_curves = {}
         fig = plt.figure()
         fig, ax = plt.subplots()
         for model_name, model in self.models.items():
@@ -177,5 +192,5 @@ class Trainer(object):
         ax.legend(prop={"size": "x-small"})
         ax.set_xlabel("FPR")
         ax.set_ylabel("TPR")
-        out_name = f"{out_path}/rocs.png"
+        out_name = f"{self.plot_path}/rocs.png"
         fig.savefig(out_name)
