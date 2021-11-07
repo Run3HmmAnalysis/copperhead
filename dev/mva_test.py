@@ -2,6 +2,7 @@ from dask.distributed import Client
 import dask.dataframe as dd
 import pandas as pd
 import glob
+import time
 
 import sys
 
@@ -19,7 +20,7 @@ training_datasets = {
     "background": ["dy_m100_mg", "ttbar_dl"],
     "signal": ["ggh_powheg", "vbf_powheg"],
 }
-# something similar to Run 2
+# something similar to Run 2 VBF DNN
 features = [
     "dimuon_mass",
     "dimuon_pt",
@@ -39,6 +40,30 @@ features = [
     "rpt",
     "ll_zstar_log",
     "mmj_min_dEta",
+]
+
+# exactly like in Run 2 ggH BDT
+features = [
+    "dimuon_pt",
+    "dimuon_rap",
+    "dimuon_cos_theta_cs",
+    "dimuon_phi_cs",
+    "mu1_pt_over_mass",
+    "mu1_eta",
+    "mu2_pt_over_mass",
+    "mu2_eta",
+    "jet1_pt",
+    "jet1_eta",
+    "mmj1_dEta",
+    "mmj1_dPhi",
+    "jet2_pt",
+    "jet2_eta",
+    "mmj2_dEta",
+    "mmj2_dPhi",
+    "jj_dEta",
+    "jj_dPhi",
+    "jj_mass",
+    "zeppenfeld",
 ]
 
 
@@ -68,6 +93,7 @@ def workflow(client, paths, parameters):
     }
     trainers = {}
     for cat_name, cat_filter in categories.items():
+        t_start = time.time()
         out_dir = "/home/dkondra/hmumu-coffea-dev/mva/hmumu-coffea/dev/mva_output/"
         mkdir(out_dir)
         out_dir = f"{out_dir}/{cat_name}"
@@ -90,6 +116,8 @@ def workflow(client, paths, parameters):
 
         hist_df = to_histograms(client, parameters, trainers[cat_name].df)
         plotter(client, parameters, hist_df)
+        elapsed = round(time.time() - t_start, 3)
+        print(f"Category {cat_name}: done in {elapsed} s.")
 
 
 if __name__ == "__main__":
@@ -132,4 +160,7 @@ if __name__ == "__main__":
         memory_limit="4GB",
     )
 
+    tick = time.time()
     workflow(client, paths, parameters)
+    elapsed = round(time.time() - tick, 3)
+    print(f"Completed in {elapsed} s.")

@@ -10,6 +10,7 @@ from sklearn.metrics import roc_curve
 import matplotlib.pyplot as plt
 import mplhep as hep
 from tensorflow.keras.models import load_model
+import tensorflow.keras.backend as K
 
 from python.workflow import parallelize
 from python.io import mkdir
@@ -29,6 +30,7 @@ class Trainer(object):
         self.out_path = kwargs.pop("out_path", "./")
         self.models = {}
 
+        self.fix_variables()
         self.prepare_dataset()
         print()
         print("*" * 60)
@@ -69,6 +71,10 @@ class Trainer(object):
                     folds_shifted
                 )
             self.fold_filters_list.append(fold_filters)
+
+    def fix_variables(self):
+        self.df.loc[:, "mu1_pt_over_mass"] = self.df.mu1_pt / self.df.dimuon_mass
+        self.df.loc[:, "mu2_pt_over_mass"] = self.df.mu2_pt / self.df.dimuon_mass
 
     def prepare_dataset(self):
         # Convert dictionary of datasets to a more useful dataframe
@@ -148,7 +154,9 @@ class Trainer(object):
         fold_filters = args["fold_filters"]
         step = fold_filters["step"]
         df = self.df
+
         print(f"Training model {model_name}, step #{step+1} out of {self.nfolds}...")
+        K.clear_session()
 
         train_filter = fold_filters["train_filter"]
         val_filter = fold_filters["val_filter"]
@@ -194,8 +202,9 @@ class Trainer(object):
         model_save_path = f"{out_path}/model_{model_name}_{step}.h5"
         model.save(model_save_path)
 
+        K.clear_session()
+        print(f"Done training: model {model_name}, step #{step+1} out of {self.nfolds}")
         self.plot_history(history, model_name, step)
-
         ret = {
             "model_name": model_name,
             "step": step,
@@ -209,7 +218,9 @@ class Trainer(object):
         fold_filters = args["fold_filters"]
         step = fold_filters["step"]
         df = self.df
+
         print(f"Evaluating model {model_name}, step #{step+1} out of {self.nfolds}...")
+        K.clear_session()
 
         eval_filter = fold_filters["eval_filter"]
         other_columns = ["event", "lumi_wgt", "mc_wgt"]
@@ -218,8 +229,13 @@ class Trainer(object):
         x_eval = (df.loc[eval_filter, self.features] - scalers[0]) / scalers[1]
         x_eval[other_columns] = df.loc[eval_filter, other_columns]
         model = load_model(self.trained_models[model_name][step])
-
         prediction = np.array(model.predict(x_eval[self.features])).ravel()
+
+        K.clear_session()
+        print(
+            f"Done evaluating: model {model_name}, step #{step+1} out of {self.nfolds}"
+        )
+
         ret = {"model_name": model_name, "step": step, "prediction": prediction}
         return ret
 
