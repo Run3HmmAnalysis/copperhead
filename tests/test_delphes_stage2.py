@@ -11,6 +11,7 @@ from delphes.postprocessor import load_dataframe
 from delphes.config.variables import variables_lookup
 from python.convert import to_histograms, to_templates
 from python.plotter import plotter
+from python.fitter import run_fits
 from test_tools import almost_equal
 
 __all__ = ["dask"]
@@ -33,6 +34,8 @@ parameters = {
     "variables_lookup": variables_lookup,
     "grouping": {"dy_m100_mg": "DY"},
     "plot_groups": {"stack": ["DY"], "step": [], "errorbar": []},
+    "signals": ["ggh_powheg", "vbf_powheg"],
+    "save_fits": False,
 }
 
 
@@ -47,6 +50,7 @@ if __name__ == "__main__":
     path = f"{os.getcwd()}/tests/samples/{file_name}"
 
     out_df = load_dataframe(client, parameters, inputs=[path])
+    out_fits = run_fits(client, parameters, df=out_df)
     out_hist = to_histograms(client, parameters, df=out_df)
     out_plot = plotter(client, parameters, hist_df=out_hist)
     out_tmp = to_templates(client, parameters, hist_df=out_hist)
