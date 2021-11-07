@@ -7,6 +7,79 @@ from python.fit_plots import plot
 from python.fit_models import chebyshev, doubleCB, bwGamma, bwZredux
 
 
+def run_fits(client, parameters, df):
+    signal_ds = parameters.pop("signals", [])
+    all_datasets = df.dataset.unique()
+    signals = [ds for ds in all_datasets if ds in signal_ds]
+    backgrounds = [ds for ds in all_datasets if ds not in signal_ds]
+    fit_setups = []
+    if len(backgrounds) > 0:
+        fit_setup = {
+            "label": "background",
+            "mode": "bkg",
+            "df": df[df.dataset.isin(backgrounds)],
+            "blinded": True,
+        }
+        fit_setups.append(fit_setup)
+    for ds in signals:
+        fit_setup = {"label": ds, "mode": "sig", "df": df[df.dataset == ds]}
+        fit_setups.append(fit_setup)
+
+    argset = {"fit_setup": fit_setups}
+    fit_ret = parallelize(fitter, argset, client, parameters)
+    return fit_ret
+
+
+def fitter(args, parameters={}):
+    fit_setup = args["fit_setup"]
+    df = fit_setup["df"]
+    label = fit_setup["label"]
+    mode = fit_setup["mode"]
+    blinded = fit_setup.pop("blinded", False)
+    save = parameters.pop("save_fits", False)
+    save_path = parameters.pop("save_fits_path", "./")
+
+    the_fitter = Fitter(
+        fitranges={"low": 110, "high": 150, "SR_left": 120, "SR_right": 130},
+        fitmodels={
+            "bwz_redux": bwZredux,
+            "bwgamma": bwGamma,
+            "dcb": doubleCB,
+            "chebyshev": chebyshev,
+        },
+        requires_order=["chebyshev"],
+        channel="ggH",
+        filename_ext="",
+    )
+    if mode == "bkg":
+        # background fit should be binned!
+        the_fitter.simple_fit(
+            dataset=df,
+            label=label,
+            category="cat0",  # temporary
+            blinded=blinded,
+            model_names=["bwz_redux", "bwgamma"],
+            fix_parameters=False,
+            title="Background",
+            save=save,
+            save_path=save_path,
+        )
+
+    if mode == "sig":
+        the_fitter.simple_fit(
+            dataset=df,
+            label=label,
+            category="cat0",  # temporary
+            blinded=False,
+            model_names=["dcb"],
+            fix_parameters=True,
+            title="Signal",
+            save=save,
+            save_path=save_path,
+        )
+    return 0
+
+
 class Fitter(object):
     def __init__(self, **kwargs):
         self.fitranges = kwargs.pop(
@@ -179,77 +252,3 @@ class Fitter(object):
         if save:
             mkdir(save_path)
             plot(self, ds_name, pdfs, blinded, category, label, title, save_path)
-
-
-def run_fits(client, parameters, df):
-    signal_ds = parameters.pop("signals", [])
-    all_datasets = df.dataset.unique()
-    signals = [ds for ds in all_datasets if ds in signal_ds]
-    backgrounds = [ds for ds in all_datasets if ds not in signal_ds]
-    fit_setups = []
-    if len(backgrounds) > 0:
-        fit_setup = {
-            "label": "background",
-            "mode": "bkg",
-            "df": df[df.dataset.isin(backgrounds)],
-            "blinded": True,
-        }
-        fit_setups.append(fit_setup)
-    for ds in signals:
-        fit_setup = {"label": ds, "mode": "sig", "df": df[df.dataset == ds]}
-        fit_setups.append(fit_setup)
-
-    argset = {"fit_setup": fit_setups}
-    fit_ret = parallelize(fitter, argset, client, parameters)
-
-    return fit_ret
-
-
-def fitter(args, parameters={}):
-    fit_setup = args["fit_setup"]
-    df = fit_setup["df"]
-    label = fit_setup["label"]
-    mode = fit_setup["mode"]
-    blinded = fit_setup.pop("blinded", False)
-    save = parameters.pop("save_fits", False)
-    save_path = parameters.pop("save_fits_path", "./")
-
-    the_fitter = Fitter(
-        fitranges={"low": 110, "high": 150, "SR_left": 120, "SR_right": 130},
-        fitmodels={
-            "bwz_redux": bwZredux,
-            "bwgamma": bwGamma,
-            "dcb": doubleCB,
-            "chebyshev": chebyshev,
-        },
-        requires_order=["chebyshev"],
-        channel="ggH",
-        filename_ext="",
-    )
-    if mode == "bkg":
-        # background fit should be binned!
-        the_fitter.simple_fit(
-            dataset=df,
-            label=label,
-            category="cat0",  # temporary
-            blinded=blinded,
-            model_names=["bwz_redux", "bwgamma"],
-            fix_parameters=False,
-            title="Background",
-            save=save,
-            save_path=save_path,
-        )
-
-    if mode == "sig":
-        the_fitter.simple_fit(
-            dataset=df,
-            label=label,
-            category="cat0",  # temporary
-            blinded=False,
-            model_names=["dcb"],
-            fix_parameters=True,
-            title="Signal",
-            save=save,
-            save_path=save_path,
-        )
-    return 0
