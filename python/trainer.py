@@ -33,8 +33,12 @@ def run_mva(client, parameters, df):
     mva_path = parameters.pop("mva_path", "./")
     mkdir(mva_path)
     dnn_models = parameters.pop("dnn_models", {})
+    saved_models = parameters.pop("saved_models", {})
     training_datasets = parameters.pop("training_datasets", {})
     features = parameters.pop("training_features", [])
+    do_training = parameters.pop("mva_do_training", False)
+    do_evaluation = parameters.pop("mva_do_evaluation", False)
+    do_plotting = parameters.pop("mva_do_plotting", False)
     for cat_name, cat_filter in categories.items():
         out_dir = f"{mva_path}/{cat_name}"
         mkdir(out_dir)
@@ -47,26 +51,35 @@ def run_mva(client, parameters, df):
             features=features,
             out_path=out_dir,
         )
-        trainers[cat_name].add_models(dnn_models)
-        trainers[cat_name].run_training(client)
-        trainers[cat_name].run_evaluation(client)
+        if do_training:
+            trainers[cat_name].add_models(dnn_models)
+            trainers[cat_name].run_training(client)
 
-        trainers[cat_name].plot_roc_curves()
-        trainers[cat_name].df["channel"] = "vbf"  # temporary
-
-        parameters_tmp = parameters.copy()
-        parameters_tmp["hist_vars"] = []
-        parameters_tmp["plot_vars"] = []
-        for model_name in dnn_models.keys():
-            score_name = f"{model_name}_score"
-            parameters_tmp["hist_vars"].append(score_name)
-            parameters_tmp["plot_vars"].append(score_name)
-            parameters_tmp["variables_lookup"][score_name] = Variable(
-                score_name, score_name, 50, 0, 1
+        if len(saved_models.keys()) > 0:
+            trainers[cat_name].add_saved_models(
+                {k: f"{v}/{cat_name}/" for k, v in saved_models.items()}
             )
 
-        hist_df = to_histograms(client, parameters_tmp, trainers[cat_name].df)
-        plotter(client, parameters_tmp, hist_df)
+        if do_evaluation:
+            trainers[cat_name].run_evaluation(client)
+
+        if do_plotting:
+            trainers[cat_name].plot_roc_curves()
+            trainers[cat_name].df["channel"] = "vbf"  # temporary
+            parameters_tmp = parameters.copy()
+            parameters_tmp["hist_vars"] = []
+            parameters_tmp["plot_vars"] = []
+            all_models = list(set(list(dnn_models.keys()) + list(saved_models.keys())))
+            for model_name in all_models:
+                score_name = f"{model_name}_score"
+                parameters_tmp["hist_vars"].append(score_name)
+                parameters_tmp["plot_vars"].append(score_name)
+                parameters_tmp["variables_lookup"][score_name] = Variable(
+                    score_name, score_name, 50, 0, 1
+                )
+
+            hist_df = to_histograms(client, parameters_tmp, trainers[cat_name].df)
+            plotter(client, parameters_tmp, hist_df)
 
 
 class Trainer(object):
@@ -77,6 +90,8 @@ class Trainer(object):
         self.features = kwargs.pop("features", [])
         self.out_path = kwargs.pop("out_path", "./")
         self.models = {}
+        self.trained_models = {}
+        self.scalers = {}
 
         self.fix_variables()
         self.prepare_dataset()
@@ -131,6 +146,7 @@ class Trainer(object):
         for icls, (cls, ds_list) in enumerate(self.ds_dict.items()):
             for ds in ds_list:
                 df_info.loc[ds, "dataset"] = ds
+                df_info.loc[ds, "iclass"] = -1
                 if cls != "ignore":
                     self.train_samples.append(ds)
                     df_info.loc[ds, "class"] = cls
@@ -156,6 +172,20 @@ class Trainer(object):
         self.models = model_dict
         self.trained_models = {n: {} for n in self.models.keys()}
         self.scalers = {n: {} for n in self.models.keys()}
+
+    def add_saved_models(self, model_dict):
+        for model_name, model_path in model_dict.items():
+            self.models[model_name] = None
+            print(f"Loading model {model_name} from {model_path}")
+            self.trained_models[model_name] = {}
+            self.scalers[model_name] = {}
+            for step in range(self.nfolds):
+                self.trained_models[model_name][
+                    step
+                ] = f"{model_path}/models/model_{model_name}_{step}.h5"
+                self.scalers[model_name][
+                    step
+                ] = f"{model_path}/scalers/scalers_{model_name}_{step}"
 
     def run_training(self, client=None):
         if client:
@@ -279,6 +309,9 @@ class Trainer(object):
 
         scalers = np.load(self.scalers[model_name][step] + ".npy")
         x_eval = (df.loc[eval_filter, self.features] - scalers[0]) / scalers[1]
+        if x_eval.shape[0] == 0:
+            return {"model_name": model_name, "step": step, "prediction": []}
+
         x_eval[other_columns] = df.loc[eval_filter, other_columns]
         model = load_model(self.trained_models[model_name][step])
         prediction = np.array(model.predict(x_eval[self.features])).ravel()

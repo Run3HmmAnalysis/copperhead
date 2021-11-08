@@ -5,11 +5,10 @@ import dask
 from dask.distributed import Client
 import pandas as pd
 
-from python.timer import Timer
 from delphes.postprocessor import load_dataframe
 from delphes.config.variables import variables_lookup
 from python.trainer import run_mva
-from python.dnn_models import test_model_1, test_model_2
+from python.dnn_models import test_model_1  # , test_model_2
 
 # from python.convert import to_histograms
 from python.plotter import plotter
@@ -88,16 +87,23 @@ parameters = {
     "mva_path": "./plots_test/snowmass/mva_output/",
     "years": ["snowmass"],
     "syst_variations": ["nominal"],
-    "channels": ["vbf", "vbf_01j", "vbf_2j"],
+    "channels": ["vbf"],  # , "vbf_01j", "vbf_2j"],
     # 'channels': ['ggh_01j', 'ggh_2j'],
-    "regions": ["h-peak", "h-sidebands"],
+    "regions": ["h-peak"],  # "h-sidebands"],
     "save_hists": True,
     "save_plots": True,
     "plot_ratio": False,
     "14TeV_label": True,
     "has_variations": False,
     "variables_lookup": variables_lookup,
-    "dnn_models": {"test1": test_model_1, "test2": test_model_2},
+    "dnn_models": {
+        "test1": test_model_1,
+        # "test2": test_model_2
+    },
+    "saved_models": {"test1": "data/dnn_models/test1/"},
+    "mva_do_training": False,
+    "mva_do_evaluation": True,
+    "mva_do_plotting": True,
     "training_datasets": {
         "background": ["dy_m100_mg", "ttbar_dl"],
         "signal": ["ggh_powheg", "vbf_powheg"],
@@ -176,8 +182,6 @@ parameters["plot_groups"] = {
 
 
 if __name__ == "__main__":
-    timer = Timer(ordered=False)
-
     if use_local_cluster:
         print(
             f"Creating local cluster with {ncpus_local} workers."
@@ -294,7 +298,7 @@ if __name__ == "__main__":
             for path in tqdm.tqdm(all_paths):
                 if len(path) == 0:
                     continue
-                df = load_dataframe(client, parameters, inputs=[path], timer=timer)
+                df = load_dataframe(client, parameters, inputs=[path])
                 dfs.append(df)
                 # to_histograms(client, parameters, df=df)
         else:
@@ -303,7 +307,7 @@ if __name__ == "__main__":
                 for group, g_paths in tqdm.tqdm(groups.items()):
                     if len(g_paths) == 0:
                         continue
-                    df = load_dataframe(client, parameters, inputs=g_paths, timer=timer)
+                    df = load_dataframe(client, parameters, inputs=g_paths)
                     dfs.append(df)
                     # to_histograms(client, parameters, df=df)
 
@@ -312,5 +316,4 @@ if __name__ == "__main__":
         run_mva(client, parameters, df)
 
     if args.plot:
-        plotter(client, parameters, timer=timer)
-    timer.summary()
+        plotter(client, parameters)
