@@ -19,6 +19,19 @@ from dnn_models import test_model_1, test_model_2
 training_datasets = {
     "background": ["dy_m100_mg", "ttbar_dl"],
     "signal": ["ggh_powheg", "vbf_powheg"],
+    "ignore": [
+        "tttj",
+        "tttt",
+        "tttw",
+        "ttwj",
+        "ttww",
+        "ttz",
+        "st_s",
+        "st_t_antitop",
+        "st_tw_top",
+        "st_tw_antitop",
+        "zz_2l2q",
+    ],
 }
 # something similar to Run 2 VBF DNN
 features = [
@@ -135,23 +148,41 @@ if __name__ == "__main__":
         "hist_vars": ["test1_score", "test2_score"],
         "plot_vars": ["test1_score", "test2_score"],
         "plot_ratio": False,
-        "datasets": ["dy_m100_mg", "ttbar_dl", "ggh_powheg", "vbf_powheg"],
+        # "datasets": ["dy_m100_mg", "ttbar_dl", "ggh_powheg", "vbf_powheg"],
         "grouping": {
-            "dy_m100_mg": "DY",
-            "ttbar_dl": "TTbar",
             "ggh_powheg": "ggH",
             "vbf_powheg": "VBF",
+            "dy_m100_mg": "DY",
+            "ttbar_dl": "TTbar",
+            "tttj": "TTbar",
+            "tttt": "TTbar",
+            "tttw": "TTbar",
+            "ttwj": "TTbar",
+            "ttww": "TTbar",
+            "ttz": "TTbar",
+            "st_s": "Single top",
+            # "st_t_top": "Single top",
+            "st_t_antitop": "Single top",
+            "st_tw_top": "Single top",
+            "st_tw_antitop": "Single top",
+            "zz_2l2q": "VV",
         },
-        "plot_groups": {"stack": ["DY", "TTbar"], "step": ["VBF", "ggH"]},
+        "plot_groups": {
+            "stack": ["DY", "TTbar", "Single Top", "VV"],
+            "step": ["VBF", "ggH"],
+        },
         "14TeV_label": True,
         "save_plots": True,
     }
     paths = []
+    all_ds = []
     for group, ds_list in training_datasets.items():
         for dataset in ds_list:
+            all_ds.append(dataset)
             paths.extend(
-                glob.glob(f"/depot/cms/hmm/coffea/snowmass_nov3/{dataset}/0*.parquet")
+                glob.glob(f"/depot/cms/hmm/coffea/snowmass_nov3/{dataset}/*.parquet")
             )
+    parameters["datasets"] = all_ds
 
     client = Client(
         processes=True,

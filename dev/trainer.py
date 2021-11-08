@@ -79,12 +79,16 @@ class Trainer(object):
     def prepare_dataset(self):
         # Convert dictionary of datasets to a more useful dataframe
         df_info = pd.DataFrame()
+        self.train_samples = []
         for icls, (cls, ds_list) in enumerate(self.ds_dict.items()):
             for ds in ds_list:
                 df_info.loc[ds, "dataset"] = ds
-                df_info.loc[ds, "class"] = cls
-                df_info.loc[ds, "iclass"] = icls
-        df_info["iclass"] = df_info["iclass"].astype(int)
+                if cls != "ignore":
+                    self.train_samples.append(ds)
+                    df_info.loc[ds, "class"] = cls
+                    df_info.loc[ds, "iclass"] = icls
+        df_info["iclass"] = df_info["iclass"].fillna(-1).astype(int)
+
         self.df = self.df[self.df.dataset.isin(df_info.dataset.unique())]
 
         # Assign numerical classes to each event
@@ -153,7 +157,7 @@ class Trainer(object):
         model_name = args["model_name"]
         fold_filters = args["fold_filters"]
         step = fold_filters["step"]
-        df = self.df
+        df = self.df[self.df.dataset.isin(self.train_samples)]
 
         print(f"Training model {model_name}, step #{step+1} out of {self.nfolds}...")
         K.clear_session()
@@ -271,12 +275,13 @@ class Trainer(object):
         roc_curves = {}
         fig = plt.figure()
         fig, ax = plt.subplots()
+        df = self.df[self.df.dataset.isin(self.train_samples)]
         for model_name, model in self.models.items():
             score_name = f"{model_name}_score"
             roc_curves[score_name] = roc_curve(
-                y_true=self.df["class"],
-                y_score=self.df[score_name],
-                sample_weight=self.df["lumi_wgt"] * self.df["mc_wgt"],
+                y_true=df["class"],
+                y_score=df[score_name],
+                sample_weight=df["lumi_wgt"] * df["mc_wgt"],
             )
             ax.plot(
                 roc_curves[score_name][0], roc_curves[score_name][1], label=score_name
