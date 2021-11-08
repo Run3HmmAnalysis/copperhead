@@ -7,8 +7,8 @@ import pandas as pd
 
 from delphes.postprocessor import load_dataframe
 from delphes.config.variables import variables_lookup
+from delphes.dnn_models import test_model_1  # , test_model_2
 from python.trainer import run_mva
-from python.dnn_models import test_model_1  # , test_model_2
 
 # from python.convert import to_histograms
 from python.plotter import plotter
