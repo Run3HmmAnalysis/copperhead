@@ -53,7 +53,7 @@ def load_dataframe(client, parameters, inputs=[], timer=None):
     if ("channel" not in df.columns) and ("c" in df.columns):
         df["channel"] = df["c"]
 
-    keep_columns = ["dataset", "year", "region", "channel"]
+    keep_columns = ["dataset", "year", "region", "channel", "event"]
     keep_columns += [c for c in df.columns if "wgt" in c]
     keep_columns += parameters["hist_vars"]
 
