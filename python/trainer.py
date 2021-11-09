@@ -63,6 +63,8 @@ def run_mva(client, parameters, df):
         if do_evaluation:
             trainers[cat_name].run_evaluation(client)
 
+            trainers[cat_name].shape_in_bins(shape_of="dimuon_mass", nbins=4)
+
         if do_plotting:
             trainers[cat_name].plot_roc_curves()
             trainers[cat_name].df["channel"] = "vbf"  # temporary
@@ -99,7 +101,7 @@ class Trainer(object):
         print("*" * 60)
         print("In category", self.cat_name)
         print("Event counts in classes:")
-        print(self.df["class"].value_counts())
+        print(self.df["class_name"].value_counts())
         print("Training features:")
         print(self.features)
 
@@ -140,6 +142,15 @@ class Trainer(object):
         self.df.loc[:, "mu2_pt_over_mass"] = self.df.mu2_pt / self.df.dimuon_mass
 
     def prepare_dataset(self):
+        # Ignore features that have incorrect values
+        # (we handle them by categorizing data by njets)
+        ignore_features = self.df.loc[:, self.df.min(axis=0) == -999.0].columns
+        features_clean = []
+        for c in self.df.columns:
+            if (c in self.features) and (c not in ignore_features):
+                features_clean.append(c)
+        self.features = features_clean
+
         # Convert dictionary of datasets to a more useful dataframe
         df_info = pd.DataFrame()
         self.train_samples = []
@@ -149,24 +160,16 @@ class Trainer(object):
                 df_info.loc[ds, "iclass"] = -1
                 if cls != "ignore":
                     self.train_samples.append(ds)
-                    df_info.loc[ds, "class"] = cls
+                    df_info.loc[ds, "class_name"] = cls
                     df_info.loc[ds, "iclass"] = icls
         df_info["iclass"] = df_info["iclass"].fillna(-1).astype(int)
-
         self.df = self.df[self.df.dataset.isin(df_info.dataset.unique())]
 
         # Assign numerical classes to each event
         cls_map = dict(df_info[["dataset", "iclass"]].values)
+        cls_name_map = dict(df_info[["dataset", "class_name"]].values)
         self.df["class"] = self.df.dataset.map(cls_map)
-
-        # Ignore features that have incorrect values
-        # (we handle them by categorizing data by njets)
-        ignore_features = self.df.loc[:, self.df.min(axis=0) == -999.0].columns
-        features_clean = []
-        for c in self.df.columns:
-            if (c in self.features) and (c not in ignore_features):
-                features_clean.append(c)
-        self.features = features_clean
+        self.df["class_name"] = self.df.dataset.map(cls_name_map)
 
     def add_models(self, model_dict):
         self.models = model_dict
@@ -372,3 +375,38 @@ class Trainer(object):
         ax.set_ylabel("TPR")
         out_name = f"{self.out_path}/rocs.png"
         fig.savefig(out_name)
+
+    def shape_in_bins(self, shape_of="dimuon_mass", nbins=4):
+        for model_name in self.models.keys():
+            score_name = f"{model_name}_score"
+            for cls in self.df["class_name"].dropna().unique():
+                df = self.df[self.df["class_name"] == cls]
+                score = df[score_name]
+                fig = plt.figure()
+                fig, ax = plt.subplots()
+
+                for i in range(nbins):
+                    cut_lo = score.quantile(i / nbins)
+                    cut_hi = score.quantile((i + 1) / nbins)
+                    cut = (score > cut_lo) & (score < cut_hi)
+                    data = df.loc[cut, shape_of]
+                    weights = (df.lumi_wgt * df.mc_wgt).loc[cut].values
+                    hist = np.histogram(
+                        data.values,
+                        bins=80,
+                        range=(110, 150),
+                        weights=weights,
+                        density=True,
+                    )
+                    hep.histplot(
+                        hist[0],
+                        hist[1],
+                        histtype="step",
+                        label=f"{score_name} bin #{i}",
+                    )
+                ax.legend(prop={"size": "x-small"})
+                ax.set_xlabel(shape_of)
+                ax.set_yscale("log")
+                ax.set_ylim(0.0001, 1)
+                out_name = f"{self.out_path}/shapes_{score_name}_{cls}.png"
+                fig.savefig(out_name)
