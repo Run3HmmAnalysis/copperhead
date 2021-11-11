@@ -2,6 +2,7 @@ import os
 
 os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
 
+import pickle
 import pandas as pd
 import numpy as np
 from sklearn.metrics import roc_curve
@@ -32,7 +33,7 @@ def run_mva(client, parameters, df):
     trainers = {}
     mva_path = parameters.pop("mva_path", "./")
     mkdir(mva_path)
-    dnn_models = parameters.pop("dnn_models", {})
+    mva_models = parameters.pop("mva_models", {})
     saved_models = parameters.pop("saved_models", {})
     training_datasets = parameters.pop("training_datasets", {})
     features = parameters.pop("training_features", [])
@@ -52,17 +53,14 @@ def run_mva(client, parameters, df):
             out_path=out_dir,
         )
         if do_training:
-            trainers[cat_name].add_models(dnn_models)
+            trainers[cat_name].add_models(mva_models.copy())
             trainers[cat_name].run_training(client)
 
         if len(saved_models.keys()) > 0:
-            trainers[cat_name].add_saved_models(
-                {k: f"{v}/{cat_name}/" for k, v in saved_models.items()}
-            )
+            trainers[cat_name].add_saved_models(saved_models, cat_name)
 
         if do_evaluation:
             trainers[cat_name].run_evaluation(client)
-
             trainers[cat_name].shape_in_bins(shape_of="dimuon_mass", nbins=4)
 
         if do_plotting:
@@ -71,7 +69,7 @@ def run_mva(client, parameters, df):
             parameters_tmp = parameters.copy()
             parameters_tmp["hist_vars"] = []
             parameters_tmp["plot_vars"] = []
-            all_models = list(set(list(dnn_models.keys()) + list(saved_models.keys())))
+            all_models = list(set(list(mva_models.keys()) + list(saved_models.keys())))
             for model_name in all_models:
                 score_name = f"{model_name}_score"
                 parameters_tmp["hist_vars"].append(score_name)
@@ -176,19 +174,20 @@ class Trainer(object):
         self.trained_models = {n: {} for n in self.models.keys()}
         self.scalers = {n: {} for n in self.models.keys()}
 
-    def add_saved_models(self, model_dict):
-        for model_name, model_path in model_dict.items():
-            self.models[model_name] = None
+    def add_saved_models(self, model_dict, cat_name):
+        for model_name, model_props in model_dict.items():
+            model_path = model_props["path"]
+            self.models[model_name] = {"type": model_props["type"]}
             print(f"Loading model {model_name} from {model_path}")
             self.trained_models[model_name] = {}
             self.scalers[model_name] = {}
             for step in range(self.nfolds):
                 self.trained_models[model_name][
                     step
-                ] = f"{model_path}/models/model_{model_name}_{step}.h5"
+                ] = f"{model_path}/{cat_name}/models/model_{model_name}_{step}.h5"
                 self.scalers[model_name][
                     step
-                ] = f"{model_path}/scalers/scalers_{model_name}_{step}"
+                ] = f"{model_path}/{cat_name}/scalers/scalers_{model_name}_{step}"
 
     def run_training(self, client=None):
         if client:
@@ -265,31 +264,56 @@ class Trainer(object):
         x_train[other_columns] = df.loc[train_filter, other_columns]
         x_val[other_columns] = df.loc[val_filter, other_columns]
 
-        model = self.models[model_name]
-        model = model(len(self.features), label="test")
-        model.compile(
-            loss="binary_crossentropy", optimizer="adam", metrics=["accuracy"]
-        )
-
-        # Train
-        history = model.fit(
-            x_train[self.features],
-            y_train,
-            epochs=100,
-            batch_size=1024,
-            verbose=0,
-            validation_data=(x_val[self.features], y_val),
-            shuffle=True,
-        )
+        model = self.models[model_name]["model"]
+        model_type = self.models[model_name]["type"]
 
         out_path = f"{self.out_path}/models/"
         mkdir(out_path)
-        model_save_path = f"{out_path}/model_{model_name}_{step}.h5"
-        model.save(model_save_path)
 
-        K.clear_session()
+        if model_type == "dnn":
+            model = model(len(self.features), label="test")
+            model.compile(
+                loss="binary_crossentropy", optimizer="adam", metrics=["accuracy"]
+            )
+            history = model.fit(
+                x_train[self.features],
+                y_train,
+                epochs=100,
+                batch_size=1024,
+                verbose=0,
+                validation_data=(x_val[self.features], y_val),
+                shuffle=True,
+            )
+            model_save_path = f"{out_path}/model_{model_name}_{step}.h5"
+            model.save(model_save_path)
+            K.clear_session()
+            losses = {"train_loss": history["loss"], "val_loss": history["val_loss"]}
+
+        elif model_type == "bdt":
+            model.fit(
+                x_train[self.features],
+                y_train,
+                # sample_weight = w_train,
+                early_stopping_rounds=50,
+                eval_metric="logloss",
+                eval_set=[
+                    (x_train[self.features], y_train),
+                    (x_val[self.features], y_val),
+                ],
+                verbose=False,
+            )
+            model_save_path = f"{out_path}/model_{model_name}_{step}.pkl"
+            pickle.dump(model, open(model_save_path, "wb"))
+            results = model.evals_result()
+            losses = {
+                "train_loss": results["validation_0"]["logloss"],
+                "val_loss": results["validation_1"]["logloss"],
+            }
+
+        self.plot_history(losses, model_name, step)
+
         print(f"Done training: model {model_name}, step #{step+1} out of {self.nfolds}")
-        self.plot_history(history, model_name, step)
+
         ret = {
             "model_name": model_name,
             "step": step,
@@ -316,10 +340,18 @@ class Trainer(object):
             return {"model_name": model_name, "step": step, "prediction": []}
 
         x_eval[other_columns] = df.loc[eval_filter, other_columns]
-        model = load_model(self.trained_models[model_name][step])
-        prediction = np.array(model.predict(x_eval[self.features])).ravel()
 
-        K.clear_session()
+        model_type = self.models[model_name]["type"]
+        if model_type == "dnn":
+            model = load_model(self.trained_models[model_name][step])
+            prediction = np.array(model.predict(x_eval[self.features])).ravel()
+            K.clear_session()
+        elif model_type == "bdt":
+            model = pickle.load(open(self.trained_models[model_name][step], "rb"))
+            prediction = np.array(
+                model.predict_proba(x_eval[self.features])[:, 1]
+            ).ravel()
+
         print(
             f"Done evaluating: model {model_name}, step #{step+1} out of {self.nfolds}"
         )
@@ -341,11 +373,13 @@ class Trainer(object):
             normalized[key] = item_normalized
         return normalized, save_path
 
-    def plot_history(self, history, model_name, step):
+    def plot_history(self, losses, model_name, step):
         fig = plt.figure()
         fig, ax = plt.subplots()
-        ax.plot(history.history["loss"])
-        ax.plot(history.history["val_loss"])
+        for name, loss in losses.items():
+            ax.plot(loss)
+        # ax.plot(history.history["loss"])
+        # ax.plot(history.history["val_loss"])
         ax.set_title(f"Loss of {model_name}, fold #{step}")
         ax.set_ylabel("Loss")
         ax.set_xlabel("epoch")

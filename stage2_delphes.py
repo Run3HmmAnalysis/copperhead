@@ -7,7 +7,9 @@ import pandas as pd
 
 from delphes.postprocessor import load_dataframe
 from delphes.config.variables import variables_lookup
-from delphes.dnn_models import test_model_1  # , test_model_2
+
+# from delphes.dnn_models import test_model_1, test_model_2
+from delphes.bdt_models import test_bdt
 from python.trainer import run_mva
 
 # from python.convert import to_histograms
@@ -96,12 +98,19 @@ parameters = {
     "14TeV_label": True,
     "has_variations": False,
     "variables_lookup": variables_lookup,
-    "dnn_models": {
-        "test1": test_model_1,
-        # "test2": test_model_2
+    "mva_models": {
+        # "test1": {
+        #    "model": test_model_1,
+        #    "type": "dnn",
+        # },
+        # "test2": {
+        #    "model": test_model_2,
+        #    "type": "dnn",
+        # },
+        "test_bdt": {"model": test_bdt, "type": "bdt"}
     },
-    "saved_models": {"test1": "data/dnn_models/test1/"},
-    "mva_do_training": False,
+    "saved_models": {"test1": {"path": "data/dnn_models/test1/", "type": "dnn"}},
+    "mva_do_training": True,
     "mva_do_evaluation": True,
     "mva_do_plotting": True,
     "training_datasets": {
