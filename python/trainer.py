@@ -25,10 +25,11 @@ plt.style.use(style)
 
 
 def run_mva(client, parameters, df):
+    window = (df.dimuon_mass > 110) & (df.dimuon_mass < 150)
     categories = {
-        "cat_0jets": df.njets == 0,
-        "cat_1jet": df.njets == 1,
-        "cat_2orMoreJets": df.njets >= 2,
+        "cat_0jets": window & (df.njets == 0),
+        "cat_1jet": window & (df.njets == 1),
+        "cat_2orMoreJets": window & (df.njets >= 2),
     }
     trainers = {}
     mva_path = parameters.pop("mva_path", "./")
@@ -52,6 +53,9 @@ def run_mva(client, parameters, df):
             features=features,
             out_path=out_dir,
         )
+        # trainers[cat_name].shape_in_eta_bins(shape_of="dimuon_mass", nbins=10)
+        # trainers[cat_name].data_planning("dimuon_mass", (110, 150))
+
         if do_training:
             trainers[cat_name].add_models(mva_models.copy())
             trainers[cat_name].run_training(client)
@@ -61,7 +65,8 @@ def run_mva(client, parameters, df):
 
         if do_evaluation:
             trainers[cat_name].run_evaluation(client)
-            trainers[cat_name].shape_in_bins(shape_of="dimuon_mass", nbins=4)
+            # trainers[cat_name].shape_in_bins(shape_of="dimuon_mass", nbins=10)
+            # trainers[cat_name].shape_in_bins(shape_of="max_abs_eta", nbins=10)
 
         if do_plotting:
             trainers[cat_name].plot_roc_curves()
@@ -169,6 +174,55 @@ class Trainer(object):
         self.df["class"] = self.df.dataset.map(cls_map)
         self.df["class_name"] = self.df.dataset.map(cls_name_map)
 
+    def data_planning(self, variable, v_range, plot=False):
+        # reweight events such that in each class the distribution of "variable" becomes uniform
+        to_plot = {}
+        for cls in self.df["class_name"].dropna().unique():
+            cut = self.df["class_name"] == cls
+            df = self.df.loc[cut]
+            hist = np.histogram(
+                df[variable],
+                bins=100,
+                range=v_range,
+                weights=(df["lumi_wgt"] * df["mc_wgt"]).values,
+                density=True,
+            )
+
+            self.df.loc[cut, "mass_bin"] = np.digitize(df[variable], hist[1]) - 1
+            self.df.loc[cut & (self.df.mass_bin > 0), "plan_wgt"] = np.take(
+                1 / hist[0], self.df.loc[cut & (self.df.mass_bin > 0), "mass_bin"]
+            )
+            self.df.loc[cut, "plan_wgt"].fillna(1.0, inplace=True)
+
+            if plot:
+                hist = np.histogram(
+                    self.df.loc[cut, variable],
+                    bins=100,
+                    range=v_range,
+                    weights=(
+                        self.df.loc[cut, "lumi_wgt"]
+                        * self.df.loc[cut, "mc_wgt"]
+                        * self.df.loc[cut, "plan_wgt"]
+                    ).values,
+                    density=True,
+                )
+                to_plot[cls] = hist
+
+        self.df["plan_wgt"] = self.df["plan_wgt"] / self.df["plan_wgt"].mean()
+        self.df["plan_wgt"].fillna(1.0, inplace=True)
+
+        if plot:
+            fig = plt.figure()
+            fig, ax = plt.subplots()
+            for cls, hist in to_plot.items():
+                hep.histplot(hist[0], hist[1], histtype="step", label=cls)
+            ax.legend(prop={"size": "x-small"})
+            ax.set_xlabel(variable)
+            ax.set_yscale("log")
+            ax.set_ylim(0.0001, 1)
+            out_name = f"{self.out_path}/shapes.png"
+            fig.savefig(out_name)
+
     def add_models(self, model_dict):
         self.models = model_dict
         self.trained_models = {n: {} for n in self.models.keys()}
@@ -245,7 +299,7 @@ class Trainer(object):
         train_filter = fold_filters["train_filter"]
         val_filter = fold_filters["val_filter"]
 
-        other_columns = ["event", "lumi_wgt", "mc_wgt"]
+        other_columns = ["event", "lumi_wgt", "mc_wgt"]  # , "plan_wgt"]
 
         x_train = df.loc[train_filter, self.features]
         y_train = df.loc[train_filter, "class"]
@@ -283,17 +337,73 @@ class Trainer(object):
                 verbose=0,
                 validation_data=(x_val[self.features], y_val),
                 shuffle=True,
+                # sample_weight=x_train["plan_wgt"]
             )
             model_save_path = f"{out_path}/model_{model_name}_{step}.h5"
             model.save(model_save_path)
             K.clear_session()
-            losses = {"train_loss": history["loss"], "val_loss": history["val_loss"]}
+            losses = {
+                "train_loss": history.history["loss"],
+                "val_loss": history.history["val_loss"],
+            }
+
+        elif model_type == "dnn_adv":
+            model, loss = model(len(self.features), label="test_adv")
+            """
+            losses = {
+                "classifier": "binary_crossentropy",
+                "adversary": "mse",
+            }
+            loss_weights = {
+                "classifier": 1,
+                "adversary": -1,
+            }
+            model.compile(
+                loss=losses, loss_weights=loss_weights, optimizer="adam", metrics=["accuracy"]
+            )
+            """
+
+            model.add_loss(loss(0, 100))
+            model.compile(optimizer="adam", metrics=["accuracy"])
+            history = model.fit(
+                [
+                    x_train[self.features],
+                    y_train,
+                    df.loc[train_filter, "dimuon_mass"],
+                    df.loc[train_filter].apply(max_abs_eta, axis=1),
+                ],
+                y_train,
+                # {
+                #    "classifier": y_train,
+                #    "adversary":  df.loc[train_filter, "dimuon_mass"],
+                # },
+                epochs=100,
+                batch_size=1024,
+                verbose=0,
+                validation_data=(
+                    [
+                        x_val[self.features],
+                        y_val,
+                        df.loc[val_filter, "dimuon_mass"],
+                        df.loc[val_filter].apply(max_abs_eta, axis=1),
+                    ],
+                    y_val,
+                ),
+                shuffle=True,
+            )
+            model_save_path = f"{out_path}/model_{model_name}_{step}.h5"
+            model.save(model_save_path)
+            K.clear_session()
+
+            losses = {
+                "train_loss": history.history["loss"],
+                "val_loss": history.history["val_loss"],
+            }
 
         elif model_type == "bdt":
             model.fit(
                 x_train[self.features],
                 y_train,
-                # sample_weight = w_train,
                 early_stopping_rounds=50,
                 eval_metric="logloss",
                 eval_set=[
@@ -345,6 +455,20 @@ class Trainer(object):
         if model_type == "dnn":
             model = load_model(self.trained_models[model_name][step])
             prediction = np.array(model.predict(x_eval[self.features])).ravel()
+            K.clear_session()
+        if model_type == "dnn_adv":
+            model = load_model(self.trained_models[model_name][step])
+            prediction = np.array(
+                model.predict(
+                    [
+                        x_eval[self.features],
+                        df.loc[eval_filter, "class"],
+                        df.loc[eval_filter, "dimuon_mass"],
+                        df.loc[eval_filter].apply(max_abs_eta, axis=1),
+                    ],
+                    # x_eval[self.features]
+                )[0]
+            ).ravel()
             K.clear_session()
         elif model_type == "bdt":
             model = pickle.load(open(self.trained_models[model_name][step], "rb"))
@@ -423,12 +547,22 @@ class Trainer(object):
                     cut_lo = score.quantile(i / nbins)
                     cut_hi = score.quantile((i + 1) / nbins)
                     cut = (score > cut_lo) & (score < cut_hi)
-                    data = df.loc[cut, shape_of]
+                    if shape_of == "max_abs_eta":
+                        data = df.loc[cut].apply(max_abs_eta, axis=1)
+                    else:
+                        data = df.loc[cut, shape_of]
+
+                    if shape_of == "dimuon_mass":
+                        data_range = (115, 135)
+                        data_bins = 80
+                    else:
+                        data_range = (data.min(), data.max())
+                        data_bins = 25
                     weights = (df.lumi_wgt * df.mc_wgt).loc[cut].values
                     hist = np.histogram(
                         data.values,
-                        bins=80,
-                        range=(110, 150),
+                        bins=data_bins,
+                        range=data_range,
                         weights=weights,
                         density=True,
                     )
@@ -442,5 +576,53 @@ class Trainer(object):
                 ax.set_xlabel(shape_of)
                 ax.set_yscale("log")
                 ax.set_ylim(0.0001, 1)
-                out_name = f"{self.out_path}/shapes_{score_name}_{cls}.png"
+                out_name = f"{self.out_path}/shapes_{score_name}_{cls}_{shape_of}.png"
                 fig.savefig(out_name)
+
+    def shape_in_eta_bins(self, shape_of="dimuon_mass", nbins=4):
+
+        for cls in self.df["class_name"].dropna().unique():
+            df = self.df[self.df["class_name"] == cls]
+            score = df.apply(max_abs_eta, axis=1)
+            fig = plt.figure()
+            fig, ax = plt.subplots()
+
+            for i in range(nbins):
+                cut_lo = score.quantile(i / nbins)
+                cut_hi = score.quantile((i + 1) / nbins)
+                cut = (score > cut_lo) & (score < cut_hi)
+                if shape_of == "max_abs_eta":
+                    data = df.loc[cut].apply(max_abs_eta, axis=1)
+                else:
+                    data = df.loc[cut, shape_of]
+
+                if shape_of == "dimuon_mass":
+                    data_range = (115, 135)
+                    data_bins = 80
+                else:
+                    data_range = (data.min(), data.max())
+                    data_bins = 25
+                weights = (df.lumi_wgt * df.mc_wgt).loc[cut].values
+                hist = np.histogram(
+                    data.values,
+                    bins=data_bins,
+                    range=data_range,
+                    weights=weights,
+                    density=True,
+                )
+                cut_lo = round(cut_lo, 2)
+                cut_hi = round(cut_hi, 2)
+                hep.histplot(
+                    hist[0],
+                    hist[1],
+                    histtype="step",
+                    label=f"max |eta|: [{cut_lo}, {cut_hi}]",
+                )
+            ax.legend(prop={"size": "x-small"})
+            ax.set_xlabel(shape_of)
+            out_name = f"{self.out_path}/shapes_eta_{cls}_{shape_of}.png"
+            fig.savefig(out_name)
+
+
+def max_abs_eta(row):
+    return max(abs(row["mu1_eta"]), abs(row["mu2_eta"]))

@@ -9,7 +9,9 @@ from delphes.postprocessor import load_dataframe
 from delphes.config.variables import variables_lookup
 
 # from delphes.dnn_models import test_model_1, test_model_2
-from delphes.bdt_models import test_bdt
+from delphes.dnn_models import test_adversarial
+
+# from delphes.bdt_models import test_bdt
 from python.trainer import run_mva
 
 # from python.convert import to_histograms
@@ -99,15 +101,16 @@ parameters = {
     "has_variations": False,
     "variables_lookup": variables_lookup,
     "mva_models": {
-        # "test1": {
-        #    "model": test_model_1,
-        #    "type": "dnn",
+        # "test1_weighted": {
+        #   "model": test_model_1,
+        #   "type": "dnn",
         # },
+        "test_adv": {"model": test_adversarial, "type": "dnn_adv"},
         # "test2": {
         #    "model": test_model_2,
         #    "type": "dnn",
         # },
-        "test_bdt": {"model": test_bdt, "type": "bdt"}
+        # "test_bdt": {"model": test_bdt, "type": "bdt"}
     },
     "saved_models": {"test1": {"path": "data/dnn_models/test1/", "type": "dnn"}},
     "mva_do_training": True,
