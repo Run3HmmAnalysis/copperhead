@@ -3,11 +3,18 @@ import tqdm
 import argparse
 import dask
 from dask.distributed import Client
+import pandas as pd
 
-from python.timer import Timer
 from delphes.postprocessor import load_dataframe
 from delphes.config.variables import variables_lookup
-from python.convert import to_histograms
+
+# from delphes.dnn_models import test_model_1, test_model_2
+# from delphes.dnn_models import test_adversarial
+
+# from delphes.bdt_models import test_bdt
+from python.trainer import run_mva
+
+# from python.convert import to_histograms
 from python.plotter import plotter
 
 __all__ = ["dask"]
@@ -50,7 +57,7 @@ parser.add_argument(
 args = parser.parse_args()
 
 use_local_cluster = args.slurm_port is None
-ncpus_local = 40  # number of cores to use. Each one will start with 4GB
+ncpus_local = 20  # number of cores to use. Each one will start with 4GB
 
 node_ip = "128.211.149.133"
 
@@ -77,26 +84,80 @@ if not use_local_cluster:
 parameters = {
     "slurm_cluster_ip": slurm_cluster_ip,
     "ncpus": ncpus_local,
-    "label": "oct14",
+    "label": "nov3",
     "path": "/depot/cms/hmm/coffea/",
     "hist_path": "/depot/cms/hmm/coffea/snowmass_histograms/",
     "plots_path": "./plots_test/snowmass/",
+    "mva_path": "./plots_test/snowmass/mva_output/",
     "years": ["snowmass"],
     "syst_variations": ["nominal"],
-    "channels": ["vbf", "vbf_01j", "vbf_2j"],
+    "channels": ["vbf"],  # , "vbf_01j", "vbf_2j"],
     # 'channels': ['ggh_01j', 'ggh_2j'],
-    "regions": ["h-peak", "h-sidebands"],
+    "regions": ["h-peak"],  # "h-sidebands"],
     "save_hists": True,
     "save_plots": True,
     "plot_ratio": False,
     "14TeV_label": True,
     "has_variations": False,
     "variables_lookup": variables_lookup,
+    "mva_models": {
+        # "test_adv": {"model": test_adversarial, "type": "dnn_adv"},
+        # "test2": {
+        #    "model": test_model_2,
+        #    "type": "dnn",
+        # },
+        # "test_bdt": {"model": test_bdt, "type": "bdt"}
+    },
+    "saved_models": {
+        "test_adv": {"path": "data/dnn_models/test_adv/", "type": "dnn_adv"}
+    },
+    "mva_do_training": True,
+    "mva_do_evaluation": True,
+    "mva_do_plotting": True,
+    "training_datasets": {
+        "background": ["dy_m100_mg", "ttbar_dl"],
+        "signal": ["ggh_powheg", "vbf_powheg"],
+        "ignore": [
+            "tttj",
+            "tttt",
+            "tttw",
+            "ttwj",
+            "ttww",
+            "ttz",
+            "st_s",
+            "st_t_antitop",
+            "st_tw_top",
+            "st_tw_antitop",
+            "zz_2l2q",
+        ],
+    },
+    "training_features": [
+        "dimuon_pt",
+        "dimuon_rap",
+        "dimuon_cos_theta_cs",
+        "dimuon_phi_cs",
+        "mu1_pt_over_mass",
+        "mu1_eta",
+        "mu2_pt_over_mass",
+        "mu2_eta",
+        "jet1_pt",
+        "jet1_eta",
+        "mmj1_dEta",
+        "mmj1_dPhi",
+        "jet2_pt",
+        "jet2_eta",
+        "mmj2_dEta",
+        "mmj2_dPhi",
+        "jj_dEta",
+        "jj_dPhi",
+        "jj_mass",
+        "zeppenfeld",
+    ],
 }
 
 parameters["grouping"] = {
-    # "ggh_powheg": "ggH",
-    # "vbf_powheg": "VBF",
+    "ggh_powheg": "ggH",
+    "vbf_powheg": "VBF",
     "dy_m100_mg": "DY",
     "ttbar_dl": "TTbar",
     "tttj": "TTbar",
@@ -120,8 +181,8 @@ grouping_alt = {
     "Single top": ["st_s", "st_t_antitop", "st_tw_top", "st_tw_antitop"],
     "VV": ["zz_2l2q"],
     # "VVV": [],
-    # "ggH": ["ggh_amcPS"],
-    # "VBF": ["vbf_powheg_dipole"],
+    "ggH": ["ggh_powheg"],
+    "VBF": ["vbf_powheg"],
 }
 
 parameters["plot_groups"] = {
@@ -131,8 +192,6 @@ parameters["plot_groups"] = {
 
 
 if __name__ == "__main__":
-    timer = Timer(ordered=False)
-
     if use_local_cluster:
         print(
             f"Creating local cluster with {ncpus_local} workers."
@@ -215,8 +274,8 @@ if __name__ == "__main__":
         "Single top": "individual",
         "VV": "individual",
         "VVV": "individual",
-        # "ggH": "all",
-        # "VBF": "all",
+        "ggH": "all",
+        "VBF": "all",
     }
     paths_grouped = {}
     all_paths = []
@@ -238,27 +297,33 @@ if __name__ == "__main__":
                     f"{y}_{parameters['label']}/"
                     f"{dataset}/*.parquet"
                 )
-                if the_group not in paths_grouped.keys():
+                if the_group not in paths_grouped[y].keys():
                     paths_grouped[y][the_group] = []
                 all_paths.append(path)
                 paths_grouped[y][the_group].append(path)
 
     if args.remake_hists:
+        dfs = []
         if args.sequential:
             for path in tqdm.tqdm(all_paths):
                 if len(path) == 0:
                     continue
-                df = load_dataframe(client, parameters, inputs=[path], timer=timer)
+                df = load_dataframe(client, parameters, inputs=[path])
+                dfs.append(df)
+                # to_histograms(client, parameters, df=df)
         else:
             for year, groups in paths_grouped.items():
                 print(f"Processing {year}")
                 for group, g_paths in tqdm.tqdm(groups.items()):
                     if len(g_paths) == 0:
                         continue
-                    df = load_dataframe(client, parameters, inputs=g_paths, timer=timer)
+                    df = load_dataframe(client, parameters, inputs=g_paths)
+                    dfs.append(df)
+                    # to_histograms(client, parameters, df=df)
 
-        to_histograms(client, parameters, df=df)
+        df = pd.concat(dfs)
+        df.reset_index(inplace=True, drop=True)
+        run_mva(client, parameters, df)
 
     if args.plot:
-        plotter(client, parameters, timer=timer)
-    timer.summary()
+        plotter(client, parameters)
