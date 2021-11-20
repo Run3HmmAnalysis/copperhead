@@ -54,7 +54,6 @@ def run_mva(client, parameters, df):
             out_path=out_dir,
         )
         # trainers[cat_name].shape_in_eta_bins(shape_of="dimuon_mass", nbins=10)
-        # trainers[cat_name].data_planning("dimuon_mass", (110, 150))
 
         if do_training:
             trainers[cat_name].add_models(mva_models.copy())
@@ -174,55 +173,6 @@ class Trainer(object):
         self.df["class"] = self.df.dataset.map(cls_map)
         self.df["class_name"] = self.df.dataset.map(cls_name_map)
 
-    def data_planning(self, variable, v_range, plot=False):
-        # reweight events such that in each class the distribution of "variable" becomes uniform
-        to_plot = {}
-        for cls in self.df["class_name"].dropna().unique():
-            cut = self.df["class_name"] == cls
-            df = self.df.loc[cut]
-            hist = np.histogram(
-                df[variable],
-                bins=100,
-                range=v_range,
-                weights=(df["lumi_wgt"] * df["mc_wgt"]).values,
-                density=True,
-            )
-
-            self.df.loc[cut, "mass_bin"] = np.digitize(df[variable], hist[1]) - 1
-            self.df.loc[cut & (self.df.mass_bin > 0), "plan_wgt"] = np.take(
-                1 / hist[0], self.df.loc[cut & (self.df.mass_bin > 0), "mass_bin"]
-            )
-            self.df.loc[cut, "plan_wgt"].fillna(1.0, inplace=True)
-
-            if plot:
-                hist = np.histogram(
-                    self.df.loc[cut, variable],
-                    bins=100,
-                    range=v_range,
-                    weights=(
-                        self.df.loc[cut, "lumi_wgt"]
-                        * self.df.loc[cut, "mc_wgt"]
-                        * self.df.loc[cut, "plan_wgt"]
-                    ).values,
-                    density=True,
-                )
-                to_plot[cls] = hist
-
-        self.df["plan_wgt"] = self.df["plan_wgt"] / self.df["plan_wgt"].mean()
-        self.df["plan_wgt"].fillna(1.0, inplace=True)
-
-        if plot:
-            fig = plt.figure()
-            fig, ax = plt.subplots()
-            for cls, hist in to_plot.items():
-                hep.histplot(hist[0], hist[1], histtype="step", label=cls)
-            ax.legend(prop={"size": "x-small"})
-            ax.set_xlabel(variable)
-            ax.set_yscale("log")
-            ax.set_ylim(0.0001, 1)
-            out_name = f"{self.out_path}/shapes.png"
-            fig.savefig(out_name)
-
     def add_models(self, model_dict):
         self.models = model_dict
         self.trained_models = {n: {} for n in self.models.keys()}
@@ -299,7 +249,7 @@ class Trainer(object):
         train_filter = fold_filters["train_filter"]
         val_filter = fold_filters["val_filter"]
 
-        other_columns = ["event", "lumi_wgt", "mc_wgt"]  # , "plan_wgt"]
+        other_columns = ["event", "lumi_wgt", "mc_wgt"]
 
         x_train = df.loc[train_filter, self.features]
         y_train = df.loc[train_filter, "class"]
@@ -337,7 +287,6 @@ class Trainer(object):
                 verbose=0,
                 validation_data=(x_val[self.features], y_val),
                 shuffle=True,
-                # sample_weight=x_train["plan_wgt"]
             )
             model_save_path = f"{out_path}/model_{model_name}_{step}.h5"
             model.save(model_save_path)
