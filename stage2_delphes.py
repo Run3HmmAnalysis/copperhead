@@ -109,7 +109,6 @@ parameters = {
         # "test_bdt": {"model": test_bdt, "type": "bdt"}
     },
     "saved_models": {
-        # "test1": {"path": "data/dnn_models/test1/", "type": "dnn"},
         "test_adv": {"path": "data/dnn_models/test_adv/", "type": "dnn_adv"}
     },
     "mva_do_training": True,
