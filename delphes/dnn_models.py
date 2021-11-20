@@ -40,9 +40,6 @@ def test_model_2(input_dim, label):
 
 
 def test_adversarial(input_dim, label):
-    labels = Input(shape=(1,), name="labels")
-    dimuon_mass = Input(shape=(1,), name="dimuon_mass")
-    max_abs_eta = Input(shape=(1,), name="max_abs_eta")
     inputs = Input(shape=(input_dim,), name=label + "_input")
     x = Dense(128, name=label + "_layer_1", activation="tanh")(inputs)
     x = Dropout(0.2)(x)
@@ -66,18 +63,16 @@ def test_adversarial(input_dim, label):
     x = BatchNormalization()(x)
     outputs_adv = Dense(1, name="adversary", activation="sigmoid")(x)
 
-    dnn = Model(
-        inputs=[inputs, labels, dimuon_mass, max_abs_eta],
-        outputs=[outputs_class, outputs_adv],
-    )
+    dnn = Model(inputs=inputs, outputs=[outputs_class, outputs_adv])
 
+    """
     def loss(l1, l2):
         from tensorflow.keras.losses import BinaryCrossentropy, MeanSquaredError
-
         return (
             BinaryCrossentropy()(labels, outputs_class)
             + l1 * MeanSquaredError()(dimuon_mass, outputs_adv)
             + l2 * 1 / (2.9 - max_abs_eta) ** 3
         )
+    """
 
-    return dnn, loss
+    return dnn

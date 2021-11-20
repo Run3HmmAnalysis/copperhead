@@ -64,7 +64,7 @@ def run_mva(client, parameters, df):
 
         if do_evaluation:
             trainers[cat_name].run_evaluation(client)
-            # trainers[cat_name].shape_in_bins(shape_of="dimuon_mass", nbins=10)
+            trainers[cat_name].shape_in_bins(shape_of="dimuon_mass", nbins=6)
             # trainers[cat_name].shape_in_bins(shape_of="max_abs_eta", nbins=10)
 
         if do_plotting:
@@ -194,6 +194,8 @@ class Trainer(object):
                 ] = f"{model_path}/{cat_name}/scalers/scalers_{model_name}_{step}"
 
     def run_training(self, client=None):
+        if len(self.models) == 0:
+            return
         if client:
             arg_set = {
                 "model_name": self.models.keys(),
@@ -216,6 +218,8 @@ class Trainer(object):
             self.scalers[model_name][step] = ret["scalers_save_path"]
 
     def run_evaluation(self, client=None):
+        if len(self.models) == 0:
+            return
         if client:
             arg_set = {
                 "model_name": self.models.keys(),
@@ -297,46 +301,31 @@ class Trainer(object):
             }
 
         elif model_type == "dnn_adv":
-            model, loss = model(len(self.features), label="test_adv")
-            """
-            losses = {
-                "classifier": "binary_crossentropy",
-                "adversary": "mse",
-            }
-            loss_weights = {
-                "classifier": 1,
-                "adversary": -1,
-            }
+            model = model(len(self.features), label="test_adv")
+            losses = {"classifier": "binary_crossentropy", "adversary": "mse"}
+            loss_weights = {"classifier": 1, "adversary": -1}
             model.compile(
-                loss=losses, loss_weights=loss_weights, optimizer="adam", metrics=["accuracy"]
+                loss=losses,
+                loss_weights=loss_weights,
+                optimizer="adam",
+                metrics=["accuracy"],
             )
-            """
 
-            model.add_loss(loss(0, 100))
-            model.compile(optimizer="adam", metrics=["accuracy"])
             history = model.fit(
-                [
-                    x_train[self.features],
-                    y_train,
-                    df.loc[train_filter, "dimuon_mass"],
-                    df.loc[train_filter].apply(max_abs_eta, axis=1),
-                ],
-                y_train,
-                # {
-                #    "classifier": y_train,
-                #    "adversary":  df.loc[train_filter, "dimuon_mass"],
-                # },
+                x_train[self.features],
+                {
+                    "classifier": df.loc[train_filter, "class"],
+                    "adversary": df.loc[train_filter, "dimuon_mass"],
+                },
                 epochs=100,
                 batch_size=1024,
                 verbose=0,
                 validation_data=(
-                    [
-                        x_val[self.features],
-                        y_val,
-                        df.loc[val_filter, "dimuon_mass"],
-                        df.loc[val_filter].apply(max_abs_eta, axis=1),
-                    ],
-                    y_val,
+                    x_val[self.features],
+                    {
+                        "classifier": df.loc[val_filter, "class"],
+                        "adversary": df.loc[val_filter, "dimuon_mass"],
+                    },
                 ),
                 shuffle=True,
             )
@@ -407,17 +396,7 @@ class Trainer(object):
             K.clear_session()
         if model_type == "dnn_adv":
             model = load_model(self.trained_models[model_name][step])
-            prediction = np.array(
-                model.predict(
-                    [
-                        x_eval[self.features],
-                        df.loc[eval_filter, "class"],
-                        df.loc[eval_filter, "dimuon_mass"],
-                        df.loc[eval_filter].apply(max_abs_eta, axis=1),
-                    ],
-                    # x_eval[self.features]
-                )[0]
-            ).ravel()
+            prediction = np.array(model.predict(x_eval[self.features])[0]).ravel()
             K.clear_session()
         elif model_type == "bdt":
             model = pickle.load(open(self.trained_models[model_name][step], "rb"))

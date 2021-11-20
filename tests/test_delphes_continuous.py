@@ -44,7 +44,9 @@ if __name__ == "__main__":
         "grouping": {"ggh_powheg": "ggH"},
         "plot_groups": {"stack": [], "step": ["ggH"], "errorbar": []},
         "mva_do_evaluation": True,
-        "saved_models": {"test1": {"path": "data/dnn_models/test1/", "type": "dnn"}},
+        "saved_models": {
+            "test_adv": {"path": "data/dnn_models/test_adv/", "type": "dnn_adv"}
+        },
         "training_features": [
             "dimuon_pt",
             "dimuon_rap",
