@@ -66,6 +66,7 @@ def load_dataframe(client, parameters, inputs=[], timer=None):
     ]
     keep_columns += [c for c in df.columns if "wgt" in c]
     keep_columns += parameters["hist_vars"]
+    keep_columns = list(set(keep_columns))
 
     df = df[[c for c in keep_columns if c in df.columns]]
     df = df.compute()
