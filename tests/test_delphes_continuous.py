@@ -13,6 +13,7 @@ from delphes.postprocessor import load_dataframe
 from delphes.config.variables import variables_lookup
 from python.convert import to_histograms, to_templates
 from python.plotter import plotter
+from python.trainer import run_mva
 from test_tools import almost_equal
 
 import dask
@@ -31,7 +32,7 @@ if __name__ == "__main__":
         "datasets": ["ggh_powheg"],
         "channels": ["vbf"],
         "regions": ["h-peak"],
-        "hist_vars": ["dimuon_mass"],
+        # "hist_vars": ["dimuon_mass"],
         "plot_vars": ["dimuon_mass"],
         "save_hists": False,
         "save_plots": False,
@@ -42,7 +43,58 @@ if __name__ == "__main__":
         "variables_lookup": variables_lookup,
         "grouping": {"ggh_powheg": "ggH"},
         "plot_groups": {"stack": [], "step": ["ggH"], "errorbar": []},
+        "mva_do_evaluation": True,
+        "mva_channels": ["ggh_0jets", "ggh_1jet", "ggh_2orMoreJets"],
+        "saved_models": {
+            "ggh_0jets": {
+                "test_adv": {
+                    "path": "data/dnn_models/ggh_0jets/test_adv/",
+                    "type": "dnn_adv",
+                }
+            },
+            "ggh_1jet": {
+                "test_adv": {
+                    "path": "data/dnn_models/ggh_1jet/test_adv/",
+                    "type": "dnn_adv",
+                }
+            },
+            "ggh_2orMoreJets": {
+                "test_adv": {
+                    "path": "data/dnn_models/ggh_2orMoreJets/test_adv/",
+                    "type": "dnn_adv",
+                }
+            },
+        },
+        "training_features": [
+            "dimuon_pt",
+            "dimuon_rap",
+            "dimuon_cos_theta_cs",
+            "dimuon_phi_cs",
+            "mu1_pt_over_mass",
+            "mu1_eta",
+            "mu2_pt_over_mass",
+            "mu2_eta",
+            "jet1_pt",
+            "jet1_eta",
+            "mmj1_dEta",
+            "mmj1_dPhi",
+            "jet2_pt",
+            "jet2_eta",
+            "mmj2_dEta",
+            "mmj2_dPhi",
+            "jj_dEta",
+            "jj_dPhi",
+            "jj_mass",
+            "zeppenfeld",
+        ],
+        "training_datasets": {"signal": {"ggh_powheg"}},
     }
+    parameters["hist_vars"] = parameters["training_features"] + [
+        "dimuon_mass",
+        "njets",
+        "mu1_pt",
+        "mu2_pt",
+    ]
 
     client = dask.distributed.Client(
         processes=True, n_workers=1, threads_per_worker=1, memory_limit="2.9GB"
@@ -61,6 +113,7 @@ if __name__ == "__main__":
     out_df = run(fileset, "Delphes", processor_instance=DimuonProcessorDelphes())
 
     df = load_dataframe(client, parameters, inputs=out_df)
+    run_mva(client, parameters, df=df)
     out_hist = to_histograms(client, parameters, df=df)
     out_plot = plotter(client, parameters, hist_df=out_hist)
     out_tmp = to_templates(client, parameters, hist_df=out_hist)
@@ -80,6 +133,11 @@ if __name__ == "__main__":
         "val_sumw2": "value",
         "dimuon_mass": slice(None),
     }
-    assert almost_equal(out_hist["hist"][0][slicer].sum(), 14911.835814002365)
-    assert almost_equal(sum(out_plot), 14911.835814002365)
-    assert almost_equal(sum(out_tmp), 14911.835814002365)
+    assert almost_equal(
+        out_hist.loc[out_hist.var_name == "dimuon_mass", "hist"]
+        .values[0][slicer]
+        .sum(),
+        276.14510766671043,
+    )
+    assert almost_equal(sum(out_plot), 276.14510766671043)
+    assert almost_equal(sum(out_tmp), 276.14510766671043)

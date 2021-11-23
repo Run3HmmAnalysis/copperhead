@@ -20,7 +20,7 @@ parameters = {
     "ncpus": 1,
     "years": ["snowmass"],
     "datasets": ["dy_m100_mg"],
-    "channels": ["vbf"],
+    "channels": ["ggh_0jets"],
     "regions": ["h-peak"],
     "hist_vars": ["dimuon_mass"],
     "plot_vars": ["dimuon_mass"],
@@ -56,10 +56,11 @@ if __name__ == "__main__":
 
     slicer = {
         "region": "h-peak",
-        "channel": "vbf",
+        "channel": "ggh_0jets",
         "val_sumw2": "value",
         "dimuon_mass": slice(None),
     }
-    assert almost_equal(out_hist["hist"][0][slicer].sum(), 4515.761427143451)
-    assert almost_equal(sum(out_plot), 4515.761427143451)
-    assert almost_equal(sum(out_tmp), 4515.761427143451)
+
+    assert almost_equal(out_hist["hist"][0][slicer].sum(), 3349.189725131393)
+    assert almost_equal(sum(out_plot), 3349.189725131393)
+    assert almost_equal(sum(out_tmp), 3349.189725131393)

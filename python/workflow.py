@@ -13,7 +13,8 @@ def parallelize(func, argset, client, parameters={}, timer=None):
         dict(zip(argset.keys(), values))
         for values in itertools.product(*argset.values())
     ]
-    futures = client.map(partial(func, parameters=parameters), argset)
+    map_futures = client.scatter(argset)
+    futures = client.map(partial(func, parameters=parameters), map_futures)
     results = client.gather(futures)
 
     return results

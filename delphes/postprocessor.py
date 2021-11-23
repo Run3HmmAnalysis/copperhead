@@ -3,6 +3,7 @@ import os
 import dask.dataframe as dd
 import pandas as pd
 from python.io import load_pandas_from_parquet
+from python.categorizer import split_into_channels
 
 os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
 pd.options.mode.chained_assignment = None
@@ -53,12 +54,24 @@ def load_dataframe(client, parameters, inputs=[], timer=None):
     if ("channel" not in df.columns) and ("c" in df.columns):
         df["channel"] = df["c"]
 
-    keep_columns = ["dataset", "year", "region", "channel"]
+    keep_columns = [
+        "dataset",
+        "year",
+        "region",
+        "channel",
+        "event",
+        "jj_mass",
+        "jj_dEta",
+        "njets",
+    ]
     keep_columns += [c for c in df.columns if "wgt" in c]
     keep_columns += parameters["hist_vars"]
+    keep_columns = list(set(keep_columns))
 
     df = df[[c for c in keep_columns if c in df.columns]]
     df = df.compute()
+
+    split_into_channels(df)
 
     df.dropna(axis=1, inplace=True)
     df.reset_index(inplace=True)
