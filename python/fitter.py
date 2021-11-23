@@ -25,7 +25,11 @@ def run_fits(client, parameters, df):
         fit_setup = {"label": ds, "mode": "sig", "df": df[df.dataset == ds]}
         fit_setups.append(fit_setup)
 
-    argset = {"fit_setup": fit_setups}
+    argset = {
+        "fit_setup": fit_setups,
+        "channel": parameters["mva_channels"],
+        "category": df["category"].dropna().unique(),
+    }
     fit_ret = parallelize(fitter, argset, client, parameters)
     return fit_ret
 
@@ -38,7 +42,14 @@ def fitter(args, parameters={}):
     blinded = fit_setup.pop("blinded", False)
     save = parameters.pop("save_fits", False)
     save_path = parameters.pop("save_fits_path", "./")
+    channel = args["channel"]
+    category = args["category"]
 
+    df = df[(df.channel == args["channel"]) & (df.category == args["category"])]
+
+    print(
+        f"Fitter in channel {channel}, category {category}; total nentries = {df.shape[0]}"
+    )
     the_fitter = Fitter(
         fitranges={"low": 110, "high": 150, "SR_left": 120, "SR_right": 130},
         fitmodels={
@@ -48,7 +59,7 @@ def fitter(args, parameters={}):
             "chebyshev": chebyshev,
         },
         requires_order=["chebyshev"],
-        channel="ggH",
+        channel=channel,
         filename_ext="",
     )
     if mode == "bkg":
@@ -56,7 +67,7 @@ def fitter(args, parameters={}):
         the_fitter.simple_fit(
             dataset=df,
             label=label,
-            category="cat0",  # temporary
+            category=category,  # temporary
             blinded=blinded,
             model_names=["bwz_redux", "bwgamma"],
             fix_parameters=False,
@@ -69,7 +80,7 @@ def fitter(args, parameters={}):
         the_fitter.simple_fit(
             dataset=df,
             label=label,
-            category="cat0",  # temporary
+            category=category,  # temporary
             blinded=False,
             model_names=["dcb"],
             fix_parameters=True,
@@ -87,7 +98,7 @@ class Fitter(object):
         )
         self.fitmodels = kwargs.pop("fitmodels", {})
         self.requires_order = kwargs.pop("requires_order", [])
-        self.channel = kwargs.pop("channel", "ggH")
+        self.channel = kwargs.pop("channel", "ggh_0jets")
         self.filename_ext = kwargs.pop("filename_ext", "")
 
         self.data_registry = {}

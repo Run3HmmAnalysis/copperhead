@@ -18,7 +18,7 @@ from python.categorizer import categorize_by_score
 # from python.convert import to_histograms
 from python.plotter import plotter
 
-# from python.fitter import run_fits
+from python.fitter import run_fits
 
 __all__ = ["dask"]
 
@@ -357,11 +357,11 @@ if __name__ == "__main__":
         df = pd.concat(dfs)
         df.reset_index(inplace=True, drop=True)
         run_mva(client, parameters, df)
-        # run_fits(client, parameters, df=df)
 
         scores = {k: "test_adv_score" for k in parameters["mva_channels"]}
         categorize_by_score(df, scores)
-        print(df[["channel", "category"]])
+
+        run_fits(client, parameters, df=df)
 
     if args.plot:
         plotter(client, parameters)
