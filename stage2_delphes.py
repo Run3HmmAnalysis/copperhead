@@ -361,7 +361,12 @@ if __name__ == "__main__":
         scores = {k: "test_adv_score" for k in parameters["mva_channels"]}
         categorize_by_score(df, scores)
 
-        run_fits(client, parameters, df=df)
+        fit_rets = run_fits(client, parameters, df=df)
+        df_fits = pd.DataFrame(columns=["label", "channel", "category", "chi2"])
+        for fr in fit_rets:
+            df_fits = pd.concat([df_fits, pd.DataFrame.from_dict(fr)])
+        df_fits = df_fits.reset_index().set_index(["label", "index"]).sort_index()
+        print(df_fits)
 
     if args.plot:
         plotter(client, parameters)

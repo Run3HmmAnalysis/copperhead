@@ -6,6 +6,8 @@ from python.io import mkdir
 from python.fit_plots import plot
 from python.fit_models import chebyshev, doubleCB, bwGamma, bwZredux
 
+rt.RooMsgService.instance().setGlobalKillBelow(rt.RooFit.ERROR)
+
 
 def run_fits(client, parameters, df):
     signal_ds = parameters.pop("signals", [])
@@ -41,15 +43,12 @@ def fitter(args, parameters={}):
     mode = fit_setup["mode"]
     blinded = fit_setup.pop("blinded", False)
     save = parameters.pop("save_fits", False)
-    save_path = parameters.pop("save_fits_path", "./")
+    save_path = parameters.get("save_fits_path", "./")
     channel = args["channel"]
     category = args["category"]
 
     df = df[(df.channel == args["channel"]) & (df.category == args["category"])]
 
-    print(
-        f"Fitter in channel {channel}, category {category}; total nentries = {df.shape[0]}"
-    )
     the_fitter = Fitter(
         fitranges={"low": 110, "high": 150, "SR_left": 120, "SR_right": 130},
         fitmodels={
@@ -64,7 +63,7 @@ def fitter(args, parameters={}):
     )
     if mode == "bkg":
         # background fit should be binned!
-        the_fitter.simple_fit(
+        chi2 = the_fitter.simple_fit(
             dataset=df,
             label=label,
             category=category,  # temporary
@@ -77,7 +76,7 @@ def fitter(args, parameters={}):
         )
 
     if mode == "sig":
-        the_fitter.simple_fit(
+        chi2 = the_fitter.simple_fit(
             dataset=df,
             label=label,
             category=category,  # temporary
@@ -88,7 +87,8 @@ def fitter(args, parameters={}):
             save=save,
             save_path=save_path,
         )
-    return 0
+    ret = {"label": label, "channel": channel, "category": category, "chi2": chi2}
+    return ret
 
 
 class Fitter(object):
@@ -125,13 +125,15 @@ class Fitter(object):
 
         ds_name = f"ds_{label}"
         self.add_data(dataset, ds_name=ds_name, blinded=blinded)
+        ndata = len(dataset["dimuon_mass"].values)
 
         for model_name in model_names:
             self.add_model(model_name, category=category)
 
-        self.workspace.Print()
-        self.fit(
+        # self.workspace.Print()
+        chi2 = self.fit(
             ds_name,
+            ndata,
             model_names,
             blinded=blinded,
             fix_parameters=fix_parameters,
@@ -146,6 +148,7 @@ class Fitter(object):
             self.save_workspace(
                 f"{save_path}/workspace_{self.channel}_{category}_{label}{self.filename_ext}"
             )
+        return chi2
 
     def create_workspace(self):
         w = rt.RooWorkspace("w", "w")
@@ -162,7 +165,7 @@ class Fitter(object):
         mass.SetTitle("m_{#mu#mu}")
         mass.setUnit("GeV")
         w.Import(mass)
-        w.Print()
+        # w.Print()
         return w
 
     def save_workspace(self, out_name):
@@ -239,6 +242,7 @@ class Fitter(object):
     def fit(
         self,
         ds_name,
+        ndata,
         model_names,
         blinded=False,
         fix_parameters=False,
@@ -252,14 +256,38 @@ class Fitter(object):
             raise Exception(f"Error: Dataset {ds_name} not in workspace!")
 
         pdfs = {}
+        chi2 = {}
         tag = f"_{self.channel}_{category}"
         for model_name in model_names:
             model_key = model_name + tag
             pdfs[model_key] = self.workspace.pdf(model_key)
-            pdfs[model_key].fitTo(self.workspace.obj(ds_name), rt.RooFit.Save())
+            pdfs[model_key].fitTo(
+                self.workspace.obj(ds_name),
+                rt.RooFit.Save(),
+                rt.RooFit.PrintLevel(-1),
+                rt.RooFit.Verbose(rt.kFALSE),
+            )
             if fix_parameters:
                 pdfs[model_key].getParameters(rt.RooArgSet()).setAttribAll("Constant")
+            chi2[model_key] = self.get_chi2(model_key, ds_name, ndata)
 
         if save:
             mkdir(save_path)
             plot(self, ds_name, pdfs, blinded, category, label, title, save_path)
+
+        return chi2
+
+    def get_chi2(self, model_key, ds_name, ndata):
+        normalization = rt.RooRealVar(
+            "normaliazation", "normalization", ndata, 0.5 * ndata, 2 * ndata
+        )
+        model = rt.RooExtendPdf(
+            "ext", "ext", self.workspace.pdf(model_key), normalization
+        )
+        xframe = self.workspace.obj("mass").frame()
+        ds = self.workspace.obj(ds_name)
+        ds.plotOn(xframe, rt.RooFit.Name(ds_name))
+        model.plotOn(xframe, rt.RooFit.Name(model_key))
+        nparam = model.getParameters(ds).getSize()
+        chi2 = xframe.chiSquare(model_key, ds_name, nparam)
+        return chi2
