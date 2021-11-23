@@ -3,6 +3,7 @@ import os
 import dask.dataframe as dd
 import pandas as pd
 from python.io import load_pandas_from_parquet
+from python.categorizer import split_into_channels
 
 os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
 pd.options.mode.chained_assignment = None
@@ -59,6 +60,8 @@ def load_dataframe(client, parameters, inputs=[], timer=None):
 
     df = df[[c for c in keep_columns if c in df.columns]]
     df = df.compute()
+
+    split_into_channels(df)
 
     df.dropna(axis=1, inplace=True)
     df.reset_index(inplace=True)

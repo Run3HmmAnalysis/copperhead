@@ -25,13 +25,6 @@ plt.style.use(style)
 
 
 def run_mva(client, parameters, df):
-    window = (df.dimuon_mass > 110) & (df.dimuon_mass < 150)
-    categories = {
-        "cat_0jets": window & (df.njets == 0),
-        "cat_1jet": window & (df.njets == 1),
-        "cat_2orMoreJets": window & (df.njets >= 2),
-    }
-    trainers = {}
     mva_path = parameters.pop("mva_path", "./")
     mkdir(mva_path)
     mva_models = parameters.pop("mva_models", {})
@@ -41,35 +34,44 @@ def run_mva(client, parameters, df):
     do_training = parameters.pop("mva_do_training", False)
     do_evaluation = parameters.pop("mva_do_evaluation", False)
     do_plotting = parameters.pop("mva_do_plotting", False)
-    for cat_name, cat_filter in categories.items():
-        out_dir = f"{mva_path}/{cat_name}"
+    channels_to_use = parameters.get("mva_channels", ["ggh_0jets"])
+
+    for channel in channels_to_use:
+        out_dir = f"{mva_path}/{channel}"
         mkdir(out_dir)
         parameters["plots_path"] = out_dir
 
-        trainers[cat_name] = Trainer(
-            df=df[cat_filter],
-            cat_name=cat_name,
+        trainer = Trainer(
+            df=df[df.channel == channel],
+            channel=channel,
             ds_dict=training_datasets,
             features=features,
             out_path=out_dir,
+            training_cut="(dimuon_mass > 110) & (dimuon_mass < 150)",
         )
-        # trainers[cat_name].shape_in_eta_bins(shape_of="dimuon_mass", nbins=10)
+        # trainer.shape_in_eta_bins(shape_of="dimuon_mass", nbins=10)
 
         if do_training:
-            trainers[cat_name].add_models(mva_models.copy())
-            trainers[cat_name].run_training(client)
+            trainer.add_models(mva_models.copy())
+            trainer.run_training(client)
 
-        if len(saved_models.keys()) > 0:
-            trainers[cat_name].add_saved_models(saved_models, cat_name)
+        if channel in saved_models.keys():
+            if len(saved_models[channel].keys()) > 0:
+                trainer.add_saved_models(saved_models[channel])
 
         if do_evaluation:
-            trainers[cat_name].run_evaluation(client)
-            trainers[cat_name].shape_in_bins(shape_of="dimuon_mass", nbins=6)
-            # trainers[cat_name].shape_in_bins(shape_of="max_abs_eta", nbins=10)
+            trainer.run_evaluation(client)
+            trainer.shape_in_bins(shape_of="dimuon_mass", nbins=6)
+            # trainer.shape_in_bins(shape_of="max_abs_eta", nbins=10)
+
+            for model_name in trainer.models.keys():
+                score_name = f"{model_name}_score"
+                df.loc[df.channel == channel, score_name] = trainer.df.loc[
+                    :, score_name
+                ]
 
         if do_plotting:
-            trainers[cat_name].plot_roc_curves()
-            trainers[cat_name].df["channel"] = "vbf"  # temporary
+            trainer.plot_roc_curves()
             parameters_tmp = parameters.copy()
             parameters_tmp["hist_vars"] = []
             parameters_tmp["plot_vars"] = []
@@ -82,17 +84,18 @@ def run_mva(client, parameters, df):
                     score_name, score_name, 50, 0, 1
                 )
 
-            hist_df = to_histograms(client, parameters_tmp, trainers[cat_name].df)
+            hist_df = to_histograms(client, parameters_tmp, trainer.df)
             plotter(client, parameters_tmp, hist_df)
 
 
 class Trainer(object):
     def __init__(self, **kwargs):
         self.df = kwargs.pop("df", pd.DataFrame())
-        self.cat_name = kwargs.pop("cat_name", "")
+        self.channel = kwargs.pop("channel", "")
         self.ds_dict = kwargs.pop("ds_dict", {})
         self.features = kwargs.pop("features", [])
         self.out_path = kwargs.pop("out_path", "./")
+        self.training_cut = kwargs.pop("training_cut", None)
         self.models = {}
         self.trained_models = {}
         self.scalers = {}
@@ -101,7 +104,7 @@ class Trainer(object):
         self.prepare_dataset()
         print()
         print("*" * 60)
-        print("In category", self.cat_name)
+        print("In channel", self.channel)
         print("Event counts in classes:")
         print(self.df["class_name"].value_counts())
         print("Training features:")
@@ -174,11 +177,12 @@ class Trainer(object):
         self.df["class_name"] = self.df.dataset.map(cls_name_map)
 
     def add_models(self, model_dict):
-        self.models = model_dict
+        if self.channel in model_dict.keys():
+            self.models = model_dict[self.channel]
         self.trained_models = {n: {} for n in self.models.keys()}
         self.scalers = {n: {} for n in self.models.keys()}
 
-    def add_saved_models(self, model_dict, cat_name):
+    def add_saved_models(self, model_dict):
         for model_name, model_props in model_dict.items():
             model_path = model_props["path"]
             self.models[model_name] = {"type": model_props["type"]}
@@ -188,10 +192,10 @@ class Trainer(object):
             for step in range(self.nfolds):
                 self.trained_models[model_name][
                     step
-                ] = f"{model_path}/{cat_name}/models/model_{model_name}_{step}.h5"
+                ] = f"{model_path}/models/model_{model_name}_{step}.h5"
                 self.scalers[model_name][
                     step
-                ] = f"{model_path}/{cat_name}/scalers/scalers_{model_name}_{step}"
+                ] = f"{model_path}/scalers/scalers_{model_name}_{step}"
 
     def run_training(self, client=None):
         if len(self.models) == 0:
@@ -246,6 +250,8 @@ class Trainer(object):
         fold_filters = args["fold_filters"]
         step = fold_filters["step"]
         df = self.df[self.df.dataset.isin(self.train_samples)]
+        if self.training_cut is not None:
+            df = df.query(self.training_cut)
 
         print(f"Training model {model_name}, step #{step+1} out of {self.nfolds}...")
         K.clear_session()

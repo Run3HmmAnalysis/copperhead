@@ -44,8 +44,26 @@ if __name__ == "__main__":
         "grouping": {"ggh_powheg": "ggH"},
         "plot_groups": {"stack": [], "step": ["ggH"], "errorbar": []},
         "mva_do_evaluation": True,
+        "mva_channels": ["ggh_0jets", "ggh_1jet", "ggh_2orMoreJets"],
         "saved_models": {
-            "test_adv": {"path": "data/dnn_models/test_adv/", "type": "dnn_adv"}
+            "ggh_0jets": {
+                "test_adv": {
+                    "path": "data/dnn_models/ggh_0jets/test_adv/",
+                    "type": "dnn_adv",
+                }
+            },
+            "ggh_1jet": {
+                "test_adv": {
+                    "path": "data/dnn_models/ggh_1jet/test_adv/",
+                    "type": "dnn_adv",
+                }
+            },
+            "ggh_2orMoreJets": {
+                "test_adv": {
+                    "path": "data/dnn_models/ggh_2orMoreJets/test_adv/",
+                    "type": "dnn_adv",
+                }
+            },
         },
         "training_features": [
             "dimuon_pt",
@@ -119,7 +137,7 @@ if __name__ == "__main__":
         out_hist.loc[out_hist.var_name == "dimuon_mass", "hist"]
         .values[0][slicer]
         .sum(),
-        14911.835814002365,
+        276.14510766671043,
     )
-    assert almost_equal(sum(out_plot), 14911.835814002365)
-    assert almost_equal(sum(out_tmp), 14911.835814002365)
+    assert almost_equal(sum(out_plot), 276.14510766671043)
+    assert almost_equal(sum(out_tmp), 276.14510766671043)

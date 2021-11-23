@@ -9,10 +9,11 @@ from delphes.postprocessor import load_dataframe
 from delphes.config.variables import variables_lookup
 
 # from delphes.dnn_models import test_model_1, test_model_2
-# from delphes.dnn_models import test_adversarial
+from delphes.dnn_models import test_adversarial
 
 # from delphes.bdt_models import test_bdt
 from python.trainer import run_mva
+from python.categorizer import categorize_by_score
 
 # from python.convert import to_histograms
 from python.plotter import plotter
@@ -100,18 +101,40 @@ parameters = {
     "14TeV_label": True,
     "has_variations": False,
     "variables_lookup": variables_lookup,
+    "mva_channels": ["ggh_0jets", "ggh_1jet", "ggh_2orMoreJets"],
     "mva_models": {
-        # "test_adv": {"model": test_adversarial, "type": "dnn_adv"},
-        # "test2": {
-        #    "model": test_model_2,
-        #    "type": "dnn",
-        # },
-        # "test_bdt": {"model": test_bdt, "type": "bdt"}
+        "ggh_0jets": {
+            "test_adv": {"model": test_adversarial, "type": "dnn_adv"},
+            # "test2": {
+            #    "model": test_model_2,
+            #    "type": "dnn",
+            # },
+            # "test_bdt": {"model": test_bdt, "type": "bdt"}
+        },
+        "ggh_1jet": {"test_adv": {"model": test_adversarial, "type": "dnn_adv"}},
+        "ggh_2orMoreJets": {"test_adv": {"model": test_adversarial, "type": "dnn_adv"}},
     },
     "saved_models": {
-        "test_adv": {"path": "data/dnn_models/test_adv/", "type": "dnn_adv"}
+        "ggh_0jets": {
+            "test_adv": {
+                "path": "data/dnn_models/ggh_0jets/test_adv/",
+                "type": "dnn_adv",
+            }
+        },
+        "ggh_1jet": {
+            "test_adv": {
+                "path": "data/dnn_models/ggh_1jet/test_adv/",
+                "type": "dnn_adv",
+            }
+        },
+        "ggh_2orMoreJets": {
+            "test_adv": {
+                "path": "data/dnn_models/ggh_2orMoreJets/test_adv/",
+                "type": "dnn_adv",
+            }
+        },
     },
-    "mva_do_training": True,
+    "mva_do_training": False,
     "mva_do_evaluation": True,
     "mva_do_plotting": True,
     "training_datasets": {
@@ -295,7 +318,7 @@ if __name__ == "__main__":
                 path = glob.glob(
                     f"{parameters['path']}/"
                     f"{y}_{parameters['label']}/"
-                    f"{dataset}/*.parquet"
+                    f"{dataset}/0*.parquet"
                 )
                 if the_group not in paths_grouped[y].keys():
                     paths_grouped[y][the_group] = []
@@ -324,6 +347,10 @@ if __name__ == "__main__":
         df = pd.concat(dfs)
         df.reset_index(inplace=True, drop=True)
         run_mva(client, parameters, df)
+
+        scores = {k: "test_adv_score" for k in parameters["mva_channels"]}
+        categorize_by_score(df, scores)
+        print(df[["channel", "category"]])
 
     if args.plot:
         plotter(client, parameters)
