@@ -17,7 +17,8 @@ from python.categorizer import categorize_by_score
 
 # from python.convert import to_histograms
 from python.plotter import plotter
-from python.fitter import run_fits
+
+# from python.fitter import run_fits
 
 __all__ = ["dask"]
 
@@ -102,11 +103,9 @@ parameters = {
     "14TeV_label": True,
     "has_variations": False,
     "variables_lookup": variables_lookup,
-
     "save_fits": True,
     "save_fits_path": "/home/dkondra/hmumu-coffea-dev/fits/hmumu-coffea/fits/",
     "signals": ["ggh_powheg", "vbf_powheg"],
-
     "mva_channels": ["ggh_0jets", "ggh_1jet", "ggh_2orMoreJets"],
     "mva_models": {
         "ggh_0jets": {
@@ -182,7 +181,6 @@ parameters = {
         "jj_mass",
         "zeppenfeld",
     ],
-
 }
 
 parameters["grouping"] = {
@@ -364,7 +362,6 @@ if __name__ == "__main__":
         scores = {k: "test_adv_score" for k in parameters["mva_channels"]}
         categorize_by_score(df, scores)
         print(df[["channel", "category"]])
-
 
     if args.plot:
         plotter(client, parameters)
