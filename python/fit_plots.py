@@ -106,7 +106,7 @@ def plot(fitter, ds_name, models, blinded, category, label, title, save_path):
     # lower_pad = rt.TPad("lp_cat"+category,"lp_cat"+category,0.0,0.0,1.0,0.2,22)
     xframe.SetMinimum(0.0001)
     xframe.Draw()
-    if "ggH" in label:
+    if "powheg" in label:
         print("Fitting ggH signal")
         # Add TLatex to plot
         for model_key, model in models.items():

@@ -94,9 +94,8 @@ parameters = {
     "mva_path": "./plots_test/snowmass/mva_output/",
     "years": ["snowmass"],
     "syst_variations": ["nominal"],
-    "channels": ["vbf"],  # , "vbf_01j", "vbf_2j"],
-    # 'channels': ['ggh_01j', 'ggh_2j'],
-    "regions": ["h-peak"],  # "h-sidebands"],
+    "channels": ["vbf", "ggh_0jets", "ggh_1jet", "ggh_2orMoreJets"],
+    "regions": ["z-peak", "h-peak", "h-sidebands"],
     "save_hists": True,
     "save_plots": True,
     "plot_ratio": False,
@@ -121,25 +120,25 @@ parameters = {
     },
     "saved_models": {
         "ggh_0jets": {
-            "test_adv": {
-                "path": "data/dnn_models/ggh_0jets/test_adv/",
-                "type": "dnn_adv",
-            }
+            # "test_adv": {
+            #    "path": "data/dnn_models/ggh_0jets/test_adv/",
+            #    "type": "dnn_adv",
+            # }
         },
         "ggh_1jet": {
-            "test_adv": {
-                "path": "data/dnn_models/ggh_1jet/test_adv/",
-                "type": "dnn_adv",
-            }
+            # "test_adv": {
+            #    "path": "data/dnn_models/ggh_1jet/test_adv/",
+            #    "type": "dnn_adv",
+            # }
         },
         "ggh_2orMoreJets": {
-            "test_adv": {
-                "path": "data/dnn_models/ggh_2orMoreJets/test_adv/",
-                "type": "dnn_adv",
-            }
+            # "test_adv": {
+            #    "path": "data/dnn_models/ggh_2orMoreJets/test_adv/",
+            #    "type": "dnn_adv",
+            # }
         },
     },
-    "mva_do_training": False,
+    "mva_do_training": True,
     "mva_do_evaluation": True,
     "mva_do_plotting": True,
     "training_datasets": {
@@ -326,7 +325,7 @@ if __name__ == "__main__":
                 path = glob.glob(
                     f"{parameters['path']}/"
                     f"{y}_{parameters['label']}/"
-                    f"{dataset}/0*.parquet"
+                    f"{dataset}/*.parquet"
                 )
                 if the_group not in paths_grouped[y].keys():
                     paths_grouped[y][the_group] = []

@@ -75,7 +75,13 @@ def run_mva(client, parameters, df):
             parameters_tmp = parameters.copy()
             parameters_tmp["hist_vars"] = []
             parameters_tmp["plot_vars"] = []
-            all_models = list(set(list(mva_models.keys()) + list(saved_models.keys())))
+            parameters_tmp["channels"] = [channel]
+            all_models = []
+            if channel in mva_models.keys():
+                all_models.extend(mva_models[channel].keys())
+            if channel in saved_models.keys():
+                all_models.extend(saved_models[channel].keys())
+            all_models = list(set(all_models))
             for model_name in all_models:
                 score_name = f"{model_name}_score"
                 parameters_tmp["hist_vars"].append(score_name)
