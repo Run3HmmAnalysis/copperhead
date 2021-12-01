@@ -9,9 +9,9 @@ def buildDatacard(ws, bkgmodel, sigmodel, mass, tag, Channels, uncert_file, data
     fout.write(("-"*40) + "\n")
     for Channel in Channels:
         #print("shapes "+Channel+"_hmm "+tag.split("_")[2]+"_"+tag.split("_")[1]+" %s w:"% ("w.root")+Channel+"_cat0_ggh_pdf\n")
-        fout.write("shapes "+Channel+"_hmm cat"+tag.split("_")[2]+"_"+tag.split("_")[1]+" %s w:"% ("workspace_%s_%s_%s_%s.txt" % (mass, sigmodel, tag.split("_")[1],  tag.split("_")[2]))+Channel+"_cat"+tag.split("_")[2]+"_"+tag.split("_")[1]+"_pdf\n")
-    fout.write("shapes bkg "+tag.split("_")[2]+"_"+tag.split("_")[1]+" %s w:bkg_cat"% ("workspace_%s_%s_%s_%s.txt" % (mass, bkgmodel, tag.split("_")[1],  tag.split("_")[2]))+tag.split("_")[2]+"_"+tag.split("_")[1]+"_pdf\n")
-    fout.write("shapes data_obs "+tag.split("_")[2]+"_"+tag.split("_")[1]+" %s w:data_cat"% ("workspace_%s_%s_%s_%s.txt" % (mass, bkgmodel, tag.split("_")[1],  tag.split("_")[2]))+tag.split("_")[2]+"_"+tag.split("_")[1]+"\n")
+        fout.write("shapes "+Channel+"_hmm cat"+tag.split("_")[2]+"_"+tag.split("_")[1]+" %s w:"% ("workspace_%s_%s_%s_cat%s.txt" % (mass, sigmodel, tag.split("_")[1],  tag.split("_")[2]))+Channel+"_cat"+tag.split("_")[2]+"_"+tag.split("_")[1]+"_pdf\n")
+    fout.write("shapes bkg cat"+tag.split("_")[2]+"_"+tag.split("_")[1]+" %s w:bkg_cat"% ("workspace_%s_%s_%s_cat%s.txt" % (mass, bkgmodel, tag.split("_")[1],  tag.split("_")[2]))+tag.split("_")[2]+"_"+tag.split("_")[1]+"_pdf\n")
+    fout.write("shapes data_obs cat"+tag.split("_")[2]+"_"+tag.split("_")[1]+" %s w:data_cat"% ("workspace_%s_%s_%s_cat%s.txt" % (mass, bkgmodel, tag.split("_")[1],  tag.split("_")[2]))+tag.split("_")[2]+"_"+tag.split("_")[1]+"\n")
     fout.write(("-"*40) + "\n")
     fout.write("bin cat%s\n" % (tag.split("_")[2]+"_"+tag.split("_")[1]))
     fout.write("observation -1\n")
