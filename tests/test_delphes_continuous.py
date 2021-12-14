@@ -133,9 +133,7 @@ if __name__ == "__main__":
         "val_sumw2": "value",
         "dimuon_mass": slice(None),
     }
-    print(
-        out_hist.loc[out_hist.var_name == "dimuon_mass", "hist"].values[0][slicer].sum()
-    )
+
     assert almost_equal(
         out_hist.loc[out_hist.var_name == "dimuon_mass", "hist"]
         .values[0][slicer]

@@ -12,7 +12,8 @@ def get_sum_wgts(file):
         events = NanoEventsFactory.from_root(
             file, "Delphes", schemaclass=DelphesSchema
         ).events()
-        result = (file, ak.sum(events.Event.Weight))
+        # result = (file, ak.sum(events.Event.Weight))
+        result = (file, ak.count(events.Event.Number))
     except Exception:
         result = (file, 0)
     return result
@@ -32,16 +33,19 @@ def get_fileset(client, datasets, parameters, save_to=None, load_from=None):
             else:
                 filelist = glob.glob(parameters["server"] + path + "/*.root")
                 # filelist = [glob.glob(parameters["server"] + path + "/*.root")[0]]
+            # filelist = [filelist[0]]
             futures = client.map(get_sum_wgts, filelist)
             results = client.gather(futures)
             cleaned_filelist = [r[0] for r in results if r[1] > 0]
             # bad_files = [r[0] for r in results if r[1] <= 0]
             nEvts = sum([r[1] for r in results if r[1] > 0])
+            # print(parameters["lumi"], cross_sections[sample], float(nEvts))
             mymetadata = {
                 "lumi_wgt": str(
                     parameters["lumi"] * cross_sections[sample] / float(nEvts)
                 ),
                 "regions": ["z-peak", "h-sidebands", "h-peak"],
+                # "regions": ["h-sidebands", "h-peak"],
                 "channels": ["ggh_01j", "ggh_2j", "vbf", "vbf_01j", "vbf_2j"],
             }
             fileset[sample] = {
