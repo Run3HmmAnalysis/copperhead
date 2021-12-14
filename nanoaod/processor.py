@@ -30,7 +30,9 @@ from nanoaod.corrections.btag_weights import btag_weights
 
 from nanoaod.muons import fill_muons
 from nanoaod.jets import prepare_jets, fill_jets, fill_softjets
-from nanoaod.jets import jet_id, jet_puid, gen_jet_pair_mass
+from nanoaod.jets import jet_id, jet_puid
+
+# from nanoaod.jets import gen_jet_pair_mass
 
 from nanoaod.config.parameters import parameters
 from nanoaod.config.variables import variables
@@ -64,10 +66,9 @@ class DimuonProcessor(processor.ProcessorABC):
 
         self._columns = self.parameters["proc_columns"]
 
-        # --- Define regions and channels used in the analysis ---#
+        # --- Define regions used in the analysis ---#
         self.regions = ["z-peak", "h-sidebands", "h-peak"]
-        # self.channels = ['ggh_01j', 'ggh_2j', 'vbf']
-        self.channels = ["vbf", "vbf_01j", "vbf_2j"]
+        # self.regions = ["h-sidebands", "h-peak"]
 
         self.lumi_weights = self.samp_info.lumi_weights
 
@@ -507,6 +508,7 @@ class DimuonProcessor(processor.ProcessorABC):
         # Calculate getJetMass and split DY
         # ------------------------------------------------------------#
 
+        """
         output["genJetPairMass"] = 0.0
         is_dy = ("dy_m105_160_vbf_amc" in dataset) or ("dy_m105_160_amc" in dataset)
         if is_mc and is_dy:
@@ -522,6 +524,7 @@ class DimuonProcessor(processor.ProcessorABC):
                     output.event_selection = output.event_selection & (
                         output.genJetPairMass <= 350
                     )
+        """
 
         # ------------------------------------------------------------#
         # Loop over JEC variations and fill jet variables
@@ -583,21 +586,27 @@ class DimuonProcessor(processor.ProcessorABC):
             if (c[0] in self.vars_to_save)
             or ("wgt_" in c[0])
             or ("mcreplica" in c[0])
-            or (c[0] in ["channel", "region", "dataset", "year"])
+            or (c[0] in ["region", "dataset", "year"])
         ]
+
         output = output.loc[output.event_selection, columns_to_save]
         output = output.reindex(sorted(output.columns), axis=1)
-
-        try:
-            output = output[
-                output.loc[:, pd.IndexSlice["channel", "nominal"]].isin(self.channels)
-            ]
-        except Exception:
-            pass
 
         output.columns = [" ".join(col).strip() for col in output.columns.values]
 
         output = output[output.region.isin(self.regions)]
+
+        """
+        input_evts = numevents
+        output_evts = output.shape[0]
+        out_yield = output.wgt_nominal.sum()
+        out_vbf = output[
+                (output["jj_mass nominal"]>400) & (output["jj_dEta nominal"]>2.5) & (output["jet1_pt nominal"]>35)
+            ].wgt_nominal.sum()
+        out_ggh = out_yield - out_vbf
+
+        print(f"\n{dataset}:    {input_evts}  ->  {output_evts};    yield = {out_ggh} (ggH) + {out_vbf} (VBF) = {out_yield}")
+        """
 
         to_return = None
         if self.apply_to_output is None:
@@ -843,33 +852,6 @@ class DimuonProcessor(processor.ProcessorABC):
             & (variables.nBtagLoose < 2)
             & (variables.nBtagMedium < 1)
         )
-
-        # ------------------------------------------------------------#
-        # Define categories
-        # ------------------------------------------------------------#
-        variables["channel"] = ""
-        variables.channel[variables.selection & (variables.njets < 2)] = "ggh_01j"
-        variables.channel[
-            variables.selection & (variables.njets >= 2) & (~vbf_cut)
-        ] = "ggh_2j"
-        variables.channel[
-            variables.selection & (variables.njets >= 2) & vbf_cut
-        ] = "vbf"
-
-        # if 'dy' in dataset:
-        #     two_jets_matched = np.zeros(numevents, dtype=bool)
-        #     matched1 =\
-        #         (jet1.matched_genjet.counts > 0)[two_jets[one_jet]]
-        #     matched2 = (jet2.matched_genjet.counts > 0)
-        #     two_jets_matched[two_jets] = matched1 & matched2
-        #     variables.channel[
-        #         variables.selection &
-        #         (variables.njets >= 2) &
-        #         vbf_cut & (~two_jets_matched)] = 'vbf_01j'
-        #     variables.channel[
-        #         variables.selection &
-        #         (variables.njets >= 2) &
-        #         vbf_cut & two_jets_matched] = 'vbf_2j'
 
         # --------------------------------------------------------------#
         # Fill outputs

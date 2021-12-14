@@ -124,6 +124,8 @@ def load_dataframe(client, parameters, inputs=[], timer=None):
         if (f"channel {v}" not in df.columns) and (f"c {v}" in df.columns):
             df[f"channel {v}"] = df[f"c {v}"]
 
+    df["channel nominal"] = "vbf"
+
     keep_columns = ["dataset", "year", "region"]
     keep_columns += [f"channel {v}" for v in parameters["syst_variations"]]
     keep_columns += [c for c in df.columns if "wgt_" in c]
