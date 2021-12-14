@@ -243,7 +243,7 @@ def plot(args, parameters={}):
 
     if parameters["save_plots"]:
         path = parameters["plots_path"]
-        out_name = f"{path}/{var.name}_{year}_{region}_{channel}.png"
+        out_name = f"{path}/{var.name}_{year}_{channel}_{region}.png"
         fig.savefig(out_name)
         print(f"Saved: {out_name}")
 
