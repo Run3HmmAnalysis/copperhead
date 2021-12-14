@@ -75,7 +75,12 @@ def run_mva(client, parameters, df):
             parameters_tmp = parameters.copy()
             parameters_tmp["hist_vars"] = []
             parameters_tmp["plot_vars"] = []
-            all_models = list(set(list(mva_models.keys()) + list(saved_models.keys())))
+            all_models = []
+            if channel in mva_models.keys():
+                all_models += list(mva_models[channel].keys())
+            if channel in saved_models.keys():
+                all_models += list(saved_models[channel].keys())
+            all_models = list(set(all_models))
             for model_name in all_models:
                 score_name = f"{model_name}_score"
                 parameters_tmp["hist_vars"].append(score_name)
@@ -457,7 +462,7 @@ class Trainer(object):
             roc_curves[score_name] = roc_curve(
                 y_true=df["class"],
                 y_score=df[score_name],
-                sample_weight=df["lumi_wgt"] * df["mc_wgt"],
+                sample_weight=df["lumi_wgt"],  # * df["mc_wgt"],
             )
             ax.plot(
                 roc_curves[score_name][0], roc_curves[score_name][1], label=score_name
@@ -492,7 +497,8 @@ class Trainer(object):
                     else:
                         data_range = (data.min(), data.max())
                         data_bins = 25
-                    weights = (df.lumi_wgt * df.mc_wgt).loc[cut].values
+                    weights = (df.lumi_wgt).loc[cut].values
+                    # weights = (df.lumi_wgt * df.mc_wgt).loc[cut].values
                     hist = np.histogram(
                         data.values,
                         bins=data_bins,
@@ -536,7 +542,8 @@ class Trainer(object):
                 else:
                     data_range = (data.min(), data.max())
                     data_bins = 25
-                weights = (df.lumi_wgt * df.mc_wgt).loc[cut].values
+                # weights = (df.lumi_wgt * df.mc_wgt).loc[cut].values
+                weights = (df.lumi_wgt).loc[cut].values
                 hist = np.histogram(
                     data.values,
                     bins=data_bins,

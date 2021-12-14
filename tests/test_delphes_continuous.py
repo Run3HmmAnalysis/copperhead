@@ -30,7 +30,7 @@ if __name__ == "__main__":
         "ncpus": 1,
         "years": ["snowmass"],
         "datasets": ["ggh_powheg"],
-        "channels": ["vbf"],
+        "channels": ["ggh_0jets"],
         "regions": ["h-peak"],
         # "hist_vars": ["dimuon_mass"],
         "plot_vars": ["dimuon_mass"],
@@ -124,20 +124,21 @@ if __name__ == "__main__":
     out_df = out_df.compute()
     dimuon_mass = out_df.loc[out_df.event == 20002, "dimuon_mass"].values[0]
     jj_mass = out_df.loc[out_df.event == 20011, "jj_mass"].values[0]
-    assert out_df.shape == (59, 63)
-    assert almost_equal(dimuon_mass, 125.239198688)
+    assert out_df.shape == (86, 63)
+    assert almost_equal(dimuon_mass, 124.3369651)
     assert almost_equal(jj_mass, 78.593476)
     slicer = {
         "region": "h-peak",
-        "channel": "vbf",
+        "channel": "ggh_0jets",
         "val_sumw2": "value",
         "dimuon_mass": slice(None),
     }
+
     assert almost_equal(
         out_hist.loc[out_hist.var_name == "dimuon_mass", "hist"]
         .values[0][slicer]
         .sum(),
-        276.14510766671043,
+        12426.530232,
     )
-    assert almost_equal(sum(out_plot), 276.14510766671043)
-    assert almost_equal(sum(out_tmp), 276.14510766671043)
+    assert almost_equal(sum(out_plot), 12426.530232)
+    assert almost_equal(sum(out_tmp), 12426.530232)

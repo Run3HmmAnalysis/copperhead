@@ -164,7 +164,7 @@ def make_histograms(args, parameters={}):
             to_fill_sumw2["variation"] = variation
             weight = df.loc[slicer, w]
         else:
-            weight = df.loc[slicer, "lumi_wgt"] * df.loc[slicer, "mc_wgt"]
+            weight = df.loc[slicer, "lumi_wgt"]  # * df.loc[slicer, "mc_wgt"]
 
         hist.fill(**to_fill_value, weight=weight)
         hist.fill(**to_fill_sumw2, weight=weight * weight)
