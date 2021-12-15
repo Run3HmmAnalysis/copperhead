@@ -1,4 +1,5 @@
 def split_into_channels(df):
+    """
     cuts = {
         "vbf": (df.jj_mass > 400) & (df.jj_dEta > 2.5),
         "ggh_0jets": (df.njets == 0) & ((df.jj_mass <= 400) | (df.jj_dEta <= 2.5)),
@@ -6,8 +7,16 @@ def split_into_channels(df):
         "ggh_2orMoreJets": (df.njets >= 2)
         & ((df.jj_mass <= 400) | (df.jj_dEta <= 2.5)),
     }
+    """
+    cuts = {
+        "ggh_0jets": (df.njets == 0),
+        "ggh_1jet": (df.njets == 1),
+        "ggh_2orMoreJets": (df.njets >= 2),
+    }
     for cname, cut in cuts.items():
         df.loc[cut, "channel"] = cname
+
+    # df["channel"] = "inclusive"
 
 
 def categorize_by_score(df, scores, mode="uniform", **kwargs):

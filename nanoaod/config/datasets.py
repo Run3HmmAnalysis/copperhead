@@ -132,6 +132,7 @@ datasets = {
         "ewk_lljj_mll105_160_py": "/store/mc/RunIIAutumn18NanoAODv6/EWK_LLJJ_MLL_105-160_SM_5f_LO_TuneCP5_PSweights_13TeV-madgraph-pythia8/",
         "ewk_lljj_mll105_160_ptj0": "/store/group/local/hmm/FSRnano18MC_NANOV10b/EWK_LLJJ_MLL_105-160_SM_5f_LO_TuneCH3_13TeV-madgraph-herwig7_corrected/",
         "ewk_lljj_mll105_160_py_dipole": "/store/group/local/hmm/FSRnano18MC_NANOV10c/EWK_LLJJ_MLL_105-160_TuneCP5_13TeV-madgraph-pythia_dipole/",
+        "ewk_m50": "/EWKZ2Jets_ZToLL_M-50_13TeV-madgraph-pythia8/RunIISummer16NanoAODv6-PUMoriond17_Nano25Oct2019_102X_mcRun2_asymptotic_v7-v1/NANOAODSIM",
         "ggh_amc": "",
         "ggh_amcPS": "/store/group/local/hmm/FSRnano18MC_NANOV10b/GluGluHToMuMu_M125_TuneCP5_PSweights_13TeV_amcatnloFXFX_pythia8//",
         "ggh_powhegPS": "/store/group/local/hmm/FSRnano18MC_NANOV10b/GluGluHToMuMu_M-125_TuneCP5_PSweights_13TeV_powheg_pythia8/",

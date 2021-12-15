@@ -21,7 +21,10 @@ class DimuonProcessorDelphes(processor.ProcessorABC):
         return self._columns
 
     def process(self, df):
+        # numevents = len(df)
+        # dataset = df.metadata["dataset"]
         output = pd.DataFrame({"event": df.Event.Number})
+
         output.index.name = "entry"
 
         output["dataset"] = df.metadata["dataset"]
@@ -35,29 +38,35 @@ class DimuonProcessorDelphes(processor.ProcessorABC):
 
         # Select muons
         muons = df[parameters["muon_branch"]]
-        muons = muons[
+        muon_filter = (
             (muons.pt > parameters["muon_pt_cut"])
             & (abs(muons.eta) < parameters["muon_eta_cut"])
             & (muons.IsolationVar < parameters["muon_iso_cut"])
-        ]
-        nmuons = ak.count(muons.pt, axis=1)
-        muons = muons[nmuons == 2]
+        )
+        nmuons = ak.to_pandas(ak.count(muons[muon_filter].pt, axis=1))
 
         mu_map = {"PT": "pt", "Eta": "eta", "Phi": "phi", "Charge": "charge"}
-        for old, new in mu_map.items():
-            muons[new] = muons[old]
-        muon_columns = ["pt", "eta", "phi", "charge", "IsolationVar"]
-        muons = ak.to_pandas(muons[muon_columns])
-        nmuons = ak.to_pandas(nmuons)
+        muon_columns = ["PT", "Eta", "Phi", "Charge", "IsolationVar"]
 
-        mm_charge = muons.loc[:, "charge"].groupby("entry").prod()
+        # Convert one column at a time to preserve event indices in Pandas
+        muon_feature_list = []
+        for col in muon_columns:
+            muon_feature = df[parameters["muon_branch"]][col]
+            val = ak.to_pandas(muon_feature[muon_filter])
+            muon_feature_list.append(val)
+
+        muons = pd.concat(muon_feature_list, axis=1)
+        muons.columns = muon_columns
+        muons.rename(columns=mu_map, inplace=True)
+
         mu1 = muons.loc[muons.pt.groupby("entry").idxmax()]
         mu2 = muons.loc[muons.pt.groupby("entry").idxmin()]
         mu1.index = mu1.index.droplevel("subentry")
         mu2.index = mu2.index.droplevel("subentry")
         pass_leading_pt = mu1.pt > parameters["muon_leading_pt"]
-
         fill_muons(output, mu1, mu2)
+
+        output.mm_charge = output.mu1_charge * output.mu2_charge
 
         # Select electrons
         electrons = df[parameters["electron_branch"]]
@@ -75,18 +84,25 @@ class DimuonProcessorDelphes(processor.ProcessorABC):
             & (mu_for_clean.IsolationVar < parameters["muon_iso_cut"])
         ]
         _, jet_mu_dr = jets.nearest(mu_for_clean, return_metric=True)
-        jets = jets[
+        jet_filter = (
             ak.fill_none(jet_mu_dr > parameters["min_dr_mu_jet"], True)
             & (jets.pt > parameters["jet_pt_cut"])
             & (abs(jets.eta) < parameters["jet_eta_cut"])
-        ]
-        njets = ak.to_pandas(ak.count(jets.pt, axis=1))
+        )
+        njets = ak.to_pandas(ak.count(jets[jet_filter].pt, axis=1))
 
         jet_map = {"PT": "pt", "Eta": "eta", "Phi": "phi", "Mass": "mass"}
-        for old, new in jet_map.items():
-            jets[new] = jets[old]
-        jet_columns = ["pt", "eta", "phi", "mass"]
-        jets = ak.to_pandas(jets[jet_columns])
+        jet_columns = ["PT", "Eta", "Phi", "Mass"]
+
+        jet_feature_list = []
+        for col in jet_columns:
+            jet_feature = df[parameters["jet_branch"]][col]
+            val = ak.to_pandas(jet_feature[jet_filter])
+            jet_feature_list.append(val)
+
+        jets = pd.concat(jet_feature_list, axis=1)
+        jets.columns = jet_columns
+        jets.rename(columns=jet_map, inplace=True)
 
         jets = jets.sort_values(["entry", "pt"], ascending=[True, False])
         jets.index = pd.MultiIndex.from_arrays(
@@ -110,7 +126,7 @@ class DimuonProcessorDelphes(processor.ProcessorABC):
 
         output["event_selection"] = (
             (output.nmuons == 2)
-            & (mm_charge == -1)
+            & (output.mm_charge == -1)
             & (output.nelectrons == 0)
             & pass_leading_pt
         )
@@ -129,7 +145,17 @@ class DimuonProcessorDelphes(processor.ProcessorABC):
 
         output = output[output.region.isin(regions)]
 
-        # print(output.isna().sum()[output.isna().sum()>0])
+        """
+        input_evts = numevents
+        output_evts = output.shape[0]
+        out_yield = output.lumi_wgt.sum()
+        out_vbf = output[
+            (output.jj_mass>400) & (output.jj_dEta>2.5) & (output.jet1_pt>35) & (output.njets>=2)
+        ].lumi_wgt.sum()
+        out_ggh = out_yield - out_vbf
+
+        print(f"\n{dataset}:    {input_evts}  ->  {output_evts};    yield = {out_ggh} (ggH) + {out_vbf} (VBF) = {out_yield}")
+        """
 
         to_return = None
         if self.apply_to_output is None:

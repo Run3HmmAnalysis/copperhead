@@ -5,6 +5,8 @@ datasets = {
     "vbf_powheg": "/store/user/dkondrat/Snowmass2021/Delphes/VBFHToMuMu_M125_14TeV_powheg_pythia8_200PU/",
     # drell-yan
     "dy_m100_mg": "/store/user/dkondrat/Snowmass2021/Delphes/DYJetsToLL_M-100_TuneCUEP8M2T4_14TeV-madgraphMLM-pythia8_200PU/",
+    # ewk
+    "ewk_m50": "/store/user/dkondrat/Snowmass2021/Delphes/EWKZ2Jets_ZToLL_M-50_14TeV-madgraph-pythia8_200PU/",
     # ttbar
     "ttbar_dl": "/store/user/dkondrat/Snowmass2021/Delphes/TTJets_DiLept_TuneCUETP8M1_14TeV-madgraphMLM-pythia8_200PU/",
     "ttbar_sl": "/store/user/dkondrat/Snowmass2021/Delphes/",

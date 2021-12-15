@@ -82,7 +82,7 @@ if __name__ == "__main__":
     out_df = out_df.compute()
     dimuon_mass = out_df.loc[out_df.event == 2, "dimuon_mass"].values[0]
     jj_mass = out_df.loc[out_df.event == 2, "jj_mass nominal"].values[0]
-    assert out_df.shape == (8594, 100)
+    assert out_df.shape == (22167, 99)
     assert almost_equal(dimuon_mass, 124.16069531)
     assert almost_equal(jj_mass, 1478.3898375)
 
@@ -93,5 +93,5 @@ if __name__ == "__main__":
         "val_sumw2": "value",
         "dimuon_mass": slice(None),
     }
-    assert almost_equal(out_hist["hist"][0][slicer].sum(), 31778.216, precision=0.01)
-    assert almost_equal(sum(out_plot), 31778.216, precision=0.01)
+    assert almost_equal(out_hist["hist"][0][slicer].sum(), 81608.379, precision=0.01)
+    assert almost_equal(sum(out_plot), 81608.379, precision=0.01)

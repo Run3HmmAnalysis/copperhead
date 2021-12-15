@@ -12,6 +12,8 @@ def qgl_weights(jet1, jet2, isHerwig, output, variables, njets):
     selected = output.event_selection & (njets > 2)
     qgl.wgt = qgl.wgt / qgl.wgt[selected].mean()
 
+    qgl = qgl.fillna(1.0)
+
     wgts = {"nom": qgl.wgt, "up": qgl.wgt * qgl.wgt, "down": qgl.wgt_down}
     return wgts
 

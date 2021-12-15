@@ -6,8 +6,10 @@ cross_sections = {
     "vbf_powheg": 0.00092442,
     # drell-yan
     "dy_m100_mg": 246.5,
+    # ewk
+    "ewk_m50": 4.38,
     # ttbar
-    "ttbar_dl": 67.75,
+    "ttbar_dl": 103.35,
     "ttbar_sl": 0,
     "tttj": 0.000474,
     "tttt": 0.01206,
