@@ -224,3 +224,7 @@ def delta_r(eta1, eta2, phi1, phi2):
     dphi = abs(np.mod(phi1 - phi2 + np.pi, 2 * np.pi) - np.pi)
     dr = np.sqrt(deta ** 2 + dphi ** 2)
     return deta, dphi, dr
+
+
+def max_abs_eta(row):
+    return max(abs(row["mu1_eta"]), abs(row["mu2_eta"]))
