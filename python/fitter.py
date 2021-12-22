@@ -33,6 +33,20 @@ def run_fits(client, parameters, df):
         "category": df["category"].dropna().unique(),
     }
     fit_ret = parallelize(fitter, argset, client, parameters)
+    df_fits = pd.DataFrame(columns=["label", "channel", "category", "chi2"])
+    for fr in fit_ret:
+        df_fits = pd.concat([df_fits, pd.DataFrame.from_dict(fr)])
+    # choose fit function with lowest chi2/dof
+    df_fits.loc[df_fits.chi2 <= 0, "chi2"] = 999.0
+    idx = df_fits.groupby(["label", "channel", "category"])["chi2"].idxmin()
+    df_fits = (
+        df_fits.loc[idx]
+        .reset_index()
+        .set_index(["label", "channel"])
+        .sort_index()
+        .drop_duplicates()
+    )
+    print(df_fits)
     return fit_ret
 
 
@@ -43,11 +57,15 @@ def fitter(args, parameters={}):
     mode = fit_setup["mode"]
     blinded = fit_setup.pop("blinded", False)
     save = parameters.pop("save_fits", False)
-    save_path = parameters.get("save_fits_path", "./")
+    save_path = parameters.get("save_fits_path", "fits/")
     channel = args["channel"]
     category = args["category"]
 
+    save_path = save_path + f"/fits_{channel}_{category}/"
+    mkdir(save_path)
+
     df = df[(df.channel == args["channel"]) & (df.category == args["category"])]
+    norm = df.lumi_wgt.sum()
 
     the_fitter = Fitter(
         fitranges={"low": 110, "high": 150, "SR_left": 120, "SR_right": 130},
@@ -73,6 +91,19 @@ def fitter(args, parameters={}):
             title="Background",
             save=save,
             save_path=save_path,
+            norm=norm,
+        )
+        # generate and fit pseudo-data
+        chi2 = the_fitter.fit_pseudodata(
+            label="pseudodata_" + label,
+            category=category,  # temporary
+            blinded=blinded,
+            model_names=["bwz_redux", "bwgamma"],
+            fix_parameters=False,
+            title="Pseudo-data",
+            save=save,
+            save_path=save_path,
+            norm=norm,
         )
 
     if mode == "sig":
@@ -86,6 +117,7 @@ def fitter(args, parameters={}):
             title="Signal",
             save=save,
             save_path=save_path,
+            norm=norm,
         )
     ret = {"label": label, "channel": channel, "category": category, "chi2": chi2}
     return ret
@@ -117,6 +149,7 @@ class Fitter(object):
         title="",
         save=True,
         save_path="./",
+        norm=0,
     ):
         if dataset is None:
             raise Exception("Error: dataset not provided!")
@@ -142,7 +175,9 @@ class Fitter(object):
             title=title,
             save=save,
             save_path=save_path,
+            norm=norm,
         )
+
         if save:
             mkdir(save_path)
             self.save_workspace(
@@ -200,6 +235,42 @@ class Fitter(object):
         self.data_registry[ds_name] = type(data)
         self.workspace.Import(data, ds_name)
 
+    def fit_pseudodata(
+        self,
+        label="test",
+        category="cat0",
+        blinded=False,
+        model_names=[],
+        fix_parameters=False,
+        title="",
+        save=True,
+        save_path="./",
+        norm=0,
+    ):
+        tag = f"_{self.channel}_{category}"
+        chi2 = {}
+        for model_name in model_names:
+            model_key = model_name + tag
+            data = self.workspace.pdf(model_key).generate(
+                rt.RooArgSet(self.workspace.obj("mass")), norm
+            )
+            ds_name = f"pseudodata_{model_key}"
+            self.add_data(data, ds_name=ds_name)
+            chi2[model_key] = self.fit(
+                ds_name,
+                norm,
+                [model_name],
+                blinded=blinded,
+                fix_parameters=fix_parameters,
+                category=category,
+                label=label,
+                title=title,
+                save=save,
+                save_path=save_path,
+                norm=norm,
+            )[model_key]
+        return chi2
+
     def fill_dataset(self, data, x, ds_name="ds"):
         cols = rt.RooArgSet(x)
         ds = rt.RooDataSet(ds_name, ds_name, cols)
@@ -218,7 +289,7 @@ class Fitter(object):
             rt.RooArgSet(self.workspace.obj("mass")), xSec * lumi
         )
 
-    def add_model(self, model_name, order=None, category="cat0"):
+    def add_model(self, model_name, order=None, category="cat0", prefix=""):
         if model_name not in self.fitmodels.keys():
             raise Exception(f"Error: model {model_name} does not exist!")
         tag = f"_{self.channel}_{category}"
@@ -251,6 +322,7 @@ class Fitter(object):
         category="cat0",
         label="",
         title="",
+        norm=0,
     ):
         if ds_name not in self.data_registry.keys():
             raise Exception(f"Error: Dataset {ds_name} not in workspace!")
@@ -271,6 +343,12 @@ class Fitter(object):
                 pdfs[model_key].getParameters(rt.RooArgSet()).setAttribAll("Constant")
             chi2[model_key] = self.get_chi2(model_key, ds_name, ndata)
 
+            norm_var = rt.RooRealVar(f"{model_key}_norm", f"{model_key}_norm", norm)
+            try:
+                self.workspace.Import(norm_var)
+            except Exception:
+                print(f"{norm_var} already exists in workspace, skipping...")
+
         if save:
             mkdir(save_path)
             plot(self, ds_name, pdfs, blinded, category, label, title, save_path)
@@ -290,4 +368,6 @@ class Fitter(object):
         model.plotOn(xframe, rt.RooFit.Name(model_key))
         nparam = model.getParameters(ds).getSize()
         chi2 = xframe.chiSquare(model_key, ds_name, nparam)
+        if chi2 <= 0:
+            chi2 == 999
         return chi2
