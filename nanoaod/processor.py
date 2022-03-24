@@ -33,6 +33,7 @@ from nanoaod.jets import prepare_jets, fill_jets, fill_softjets
 from nanoaod.jets import jet_id, jet_puid
 
 # from nanoaod.jets import gen_jet_pair_mass
+from nanoaod.jets import fill_gen_jets
 
 from nanoaod.config.parameters import parameters
 from nanoaod.config.variables import variables
@@ -67,8 +68,8 @@ class DimuonProcessor(processor.ProcessorABC):
         self._columns = self.parameters["proc_columns"]
 
         # --- Define regions used in the analysis ---#
-        self.regions = ["z-peak", "h-sidebands", "h-peak"]
-        # self.regions = ["h-sidebands", "h-peak"]
+        # self.regions = ["z-peak", "h-sidebands", "h-peak"]
+        self.regions = ["h-sidebands", "h-peak"]
 
         self.lumi_weights = self.samp_info.lumi_weights
 
@@ -508,6 +509,9 @@ class DimuonProcessor(processor.ProcessorABC):
         # Calculate getJetMass and split DY
         # ------------------------------------------------------------#
 
+        if is_mc:
+            output = fill_gen_jets(df, output)
+
         """
         output["genJetPairMass"] = 0.0
         is_dy = ("dy_m105_160_vbf_amc" in dataset) or ("dy_m105_160_amc" in dataset)
@@ -587,6 +591,8 @@ class DimuonProcessor(processor.ProcessorABC):
             or ("wgt_" in c[0])
             or ("mcreplica" in c[0])
             or (c[0] in ["region", "dataset", "year"])
+            or ("gjet" in c[0])
+            or ("gjj" in c[0])
         ]
 
         output = output.loc[output.event_selection, columns_to_save]

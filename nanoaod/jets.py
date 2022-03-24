@@ -164,6 +164,40 @@ def jet_puid(jets, parameters, year):
     return pass_jet_puid
 
 
+def fill_gen_jets(df, output):
+    gjets = df.GenJet
+    gleptons = df.GenPart[
+        (abs(df.GenPart.pdgId) == 13)
+        | (abs(df.GenPart.pdgId) == 11)
+        | (abs(df.GenPart.pdgId) == 15)
+    ]
+    gl_pair = ak.cartesian({"jet": gjets, "lepton": gleptons}, axis=1, nested=True)
+    _, _, dr_gl = delta_r(
+        gl_pair["jet"].eta,
+        gl_pair["lepton"].eta,
+        gl_pair["jet"].phi,
+        gl_pair["lepton"].phi,
+    )
+    isolated = ak.all((dr_gl > 0.3), axis=-1)
+    gjet1 = ak.to_pandas(gjets[isolated]).loc[
+        pd.IndexSlice[:, 0], ["pt", "eta", "phi", "mass"]
+    ]
+    gjet2 = ak.to_pandas(gjets[isolated]).loc[
+        pd.IndexSlice[:, 1], ["pt", "eta", "phi", "mass"]
+    ]
+    gjet1.index = gjet1.index.droplevel("subentry")
+    gjet2.index = gjet2.index.droplevel("subentry")
+    gjsum = p4_sum(gjet1, gjet2)
+    for var in ["pt", "eta", "phi", "mass"]:
+        output[f"gjet1_{var}"] = gjet1[var]
+        output[f"gjet2_{var}"] = gjet2[var]
+        output[f"gjj_{var}"] = gjsum[var]
+    output["gjj_dEta"], output["gjj_dPhi"], output["gjj_dR"] = delta_r(
+        output.gjet1_eta, output.gjet2_eta, output.gjet1_phi, output.gjet2_phi
+    )
+    return output
+
+
 def gen_jet_pair_mass(df):
     gjmass = None
     gjets = df.GenJet

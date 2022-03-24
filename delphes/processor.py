@@ -4,7 +4,7 @@ import coffea.processor as processor
 
 from delphes.config.parameters import parameters
 from delphes.muons import fill_muons
-from delphes.jets import fill_jets
+from delphes.jets import fill_jets, fill_gen_jets
 
 
 class DimuonProcessorDelphes(processor.ProcessorABC):
@@ -21,6 +21,7 @@ class DimuonProcessorDelphes(processor.ProcessorABC):
         return self._columns
 
     def process(self, df):
+        # print(df.fields)
         # numevents = len(df)
         # dataset = df.metadata["dataset"]
         output = pd.DataFrame({"event": df.Event.Number})
@@ -115,6 +116,7 @@ class DimuonProcessorDelphes(processor.ProcessorABC):
         jet2.index = jet2.index.droplevel("subentry")
 
         fill_jets(output, jet1, jet2)
+        fill_gen_jets(df, output)
 
         # Event selection: two opposite-sign muons and no electrons
         output["nmuons"] = nmuons

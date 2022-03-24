@@ -1,5 +1,7 @@
 import numpy as np
 from python.math_tools import p4_sum, delta_r, rapidity
+import awkward as ak
+import pandas as pd
 
 
 def fill_jets(output, jet1, jet2):
@@ -97,3 +99,42 @@ def fill_jets(output, jet1, jet2):
     )
 
     output[variable_names] = output[variable_names].fillna(-999.0)
+
+
+def fill_gen_jets(df, output):
+    features = ["PT", "Eta", "Phi", "Mass"]
+    gjets = df.GenJet[features]
+    print(df.GenJet.fields)
+    gleptons = df.MuonMedium
+    # gleptons = df.GenPart[
+    #    (abs(df.GenPart.pdgId) == 13)
+    #    | (abs(df.GenPart.pdgId) == 11)
+    #    | (abs(df.GenPart.pdgId) == 15)
+    # ]
+    gl_pair = ak.cartesian({"jet": gjets, "lepton": gleptons}, axis=1, nested=True)
+    _, _, dr_gl = delta_r(
+        gl_pair["jet"].Eta,
+        gl_pair["lepton"].Eta,
+        gl_pair["jet"].Phi,
+        gl_pair["lepton"].Phi,
+    )
+    isolated = ak.all((dr_gl > 0.3), axis=-1)
+
+    gjet1 = ak.to_pandas(gjets[isolated]).loc[pd.IndexSlice[:, 0], features]
+    gjet2 = ak.to_pandas(gjets[isolated]).loc[pd.IndexSlice[:, 1], features]
+    gjet1.index = gjet1.index.droplevel("subentry")
+    gjet2.index = gjet2.index.droplevel("subentry")
+    feat_map = {"pt": "PT", "eta": "Eta", "phi": "Phi", "mass": "Mass"}
+    for var in ["pt", "eta", "phi", "mass"]:
+        gjet1[var] = gjet1[feat_map[var]]
+        gjet2[var] = gjet2[feat_map[var]]
+    gjsum = p4_sum(gjet1, gjet2)
+
+    for var in ["pt", "eta", "phi", "mass"]:
+        output[f"gjet1_{var}"] = gjet1[var]
+        output[f"gjet2_{var}"] = gjet2[var]
+        output[f"gjj_{var}"] = gjsum[var]
+    output["gjj_dEta"], output["gjj_dPhi"], output["gjj_dR"] = delta_r(
+        output.gjet1_eta, output.gjet2_eta, output.gjet1_phi, output.gjet2_phi
+    )
+    return output
