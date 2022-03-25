@@ -1,4 +1,4 @@
-coffea==0.7.9
+coffea==0.7.13
 dask[distributed]
 sklearn
 xgboost
