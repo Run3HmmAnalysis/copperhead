@@ -1,10 +1,10 @@
 import glob
 import tqdm
 import argparse
+import pandas as pd
 import dask
 from dask.distributed import Client
 
-from python.timer import Timer
 from nanoaod.postprocessor import load_dataframe
 from nanoaod.config.mva_bins import mva_bins
 from nanoaod.config.variables import variables_lookup
@@ -81,12 +81,13 @@ if not use_local_cluster:
 parameters = {
     "slurm_cluster_ip": slurm_cluster_ip,
     "ncpus": ncpus_local,
-    "label": "sep26",
+    "label": "2022mar28",
     "path": "/depot/cms/hmm/coffea/",
     "hist_path": "/depot/cms/hmm/coffea/histograms/",
-    "plots_path": "./plots_test/",
+    "plots_path": "./plots/2022mar28/",
     "models_path": "/depot/cms/hmm/trained_models/",
-    "dnn_models": ["dnn_allyears_128_64_32"],
+    "dnn_models": [],
+    # "dnn_models": ["dnn_allyears_128_64_32"],
     # keep in mind - xgboost version for evaluation
     # should be exactly the same as the one used for training!
     # 'bdt_models': ['bdt_nest10000_weightCorrAndShuffle_2Aug'],
@@ -95,8 +96,7 @@ parameters = {
     "years": args.years,
     "syst_variations": ["nominal"],
     # 'syst_variations':['nominal', f'Absolute2016_up'],
-    "channels": ["vbf", "vbf_01j", "vbf_2j"],
-    # 'channels': ['ggh_01j', 'ggh_2j'],
+    "channels": ["vbf"],
     "regions": ["h-peak", "h-sidebands"],
     "save_hists": True,
     "save_plots": True,
@@ -123,8 +123,8 @@ parameters["grouping"] = {
     # 'dy_m105_160_vbf_amc': 'DY_filter',
     "dy_m105_160_amc": "DY",
     "dy_m105_160_vbf_amc": "DY",
-    "ewk_lljj_mll105_160_ptj0": "EWK",
-    # 'ewk_lljj_mll105_160_py_dipole': 'EWK_Pythia',
+    # "ewk_lljj_mll105_160_ptj0": "EWK",
+    "ewk_lljj_mll105_160_py_dipole": "EWK",
     "ttjets_dl": "TT+ST",
     "ttjets_sl": "TT+ST",
     "ttw": "TT+ST",
@@ -156,7 +156,8 @@ grouping_alt = {
         "data_H",
     ],
     "DY": ["dy_m105_160_amc", "dy_m105_160_vbf_amc"],
-    "EWK": ["ewk_lljj_mll105_160_ptj0"],
+    # "EWK": ["ewk_lljj_mll105_160_ptj0"],
+    "EWK": ["ewk_lljj_mll105_160_py_dipole"],
     "TT+ST": ["ttjets_dl", "ttjets_sl", "ttw", "ttz", "st_tw_top", "st_tw_antitop"],
     "VV": ["ww_2l2nu", "wz_2l2q", "wz_1l1nu2q", "wz_3lnu", "zz"],
     "VVV": ["www", "wwz", "wzz", "zzz"],
@@ -172,8 +173,6 @@ parameters["plot_groups"] = {
 
 
 if __name__ == "__main__":
-    timer = Timer(ordered=False)
-
     if use_local_cluster:
         print(
             f"Creating local cluster with {ncpus_local} workers."
@@ -194,13 +193,6 @@ if __name__ == "__main__":
         client = Client(parameters["slurm_cluster_ip"])
     print("Cluster created!")
 
-    datasets = [
-        "ggh_amcPS",
-        # 'vbf_powhegPS',
-        # 'vbf_powheg_herwig',
-        "vbf_powheg_dipole"
-        # 'dy_m105_160_amc'
-    ]
     datasets = parameters["grouping"].keys()
 
     parameters["hist_vars"] = ["dimuon_mass"]
@@ -213,8 +205,8 @@ if __name__ == "__main__":
 
     how = {
         "Data": "grouped",
-        "DY": "all",
-        "EWK": "all",
+        "DY": "individual",
+        "EWK": "individual",
         "TT+ST": "individual",
         "VV": "individual",
         "VVV": "individual",
@@ -248,10 +240,16 @@ if __name__ == "__main__":
 
     if args.remake_hists:
         if args.sequential:
+            dfs = []
             for path in tqdm.tqdm(all_paths):
                 if len(path) == 0:
                     continue
-                df = load_dataframe(client, parameters, inputs=[path], timer=timer)
+                df = load_dataframe(client, parameters, inputs=[path])
+                if not isinstance(df, pd.DataFrame):
+                    continue
+                dfs.append(df)
+            df = pd.concat(dfs)
+            to_histograms(client, parameters, df=df)
 
         else:
             for year, groups in paths_grouped.items():
@@ -259,9 +257,10 @@ if __name__ == "__main__":
                 for group, g_paths in tqdm.tqdm(groups.items()):
                     if len(g_paths) == 0:
                         continue
-                    df = load_dataframe(client, parameters, inputs=g_paths, timer=timer)
-        to_histograms(client, parameters, df=df)
+                    df = load_dataframe(client, parameters, inputs=g_paths)
+                    if not isinstance(df, pd.DataFrame):
+                        continue
+                    to_histograms(client, parameters, df=df)
 
     if args.plot:
-        plotter(client, parameters, timer=timer)
-    timer.summary()
+        plotter(client, parameters)

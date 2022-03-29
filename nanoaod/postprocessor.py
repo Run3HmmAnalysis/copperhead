@@ -88,9 +88,9 @@ def load_dataframe(client, parameters, inputs=[], timer=None):
         df_future = client.gather(df_future)
         # Merge dataframes
         try:
-            df = dd.concat([d for d in df_future if len(d.columns) > 0])
+            df = dd.concat([d for d in df_future if d.shape[1] > 0])
         except Exception:
-            return
+            return None
 
         npart = df.npartitions
         df = df.compute()

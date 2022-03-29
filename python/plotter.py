@@ -82,7 +82,7 @@ def plotter(client, parameters, hist_df=None, timer=None):
         "df": [hist_df],
     }
 
-    yields = parallelize(plot, arg_plot, client, parameters)
+    yields = parallelize(plot, arg_plot, client, parameters, seq=True)
 
     return yields
 
@@ -264,9 +264,11 @@ def get_plottables(hist, entry, year, var_name, slicer):
 
         hist_values_group = []
         hist_sumw2_group = []
+
         for h in hist.loc[hist.dataset.isin(group_entries), "hist"].values:
-            hist_values_group.append(h[slicer_value].project(var_name))
-            hist_sumw2_group.append(h[slicer_sumw2].project(var_name))
+            if not pd.isna(h[slicer_value].project(var_name).sum()):
+                hist_values_group.append(h[slicer_value].project(var_name))
+                hist_sumw2_group.append(h[slicer_sumw2].project(var_name))
 
         if len(hist_values_group) == 0:
             continue
