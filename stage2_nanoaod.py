@@ -1,11 +1,13 @@
 import glob
 import tqdm
 import argparse
-import pandas as pd
 import dask
 from dask.distributed import Client
+import dask.dataframe as dd
 
 from nanoaod.postprocessor import load_dataframe
+
+# from nanoaod.postprocessor import training_features
 from nanoaod.config.mva_bins import mva_bins
 from nanoaod.config.variables import variables_lookup
 from python.convert import to_histograms
@@ -22,14 +24,6 @@ parser.add_argument(
     default=None,
     action="store",
     help="Slurm cluster port (if not specified, will create a local cluster)",
-)
-parser.add_argument(
-    "-s",
-    "--sequential",
-    dest="sequential",
-    default=False,
-    action="store_true",
-    help="Sequential processing",
 )
 parser.add_argument(
     "-r",
@@ -80,7 +74,6 @@ if not use_local_cluster:
 
 parameters = {
     "slurm_cluster_ip": slurm_cluster_ip,
-    "ncpus": ncpus_local,
     "label": "2022mar28",
     "path": "/depot/cms/hmm/coffea/",
     "hist_path": "/depot/cms/hmm/coffea/histograms/",
@@ -191,11 +184,13 @@ if __name__ == "__main__":
             f" Dashboard address: {dashboard_address}"
         )
         client = Client(parameters["slurm_cluster_ip"])
+    parameters["ncpus"] = len(client.scheduler_info()["workers"])
     print("Cluster created!")
 
     datasets = parameters["grouping"].keys()
 
     parameters["hist_vars"] = ["dimuon_mass"]
+    # parameters["hist_vars"] = training_features
     parameters["hist_vars"] += ["score_" + m for m in parameters["dnn_models"]]
     parameters["hist_vars"] += ["score_" + m for m in parameters["bdt_models"]]
 
@@ -203,64 +198,28 @@ if __name__ == "__main__":
     parameters["plot_vars"] = parameters["hist_vars"]
     parameters["datasets"] = datasets
 
-    how = {
-        "Data": "grouped",
-        "DY": "individual",
-        "EWK": "individual",
-        "TT+ST": "individual",
-        "VV": "individual",
-        "VVV": "individual",
-        "ggH": "all",
-        "VBF": "all",
-    }
-    paths_grouped = {}
-    all_paths = []
-    for y in parameters["years"]:
-        paths_grouped[y] = {}
-        paths_grouped[y]["all"] = []
+    all_paths = {}
+    for year in parameters["years"]:
+        all_paths[year] = {}
         for group, ds in grouping_alt.items():
             for dataset in ds:
-                if dataset not in datasets:
-                    continue
-                if how[group] == "all":
-                    the_group = "all"
-                elif how[group] == "grouped":
-                    the_group = group
-                elif how[group] == "individual":
-                    the_group = dataset
-                path = glob.glob(
+                paths = glob.glob(
                     f"{parameters['path']}/"
-                    f"{y}_{parameters['label']}/"
+                    f"{year}_{parameters['label']}/"
                     f"{dataset}/*.parquet"
                 )
-                if the_group not in paths_grouped.keys():
-                    paths_grouped[y][the_group] = []
-                all_paths.append(path)
-                paths_grouped[y][the_group].append(path)
+                all_paths[year][dataset] = paths
 
     if args.remake_hists:
-        if args.sequential:
-            dfs = []
-            for path in tqdm.tqdm(all_paths):
+        for year in parameters["years"]:
+            print(f"Processing {year}")
+            for dataset, path in tqdm.tqdm(all_paths[year].items()):
                 if len(path) == 0:
                     continue
                 df = load_dataframe(client, parameters, inputs=[path])
-                if not isinstance(df, pd.DataFrame):
+                if not isinstance(df, dd.DataFrame):
                     continue
-                dfs.append(df)
-            df = pd.concat(dfs)
-            to_histograms(client, parameters, df=df)
-
-        else:
-            for year, groups in paths_grouped.items():
-                print(f"Processing {year}")
-                for group, g_paths in tqdm.tqdm(groups.items()):
-                    if len(g_paths) == 0:
-                        continue
-                    df = load_dataframe(client, parameters, inputs=g_paths)
-                    if not isinstance(df, pd.DataFrame):
-                        continue
-                    to_histograms(client, parameters, df=df)
+                to_histograms(client, parameters, df=df)
 
     if args.plot:
         plotter(client, parameters)

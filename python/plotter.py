@@ -62,15 +62,14 @@ class Entry(object):
 
 
 def plotter(client, parameters, hist_df=None, timer=None):
-
     if hist_df is None:
         arg_load = {
             "year": parameters["years"],
             "var_name": parameters["hist_vars"],
             "dataset": parameters["datasets"],
         }
-        hist_rows = parallelize(load_histogram, arg_load, client, parameters)
-        hist_df = pd.concat(hist_rows).reset_index(drop=True)
+        hist_dfs = parallelize(load_histogram, arg_load, client, parameters)
+        hist_df = pd.concat(hist_dfs).reset_index(drop=True)
 
     arg_plot = {
         "year": parameters["years"],
@@ -82,7 +81,7 @@ def plotter(client, parameters, hist_df=None, timer=None):
         "df": [hist_df],
     }
 
-    yields = parallelize(plot, arg_plot, client, parameters, seq=True)
+    yields = parallelize(plot, arg_plot, client, parameters)
 
     return yields
 

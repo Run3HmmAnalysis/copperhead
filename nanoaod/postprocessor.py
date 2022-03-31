@@ -81,7 +81,6 @@ decorrelation_scheme = {
 
 
 def load_dataframe(client, parameters, inputs=[], timer=None):
-
     if isinstance(inputs, list):
         # Load dataframes
         df_future = client.map(load_pandas_from_parquet, inputs)
@@ -91,11 +90,6 @@ def load_dataframe(client, parameters, inputs=[], timer=None):
             df = dd.concat([d for d in df_future if d.shape[1] > 0])
         except Exception:
             return None
-
-        npart = df.npartitions
-        df = df.compute()
-        df.reset_index(inplace=True, drop=True)
-        df = dd.from_pandas(df, npartitions=npart)
         if df.npartitions > 2 * parameters["ncpus"]:
             df = df.repartition(npartitions=parameters["ncpus"])
 
@@ -104,10 +98,6 @@ def load_dataframe(client, parameters, inputs=[], timer=None):
 
     elif isinstance(inputs, dd.DataFrame):
         df = inputs
-        npart = df.npartitions
-        df = df.compute()
-        df.reset_index(inplace=True, drop=True)
-        df = dd.from_pandas(df, npartitions=npart)
         if df.npartitions > 2 * parameters["ncpus"]:
             df = df.repartition(npartitions=parameters["ncpus"])
 
@@ -124,15 +114,15 @@ def load_dataframe(client, parameters, inputs=[], timer=None):
         if (f"channel {v}" not in df.columns) and (f"c {v}" in df.columns):
             df[f"channel {v}"] = df[f"c {v}"]
 
-    df["channel nominal"] = "vbf"
-
     keep_columns = ["dataset", "year", "region"]
     keep_columns += [f"channel {v}" for v in parameters["syst_variations"]]
     keep_columns += [c for c in df.columns if "wgt_" in c]
     keep_columns += parameters["hist_vars"]
+    cols_for_categ = ["jj_mass", "jj_dEta", "njets"]
+    for c in cols_for_categ:
+        keep_columns += [f"{c} {v}" for v in parameters["syst_variations"]]
 
     # Evaluate classifiers
-    # TODO: outsource to GPUs
     evaluate_mva = True
     if evaluate_mva:
         for v in parameters["syst_variations"]:
@@ -151,9 +141,6 @@ def load_dataframe(client, parameters, inputs=[], timer=None):
                 )
 
     df = df[[c for c in keep_columns if c in df.columns]]
-    df = df.compute()
-    df.dropna(axis=1, inplace=True)
-    df.reset_index(inplace=True)
     return df
 
 

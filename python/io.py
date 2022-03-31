@@ -2,6 +2,7 @@ import os
 import pandas as pd
 import dask.dataframe as dd
 import pickle
+import glob
 
 
 def mkdir(path):
@@ -56,13 +57,16 @@ def load_pandas_from_parquet(path):
     return df
 
 
-def save_histogram(hist, var_name, dataset, year, parameters):
+def save_histogram(hist, var_name, dataset, year, parameters, npart=None):
     mkdir(parameters["hist_path"])
     hist_path = parameters["hist_path"] + parameters["label"]
     mkdir(hist_path)
     mkdir(f"{hist_path}/{year}")
     mkdir(f"{hist_path}/{year}/{var_name}")
-    path = f"{hist_path}/{year}/{var_name}/{dataset}.pickle"
+    if npart is None:
+        path = f"{hist_path}/{year}/{var_name}/{dataset}.pickle"
+    else:
+        path = f"{hist_path}/{year}/{var_name}/{dataset}_{npart}.pickle"
     with open(path, "wb") as handle:
         pickle.dump(hist, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
@@ -72,16 +76,33 @@ def load_histogram(argset, parameters):
     var_name = argset["var_name"]
     dataset = argset["dataset"]
     hist_path = parameters["hist_path"] + parameters["label"]
-    path = f"{hist_path}/{year}/{var_name}/{dataset}.pickle"
-    try:
-        with open(path, "rb") as handle:
-            hist = pickle.load(handle)
-    except Exception:
-        return pd.DataFrame()
-    hist_row = pd.DataFrame(
-        [{"year": year, "var_name": var_name, "dataset": dataset, "hist": hist}]
-    )
-    return hist_row
+    paths = glob.glob(f"{hist_path}/{year}/{var_name}/{dataset}_*.pickle") + [
+        f"{hist_path}/{year}/{var_name}/{dataset}.pickle"
+    ]
+    hist_df = pd.DataFrame()
+    for path in paths:
+        try:
+            with open(path, "rb") as handle:
+                hist = pickle.load(handle)
+                hist_df = pd.concat(
+                    [
+                        hist_df,
+                        pd.DataFrame(
+                            [
+                                {
+                                    "year": year,
+                                    "var_name": var_name,
+                                    "dataset": dataset,
+                                    "hist": hist,
+                                }
+                            ]
+                        ),
+                    ]
+                )
+                hist_df.reset_index(drop=True, inplace=True)
+        except Exception:
+            pass
+    return hist_df
 
 
 def save_template(templates, out_name, parameters):

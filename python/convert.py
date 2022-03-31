@@ -2,10 +2,12 @@ import itertools
 import numpy as np
 import pandas as pd
 from hist import Hist
+import dask.dataframe as dd
 
 from python.workflow import parallelize
 from python.variable import Variable
 from python.io import load_histogram, save_histogram, save_template
+from python.categorizer import split_into_channels
 
 import warnings
 
@@ -18,11 +20,14 @@ def to_histograms(client, parameters, df):
         "year": df.year.unique(),
         "var_name": parameters["hist_vars"],
         "dataset": df.dataset.unique(),
-        "df": [df],
     }
+    if isinstance(df, pd.DataFrame):
+        argset["df"] = df
+    elif isinstance(df, dd.DataFrame):
+        argset["df"] = [(i, df.partitions[i]) for i in range(df.npartitions)]
+
     hist_rows = parallelize(make_histograms, argset, client, parameters)
     hist_df = pd.concat(hist_rows).reset_index(drop=True)
-
     return hist_df
 
 
@@ -64,6 +69,11 @@ def get_variation(wgt_variation, sys_variation):
 
 def make_histograms(args, parameters={}):
     df = args["df"]
+    npart = None
+    if isinstance(df, tuple):
+        npart = df[0]
+        df = df[1]
+
     year = args["year"]
     var_name = args["var_name"]
     dataset = args["dataset"]
@@ -74,6 +84,10 @@ def make_histograms(args, parameters={}):
 
     regions = parameters["regions"]
     channels = parameters["channels"]
+
+    df = df.compute()
+    df.fillna(-999.0, inplace=True)
+    split_into_channels(df, v="nominal")
 
     wgt_variations = ["nominal"]
     syst_variations = ["nominal"]
@@ -170,7 +184,7 @@ def make_histograms(args, parameters={}):
         hist.fill(**to_fill_sumw2, weight=weight * weight)
 
     if parameters["save_hists"]:
-        save_histogram(hist, var.name, dataset, year, parameters)
+        save_histogram(hist, var.name, dataset, year, parameters, npart)
     hist_row = pd.DataFrame(
         [{"year": year, "var_name": var.name, "dataset": dataset, "hist": hist}]
     )
