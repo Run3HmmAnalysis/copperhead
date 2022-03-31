@@ -22,7 +22,7 @@ def to_histograms(client, parameters, df):
         "dataset": df.dataset.unique(),
     }
     if isinstance(df, pd.DataFrame):
-        argset["df"] = df
+        argset["df"] = [df]
     elif isinstance(df, dd.DataFrame):
         argset["df"] = [(i, df.partitions[i]) for i in range(df.npartitions)]
 
@@ -85,9 +85,13 @@ def make_histograms(args, parameters={}):
     regions = parameters["regions"]
     channels = parameters["channels"]
 
-    df = df.compute()
+    if isinstance(df, dd.DataFrame):
+        df = df.compute()
     df.fillna(-999.0, inplace=True)
-    split_into_channels(df, v="nominal")
+    if parameters["has_variations"]:
+        split_into_channels(df, v="nominal")
+    else:
+        split_into_channels(df)
 
     wgt_variations = ["nominal"]
     syst_variations = ["nominal"]
