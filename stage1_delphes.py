@@ -78,6 +78,7 @@ parameters = {
     "local_cluster": local_cluster,
     "slurm_cluster_ip": slurm_cluster_ip,
     "lumi": 3000000.0,
+    # "lumi": 59970.0,
 }
 
 parameters["out_dir"] = f"{parameters['global_out_path']}/{parameters['out_path']}"
@@ -120,7 +121,7 @@ if __name__ == "__main__":
             n_workers=40,
             dashboard_address=dash_local,
             threads_per_worker=1,
-            memory_limit="2.9GB",
+            memory_limit="6GB",
         )
     else:
         client = Client(parameters["slurm_cluster_ip"])
@@ -130,6 +131,7 @@ if __name__ == "__main__":
         "ggh_powheg",
         "vbf_powheg",
         "dy_m100_mg",
+        "ewk_m50",
         "ttbar_dl",
         "tttj",
         "tttt",
@@ -144,15 +146,14 @@ if __name__ == "__main__":
         "st_tw_antitop",
         "zz_2l2q",
     ]
-    # ds_names = ["dy_m100_mg"]
     my_datasets = {name: path for name, path in datasets.items() if name in ds_names}
-    fileset_json = "/depot/cms/hmm/coffea/snowmass_datasets.json"
+    fileset_json = "/depot/cms/hmm/coffea/snowmass_datasets_dec22.json"
     fileset = get_fileset(
         client,
         my_datasets,
         parameters,
-        # save_to=fileset_json,
-        load_from=fileset_json,
+        save_to=fileset_json,
+        # load_from=fileset_json,
     )
 
     # Process all datasets at once
