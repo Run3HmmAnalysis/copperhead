@@ -193,17 +193,6 @@ parameters["grouping"] = {
     "zz_2l2q": "VV",
 }
 
-grouping_alt = {
-    "DY": ["dy_m100_mg"],
-    # "EWK": [],
-    "TTbar": ["ttbar_dl", "tttj", "tttt", "tttw", "ttwj", "ttww", "ttz"],
-    "Single top": ["st_s", "st_t_antitop", "st_tw_top", "st_tw_antitop"],
-    "VV": ["zz_2l2q"],
-    # "VVV": [],
-    "ggH": ["ggh_powheg"],
-    "VBF": ["vbf_powheg"],
-}
-
 parameters["plot_groups"] = {
     "stack": ["DY", "EWK", "TTbar", "Single top", "VV", "VVV"],
     "step": ["VBF", "ggH"],
@@ -290,14 +279,13 @@ if __name__ == "__main__":
     all_paths = {}
     for year in parameters["years"]:
         all_paths[year] = {}
-        for group, ds in grouping_alt.items():
-            for dataset in ds:
-                paths = glob.glob(
-                    f"{parameters['path']}/"
-                    f"{year}_{parameters['label']}/"
-                    f"{dataset}/*.parquet"
-                )
-                all_paths[year][dataset] = paths
+        for dataset in datasets:
+            paths = glob.glob(
+                f"{parameters['path']}/"
+                f"{year}_{parameters['label']}/"
+                f"{dataset}/*.parquet"
+            )
+            all_paths[year][dataset] = paths
 
     if args.remake_hists:
         dfs = []
