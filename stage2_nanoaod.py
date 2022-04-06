@@ -7,7 +7,7 @@ import dask.dataframe as dd
 
 from nanoaod.postprocessor import load_dataframe
 
-# from nanoaod.postprocessor import training_features
+from nanoaod.postprocessor import training_features
 from nanoaod.config.mva_bins import mva_bins
 from nanoaod.config.variables import variables_lookup
 from python.convert import to_histograms
@@ -136,27 +136,7 @@ parameters["grouping"] = {
     "ggh_amcPS": "ggH",
     "vbf_powheg_dipole": "VBF",
 }
-
-grouping_alt = {
-    "Data": [
-        "data_A",
-        "data_B",
-        "data_C",
-        "data_D",
-        "data_E",
-        "data_F",
-        "data_G",
-        "data_H",
-    ],
-    "DY": ["dy_m105_160_amc", "dy_m105_160_vbf_amc"],
-    # "EWK": ["ewk_lljj_mll105_160_ptj0"],
-    "EWK": ["ewk_lljj_mll105_160_py_dipole"],
-    "TT+ST": ["ttjets_dl", "ttjets_sl", "ttw", "ttz", "st_tw_top", "st_tw_antitop"],
-    "VV": ["ww_2l2nu", "wz_2l2q", "wz_1l1nu2q", "wz_3lnu", "zz"],
-    "VVV": ["www", "wwz", "wzz", "zzz"],
-    "ggH": ["ggh_amcPS"],
-    "VBF": ["vbf_powheg_dipole"],
-}
+# parameters["grouping"] = {"vbf_powheg_dipole": "VBF",}
 
 parameters["plot_groups"] = {
     "stack": ["DY", "EWK", "TT+ST", "VV", "VVV"],
@@ -185,12 +165,17 @@ if __name__ == "__main__":
         )
         client = Client(parameters["slurm_cluster_ip"])
     parameters["ncpus"] = len(client.scheduler_info()["workers"])
-    print("Cluster created!")
+    print(f"Cluster created! #CPUs = {parameters['ncpus']}")
 
     datasets = parameters["grouping"].keys()
 
-    parameters["hist_vars"] = ["dimuon_mass"]
-    # parameters["hist_vars"] = training_features
+    # parameters["hist_vars"] = ["dimuon_mass", "jj_mass", "jj_dEta", "mu1_pt", "mu2_pt", "jet1_pt", "jet2_pt"]
+    parameters["hist_vars"] = training_features + [
+        "mu1_pt",
+        "mu2_pt",
+        "jet1_pt",
+        "jet2_pt",
+    ]
     parameters["hist_vars"] += ["score_" + m for m in parameters["dnn_models"]]
     parameters["hist_vars"] += ["score_" + m for m in parameters["bdt_models"]]
 
@@ -201,14 +186,13 @@ if __name__ == "__main__":
     all_paths = {}
     for year in parameters["years"]:
         all_paths[year] = {}
-        for group, ds in grouping_alt.items():
-            for dataset in ds:
-                paths = glob.glob(
-                    f"{parameters['path']}/"
-                    f"{year}_{parameters['label']}/"
-                    f"{dataset}/*.parquet"
-                )
-                all_paths[year][dataset] = paths
+        for dataset in datasets:
+            paths = glob.glob(
+                f"{parameters['path']}/"
+                f"{year}_{parameters['label']}/"
+                f"{dataset}/*.parquet"
+            )
+            all_paths[year][dataset] = paths
 
     if args.remake_hists:
         for year in parameters["years"]:
@@ -222,4 +206,4 @@ if __name__ == "__main__":
                 to_histograms(client, parameters, df=df)
 
     if args.plot:
-        plotter(client, parameters)
+        yields = plotter(client, parameters)

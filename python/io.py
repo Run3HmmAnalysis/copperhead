@@ -12,6 +12,13 @@ def mkdir(path):
         pass
 
 
+def remove(path):
+    try:
+        os.remove(path)
+    except Exception:
+        pass
+
+
 def save_dask_pandas_to_parquet(output, out_dir):
     from dask.distributed import get_worker
 
@@ -69,6 +76,18 @@ def save_histogram(hist, var_name, dataset, year, parameters, npart=None):
         path = f"{hist_path}/{year}/{var_name}/{dataset}_{npart}.pickle"
     with open(path, "wb") as handle:
         pickle.dump(hist, handle, protocol=pickle.HIGHEST_PROTOCOL)
+
+
+def delete_existing_hists(argset, parameters):
+    year = argset["year"]
+    var_name = argset["var_name"]
+    dataset = argset["dataset"]
+    hist_path = parameters["hist_path"] + parameters["label"]
+    paths = glob.glob(f"{hist_path}/{year}/{var_name}/{dataset}_*.pickle") + [
+        f"{hist_path}/{year}/{var_name}/{dataset}.pickle"
+    ]
+    for path in paths:
+        remove(path)
 
 
 def load_histogram(argset, parameters):

@@ -6,7 +6,12 @@ import dask.dataframe as dd
 
 from python.workflow import parallelize
 from python.variable import Variable
-from python.io import load_histogram, save_histogram, save_template
+from python.io import (
+    load_histogram,
+    save_histogram,
+    save_template,
+    delete_existing_hists,
+)
 from python.categorizer import split_into_channels
 
 import warnings
@@ -26,6 +31,7 @@ def to_histograms(client, parameters, df):
     elif isinstance(df, dd.DataFrame):
         argset["df"] = [(i, df.partitions[i]) for i in range(df.npartitions)]
 
+    parallelize(delete_existing_hists, argset, client, parameters, seq=True)
     hist_rows = parallelize(make_histograms, argset, client, parameters)
     hist_df = pd.concat(hist_rows).reset_index(drop=True)
     return hist_df
@@ -88,9 +94,9 @@ def make_histograms(args, parameters={}):
     if isinstance(df, dd.DataFrame):
         df = df.compute()
     df.fillna(-999.0, inplace=True)
-    if parameters["has_variations"]:
+    try:
         split_into_channels(df, v="nominal")
-    else:
+    except Exception:
         split_into_channels(df)
 
     wgt_variations = ["nominal"]

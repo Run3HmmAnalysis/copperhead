@@ -116,10 +116,12 @@ def load_dataframe(client, parameters, inputs=[], timer=None):
 
     keep_columns = ["dataset", "year", "region"]
     keep_columns += [f"channel {v}" for v in parameters["syst_variations"]]
-    keep_columns += [c for c in df.columns if "wgt_" in c]
+    # keep_columns += [c for c in df.columns if "wgt_" in c]
+    keep_columns += ["wgt_nominal"]
     keep_columns += parameters["hist_vars"]
-    cols_for_categ = ["jj_mass", "jj_dEta", "njets"]
-    for c in cols_for_categ:
+    cols_for_categ = ["jj_mass", "jj_dEta", "njets", "jet1_pt"]
+    keep_columns += cols_for_categ
+    for c in cols_for_categ + parameters["hist_vars"]:
         keep_columns += [f"{c} {v}" for v in parameters["syst_variations"]]
 
     # Evaluate classifiers

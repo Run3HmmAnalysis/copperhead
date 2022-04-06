@@ -81,7 +81,7 @@ def plotter(client, parameters, hist_df=None, timer=None):
         "df": [hist_df],
     }
 
-    yields = parallelize(plot, arg_plot, client, parameters)
+    yields = parallelize(plot, arg_plot, client, parameters, seq=True)
 
     return yields
 
@@ -133,6 +133,7 @@ def plot(args, parameters={}):
             continue
 
         plottables_df = get_plottables(hist, entry, year, var_name, slicer)
+        print(plottables_df)
         plottables = plottables_df["hist"].values.tolist()
         sumw2 = plottables_df["sumw2"].values.tolist()
         labels = plottables_df["label"].values.tolist()
