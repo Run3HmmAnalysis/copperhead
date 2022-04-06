@@ -13,12 +13,11 @@ from delphes.dnn_models import test_adversarial
 
 # from delphes.bdt_models import test_bdt
 from python.trainer import run_mva
-from python.categorizer import categorize_by_score
+
+# from python.categorizer import categorize_by_score
 
 # from python.convert import to_histograms
 from python.plotter import plotter
-
-from python.fitter import run_fits
 
 __all__ = ["dask"]
 
@@ -31,14 +30,6 @@ parser.add_argument(
     default=None,
     action="store",
     help="Slurm cluster port (if not specified, will create a local cluster)",
-)
-parser.add_argument(
-    "-s",
-    "--sequential",
-    dest="sequential",
-    default=False,
-    action="store_true",
-    help="Sequential processing",
 )
 parser.add_argument(
     "-r",
@@ -84,27 +75,28 @@ if not use_local_cluster:
 # 6. Refresh few times once you started running plot_dask.py,
 # the plots will appear
 
+label = "dec7"
+
 parameters = {
     "slurm_cluster_ip": slurm_cluster_ip,
-    "ncpus": ncpus_local,
-    "label": "nov3",
+    "label": label,
     "path": "/depot/cms/hmm/coffea/",
-    "hist_path": "/depot/cms/hmm/coffea/snowmass_histograms/",
-    "plots_path": "./plots_test/snowmass/",
-    "mva_path": "./plots_test/snowmass/mva_output/",
+    "hist_path": f"/depot/cms/hmm/coffea/snowmass_histograms_{label}/",
+    "plots_path": f"./plots_test/snowmass_{label}/",
+    "mva_path": f"./plots_test/snowmass_{label}/mva_output/",
     "years": ["snowmass"],
     "syst_variations": ["nominal"],
-    "channels": ["vbf", "ggh_0jets", "ggh_1jet", "ggh_2orMoreJets"],
-    "regions": ["z-peak", "h-peak", "h-sidebands"],
+    # "channels": ["vbf"],  # , "vbf_01j", "vbf_2j"],
+    # 'channels': ['ggh_01j', 'ggh_2j'],
+    # "channels": ["inclusive"],
+    "channels": ["ggh_0jets", "ggh_1jet", "ggh_2orMoreJets"],
+    "regions": ["h-peak"],  # "h-sidebands"],
     "save_hists": True,
     "save_plots": True,
     "plot_ratio": False,
     "14TeV_label": True,
     "has_variations": False,
     "variables_lookup": variables_lookup,
-    "save_fits": True,
-    "save_fits_path": "/home/dkondra/hmumu-coffea-dev/fits/hmumu-coffea/fits/",
-    "signals": ["ggh_powheg", "vbf_powheg"],
     "mva_channels": ["ggh_0jets", "ggh_1jet", "ggh_2orMoreJets"],
     "mva_models": {
         "ggh_0jets": {
@@ -119,24 +111,24 @@ parameters = {
         "ggh_2orMoreJets": {"test_adv": {"model": test_adversarial, "type": "dnn_adv"}},
     },
     "saved_models": {
-        "ggh_0jets": {
-            # "test_adv": {
-            #    "path": "data/dnn_models/ggh_0jets/test_adv/",
-            #    "type": "dnn_adv",
-            # }
-        },
-        "ggh_1jet": {
-            # "test_adv": {
-            #    "path": "data/dnn_models/ggh_1jet/test_adv/",
-            #    "type": "dnn_adv",
-            # }
-        },
-        "ggh_2orMoreJets": {
-            # "test_adv": {
-            #    "path": "data/dnn_models/ggh_2orMoreJets/test_adv/",
-            #    "type": "dnn_adv",
-            # }
-        },
+        # "ggh_0jets": {
+        #    "test_adv": {
+        #        "path": "data/dnn_models/ggh_0jets/test_adv/",
+        #        "type": "dnn_adv",
+        #    }
+        # },
+        # "ggh_1jet": {
+        #    "test_adv": {
+        #        "path": "data/dnn_models/ggh_1jet/test_adv/",
+        #        "type": "dnn_adv",
+        #    }
+        # },
+        # "ggh_2orMoreJets": {
+        #    "test_adv": {
+        #        "path": "data/dnn_models/ggh_2orMoreJets/test_adv/",
+        #        "type": "dnn_adv",
+        #    }
+        # },
     },
     "mva_do_training": True,
     "mva_do_evaluation": True,
@@ -201,17 +193,6 @@ parameters["grouping"] = {
     "zz_2l2q": "VV",
 }
 
-grouping_alt = {
-    "DY": ["dy_m100_mg"],
-    # "EWK": [],
-    "TTbar": ["ttbar_dl", "tttj", "tttt", "tttw", "ttwj", "ttww", "ttz"],
-    "Single top": ["st_s", "st_t_antitop", "st_tw_top", "st_tw_antitop"],
-    "VV": ["zz_2l2q"],
-    # "VVV": [],
-    "ggH": ["ggh_powheg"],
-    "VBF": ["vbf_powheg"],
-}
-
 parameters["plot_groups"] = {
     "stack": ["DY", "EWK", "TTbar", "Single top", "VV", "VVV"],
     "step": ["VBF", "ggH"],
@@ -237,6 +218,7 @@ if __name__ == "__main__":
             f" Dashboard address: {dashboard_address}"
         )
         client = Client(parameters["slurm_cluster_ip"])
+    parameters["ncpus"] = len(client.scheduler_info()["workers"])
     print("Cluster created!")
 
     datasets = parameters["grouping"].keys()
@@ -294,78 +276,33 @@ if __name__ == "__main__":
     parameters["plot_vars"] = parameters["hist_vars"]
     parameters["datasets"] = datasets
 
-    how = {
-        "DY": "all",
-        # "EWK": "all",
-        "TTbar": "individual",
-        "Single top": "individual",
-        "VV": "individual",
-        "VVV": "individual",
-        "ggH": "all",
-        "VBF": "all",
-    }
-    paths_grouped = {}
-    all_paths = []
-    for y in parameters["years"]:
-        paths_grouped[y] = {}
-        paths_grouped[y]["all"] = []
-        for group, ds in grouping_alt.items():
-            if group not in how.keys():
-                continue
-            for dataset in ds:
-                if dataset not in datasets:
-                    continue
-
-                if how[group] == "all":
-                    the_group = "all"
-                elif how[group] == "grouped":
-                    the_group = group
-                elif how[group] == "individual":
-                    the_group = dataset
-                path = glob.glob(
-                    f"{parameters['path']}/"
-                    f"{y}_{parameters['label']}/"
-                    f"{dataset}/*.parquet"
-                )
-                if the_group not in paths_grouped[y].keys():
-                    paths_grouped[y][the_group] = []
-                all_paths.append(path)
-                paths_grouped[y][the_group].append(path)
+    all_paths = {}
+    for year in parameters["years"]:
+        all_paths[year] = {}
+        for dataset in datasets:
+            paths = glob.glob(
+                f"{parameters['path']}/"
+                f"{year}_{parameters['label']}/"
+                f"{dataset}/*.parquet"
+            )
+            all_paths[year][dataset] = paths
 
     if args.remake_hists:
         dfs = []
-        if args.sequential:
-            for path in tqdm.tqdm(all_paths):
-                if len(path) == 0:
-                    continue
-                df = load_dataframe(client, parameters, inputs=[path])
-                dfs.append(df)
-                # to_histograms(client, parameters, df=df)
-
-        else:
-            for year, groups in paths_grouped.items():
-                print(f"Processing {year}")
-                for group, g_paths in tqdm.tqdm(groups.items()):
-                    if len(g_paths) == 0:
-                        continue
-                    df = load_dataframe(client, parameters, inputs=g_paths)
-                    dfs.append(df)
-
-                    # to_histograms(client, parameters, df=df)
+        for path in tqdm.tqdm(all_paths):
+            if len(path) == 0:
+                continue
+            df = load_dataframe(client, parameters, inputs=[path])
+            dfs.append(df)
+            # to_histograms(client, parameters, df=df)
 
         df = pd.concat(dfs)
         df.reset_index(inplace=True, drop=True)
         run_mva(client, parameters, df)
 
-        scores = {k: "test_adv_score" for k in parameters["mva_channels"]}
-        categorize_by_score(df, scores)
-
-        fit_rets = run_fits(client, parameters, df=df)
-        df_fits = pd.DataFrame(columns=["label", "channel", "category", "chi2"])
-        for fr in fit_rets:
-            df_fits = pd.concat([df_fits, pd.DataFrame.from_dict(fr)])
-        df_fits = df_fits.reset_index().set_index(["label", "index"]).sort_index()
-        print(df_fits)
+        # scores = {k: "test_adv_score" for k in parameters["mva_channels"]}
+        # categorize_by_score(df, scores)
+        # print(df[["channel", "category"]])
 
     if args.plot:
         plotter(client, parameters)

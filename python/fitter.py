@@ -4,7 +4,7 @@ import pandas as pd
 from python.workflow import parallelize
 from python.io import mkdir
 from python.fit_plots import plot
-from python.fit_models import chebyshev, doubleCB, bwGamma, bwZredux
+from python.fit_models import chebyshev, doubleCB, bwZ, bwGamma, bwZredux, bernstein
 
 rt.RooMsgService.instance().setGlobalKillBelow(rt.RooFit.ERROR)
 
@@ -38,6 +38,7 @@ def run_fits(client, parameters, df):
         df_fits = pd.concat([df_fits, pd.DataFrame.from_dict(fr)])
     # choose fit function with lowest chi2/dof
     df_fits.loc[df_fits.chi2 <= 0, "chi2"] = 999.0
+    df_fits.to_pickle("all_chi2.pkl")
     idx = df_fits.groupby(["label", "channel", "category"])["chi2"].idxmin()
     df_fits = (
         df_fits.loc[idx]
@@ -47,6 +48,7 @@ def run_fits(client, parameters, df):
         .drop_duplicates()
     )
     print(df_fits)
+    df_fits.to_pickle("best_chi2.pkl")
     return fit_ret
 
 
@@ -70,23 +72,24 @@ def fitter(args, parameters={}):
     the_fitter = Fitter(
         fitranges={"low": 110, "high": 150, "SR_left": 120, "SR_right": 130},
         fitmodels={
+            "bwz": bwZ,
             "bwz_redux": bwZredux,
             "bwgamma": bwGamma,
+            "bernstein": bernstein,
             "dcb": doubleCB,
             "chebyshev": chebyshev,
         },
-        requires_order=["chebyshev"],
+        requires_order=["chebyshev", "bernstein"],
         channel=channel,
         filename_ext="",
     )
     if mode == "bkg":
-        # background fit should be binned!
         chi2 = the_fitter.simple_fit(
             dataset=df,
             label=label,
-            category=category,  # temporary
+            category=category,
             blinded=blinded,
-            model_names=["bwz_redux", "bwgamma"],
+            model_names=["bwz", "bwz_redux", "bwgamma"],
             fix_parameters=False,
             title="Background",
             save=save,
@@ -94,11 +97,11 @@ def fitter(args, parameters={}):
             norm=norm,
         )
         # generate and fit pseudo-data
-        chi2 = the_fitter.fit_pseudodata(
+        the_fitter.fit_pseudodata(
             label="pseudodata_" + label,
-            category=category,  # temporary
+            category=category,
             blinded=blinded,
-            model_names=["bwz_redux", "bwgamma"],
+            model_names=["bwz", "bwz_redux", "bwgamma"],
             fix_parameters=False,
             title="Pseudo-data",
             save=save,
@@ -145,6 +148,7 @@ class Fitter(object):
         category="cat0",
         blinded=False,
         model_names=[],
+        orders={},
         fix_parameters=False,
         title="",
         save=True,
@@ -161,13 +165,18 @@ class Fitter(object):
         ndata = len(dataset["dimuon_mass"].values)
 
         for model_name in model_names:
-            self.add_model(model_name, category=category)
+            if (model_name in self.requires_order) and (model_name in orders.keys()):
+                for order in orders[model_name]:
+                    self.add_model(model_name, category=category, order=order)
+            else:
+                self.add_model(model_name, category=category)
 
         # self.workspace.Print()
         chi2 = self.fit(
             ds_name,
             ndata,
             model_names,
+            orders=orders,
             blinded=blinded,
             fix_parameters=fix_parameters,
             category=category,
@@ -241,6 +250,7 @@ class Fitter(object):
         category="cat0",
         blinded=False,
         model_names=[],
+        orders={},
         fix_parameters=False,
         title="",
         save=True,
@@ -249,8 +259,23 @@ class Fitter(object):
     ):
         tag = f"_{self.channel}_{category}"
         chi2 = {}
+        model_names_all = []
         for model_name in model_names:
-            model_key = model_name + tag
+            if (model_name in self.requires_order) and (model_name in orders.keys()):
+                for order in orders[model_name]:
+                    model_names_all.append({"name": model_name, "order": order})
+            else:
+                model_names_all.append({"name": model_name, "order": 0})
+
+        for model_names_order in model_names_all:
+            model_name = model_names_order["name"]
+            order = model_names_order["order"]
+            if model_name in self.requires_order:
+                model_key = f"{model_name}{order}" + tag
+            else:
+                model_key = model_name + tag
+            # print(model_key)
+            # self.workspace.pdf(model_key).Print()
             data = self.workspace.pdf(model_key).generate(
                 rt.RooArgSet(self.workspace.obj("mass")), norm
             )
@@ -260,6 +285,7 @@ class Fitter(object):
                 ds_name,
                 norm,
                 [model_name],
+                orders={model_name: order},
                 blinded=blinded,
                 fix_parameters=fix_parameters,
                 category=category,
@@ -269,6 +295,11 @@ class Fitter(object):
                 save_path=save_path,
                 norm=norm,
             )[model_key]
+        if save:
+            mkdir(save_path)
+            self.save_workspace(
+                f"{save_path}/workspace_{self.channel}_{category}_{label}{self.filename_ext}"
+            )
         return chi2
 
     def fill_dataset(self, data, x, ds_name="ds"):
@@ -315,6 +346,7 @@ class Fitter(object):
         ds_name,
         ndata,
         model_names,
+        orders={},
         blinded=False,
         fix_parameters=False,
         save=False,
@@ -330,7 +362,14 @@ class Fitter(object):
         pdfs = {}
         chi2 = {}
         tag = f"_{self.channel}_{category}"
+        model_names_all = []
         for model_name in model_names:
+            if (model_name in self.requires_order) and (model_name in orders.keys()):
+                for order in orders[model_name]:
+                    model_names_all.append(f"{model_name}{order}")
+            else:
+                model_names_all.append(model_name)
+        for model_name in model_names_all:
             model_key = model_name + tag
             pdfs[model_key] = self.workspace.pdf(model_key)
             pdfs[model_key].fitTo(
