@@ -13,7 +13,8 @@ from delphes.postprocessor import load_dataframe
 from delphes.config.variables import variables_lookup
 from python.convert import to_histograms, to_templates
 from python.plotter import plotter
-from python.trainer import run_mva
+
+# from python.trainer import run_mva
 from test_tools import almost_equal
 
 import dask
@@ -113,7 +114,7 @@ if __name__ == "__main__":
     out_df = run(fileset, "Delphes", processor_instance=DimuonProcessorDelphes())
 
     df = load_dataframe(client, parameters, inputs=out_df)
-    run_mva(client, parameters, df=df)
+    # run_mva(client, parameters, df=df)
     out_hist = to_histograms(client, parameters, df=df)
     out_plot = plotter(client, parameters, hist_df=out_hist)
     out_tmp = to_templates(client, parameters, hist_df=out_hist)
