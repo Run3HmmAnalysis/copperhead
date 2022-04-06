@@ -167,7 +167,7 @@ def chebyshev(x, tag, order=7):
     args = rt.RooArgList()
     params = []
     for i in range(0, order):
-        c = rt.RooRealVar("c" + str(i) + tag, "c" + str(i), 1.0 / 2 ** i, -1.0, 1.0)
+        c = rt.RooRealVar("c" + str(i) + tag, "c" + str(i), 1.0 / 2**i, -1.0, 1.0)
         args.add(c)
         params.append(c)
 
@@ -186,7 +186,7 @@ def bernstein(x, tag, order=5):
     args = rt.RooArgList()
     params = []
     for i in range(0, order):
-        c = rt.RooRealVar("c" + str(i) + tag, "c" + str(i), 1.0 / 2 ** i, -1.0, 1.0)
+        c = rt.RooRealVar("c" + str(i) + tag, "c" + str(i), 1.0 / 2**i, -1.0, 1.0)
         args.add(c)
         params.append(c)
 
@@ -205,7 +205,7 @@ def h2mupoly(x, tag, order=5):
     params = []
     poly_str = ""
     for i in range(0, order):
-        c = rt.RooRealVar("c" + str(i) + tag, "c" + str(i), 1.0 / 2 ** i, -1.0, 1.0)
+        c = rt.RooRealVar("c" + str(i) + tag, "c" + str(i), 1.0 / 2**i, -1.0, 1.0)
         args.add(c)
         params.append(c)
         if i == 0:

@@ -28,17 +28,17 @@ def fsr_recovery(df):
         px_ = obj["pt"] * np.cos(obj["phi"])
         py_ = obj["pt"] * np.sin(obj["phi"])
         pz_ = obj["pt"] * np.sinh(obj["eta"])
-        e_ = np.sqrt(px_ ** 2 + py_ ** 2 + pz_ ** 2 + obj["mass"] ** 2)
+        e_ = np.sqrt(px_**2 + py_**2 + pz_**2 + obj["mass"] ** 2)
 
         px = px + px_
         py = py + py_
         pz = pz + pz_
         e = e + e_
 
-    pt = np.sqrt(px ** 2 + py ** 2)
+    pt = np.sqrt(px**2 + py**2)
     eta = np.arcsinh(pz / pt)
     phi = np.arctan2(py, px)
-    mass = np.sqrt(e ** 2 - px ** 2 - py ** 2 - pz ** 2)
+    mass = np.sqrt(e**2 - px**2 - py**2 - pz**2)
     iso = (df.Muon.pfRelIso04_all * df.Muon.pt - df.Muon.matched_fsrPhoton.pt) / pt
 
     df["Muon", "pt_fsr"] = ak.where(mask, pt, df.Muon.pt)

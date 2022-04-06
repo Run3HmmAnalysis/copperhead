@@ -84,8 +84,8 @@ class Weights(object):
         for var in self.variations:
             if f"{var}_off" not in self.df.columns:
                 continue
-            wgt_off = self.df[f"{var}_off"][mask].to_numpy().sum()
-            wgt_on = self.df["nominal"][mask].to_numpy().sum()
+            wgt_off = self.df[f"{var}_off"].dropna().to_numpy().sum()
+            wgt_on = self.df["nominal"].dropna().to_numpy().sum()
             effect = (wgt_on - wgt_off) / wgt_on * 100
             if effect < 0:
                 ef = round(-effect, 2)

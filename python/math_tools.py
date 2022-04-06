@@ -11,16 +11,16 @@ def p4_sum(obj1, obj2):
         px_ = obj.pt * np.cos(obj.phi)
         py_ = obj.pt * np.sin(obj.phi)
         pz_ = obj.pt * np.sinh(obj.eta)
-        e_ = np.sqrt(px_ ** 2 + py_ ** 2 + pz_ ** 2 + obj.mass ** 2)
+        e_ = np.sqrt(px_**2 + py_**2 + pz_**2 + obj.mass**2)
         result.px += px_
         result.py += py_
         result.pz += pz_
         result.e += e_
-    result.pt = np.sqrt(result.px ** 2 + result.py ** 2)
+    result.pt = np.sqrt(result.px**2 + result.py**2)
     result.eta = np.arcsinh(result.pz / result.pt)
     result.phi = np.arctan2(result.py, result.px)
     result.mass = np.sqrt(
-        result.e ** 2 - result.px ** 2 - result.py ** 2 - result.pz ** 2
+        result.e**2 - result.px**2 - result.py**2 - result.pz**2
     )
     result.rap = 0.5 * np.log((result.e + result.pz) / (result.e - result.pz))
     return result
@@ -30,7 +30,7 @@ def rapidity(obj):
     px = obj.pt * np.cos(obj.phi)
     py = obj.pt * np.sin(obj.phi)
     pz = obj.pt * np.sinh(obj.eta)
-    e = np.sqrt(px ** 2 + py ** 2 + pz ** 2 + obj.mass ** 2)
+    e = np.sqrt(px**2 + py**2 + pz**2 + obj.mass**2)
     rap = 0.5 * np.log((e + pz) / (e - pz))
     return rap
 
@@ -156,11 +156,11 @@ def cs_variables(mu1, mu2):
     mu1_px = mu1.pt * np.cos(mu1.phi)
     mu1_py = mu1.pt * np.sin(mu1.phi)
     mu1_pz = mu1.pt * np.sinh(mu1.eta)
-    mu1_e = np.sqrt(mu1_px ** 2 + mu1_py ** 2 + mu1_pz ** 2 + mu1.mass ** 2)
+    mu1_e = np.sqrt(mu1_px**2 + mu1_py**2 + mu1_pz**2 + mu1.mass**2)
     mu2_px = mu2.pt * np.cos(mu2.phi)
     mu2_py = mu2.pt * np.sin(mu2.phi)
     mu2_pz = mu2.pt * np.sinh(mu2.eta)
-    mu2_e = np.sqrt(mu2_px ** 2 + mu2_py ** 2 + mu2_pz ** 2 + mu2.mass ** 2)
+    mu2_e = np.sqrt(mu2_px**2 + mu2_py**2 + mu2_pz**2 + mu2.mass**2)
     px = mu1_px + mu2_px
     py = mu1_py + mu2_py
     pz = mu1_pz + mu2_pz
@@ -222,7 +222,7 @@ def cs_variables(mu1, mu2):
 def delta_r(eta1, eta2, phi1, phi2):
     deta = abs(eta1 - eta2)
     dphi = abs(np.mod(phi1 - phi2 + np.pi, 2 * np.pi) - np.pi)
-    dr = np.sqrt(deta ** 2 + dphi ** 2)
+    dr = np.sqrt(deta**2 + dphi**2)
     return deta, dphi, dr
 
 

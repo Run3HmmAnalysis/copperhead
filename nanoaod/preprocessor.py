@@ -8,6 +8,8 @@ import uproot
 from nanoaod.config.parameters import parameters
 from nanoaod.config.cross_sections import cross_sections
 
+DEBUG = False
+
 
 def load_sample(dataset, parameters):
     xrootd = parameters["xrootd"]
@@ -15,7 +17,7 @@ def load_sample(dataset, parameters):
         "year": parameters["year"],
         "server": parameters["server"],
         "datasets_from": "purdue",
-        "debug": False,
+        "debug": DEBUG,
         "xrootd": xrootd,
         "timeout": 120,
     }
@@ -30,7 +32,7 @@ def load_samples(datasets, parameters):
         "year": parameters["year"],
         "server": parameters["server"],
         "datasets_from": "purdue",
-        "debug": False,
+        "debug": DEBUG,
     }
     samp_info_total = SamplesInfo(**args)
     print("Loading lists of paths to ROOT files for these datasets:", datasets)
@@ -50,7 +52,7 @@ def load_samples(datasets, parameters):
     return samp_info_total
 
 
-def read_via_xrootd(server, path, from_das=False):
+def read_via_xrootd(server, path, from_das=True):
     if from_das:
         command = f'dasgoclient --query=="file dataset={path}"'
     else:
@@ -216,6 +218,7 @@ class SamplesInfo(object):
                 xsec = cross_sections[self.sample][self.year]
             else:
                 xsec = cross_sections[self.sample]
+            print(self.lumi, xsec, N)
             if N > 0:
                 self.lumi_weights[self.sample] = xsec * self.lumi / N
             else:

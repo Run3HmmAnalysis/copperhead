@@ -2238,7 +2238,7 @@ def plot(
         bkg_total[bkg_total == 0] = 1e-20
         ggh[ggh == 0] = 1e-20
         vbf[vbf == 0] = 1e-20
-        bkg_unc = coffea.hist.plot.poisson_interval(unity, bkg_sumw2 / bkg_total ** 2)
+        bkg_unc = coffea.hist.plot.poisson_interval(unity, bkg_sumw2 / bkg_total**2)
         denom_unc = bkg_unc
 
         if blind and "score" in var.name:

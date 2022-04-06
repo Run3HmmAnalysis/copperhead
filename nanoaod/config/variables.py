@@ -73,6 +73,7 @@ variables.append(Variable("jet2_matched_muon_id", "jet2_matched_muon_id", 4, -1,
 variables.append(Variable("mmj_min_dEta", r"$min. \Delta\eta (\mu\mu, j)$", 50, 0, 10))
 variables.append(Variable("mmj_min_dPhi", r"$min. \Delta\phi (\mu\mu, j)$", 50, 0, 3.3))
 variables.append(Variable("jj_mass", r"$M(jj)$ [GeV]", 50, 0, 600))
+variables.append(Variable("gjj_mass", r"$Gen.~M(jj)$ [GeV]", 50, 0, 600))
 variables.append(Variable("jj_mass_log", r"$log M(jj)$", 50, 0, 600))
 variables.append(Variable("jj_pt", r"$p_{T}(jj)$ [GeV]", 50, 0, 150))
 variables.append(Variable("jj_eta", r"$\eta (jj)$", 50, -4.7, 4.7))
