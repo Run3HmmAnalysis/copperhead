@@ -75,6 +75,8 @@ def run_mva(client, parameters, df):
             parameters_tmp = parameters.copy()
             parameters_tmp["hist_vars"] = []
             parameters_tmp["plot_vars"] = []
+            parameters_tmp["regions"] = ["h-peak", "h-sidebands"]
+            parameters_tmp["channels"] = [channel]
             all_models = []
             if channel in mva_models.keys():
                 all_models += list(mva_models[channel].keys())

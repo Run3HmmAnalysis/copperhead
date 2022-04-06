@@ -15,3 +15,7 @@ plots/*
 plots_new/*
 plots_test/*
 output/*
+*root
+*pdf
+*C
+*png

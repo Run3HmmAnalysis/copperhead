@@ -33,6 +33,7 @@ parameters = {
     "variables_lookup": variables_lookup,
     "grouping": {"dy_m100_mg": "DY"},
     "plot_groups": {"stack": ["DY"], "step": [], "errorbar": []},
+    "signals": ["ggh_powheg", "vbf_powheg"],
 }
 
 
