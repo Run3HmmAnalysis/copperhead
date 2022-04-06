@@ -1,6 +1,6 @@
 import ROOT as rt
 
-rt.gSystem.Load("dev/RooDoubleCB/RooDoubleCB")
+rt.gSystem.Load("lib/RooDoubleCB/RooDoubleCB")
 
 
 def linear(x, tag):
