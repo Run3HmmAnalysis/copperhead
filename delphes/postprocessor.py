@@ -64,6 +64,7 @@ def load_dataframe(client, parameters, inputs=[], timer=None):
         "jj_mass",
         "jj_dEta",
         "jet1_pt",
+        "njets",
     ]
     keep_columns += [c for c in df.columns if "wgt" in c]
     keep_columns += parameters["hist_vars"]
