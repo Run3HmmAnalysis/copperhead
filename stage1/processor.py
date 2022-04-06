@@ -12,31 +12,31 @@ from coffea.btag_tools import BTagScaleFactor
 from coffea.lumi_tools import LumiMask
 
 from python.timer import Timer
-from nanoaod.weights import Weights
-from nanoaod.corrections.pu_reweight import pu_lookups, pu_evaluator
-from nanoaod.corrections.l1prefiring_weights import l1pf_weights
-from nanoaod.corrections.rochester import apply_roccor
-from nanoaod.corrections.fsr_recovery import fsr_recovery
-from nanoaod.corrections.geofit import apply_geofit
-from nanoaod.corrections.jec import jec_factories, apply_jec
-from nanoaod.corrections.lepton_sf import musf_lookup, musf_evaluator
-from nanoaod.corrections.nnlops import nnlops_weights
-from nanoaod.corrections.stxs_uncert import stxs_uncert, stxs_lookups
-from nanoaod.corrections.lhe_weights import lhe_weights
-from nanoaod.corrections.qgl_weights import qgl_weights
-from nanoaod.corrections.btag_weights import btag_weights
+from stage1.weights import Weights
+from stage1.corrections.pu_reweight import pu_lookups, pu_evaluator
+from stage1.corrections.l1prefiring_weights import l1pf_weights
+from stage1.corrections.rochester import apply_roccor
+from stage1.corrections.fsr_recovery import fsr_recovery
+from stage1.corrections.geofit import apply_geofit
+from stage1.corrections.jec import jec_factories, apply_jec
+from stage1.corrections.lepton_sf import musf_lookup, musf_evaluator
+from stage1.corrections.nnlops import nnlops_weights
+from stage1.corrections.stxs_uncert import stxs_uncert, stxs_lookups
+from stage1.corrections.lhe_weights import lhe_weights
+from stage1.corrections.qgl_weights import qgl_weights
+from stage1.corrections.btag_weights import btag_weights
 
-# from nanoaod.corrections.puid_weights import puid_weights
+# from stage1.corrections.puid_weights import puid_weights
 
-from nanoaod.muons import fill_muons
-from nanoaod.jets import prepare_jets, fill_jets, fill_softjets
-from nanoaod.jets import jet_id, jet_puid
+from stage1.muons import fill_muons
+from stage1.jets import prepare_jets, fill_jets, fill_softjets
+from stage1.jets import jet_id, jet_puid
 
-# from nanoaod.jets import gen_jet_pair_mass
-from nanoaod.jets import fill_gen_jets
+# from stage1.jets import gen_jet_pair_mass
+from stage1.jets import fill_gen_jets
 
-from nanoaod.config.parameters import parameters
-from nanoaod.config.variables import variables
+from config.parameters import parameters
+from config.variables import variables
 
 
 class DimuonProcessor(processor.ProcessorABC):

@@ -7,8 +7,8 @@ import time
 from coffea.processor import DaskExecutor, Runner
 from coffea.nanoevents import NanoAODSchema
 
-from nanoaod.processor import DimuonProcessor
-from nanoaod.preprocessor import SamplesInfo
+from stage1.processor import DimuonProcessor
+from stage1.preprocessor import SamplesInfo
 from test_tools import almost_equal
 
 import dask

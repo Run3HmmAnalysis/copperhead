@@ -7,8 +7,8 @@ import time
 import dask
 from dask.distributed import Client
 
-from nanoaod.postprocessor import load_dataframe
-from nanoaod.config.variables import variables_lookup
+from stage2.postprocessor import load_dataframe
+from config.variables import variables_lookup
 from python.convert import to_histograms
 from python.plotter import plotter
 from test_tools import almost_equal

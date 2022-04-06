@@ -7,10 +7,10 @@ import time
 from coffea.processor import DaskExecutor, Runner
 from coffea.nanoevents import NanoAODSchema
 
-from nanoaod.preprocessor import SamplesInfo
-from nanoaod.processor import DimuonProcessor
-from nanoaod.postprocessor import load_dataframe
-from nanoaod.config.variables import variables_lookup
+from stage1.preprocessor import SamplesInfo
+from stage1.processor import DimuonProcessor
+from stage2.postprocessor import load_dataframe
+from config.variables import variables_lookup
 from python.convert import to_histograms
 from python.plotter import plotter
 from test_tools import almost_equal

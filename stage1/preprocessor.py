@@ -5,8 +5,8 @@ import tqdm
 
 import uproot
 
-from nanoaod.config.parameters import parameters
-from nanoaod.config.cross_sections import cross_sections
+from config.parameters import parameters
+from config.cross_sections import cross_sections
 
 DEBUG = False
 
@@ -83,9 +83,9 @@ class SamplesInfo(object):
         self.is_mc = True
 
         if "purdue" in datasets_from:
-            from nanoaod.config.datasets import datasets
+            from config.datasets import datasets
         elif "pisa" in datasets_from:
-            from nanoaod.config.datasets_pisa import datasets
+            from config.datasets_pisa import datasets
 
         self.paths = datasets[self.year]
 

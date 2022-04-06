@@ -1,7 +1,7 @@
 from coffea.jetmet_tools import CorrectedJetsFactory, JECStack
 from coffea.lookup_tools import extractor
-from nanoaod.config.jec_parameters import runs, jec_levels_mc, jec_levels_data
-from nanoaod.config.jec_parameters import jec_tags, jer_tags, jec_data_tags
+from config.jec_parameters import runs, jec_levels_mc, jec_levels_data
+from config.jec_parameters import jec_tags, jer_tags, jec_data_tags
 
 
 def apply_jec(
