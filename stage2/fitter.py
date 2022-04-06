@@ -3,8 +3,8 @@ import pandas as pd
 
 from python.workflow import parallelize
 from python.io import mkdir
-from python.fit_plots import plot
-from python.fit_models import chebyshev, doubleCB, bwZ, bwGamma, bwZredux, bernstein
+from stage2.fit_plots import plot
+from stage2.fit_models import chebyshev, doubleCB, bwZ, bwGamma, bwZredux, bernstein
 
 rt.RooMsgService.instance().setGlobalKillBelow(rt.RooFit.ERROR)
 

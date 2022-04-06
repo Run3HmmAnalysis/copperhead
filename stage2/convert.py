@@ -12,7 +12,7 @@ from python.io import (
     save_template,
     delete_existing_hists,
 )
-from python.categorizer import split_into_channels
+from stage2.categorizer import split_into_channels
 
 import warnings
 

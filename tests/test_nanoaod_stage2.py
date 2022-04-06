@@ -9,8 +9,8 @@ from dask.distributed import Client
 
 from stage2.postprocessor import load_dataframe
 from config.variables import variables_lookup
-from python.convert import to_histograms
-from python.plotter import plotter
+from stage2.convert import to_histograms
+from stage3.plotter import plotter
 from test_tools import almost_equal
 
 __all__ = ["dask"]
