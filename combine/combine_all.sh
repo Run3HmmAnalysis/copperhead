@@ -1,6 +1,0 @@
-. combine_datacards.sh 2016 jul7_score_bdt_nest10000_weightCorrAndShuffle_2Aug
-. combine_datacards.sh 2017 jul7_score_bdt_nest10000_weightCorrAndShuffle_2Aug
-. combine_datacards.sh 2018 jul7_score_bdt_nest10000_weightCorrAndShuffle_2Aug
-. combine_datacards.sh 2016 jul7_score_dnn_allyears_128_64_32
-. combine_datacards.sh 2017 jul7_score_dnn_allyears_128_64_32
-. combine_datacards.sh 2018 jul7_score_dnn_allyears_128_64_32
