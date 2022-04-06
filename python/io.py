@@ -82,12 +82,15 @@ def delete_existing_hists(argset, parameters):
     year = argset["year"]
     var_name = argset["var_name"]
     dataset = argset["dataset"]
-    hist_path = parameters["hist_path"] + parameters["label"]
-    paths = glob.glob(f"{hist_path}/{year}/{var_name}/{dataset}_*.pickle") + [
-        f"{hist_path}/{year}/{var_name}/{dataset}.pickle"
-    ]
-    for path in paths:
-        remove(path)
+    try:
+        hist_path = parameters["hist_path"] + parameters["label"]
+        paths = glob.glob(f"{hist_path}/{year}/{var_name}/{dataset}_*.pickle") + [
+            f"{hist_path}/{year}/{var_name}/{dataset}.pickle"
+        ]
+        for path in paths:
+            remove(path)
+    except Exception:
+        pass
 
 
 def load_histogram(argset, parameters):
