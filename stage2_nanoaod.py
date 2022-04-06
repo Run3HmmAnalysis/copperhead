@@ -7,7 +7,6 @@ import dask.dataframe as dd
 
 from nanoaod.postprocessor import load_dataframe
 
-from nanoaod.postprocessor import training_features
 from nanoaod.config.mva_bins import mva_bins
 from nanoaod.config.variables import variables_lookup
 from python.convert import to_histograms
@@ -169,13 +168,7 @@ if __name__ == "__main__":
 
     datasets = parameters["grouping"].keys()
 
-    # parameters["hist_vars"] = ["dimuon_mass", "jj_mass", "jj_dEta", "mu1_pt", "mu2_pt", "jet1_pt", "jet2_pt"]
-    parameters["hist_vars"] = training_features + [
-        "mu1_pt",
-        "mu2_pt",
-        "jet1_pt",
-        "jet2_pt",
-    ]
+    parameters["hist_vars"] = ["dimuon_mass"]
     parameters["hist_vars"] += ["score_" + m for m in parameters["dnn_models"]]
     parameters["hist_vars"] += ["score_" + m for m in parameters["bdt_models"]]
 

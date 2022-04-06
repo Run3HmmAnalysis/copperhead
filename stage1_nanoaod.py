@@ -99,7 +99,8 @@ parameters = {
     "label": args.label,
     "global_out_path": "/depot/cms/hmm/coffea/",
     "out_path": f"{args.year}_{args.label}",
-    # 'server': 'root://xrootd.rcac.purdue.edu/',
+    # 'server': 'root://xrootd.rcac.purdue.edu/', # Purdue
+    # 'server': 'root://cmsxrootd.fnal.gov/', # FNAL
     # 'xrootd': True,
     "server": "/mnt/hadoop/",
     "xrootd": False,
@@ -177,14 +178,20 @@ if __name__ == "__main__":
             "vbf_powhegPS",
             "vbf_powheg_herwig",
             "vbf_powheg_dipole",
+            "tth",
+            "wph",
+            "wmh",
+            "zh",
         ],
         "main_mc": [
             "dy_m105_160_amc",
+            # "dy_m105_160_mg",
             "dy_m105_160_vbf_amc",
-            "ewk_lljj_mll105_160_py",
-            "ewk_lljj_mll105_160_ptj0",
+            # "ewk_lljj_mll105_160_py",
+            # "ewk_lljj_mll105_160_ptj0",
             "ewk_lljj_mll105_160_py_dipole",
             "ttjets_dl",
+            # "ewk_m50"
         ],
         "other_mc": [
             "ttjets_sl",
@@ -206,7 +213,7 @@ if __name__ == "__main__":
             n_workers=40,
             dashboard_address=dash_local,
             threads_per_worker=1,
-            memory_limit="2.9GB",
+            memory_limit="8GB",
         )
     else:
         parameters["client"] = Client(parameters["slurm_cluster_ip"])
@@ -218,15 +225,19 @@ if __name__ == "__main__":
         for sample in samples:
             # if sample != 'data_B':
             # if sample != 'dy_m105_160_amc':
-            if sample != "vbf_powheg_dipole":
-                continue
+            # if sample != "vbf_powheg_dipole":
+            #    continue
             if group == "data":
                 # if 'test' not in sample:
                 #    continue
-                continue
+                # continue
                 datasets_data.append(sample)
             else:
-                # continue
+                continue
+                # if (group != "main_mc") & (group != "signal"):
+                # if (group != "signal"):
+                # if (group != "main_mc"):
+                #    continue
                 datasets_mc.append(sample)
 
     timings = {}

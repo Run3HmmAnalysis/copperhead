@@ -55,7 +55,7 @@ namespace ROOT {
    {
       ::RooDoubleCB *ptr = 0;
       static ::TVirtualIsAProxy* isa_proxy = new ::TInstrumentedIsAProxy< ::RooDoubleCB >(0);
-      static ::ROOT::TGenericClassInfo
+      static ::ROOT::TGenericClassInfo 
          instance("RooDoubleCB", ::RooDoubleCB::Class_Version(), "RooDoubleCB.h", 16,
                   typeid(::RooDoubleCB), ::ROOT::Internal::DefineBehavior(ptr, ptr),
                   &::RooDoubleCB::Dictionary, isa_proxy, 4,
@@ -152,7 +152,7 @@ namespace {
     static const char* includePaths[] = {
 "/include",
 "/home/dkondra/.conda/envs/cent7/5.3.1-py37/hmumu/include/",
-"/home/dkondra/hmumu-coffea-dev/fits/hmumu-coffea/dev/RooDoubleCB/",
+"/home/dkondra/hmumu-coffea/lib/RooDoubleCB/",
 0
     };
     static const char* fwdDeclCode = R"DICTFWDDCLS(
