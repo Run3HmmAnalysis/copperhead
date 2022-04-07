@@ -31,8 +31,6 @@ from stage1.corrections.btag_weights import btag_weights
 from stage1.muons import fill_muons
 from stage1.jets import prepare_jets, fill_jets, fill_softjets
 from stage1.jets import jet_id, jet_puid
-
-# from stage1.jets import gen_jet_pair_mass
 from stage1.jets import fill_gen_jets
 
 from config.parameters import parameters
@@ -505,30 +503,8 @@ class DimuonProcessor(processor.ProcessorABC):
                     weights.add_weight("pdf_2rms", how="dummy_vars")
             # --- --- --- --- --- --- --- --- --- --- --- --- --- --- #
 
-        # ------------------------------------------------------------#
-        # Calculate getJetMass and split DY
-        # ------------------------------------------------------------#
-
         if is_mc:
             output = fill_gen_jets(df, output)
-
-        """
-        output["genJetPairMass"] = 0.0
-        is_dy = ("dy_m105_160_vbf_amc" in dataset) or ("dy_m105_160_amc" in dataset)
-        if is_mc and is_dy:
-            gj_pair_mass = gen_jet_pair_mass(df)
-            if gj_pair_mass is not None:
-                output["genJetPairMass"] = gj_pair_mass
-                output["genJetPairMass"] = output["genJetPairMass"].fillna(0.0)
-                if "dy_m105_160_vbf_amc" in dataset:
-                    output.event_selection = output.event_selection & (
-                        output.genJetPairMass > 350
-                    )
-                if "dy_m105_160_amc" in dataset:
-                    output.event_selection = output.event_selection & (
-                        output.genJetPairMass <= 350
-                    )
-        """
 
         # ------------------------------------------------------------#
         # Loop over JEC variations and fill jet variables
