@@ -94,6 +94,12 @@ def make_histograms(args, parameters={}):
     if isinstance(df, dd.DataFrame):
         df = df.compute()
     df.fillna(-999.0, inplace=True)
+
+    if "dy_m105_160_vbf_amc" in dataset:
+        df = df[df.gjj_mass > 350]
+    if "dy_m105_160_amc" in dataset:
+        df = df[df.gjj_mass <= 350]
+
     try:
         split_into_channels(df, v="nominal")
     except Exception:

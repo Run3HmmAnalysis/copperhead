@@ -1,5 +1,6 @@
-def split_into_channels(df, v=None):
+def split_into_channels(df, v=""):
     if v is None:
+        # this was used for Delphes datasets
         cuts = {
             "vbf": (df.jj_mass > 400) & (df.jj_dEta > 2.5) & (df.jet1_pt > 35),
             "ggh_0jets": (df.njets == 0),
@@ -12,27 +13,27 @@ def split_into_channels(df, v=None):
         for cname, cut in cuts.items():
             df.loc[cut, "channel"] = cname
     else:
-        cuts = {
-            "vbf": (df[f"jj_mass {v}"] > 400)
+        df[f"njets {v}"].fillna(0, inplace=True)
+        df.loc[:, f"channel {v}"] = "none"
+        df.loc[
+            (df[f"nBtagLoose {v}"] >= 2) | (df[f"nBtagMedium {v}"] >= 1), f"channel {v}"
+        ] = "ttHorVH"
+        df.loc[
+            (df[f"channel {v}"] == "none")
+            & (df[f"jj_mass {v}"] > 400)
             & (df[f"jj_dEta {v}"] > 2.5)
             & (df[f"jet1_pt {v}"] > 35),
-            "ggh_0jets": (df[f"njets {v}"] < 1),
-            "ggh_1jet": (df[f"njets {v}"] == 1)
-            & (
-                (df[f"jj_mass {v}"] <= 400)
-                | (df[f"jj_dEta {v}"] <= 2.5)
-                | (df[f"jet1_pt {v}"] < 35)
-            ),
-            "ggh_2orMoreJets": (df[f"njets {v}"] >= 2)
-            & (
-                (df[f"jj_mass {v}"] <= 400)
-                | (df[f"jj_dEta {v}"] <= 2.5)
-                | (df[f"jet1_pt {v}"] < 35)
-            ),
-        }
-
-        for cname, cut in cuts.items():
-            df.loc[cut, f"channel {v}"] = cname
+            f"channel {v}",
+        ] = "vbf"
+        df.loc[
+            (df[f"channel {v}"] == "none") & (df[f"njets {v}"] < 1), f"channel {v}"
+        ] = "ggh_0jets"
+        df.loc[
+            (df[f"channel {v}"] == "none") & (df[f"njets {v}"] == 1), f"channel {v}"
+        ] = "ggh_1jet"
+        df.loc[
+            (df[f"channel {v}"] == "none") & (df[f"njets {v}"] > 1), f"channel {v}"
+        ] = "ggh_2orMoreJets"
 
 
 def categorize_by_score(df, scores, mode="uniform", **kwargs):
