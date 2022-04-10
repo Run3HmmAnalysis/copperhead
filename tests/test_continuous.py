@@ -10,6 +10,7 @@ from coffea.nanoevents import NanoAODSchema
 from stage1.preprocessor import SamplesInfo
 from stage1.processor import DimuonProcessor
 from stage2.postprocessor import load_dataframe, process_partitions
+from stage3.plotter import plotter
 from config.variables import variables_lookup
 from test_tools import almost_equal
 
@@ -31,6 +32,7 @@ parameters = {
     "hist_vars": ["dimuon_mass"],
     "plot_vars": ["dimuon_mass"],
     "save_hists": False,
+    "return_hist": True,
     "save_plots": False,
     "plot_ratio": True,
     "14TeV_label": False,
@@ -52,6 +54,7 @@ if __name__ == "__main__":
     file_path = f"{os.getcwd()}/tests/samples/{file_name}"
     dataset = {"vbf_powheg": file_path}
 
+    # Stage 1
     samp_info = SamplesInfo(xrootd=False)
     samp_info.paths = dataset
     samp_info.year = "2018"
@@ -70,21 +73,29 @@ if __name__ == "__main__":
         processor_instance=DimuonProcessor(**processor_args),
     )
 
-    df = load_dataframe(client, parameters, inputs=out_df)
-    out_hist = process_partitions(client, parameters, df=df)
-
-    elapsed = round(time.time() - tick, 3)
-    print(f"Finished everything in {elapsed} s.")
-
     out_df = out_df.compute()
+
     dimuon_mass = out_df.loc[out_df.event == 2, "dimuon_mass"].values[0]
     jj_mass = out_df.loc[out_df.event == 2, "jj_mass nominal"].values[0]
 
     assert out_df.shape == (21806, 116)
     assert almost_equal(dimuon_mass, 124.16069531)
     assert almost_equal(jj_mass, 1478.3898375)
+
+    # Stage 2
+    df = load_dataframe(client, parameters, inputs=out_df)
+    out_hist = process_partitions(client, parameters, df=df)
+
     assert almost_equal(
         out_hist.loc[out_hist.variation == "nominal", "yield"].values[0],
         31778.21631,
         precision=0.01,
     )
+
+    # Stage 3
+    out_plot = plotter(client, parameters, out_hist)
+
+    assert almost_equal(out_plot[0], 31778.21631)
+
+    elapsed = round(time.time() - tick, 3)
+    print(f"Finished everything in {elapsed} s.")

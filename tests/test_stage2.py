@@ -24,14 +24,8 @@ parameters = {
     "dnn_models": [],
     "bdt_models": [],
     "hist_vars": ["dimuon_mass"],
-    "plot_vars": ["dimuon_mass"],
     "save_hists": False,
-    "save_plots": False,
-    "plot_ratio": True,
-    "14TeV_label": False,
     "variables_lookup": variables_lookup,
-    "grouping": {"dy_m105_160_amc": "DY"},
-    "plot_groups": {"stack": "DY", "step": [], "errorbar": []},
 }
 
 

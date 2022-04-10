@@ -230,6 +230,9 @@ def make_histograms(args, parameters):
             "channel": channel,
             "yield": weight.sum(),
         }
+        if "return_hist" in parameters:
+            if parameters["return_hist"]:
+                hist_info_row["hist"] = hist
         hist_info_rows.append(hist_info_row)
 
     # save histogram for this partition to disk
