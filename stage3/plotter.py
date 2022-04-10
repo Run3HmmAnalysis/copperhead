@@ -65,7 +65,7 @@ def plotter(client, parameters, hist_df=None, timer=None):
     if hist_df is None:
         arg_load = {
             "year": parameters["years"],
-            "var_name": parameters["hist_vars"],
+            "var_name": parameters["plot_vars"],
             "dataset": parameters["datasets"],
         }
         hist_dfs = parallelize(load_histogram, arg_load, client, parameters)
@@ -107,9 +107,7 @@ def plot(args, parameters={}):
     # temporary
     variation = "nominal"
 
-    slicer = {"region": region, "channel": channel}
-    if parameters["has_variations"]:
-        slicer["variation"] = variation
+    slicer = {"region": region, "channel": channel, "variation": variation}
 
     fig = plt.figure()
 
@@ -234,12 +232,7 @@ def plot(args, parameters={}):
         ax2.set_xlabel(var.caption, loc="right")
         ax2.legend(prop={"size": "x-small"})
 
-    if parameters["14TeV_label"]:
-        hep.cms.label(
-            ax=ax1, data=False, label="Preliminary", year="HL-LHC", rlabel="14 TeV"
-        )
-    else:
-        hep.cms.label(ax=ax1, data=True, label="Preliminary", year=year)
+    hep.cms.label(ax=ax1, data=True, label="Preliminary", year=year)
 
     if parameters["save_plots"]:
         path = parameters["plots_path"]

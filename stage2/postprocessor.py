@@ -45,6 +45,7 @@ def load_dataframe(client, parameters, inputs=[]):
         return None
 
     ignore_columns = [c for c in df.columns if (("wgt_" in c) and ("nominal" not in c))]
+    ignore_columns += [c for c in df.columns if "pdf_" in c]
     df = df[[c for c in df.columns if c not in ignore_columns]]
 
     return df
@@ -60,6 +61,7 @@ def process_partitions(client, parameters, df):
     elif isinstance(df, dd.DataFrame):
         argset["df"] = [(i, df.partitions[i]) for i in range(df.npartitions)]
 
+    delete_existing_hists(df.dataset.unique(), df.year.unique(), parameters)
     hist_info_dfs = parallelize(on_partition, argset, client, parameters)
     hist_info_df_full = pd.concat(hist_info_dfs).reset_index(drop=True)
     return hist_info_df_full
@@ -113,7 +115,7 @@ def on_partition(args, parameters):
         "channels": [channels],
         "npart": [npart],
     }
-    parallelize(delete_existing_hists, argset_hist, get_client(), parameters, seq=True)
+    # forcing sequential execution - nested parallelism leads to a lock
     hist_info_rows = parallelize(
         make_histograms, argset_hist, get_client(), parameters, seq=True
     )
