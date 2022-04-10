@@ -1,4 +1,4 @@
-name: nanoaod
+name: ci
 
 on:
   push:
@@ -15,7 +15,7 @@ jobs:
       matrix:
         os: [ubuntu-latest]
         python-version: [3.7]
-    name: separate (latest coffea)
+    name: separate
 
     steps:
       - uses: actions/checkout@master
@@ -27,9 +27,9 @@ jobs:
         run: |
           python3 -m pip install --user --upgrade -r requirements.txt
       - name: stage 1
-        run: python3 -W ignore tests/test_nanoaod_stage1.py
+        run: python3 -W ignore tests/test_stage1.py
       - name: stage 2
-        run: python3 -W ignore tests/test_nanoaod_stage2.py
+        run: python3 -W ignore tests/test_stage2.py
 
   validation_continuous:
     runs-on: ${{ matrix.os }}
@@ -37,7 +37,7 @@ jobs:
       matrix:
         os: [ubuntu-latest]
         python-version: [3.7]
-    name: continuous (latest coffea)
+    name: continuous
 
     steps:
       - uses: actions/checkout@master
@@ -49,4 +49,4 @@ jobs:
         run: |
           python3 -m pip install --user --upgrade -r requirements.txt
       - name: continuous (stages 1 & 2)
-        run: python3 -W ignore tests/test_nanoaod_continuous.py
+        run: python3 -W ignore tests/test_continuous.py
