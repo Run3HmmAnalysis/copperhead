@@ -2,9 +2,9 @@ name: ci
 
 on:
   push:
-    branches: [ master ]
+    branches: [ run3_prototype ]
   pull_request:
-    branches: [ master ]
+    branches: [ run3_prototype ]
 
   workflow_dispatch:
 
@@ -18,7 +18,7 @@ jobs:
     name: separate
 
     steps:
-      - uses: actions/checkout@master
+      - uses: actions/checkout@run3_prototype
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v2
         with:
@@ -40,7 +40,7 @@ jobs:
     name: continuous
 
     steps:
-      - uses: actions/checkout@master
+      - uses: actions/checkout@run3_prototype
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v2
         with:
