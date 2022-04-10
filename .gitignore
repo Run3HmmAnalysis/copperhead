@@ -1,7 +1,6 @@
 *~
 *#
 *__pycache__*
-python/__pycache__/*pyc
 .ipynb_checkpoints/*
 *lock
 plots/*
