@@ -7,10 +7,8 @@ import time
 import dask
 from dask.distributed import Client
 
-from stage2.postprocessor import load_dataframe
+from stage2.postprocessor_new import load_dataframe, process_partitions
 from config.variables import variables_lookup
-from stage2.convert import to_histograms
-from stage3.plotter import plotter
 from test_tools import almost_equal
 
 __all__ = ["dask"]
@@ -31,7 +29,6 @@ parameters = {
     "save_plots": False,
     "plot_ratio": True,
     "14TeV_label": False,
-    "has_variations": True,
     "variables_lookup": variables_lookup,
     "grouping": {"dy_m105_160_amc": "DY"},
     "plot_groups": {"stack": "DY", "step": [], "errorbar": []},
@@ -49,18 +46,12 @@ if __name__ == "__main__":
     path = f"{os.getcwd()}/tests/samples/{file_name}"
 
     df = load_dataframe(client, parameters, inputs=[path])
-    out_hist = to_histograms(client, parameters, df=df)
-    out_plot = plotter(client, parameters, hist_df=out_hist)
+    out_hist = process_partitions(client, parameters, df)
 
     elapsed = round(time.time() - tick, 3)
     print(f"Finished everything in {elapsed} s.")
 
-    slicer = {
-        "region": "h-peak",
-        "channel": "vbf",
-        "variation": "nominal",
-        "val_sumw2": "value",
-        "dimuon_mass": slice(None),
-    }
-    assert almost_equal(out_hist["hist"][0][slicer].sum(), 0.14842246076249055)
-    assert almost_equal(sum(out_plot), 0.14842246076249055)
+    assert almost_equal(
+        out_hist.loc[out_hist.variation == "nominal", "yield"].values[0],
+        0.14842246076249055,
+    )
