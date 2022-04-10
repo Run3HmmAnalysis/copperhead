@@ -5,11 +5,10 @@ import dask
 from dask.distributed import Client
 import dask.dataframe as dd
 
-from nanoaod.postprocessor import load_dataframe
+from nanoaod.postprocessor import load_dataframe, process_partitions
 
 from nanoaod.config.mva_bins import mva_bins
 from nanoaod.config.variables import variables_lookup
-from python.convert import to_histograms
 from python.plotter import plotter
 
 __all__ = ["dask"]
@@ -196,7 +195,7 @@ if __name__ == "__main__":
                 df = load_dataframe(client, parameters, inputs=[path])
                 if not isinstance(df, dd.DataFrame):
                     continue
-                to_histograms(client, parameters, df=df)
+                process_partitions(client, parameters, df)
 
     if args.plot:
         yields = plotter(client, parameters)
