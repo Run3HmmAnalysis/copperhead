@@ -18,7 +18,6 @@ __all__ = [
     "SLURMCluster",
     "dask_executor",
     "DimuonProcessor",
-    "DimuonProcessorDelphes",
 ]
 
 print("Dask version:", dask.__version__)

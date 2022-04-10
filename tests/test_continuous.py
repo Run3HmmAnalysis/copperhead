@@ -9,10 +9,8 @@ from coffea.nanoevents import NanoAODSchema
 
 from stage1.preprocessor import SamplesInfo
 from stage1.processor import DimuonProcessor
-from stage2.postprocessor import load_dataframe
+from stage2.postprocessor import load_dataframe, process_partitions
 from config.variables import variables_lookup
-from stage2.convert import to_histograms
-from stage3.plotter import plotter
 from test_tools import almost_equal
 
 import dask
@@ -73,8 +71,7 @@ if __name__ == "__main__":
     )
 
     df = load_dataframe(client, parameters, inputs=out_df)
-    out_hist = to_histograms(client, parameters, df=df)
-    out_plot = plotter(client, parameters, hist_df=out_hist)
+    out_hist = process_partitions(client, parameters, df=df)
 
     elapsed = round(time.time() - tick, 3)
     print(f"Finished everything in {elapsed} s.")
@@ -86,14 +83,8 @@ if __name__ == "__main__":
     assert out_df.shape == (21806, 116)
     assert almost_equal(dimuon_mass, 124.16069531)
     assert almost_equal(jj_mass, 1478.3898375)
-
-    slicer = {
-        "region": "h-peak",
-        "channel": "vbf",
-        "variation": "nominal",
-        "val_sumw2": "value",
-        "dimuon_mass": slice(None),
-    }
-
-    assert almost_equal(out_hist["hist"][0][slicer].sum(), 31778.21631, precision=0.01)
-    assert almost_equal(sum(out_plot), 31778.21631, precision=0.01)
+    assert almost_equal(
+        out_hist.loc[out_hist.variation == "nominal", "yield"].values[0],
+        31778.21631,
+        precision=0.01,
+    )
