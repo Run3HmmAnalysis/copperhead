@@ -9,16 +9,16 @@ on:
   workflow_dispatch:
 
 jobs:
-  validation:
+  validation_stage1:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
         os: [ubuntu-latest]
         python-version: [3.7]
-    name: separate
+    name: stage1
 
     steps:
-      - uses: actions/checkout@run3_prototype
+      - uses: actions/checkout@master
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v2
         with:
@@ -26,9 +26,27 @@ jobs:
       - name: install packages
         run: |
           python3 -m pip install --user --upgrade -r requirements.txt
-      - name: stage 1
+      - name: run stage 1
         run: python3 -W ignore tests/test_stage1.py
-      - name: stage 2
+
+  validation_stage2:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest]
+        python-version: [3.7]
+    name: stage2
+
+    steps:
+      - uses: actions/checkout@master
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v2
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: install packages
+        run: |
+          python3 -m pip install --user --upgrade -r requirements.txt
+      - name: run stage 2
         run: python3 -W ignore tests/test_stage2.py
 
   validation_continuous:
@@ -40,7 +58,7 @@ jobs:
     name: continuous
 
     steps:
-      - uses: actions/checkout@run3_prototype
+      - uses: actions/checkout@master
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v2
         with:
@@ -48,5 +66,5 @@ jobs:
       - name: install packages
         run: |
           python3 -m pip install --user --upgrade -r requirements.txt
-      - name: continuous (stages 1 & 2)
+      - name: run continuous (stages 1 & 2)
         run: python3 -W ignore tests/test_continuous.py
