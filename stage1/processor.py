@@ -1,4 +1,3 @@
-import awkward
 import awkward as ak
 import numpy as np
 
@@ -21,8 +20,9 @@ from stage1.corrections.geofit import apply_geofit
 from stage1.corrections.jec import jec_factories, apply_jec
 from stage1.corrections.lepton_sf import musf_lookup, musf_evaluator
 from stage1.corrections.nnlops import nnlops_weights
-from stage1.corrections.stxs_uncert import stxs_uncert, stxs_lookups
+from stage1.corrections.stxs_uncert import add_stxs_variations, stxs_lookups
 from stage1.corrections.lhe_weights import lhe_weights
+from stage1.corrections.pdf_variations import add_pdf_variations
 from stage1.corrections.qgl_weights import qgl_weights
 from stage1.corrections.btag_weights import btag_weights
 
@@ -36,6 +36,7 @@ from stage1.jets import fill_gen_jets
 from config.parameters import parameters
 from config.jec_parameters import jec_parameters
 from config.variables import variables
+from config.branches import branches
 
 
 class DimuonProcessor(processor.ProcessorABC):
@@ -94,7 +95,7 @@ class DimuonProcessor(processor.ProcessorABC):
         # settings required by coffea
         # since we do not merge outputs, we use a dummy accumulator
         self._accumulator = processor.defaultdict_accumulator(int)
-        self._columns = self.parameters["proc_columns"]
+        self._columns = branches
 
     @property
     def accumulator(self):
@@ -333,15 +334,17 @@ class DimuonProcessor(processor.ProcessorABC):
                 self.timer.add_checkpoint("Event & muon selection")
 
         # ------------------------------------------------------------#
-        # Prepare jets
+        # Fill GEN jet variables
         # ------------------------------------------------------------#
 
-        prepare_jets(df, is_mc)
+        if is_mc:
+            output = fill_gen_jets(df, output)
 
         # ------------------------------------------------------------#
         # Apply JEC, get JEC and JER variations
         # ------------------------------------------------------------#
 
+        prepare_jets(df, is_mc)
         jets = df.Jet
 
         self.do_jec = False
@@ -418,27 +421,14 @@ class DimuonProcessor(processor.ProcessorABC):
                 and ("nominal" in self.pt_variations)
                 and ("stage1_1_fine_cat_pTjet30GeV" in df.HTXS.fields)
             )
-            if do_thu:
-                for i, name in enumerate(self.parameters["sths_names"]):
-                    wgt_up = stxs_uncert(
-                        i,
-                        ak.to_numpy(df.HTXS.stage1_1_fine_cat_pTjet30GeV),
-                        1.0,
-                        self.stxs_acc_lookups,
-                        self.powheg_xsec_lookup,
-                    )
-                    wgt_down = stxs_uncert(
-                        i,
-                        ak.to_numpy(df.HTXS.stage1_1_fine_cat_pTjet30GeV),
-                        -1.0,
-                        self.stxs_acc_lookups,
-                        self.powheg_xsec_lookup,
-                    )
-                    thu_wgts = {"up": wgt_up, "down": wgt_down}
-                    weights.add_weight("THU_VBF_" + name, thu_wgts, how="only_vars")
-            else:
-                for i, name in enumerate(self.parameters["sths_names"]):
-                    weights.add_weight("THU_VBF_" + name, how="dummy_vars")
+            add_stxs_variations(
+                do_thu,
+                df,
+                self.parameters,
+                self.stxs_acc_lookups,
+                self.powheg_xsec_lookup,
+                weights,
+            )
             # --- --- --- --- --- --- --- --- --- --- --- --- --- --- #
             do_pdf = (
                 self.do_pdf
@@ -451,40 +441,10 @@ class DimuonProcessor(processor.ProcessorABC):
                 )
                 and ("mg" not in dataset)
             )
-            if "2016" in self.year:
-                max_replicas = 0
-                if "dy" in dataset:
-                    max_replicas = 100
-                elif "ewk" in dataset:
-                    max_replicas = 33
-                else:
-                    max_replicas = 100
-                if do_pdf:
-                    pdf_wgts = df.LHEPdfWeight[
-                        :, 0 : self.parameters["n_pdf_variations"]
-                    ]
-                for i in range(100):
-                    if (i < max_replicas) and do_pdf:
-                        output[f"pdf_mcreplica{i}"] = pdf_wgts[:, i]
-                    else:
-                        output[f"pdf_mcreplica{i}"] = np.nan
-            else:
-                if do_pdf:
-                    pdf_wgts = df.LHEPdfWeight[
-                        :, 0 : self.parameters["n_pdf_variations"]
-                    ][0]
-                    pdf_wgts = np.array(pdf_wgts)
-                    pdf_vars = {
-                        "up": (1 + 2 * pdf_wgts.std()),
-                        "down": (1 - 2 * pdf_wgts.std()),
-                    }
-                    weights.add_weight("pdf_2rms", pdf_vars, how="only_vars")
-                else:
-                    weights.add_weight("pdf_2rms", how="dummy_vars")
+            add_pdf_variations(
+                do_pdf, df, self.year, dataset, self.parameters, output, weights
+            )
             # --- --- --- --- --- --- --- --- --- --- --- --- --- --- #
-
-        if is_mc:
-            output = fill_gen_jets(df, output)
 
         # ------------------------------------------------------------#
         # Loop over JEC variations and fill jet variables

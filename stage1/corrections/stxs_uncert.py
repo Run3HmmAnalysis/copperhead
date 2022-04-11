@@ -1,3 +1,4 @@
+import awkward as ak
 import numpy as np
 from coffea.lookup_tools import dense_lookup
 
@@ -231,6 +232,32 @@ def stxs_lookups():
     )
     powheg_xsec_lookup._axes = powheg_xsec_lookup._axes[0]
     return stxs_acc_lookups, powheg_xsec_lookup
+
+
+def add_stxs_variations(
+    do_thu, df, parameters, stxs_acc_lookups, powheg_xsec_lookup, weights
+):
+    if do_thu:
+        for i, name in enumerate(parameters["sths_names"]):
+            wgt_up = stxs_uncert(
+                i,
+                ak.to_numpy(df.HTXS.stage1_1_fine_cat_pTjet30GeV),
+                1.0,
+                stxs_acc_lookups,
+                powheg_xsec_lookup,
+            )
+            wgt_down = stxs_uncert(
+                i,
+                ak.to_numpy(df.HTXS.stage1_1_fine_cat_pTjet30GeV),
+                -1.0,
+                stxs_acc_lookups,
+                powheg_xsec_lookup,
+            )
+            thu_wgts = {"up": wgt_up, "down": wgt_down}
+            weights.add_weight("THU_VBF_" + name, thu_wgts, how="only_vars")
+    else:
+        for i, name in enumerate(parameters["sths_names"]):
+            weights.add_weight("THU_VBF_" + name, how="dummy_vars")
 
 
 def stxs_uncert(source, event_STXS, Nsigma, stxs_acc_lookups, powheg_xsec_lookup):
