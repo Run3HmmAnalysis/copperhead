@@ -92,19 +92,6 @@ class DimuonProcessor(processor.ProcessorABC):
         do_timer = kwargs.get("do_timer", False)
         self.timer = Timer("global") if do_timer else None
 
-        # settings required by coffea
-        # since we do not merge outputs, we use a dummy accumulator
-        self._accumulator = processor.defaultdict_accumulator(int)
-        self._columns = branches
-
-    @property
-    def accumulator(self):
-        return self._accumulator
-
-    @property
-    def columns(self):
-        return self._columns
-
     def process(self, df):
         # Initialize timer
         if self.timer:
@@ -513,22 +500,8 @@ class DimuonProcessor(processor.ProcessorABC):
 
         output = output.loc[output.event_selection, columns_to_save]
         output = output.reindex(sorted(output.columns), axis=1)
-
         output.columns = [" ".join(col).strip() for col in output.columns.values]
-
         output = output[output.region.isin(self.regions)]
-
-        """
-        input_evts = numevents
-        output_evts = output.shape[0]
-        out_yield = output.wgt_nominal.sum()
-        out_vbf = output[
-                (output["jj_mass nominal"]>400) & (output["jj_dEta nominal"]>2.5) & (output["jet1_pt nominal"]>35)
-            ].wgt_nominal.sum()
-        out_ggh = out_yield - out_vbf
-
-        print(f"\n{dataset}:    {input_evts}  ->  {output_evts};    yield = {out_ggh} (ggH) + {out_vbf} (VBF) = {out_yield}")
-        """
 
         to_return = None
         if self.apply_to_output is None:
@@ -593,9 +566,6 @@ class DimuonProcessor(processor.ProcessorABC):
             .sum()
             .astype(bool)
         )
-
-        # if self.timer:
-        #     self.timer.add_checkpoint("Clean jets from matched muons")
 
         # Select particular JEC variation
         if "_up" in variation:
@@ -663,9 +633,6 @@ class DimuonProcessor(processor.ProcessorABC):
 
         jets = jets[jet_selection]
 
-        # if self.timer:
-        #     self.timer.add_checkpoint("Selected jets")
-
         # ------------------------------------------------------------#
         # Fill jet-related variables
         # ------------------------------------------------------------#
@@ -694,9 +661,6 @@ class DimuonProcessor(processor.ProcessorABC):
 
         fill_jets(output, variables, jet1, jet2)
 
-        # if self.timer:
-        #     self.timer.add_checkpoint("Filled jet variables")
-
         # ------------------------------------------------------------#
         # Fill soft activity jet variables
         # ------------------------------------------------------------#
@@ -706,9 +670,6 @@ class DimuonProcessor(processor.ProcessorABC):
         if variation == "nominal":
             fill_softjets(df, output, variables, 2)
             fill_softjets(df, output, variables, 5)
-
-            # if self.timer:
-            #     self.timer.add_checkpoint("Calculated SA variables")
 
         # ------------------------------------------------------------#
         # Apply remaining cuts
@@ -741,11 +702,6 @@ class DimuonProcessor(processor.ProcessorABC):
             for name, bs in btag_syst.items():
                 weights.add_weight(f"btag_wgt_{name}", bs, how="only_vars")
 
-            # if self.timer:
-            #     self.timer.add_checkpoint(
-            #         "Applied QGL and B-tag weights"
-            #     )
-
         # Separate from ttH and VH phase space
         variables["nBtagLoose"] = (
             jets[
@@ -768,12 +724,6 @@ class DimuonProcessor(processor.ProcessorABC):
         )
         variables.nBtagLoose = variables.nBtagLoose.fillna(0.0)
         variables.nBtagMedium = variables.nBtagMedium.fillna(0.0)
-
-        variables.selection = (
-            output.event_selection
-            & (variables.nBtagLoose < 2)
-            & (variables.nBtagMedium < 1)
-        )
 
         # --------------------------------------------------------------#
         # Fill outputs
@@ -838,6 +788,14 @@ class DimuonProcessor(processor.ProcessorABC):
         self.evaluator[self.zpt_path]._axes = self.evaluator[self.zpt_path]._axes[0]
 
         return
+
+    @property
+    def accumulator(self):
+        return processor.defaultdict_accumulator(int)
+
+    @property
+    def columns(self):
+        return branches
 
     def postprocess(self, accumulator):
         return accumulator
