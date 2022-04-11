@@ -5,6 +5,32 @@ def for_all_years(value):
 
 parameters = {}
 
+parameters.update(
+    {
+        "muon_pt_cut": for_all_years(20.0),
+        "muon_eta_cut": for_all_years(2.4),
+        "muon_iso_cut": for_all_years(0.25),  # medium iso
+        "muon_id": for_all_years("mediumId"),
+        # "muon_flags": for_all_years(["isGlobal", "isTracker"]),
+        "muon_flags": for_all_years([]),
+        "muon_leading_pt": {"2016": 26.0, "2017": 29.0, "2018": 26.0},
+        "muon_trigmatch_iso": for_all_years(0.15),  # tight iso
+        "muon_trigmatch_dr": for_all_years(0.1),
+        "muon_trigmatch_id": for_all_years("tightId"),
+        "electron_pt_cut": for_all_years(20.0),
+        "electron_eta_cut": for_all_years(2.5),
+        "electron_id": for_all_years("mvaFall17V2Iso_WP90"),
+        "jet_pt_cut": for_all_years(25.0),
+        "jet_eta_cut": for_all_years(4.7),
+        "jet_id": {"2016": "loose", "2017": "tight", "2018": "tight"},
+        "jet_puid": {"2016": "loose", "2017": "2017corrected", "2018": "loose"},
+        "min_dr_mu_jet": for_all_years(0.4),
+        "btag_loose_wp": {"2016": 0.2217, "2017": 0.1522, "2018": 0.1241},
+        "btag_medium_wp": {"2016": 0.6321, "2017": 0.4941, "2018": 0.4184},
+        "softjet_dr2": for_all_years(0.16),
+    }
+)
+
 parameters["lumimask"] = {
     "2016": "data/lumimasks/Cert_271036-284044_13TeV_ReReco_07Aug2017_Collisions16_JSON.txt",
     "2017": "data/lumimasks/Cert_294927-306462_13TeV_EOY2017ReReco_Collisions17_JSON_v1.txt",
@@ -42,78 +68,6 @@ parameters["pu_file_mc"] = {
     "2017": "data/pileup/mcPileup2017.root",
     "2018": "data/pileup/mcPileup2018.root",
 }
-
-# Reduced set
-parameters["jec_unc_to_consider"] = {
-    "2016": [
-        "Absolute",
-        "Absolute2016",
-        "BBEC1",
-        "BBEC12016",
-        "EC2",
-        "EC22016",
-        "HF",
-        "HF2016",
-        "RelativeBal",
-        "RelativeSample2016",
-        "FlavorQCD",
-    ],
-    "2017": [
-        "Absolute",
-        "Absolute2017",
-        "BBEC1",
-        "BBEC12017",
-        "EC2",
-        "EC22017",
-        "HF",
-        "HF2017",
-        "RelativeBal",
-        "RelativeSample2017",
-        "FlavorQCD",
-    ],
-    "2018": [
-        "Absolute",
-        "Absolute2018",
-        "BBEC1",
-        "BBEC12018",
-        "EC2",
-        "EC22018",
-        "HF",
-        "HF2018",
-        "RelativeBal",
-        "RelativeSample2018",
-        "FlavorQCD",
-    ],
-}
-
-
-def jec_variations(year):
-    result = []
-    for v in parameters["jec_unc_to_consider"][year]:
-        result.append(v + "_up")
-        result.append(v + "_down")
-    return result
-
-
-parameters["jec_variations"] = {
-    year: jec_variations(year) for year in ["2016", "2017", "2018"]
-}
-
-jer_variations = [
-    "jer1_up",
-    "jer1_down",
-    "jer2_up",
-    "jer2_down",
-    "jer3_up",
-    "jer3_down",
-    "jer4_up",
-    "jer4_down",
-    "jer5_up",
-    "jer5_down",
-    "jer6_up",
-    "jer6_down",
-]
-parameters["jer_variations"] = for_all_years(jer_variations)
 
 parameters["muSFFileList"] = {
     "2016": [
@@ -208,6 +162,35 @@ parameters["zpt_weights_file"] = for_all_years("data/zpt_weights.histo.json")
 parameters["puid_sf_file"] = for_all_years("data/PUIDMaps.root")
 parameters["res_calib_path"] = for_all_years("data/res_calib/")
 
+parameters["sths_names"] = for_all_years(
+    [
+        "Yield",
+        "PTH200",
+        "Mjj60",
+        "Mjj120",
+        "Mjj350",
+        "Mjj700",
+        "Mjj1000",
+        "Mjj1500",
+        "PTH25",
+        "JET01",
+    ]
+)
+
+parameters["btag_systs"] = for_all_years(
+    [
+        "jes",
+        "lf",
+        "hfstats1",
+        "hfstats2",
+        "cferr1",
+        "cferr2",
+        "hf",
+        "lfstats1",
+        "lfstats2",
+    ]
+)
+
 parameters.update(
     {
         "event_flags": for_all_years(
@@ -222,32 +205,6 @@ parameters.update(
             ]
         ),
         "do_l1prefiring_wgts": {"2016": True, "2017": True, "2018": False},
-    }
-)
-
-parameters.update(
-    {
-        "muon_pt_cut": for_all_years(20.0),
-        "muon_eta_cut": for_all_years(2.4),
-        "muon_iso_cut": for_all_years(0.25),  # medium iso
-        "muon_id": for_all_years("mediumId"),
-        # "muon_flags": for_all_years(["isGlobal", "isTracker"]),
-        "muon_flags": for_all_years([]),
-        "muon_leading_pt": {"2016": 26.0, "2017": 29.0, "2018": 26.0},
-        "muon_trigmatch_iso": for_all_years(0.15),  # tight iso
-        "muon_trigmatch_dr": for_all_years(0.1),
-        "muon_trigmatch_id": for_all_years("tightId"),
-        "electron_pt_cut": for_all_years(20.0),
-        "electron_eta_cut": for_all_years(2.5),
-        "electron_id": for_all_years("mvaFall17V2Iso_WP90"),
-        "jet_pt_cut": for_all_years(25.0),
-        "jet_eta_cut": for_all_years(4.7),
-        "jet_id": {"2016": "loose", "2017": "tight", "2018": "tight"},
-        "jet_puid": {"2016": "loose", "2017": "2017corrected", "2018": "loose"},
-        "min_dr_mu_jet": for_all_years(0.4),
-        "btag_loose_wp": {"2016": 0.2217, "2017": 0.1522, "2018": 0.1241},
-        "btag_medium_wp": {"2016": 0.6321, "2017": 0.4941, "2018": 0.4184},
-        "softjet_dr2": for_all_years(0.16),
     }
 )
 

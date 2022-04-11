@@ -103,6 +103,7 @@ parameters = {
     "label": args.label,
     "local_cluster": local_cluster,
     "slurm_cluster_ip": slurm_cluster_ip,
+    #
     # < input data settings >
     # 'xrootd': True,
     # 'server': 'root://xrootd.rcac.purdue.edu/', # Purdue xrootd
@@ -112,7 +113,9 @@ parameters = {
     "datasets_from": "purdue",
     "chunksize": int(args.chunksize),
     "maxchunks": mch,
+    #
     # < processing settings >
+    "regions": ["h-sidebands", "h-peak"],  # , "z-peak"]
     "pt_variations": pt_variations,
     "do_btag_syst": False,
     "save_output": True,

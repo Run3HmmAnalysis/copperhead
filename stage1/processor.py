@@ -34,87 +34,67 @@ from stage1.jets import jet_id, jet_puid
 from stage1.jets import fill_gen_jets
 
 from config.parameters import parameters
+from config.jec_parameters import jec_parameters
 from config.variables import variables
 
 
 class DimuonProcessor(processor.ProcessorABC):
     def __init__(self, **kwargs):
-        self.samp_info = kwargs.pop("samp_info", None)
-        do_timer = kwargs.pop("do_timer", False)
-        self.pt_variations = kwargs.pop("pt_variations", ["nominal"])
-        self.do_btag_syst = kwargs.pop("do_btag_syst", True)
-        self.apply_to_output = kwargs.pop("apply_to_output", None)
+        self.pt_variations = kwargs.get("pt_variations", ["nominal"])
+        self.apply_to_output = kwargs.get("apply_to_output", None)
 
+        # try to load metadata
+        self.samp_info = kwargs.get("samp_info", None)
         if self.samp_info is None:
             print("Samples info missing!")
             return
-
-        self._accumulator = processor.defaultdict_accumulator(int)
-
         self.year = self.samp_info.year
+        self.lumi_weights = self.samp_info.lumi_weights
+
+        # load parameters (cuts, paths to external files, etc.)
         self.parameters = {k: v[self.year] for k, v in parameters.items()}
 
+        # enable corrections
         self.do_roccor = True
         self.do_fsr = True
         self.do_geofit = True
         self.auto_pu = True
         self.do_nnlops = True
         self.do_pdf = True
-
-        self.timer = Timer("global") if do_timer else None
-
-        self._columns = self.parameters["proc_columns"]
-
-        # --- Define regions used in the analysis ---#
-        # self.regions = ["z-peak", "h-sidebands", "h-peak"]
-        self.regions = ["h-sidebands", "h-peak"]
-
-        self.lumi_weights = self.samp_info.lumi_weights
-
-        self.sths_names = [
-            "Yield",
-            "PTH200",
-            "Mjj60",
-            "Mjj120",
-            "Mjj350",
-            "Mjj700",
-            "Mjj1000",
-            "Mjj1500",
-            "PTH25",
-            "JET01",
-        ]
-
+        self.do_btag_syst = kwargs.get("do_btag_syst", True)
         if self.do_btag_syst:
-            self.btag_systs = [
-                "jes",
-                "lf",
-                "hfstats1",
-                "hfstats2",
-                "cferr1",
-                "cferr2",
-                "hf",
-                "lfstats1",
-                "lfstats2",
-            ]
+            self.btag_systs = self.parameters["btag_systs"]
         else:
             self.btag_systs = []
 
-        self.vars_to_save = set([v.name for v in variables])
-
-        # Prepare lookup tables for all kinds of corrections
+        # prepare lookup tables for all kinds of corrections
         self.prepare_lookups()
+
+        # mass regions to save
+        self.regions = kwargs.get("regions", [])
+
+        # variables to save
+        self.vars_to_save = set([v.name for v in variables])
 
         # Look at variation names and see if we need to enable
         # calculation of JEC or JER uncertainties
+        jec_pars = {k: v[self.year] for k, v in jec_parameters.items()}
         self.do_jecunc = False
         self.do_jerunc = False
         for ptvar in self.pt_variations:
-            ptvar_ = ptvar.replace("_up", "").replace("_down", "")
-            if ptvar_ in self.parameters["jec_unc_to_consider"]:
+            if ptvar in jec_pars["jec_variations"]:
                 self.do_jecunc = True
-            jers = ["jer1", "jer2", "jer3", "jer4", "jer5", "jer6"]
-            if ptvar_ in jers:
+            if ptvar in jec_pars["jer_variations"]:
                 self.do_jerunc = True
+
+        # enable timer for debugging
+        do_timer = kwargs.get("do_timer", False)
+        self.timer = Timer("global") if do_timer else None
+
+        # settings required by coffea
+        # since we do not merge outputs, we use a dummy accumulator
+        self._accumulator = processor.defaultdict_accumulator(int)
+        self._columns = self.parameters["proc_columns"]
 
     @property
     def accumulator(self):
@@ -439,7 +419,7 @@ class DimuonProcessor(processor.ProcessorABC):
                 and ("stage1_1_fine_cat_pTjet30GeV" in df.HTXS.fields)
             )
             if do_thu:
-                for i, name in enumerate(self.sths_names):
+                for i, name in enumerate(self.parameters["sths_names"]):
                     wgt_up = stxs_uncert(
                         i,
                         ak.to_numpy(df.HTXS.stage1_1_fine_cat_pTjet30GeV),
@@ -457,7 +437,7 @@ class DimuonProcessor(processor.ProcessorABC):
                     thu_wgts = {"up": wgt_up, "down": wgt_down}
                     weights.add_weight("THU_VBF_" + name, thu_wgts, how="only_vars")
             else:
-                for i, name in enumerate(self.sths_names):
+                for i, name in enumerate(self.parameters["sths_names"]):
                     weights.add_weight("THU_VBF_" + name, how="dummy_vars")
             # --- --- --- --- --- --- --- --- --- --- --- --- --- --- #
             do_pdf = (

@@ -58,7 +58,11 @@ if __name__ == "__main__":
     print(samp_info.fileset)
 
     executor_args = {"client": client, "use_dataframes": True, "retries": 0}
-    processor_args = {"samp_info": samp_info, "do_timer": False, "do_btag_syst": False}
+    processor_args = {
+        "samp_info": samp_info,
+        "do_btag_syst": False,
+        "regions": ["h-peak"],
+    }
 
     executor = DaskExecutor(**executor_args)
     run = Runner(executor=executor, schema=NanoAODSchema, chunksize=10000)
@@ -69,11 +73,11 @@ if __name__ == "__main__":
     )
 
     out_df = out_df.compute()
-
+    print(out_df)
     dimuon_mass = out_df.loc[out_df.event == 2254006, "dimuon_mass"].values[0]
     jj_mass = out_df.loc[out_df.event == 2254006, "jj_mass nominal"].values[0]
-    print(out_df.shape)
-    assert out_df.shape == (699, 116)
+
+    assert out_df.shape == (391, 116)
     assert almost_equal(dimuon_mass, 117.1209375)
     assert almost_equal(jj_mass, 194.5646039)
 

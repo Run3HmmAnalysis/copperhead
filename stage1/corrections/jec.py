@@ -1,7 +1,6 @@
 from coffea.jetmet_tools import CorrectedJetsFactory, JECStack
 from coffea.lookup_tools import extractor
-from config.jec_parameters import runs, jec_levels_mc, jec_levels_data
-from config.jec_parameters import jec_tags, jer_tags, jec_data_tags
+from config.jec_parameters import jec_parameters
 
 
 def apply_jec(
@@ -23,7 +22,7 @@ def apply_jec(
         if is_mc:
             factory = jec_factories["jec"]
         else:
-            for run in runs[year]:
+            for run in jec_parameters["runs"][year]:
                 if run in dataset:
                     factory = jec_factories_data[run]
         jets = factory.build(jets, lazy_cache=cache)
@@ -42,11 +41,13 @@ def apply_jec(
     return jets
 
 
-def jec_names_and_sources(year):
+def jec_names_and_sources(jec_pars, year):
     names = {}
     suffix = {
-        "jec_names": [f"_{level}_AK4PFchs" for level in jec_levels_mc],
-        "jec_names_data": [f"_{level}_AK4PFchs" for level in jec_levels_data],
+        "jec_names": [f"_{level}_AK4PFchs" for level in jec_pars["jec_levels_mc"]],
+        "jec_names_data": [
+            f"_{level}_AK4PFchs" for level in jec_pars["jec_levels_data"]
+        ],
         "junc_names": ["_Uncertainty_AK4PFchs"],
         "junc_names_data": ["_Uncertainty_AK4PFchs"],
         "junc_sources": ["_UncertaintySources_AK4PFchs"],
@@ -58,20 +59,20 @@ def jec_names_and_sources(year):
     for key, suff in suffix.items():
         if "data" in key:
             names[key] = {}
-            for run in runs[year]:
-                for tag, iruns in jec_data_tags[year].items():
+            for run in jec_pars["runs"]:
+                for tag, iruns in jec_pars["jec_data_tags"].items():
                     if run in iruns:
                         names[key].update({run: [f"{tag}{s}" for s in suff]})
         else:
-            tag = jer_tags[year] if "jer" in key else jec_tags[year]
+            tag = jec_pars["jer_tags"] if "jer" in key else jec_pars["jec_tags"]
             names[key] = [f"{tag}{s}" for s in suff]
 
     return names
 
 
-def jec_weight_sets(year):
+def jec_weight_sets(jec_pars, year):
     weight_sets = {}
-    names = jec_names_and_sources(year)
+    names = jec_names_and_sources(jec_pars, year)
 
     extensions = {
         "jec_names": "jec",
@@ -117,9 +118,10 @@ def get_name_map(stack):
 
 
 def jec_factories(year):
+    jec_pars = {k: v[year] for k, v in jec_parameters.items()}
 
-    weight_sets = jec_weight_sets(year)
-    names = jec_names_and_sources(year)
+    weight_sets = jec_weight_sets(jec_pars, year)
+    names = jec_names_and_sources(jec_pars, year)
 
     jec_factories = {}
     jec_factories_data = {}
@@ -160,7 +162,7 @@ def jec_factories(year):
         jec_factories[opt] = CorrectedJetsFactory(get_name_map(stack), stack)
 
     # Create a separate factory for each data run
-    for run in runs[year]:
+    for run in jec_pars["runs"]:
         jec_inputs_data = {}
         for opt in ["jec", "junc"]:
             jec_inputs_data.update(

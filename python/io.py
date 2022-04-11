@@ -1,8 +1,10 @@
 import os
 import pandas as pd
 import dask.dataframe as dd
+from dask.distributed import get_worker
 import pickle
 import glob
+import uproot3
 
 
 def mkdir(path):
@@ -20,8 +22,6 @@ def remove(path):
 
 
 def save_stage1_output_to_parquet(output, out_dir):
-    from dask.distributed import get_worker
-
     name = None
     for key, task in get_worker().tasks.items():
         if task.state == "executing":
@@ -187,8 +187,6 @@ def delete_existing_stage2_parquet(datasets, years, parameters):
 
 
 def save_template(templates, out_name, parameters):
-    import uproot3
-
     out_file = uproot3.recreate(out_name)
     for tmp in templates:
         out_file[tmp._fName] = tmp

@@ -48,11 +48,13 @@ parameters = {
     "channels": ["vbf"],
     "regions": ["h-peak", "h-sidebands"],
     "syst_variations": ["nominal"],
+    #
     # < settings for histograms >
     "hist_vars": ["dimuon_mass"],
     "variables_lookup": variables_lookup,
     "save_hists": True,
     "hist_path": "/depot/cms/hmm/coffea/stage2_hists/",
+    #
     # < settings for unbinned output>
     "tosave_unbinned": {
         "ggh_0jets": ["dimuon_mass", "wgt_nominal"],
@@ -61,6 +63,7 @@ parameters = {
     },
     "save_unbinned": True,
     "stage2_parquet_path": "/depot/cms/hmm/coffea/stage2_unbinned/",
+    #
     # < MVA settings >
     "models_path": "/depot/cms/hmm/trained_models/",
     "dnn_models": {

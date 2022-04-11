@@ -42,6 +42,7 @@ parameters = {
     "channels": ["vbf"],
     "regions": ["h-peak", "h-sidebands"],
     "syst_variations": ["nominal"],
+    #
     # < plotting settings >
     "plot_vars": ["dimuon_mass"],
     "variables_lookup": variables_lookup,
