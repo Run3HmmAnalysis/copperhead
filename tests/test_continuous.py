@@ -25,7 +25,7 @@ __all__ = ["Client"]
 parameters = {
     "ncpus": 1,
     "years": [2018],
-    "datasets": ["vbf_powheg"],
+    "datasets": ["ewk_lljj_mll105_160_ptj0"],
     "channels": ["vbf"],
     "regions": ["h-peak"],
     "hist_vars": ["dimuon_mass"],
@@ -33,8 +33,8 @@ parameters = {
     "return_hist": True,
     "plot_ratio": True,
     "variables_lookup": variables_lookup,
-    "grouping": {"vbf_powheg": "VBF"},
-    "plot_groups": {"stack": [], "step": ["VBF"], "errorbar": []},
+    "grouping": {"ewk_lljj_mll105_160_ptj0": "EWK"},
+    "plot_groups": {"stack": ["EWK"], "step": [], "errorbar": []},
 }
 
 if __name__ == "__main__":
@@ -45,16 +45,16 @@ if __name__ == "__main__":
     )
     print("Client created")
 
-    file_name = "vbf_powheg_dipole_NANOV10_2018.root"
+    file_name = "ewk_lljj_mll105_160_ptj0_NANOV10_2018.root"
     file_path = f"{os.getcwd()}/tests/samples/{file_name}"
-    dataset = {"vbf_powheg": file_path}
+    dataset = {"ewk_lljj_mll105_160_ptj0": file_path}
 
     # Stage 1
     samp_info = SamplesInfo(xrootd=False)
     samp_info.paths = dataset
     samp_info.year = "2018"
-    samp_info.load("vbf_powheg", use_dask=False)
-    samp_info.lumi_weights["vbf_powheg"] = 1.0
+    samp_info.load("ewk_lljj_mll105_160_ptj0", use_dask=False)
+    samp_info.lumi_weights["ewk_lljj_mll105_160_ptj0"] = 1.0
     print(samp_info.fileset)
 
     executor_args = {"client": client, "use_dataframes": True, "retries": 0}
@@ -70,27 +70,27 @@ if __name__ == "__main__":
 
     out_df = out_df.compute()
 
-    dimuon_mass = out_df.loc[out_df.event == 2, "dimuon_mass"].values[0]
-    jj_mass = out_df.loc[out_df.event == 2, "jj_mass nominal"].values[0]
+    dimuon_mass = out_df.loc[out_df.event == 2254006, "dimuon_mass"].values[0]
+    jj_mass = out_df.loc[out_df.event == 2254006, "jj_mass nominal"].values[0]
     print(out_df.shape)
-    assert out_df.shape == (21806, 116)
-    assert almost_equal(dimuon_mass, 124.16069531)
-    assert almost_equal(jj_mass, 1478.3898375)
+    assert out_df.shape == (699, 116)
+    assert almost_equal(dimuon_mass, 117.1209375)
+    assert almost_equal(jj_mass, 194.5646039)
 
     # Stage 2
     df = load_dataframe(client, parameters, inputs=out_df)
     out_hist = process_partitions(client, parameters, df=df)
 
+    print(out_hist.loc[out_hist.variation == "nominal", "yield"].values[0])
     assert almost_equal(
         out_hist.loc[out_hist.variation == "nominal", "yield"].values[0],
-        31778.21631,
+        46.7871466,
         precision=0.01,
     )
 
     # Stage 3
     out_plot = plotter(client, parameters, out_hist)
-
-    assert almost_equal(out_plot[0], 31778.215944)
+    assert almost_equal(out_plot[0], 46.7871466)
 
     elapsed = round(time.time() - tick, 3)
     print(f"Finished everything in {elapsed} s.")
