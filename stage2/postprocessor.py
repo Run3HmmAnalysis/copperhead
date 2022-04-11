@@ -116,7 +116,9 @@ def on_partition(args, parameters):
     hist_info_df = pd.concat(hist_info_rows).reset_index(drop=True)
 
     # < save desired columns as unbinned data (e.g. dimuon_mass for fits) >
-    save_unbinned(df, dataset, year, npart, channels, parameters)
+    do_save_unbinned = parameters.get("save_unbinned", False)
+    if do_save_unbinned:
+        save_unbinned(df, dataset, year, npart, channels, parameters)
 
     # < return some info for diagnostics & tests >
     return hist_info_df

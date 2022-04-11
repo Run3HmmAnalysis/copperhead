@@ -83,8 +83,11 @@ else:
     local_cluster = False
     slurm_cluster_ip = f"{node_ip}:{args.slurm_port}"
 
+# max number of data chunks (per dataset) to process.
+# by default processing all chunks
 mch = None if int(args.maxchunks) < 0 else int(args.maxchunks)
 
+# systematic variations of jet pT
 if args.jec_unc:
     pt_variations = (
         ["nominal"]
@@ -95,29 +98,34 @@ else:
     pt_variations = ["nominal"]
 
 parameters = {
+    # < general settings >
     "year": args.year,
     "label": args.label,
-    "global_out_path": "/depot/cms/hmm/coffea/",
-    "out_path": f"{args.year}_{args.label}",
-    # 'server': 'root://xrootd.rcac.purdue.edu/', # Purdue
-    # 'server': 'root://cmsxrootd.fnal.gov/', # FNAL
-    # 'xrootd': True,
-    "server": "/mnt/hadoop/",
-    "xrootd": False,
-    "datasets_from": "purdue",
-    "pt_variations": pt_variations,
-    "chunksize": int(args.chunksize),
-    "maxchunks": mch,
-    "save_output": True,
     "local_cluster": local_cluster,
     "slurm_cluster_ip": slurm_cluster_ip,
-    "client": None,
+    # < input data settings >
+    # 'xrootd': True,
+    # 'server': 'root://xrootd.rcac.purdue.edu/', # Purdue xrootd
+    # 'server': 'root://cmsxrootd.fnal.gov/', # FNAL xrootd
+    "xrootd": False,
+    "server": "/mnt/hadoop/",
+    "datasets_from": "purdue",
+    "chunksize": int(args.chunksize),
+    "maxchunks": mch,
+    # < processing settings >
+    "pt_variations": pt_variations,
+    "do_btag_syst": False,
+    "save_output": True,
+    "global_out_path": "/depot/cms/hmm/coffea/",
+    "out_path": f"{args.year}_{args.label}",
+    "do_timer": False,
 }
 
 parameters["out_dir"] = f"{parameters['global_out_path']}/" f"{parameters['out_path']}"
 
 
-def submit_job(arg_set, parameters):
+# submit processing jobs using coffea's DaskExecutor
+def submit_job(parameters):
     mkdir(parameters["out_dir"])
     if parameters["pt_variations"] == ["nominal"]:
         out_dir = f"{parameters['out_dir']}/"
@@ -128,8 +136,8 @@ def submit_job(arg_set, parameters):
     executor_args = {"client": parameters["client"], "retries": 0}
     processor_args = {
         "samp_info": parameters["samp_infos"],
-        "do_timer": False,
-        "do_btag_syst": False,
+        "do_timer": parameters["do_timer"],
+        "do_btag_syst": parameters["do_btag_syst"],
         "pt_variations": parameters["pt_variations"],
         "apply_to_output": partial(save_stage1_output_to_parquet, out_dir=out_dir),
     }
@@ -158,6 +166,24 @@ def submit_job(arg_set, parameters):
 
 if __name__ == "__main__":
     tick = time.time()
+    timings = {}
+
+    # prepare Dask client
+    if parameters["local_cluster"]:
+        # create local cluster
+        parameters["client"] = Client(
+            processes=True,
+            n_workers=40,
+            dashboard_address=dash_local,
+            threads_per_worker=1,
+            memory_limit="8GB",
+        )
+    else:
+        # connect to existing Slurm cluster
+        parameters["client"] = Client(parameters["slurm_cluster_ip"])
+    print("Client created")
+
+    # datasets to process (split into groups for convenience)
     smp = {
         # 'single_file': [
         #     'test_file',
@@ -207,18 +233,7 @@ if __name__ == "__main__":
         ],
     }
 
-    if parameters["local_cluster"]:
-        parameters["client"] = Client(
-            processes=True,
-            n_workers=40,
-            dashboard_address=dash_local,
-            threads_per_worker=1,
-            memory_limit="8GB",
-        )
-    else:
-        parameters["client"] = Client(parameters["slurm_cluster_ip"])
-    print("Client created")
-
+    # select which datasets to process
     datasets_mc = []
     datasets_data = []
     for group, samples in smp.items():
@@ -240,23 +255,20 @@ if __name__ == "__main__":
                 #    continue
                 datasets_mc.append(sample)
 
-    timings = {}
-
     to_process = {"MC": datasets_mc, "DATA": datasets_data}
     for lbl, datasets in to_process.items():
         if len(datasets) == 0:
             continue
         print(f"Processing {lbl}")
-        arg_sets = []
-        for d in datasets:
-            arg_sets.append({"dataset": d})
 
         tick1 = time.time()
+        # load lists of ROOT files, compute lumi weights
         parameters["samp_infos"] = load_samples(datasets, parameters)
         timings[f"load {lbl}"] = time.time() - tick1
 
         tick2 = time.time()
-        out = submit_job({}, parameters)
+        # run main processing
+        out = submit_job(parameters)
         timings[f"process {lbl}"] = time.time() - tick2
 
         print(out)

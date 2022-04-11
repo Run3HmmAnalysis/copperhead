@@ -35,20 +35,24 @@ else:
 
 # global parameters
 parameters = {
+    # < general settings >
     "slurm_cluster_ip": slurm_cluster_ip,
+    "years": args.years,
     "label": "2022apr6",
-    "hist_path": "/depot/cms/hmm/coffea/histograms/",
+    "channels": ["vbf"],
+    "regions": ["h-peak", "h-sidebands"],
+    "syst_variations": ["nominal"],
+    # < plotting settings >
+    "plot_vars": ["dimuon_mass"],
+    "variables_lookup": variables_lookup,
+    "save_plots": True,
+    "plot_ratio": True,
     "plots_path": "./plots/2022apr10/",
+    "hist_path": "/depot/cms/hmm/coffea/histograms/",
     "dnn_models": {
         "vbf": ["dnn_allyears_128_64_32"],
     },
     "bdt_models": {},
-    "years": args.years,
-    "channels": ["vbf"],
-    "regions": ["h-peak", "h-sidebands"],
-    "save_plots": True,
-    "plot_ratio": True,
-    "variables_lookup": variables_lookup,
 }
 
 parameters["grouping"] = {
@@ -112,10 +116,10 @@ if __name__ == "__main__":
     parameters["ncpus"] = len(client.scheduler_info()["workers"])
     print(f"Connected to cluster! #CPUs = {parameters['ncpus']}")
 
-    parameters["plot_vars"] = ["dimuon_mass"]
-    for models in list(parameters["dnn_models"].values()) + list(
-        parameters["bdt_models"].values()
-    ):
+    # add MVA scores to the list of variables to plot
+    dnn_models = list(parameters["dnn_models"].values())
+    bdt_models = list(parameters["bdt_models"].values())
+    for models in dnn_models + bdt_models:
         for model in models:
             parameters["plot_vars"] += ["score_" + model]
 

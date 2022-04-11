@@ -40,32 +40,36 @@ else:
 
 # global parameters
 parameters = {
+    # < general settings >
     "slurm_cluster_ip": slurm_cluster_ip,
-    "label": "2022apr6",
     "path": "/depot/cms/hmm/coffea/",
-    "hist_path": "/depot/cms/hmm/coffea/histograms/",
-    "models_path": "/depot/cms/hmm/trained_models/",
-    "dnn_models": {
-        # "vbf": ["dnn_allyears_128_64_32"],
-    },
-    "bdt_models": {},
     "years": args.years,
-    "syst_variations": ["nominal"],
-    # 'syst_variations':['nominal', 'Absolute2016_up'],
+    "label": "2022apr6",
     "channels": ["vbf"],
-    # "channels": ["ggh_0jets"],
     "regions": ["h-peak", "h-sidebands"],
-    "save_hists": True,
+    "syst_variations": ["nominal"],
+    # < settings for histograms >
+    "hist_vars": ["dimuon_mass"],
     "variables_lookup": variables_lookup,
-    "stage2_parquet_path": "/depot/cms/hmm/coffea/stage2_unbinned/",
+    "save_hists": True,
+    "hist_path": "/depot/cms/hmm/coffea/stage2_hists/",
+    # < settings for unbinned output>
     "tosave_unbinned": {
         "ggh_0jets": ["dimuon_mass", "wgt_nominal"],
         "ggh_1jet": ["dimuon_mass", "wgt_nominal"],
         "ggh_2orMoreJets": ["dimuon_mass", "wgt_nominal"],
     },
+    "save_unbinned": True,
+    "stage2_parquet_path": "/depot/cms/hmm/coffea/stage2_unbinned/",
+    # < MVA settings >
+    "models_path": "/depot/cms/hmm/trained_models/",
+    "dnn_models": {
+        # "vbf": ["dnn_allyears_128_64_32"],
+    },
+    "bdt_models": {},
+    "mva_bins": mva_bins,
 }
 
-parameters["mva_bins"] = mva_bins
 parameters["datasets"] = [
     "data_A",
     "data_B",
@@ -100,6 +104,7 @@ parameters["datasets"] = [
 parameters["datasets"] = ["vbf_powheg_dipole"]
 
 if __name__ == "__main__":
+    # prepare Dask client
     if use_local_cluster:
         print(
             f"Creating local cluster with {ncpus_local} workers."
@@ -121,14 +126,14 @@ if __name__ == "__main__":
     parameters["ncpus"] = len(client.scheduler_info()["workers"])
     print(f"Connected to cluster! #CPUs = {parameters['ncpus']}")
 
-    parameters["hist_vars"] = ["dimuon_mass"]
-    for models in list(parameters["dnn_models"].values()) + list(
-        parameters["bdt_models"].values()
-    ):
+    # add MVA scores to the list of variables to create histograms from
+    dnn_models = list(parameters["dnn_models"].values())
+    bdt_models = list(parameters["bdt_models"].values())
+    for models in dnn_models + bdt_models:
         for model in models:
             parameters["hist_vars"] += ["score_" + model]
 
-    # prepare lists of paths to parquet files for each year and dataset
+    # prepare lists of paths to parquet files (stage1 output) for each year and dataset
     all_paths = {}
     for year in parameters["years"]:
         all_paths[year] = {}
@@ -140,6 +145,7 @@ if __name__ == "__main__":
             )
             all_paths[year][dataset] = paths
 
+    # run postprocessing
     for year in parameters["years"]:
         print(f"Processing {year}")
         for dataset, path in tqdm.tqdm(all_paths[year].items()):
@@ -151,6 +157,6 @@ if __name__ == "__main__":
             if not isinstance(df, dd.DataFrame):
                 continue
 
-            # run postprocessing (categorization, mva, histograms)
+            # run processing sequence (categorization, mva, histograms)
             info = process_partitions(client, parameters, df)
             print(info)
