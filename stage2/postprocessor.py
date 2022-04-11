@@ -12,6 +12,7 @@ from python.io import (
     delete_existing_hists,
 )
 from stage2.categorizer import split_into_channels
+from stage2.mva_evaluators import evaluate_dnn, evaluate_bdt
 
 import warnings
 
@@ -63,7 +64,7 @@ def process_partitions(client, parameters, df):
         argset["df"] = [(i, df.partitions[i]) for i in range(df.npartitions)]
 
     delete_existing_hists(df.dataset.unique(), df.year.unique(), parameters)
-    hist_info_dfs = parallelize(on_partition, argset, client, parameters, seq=True)
+    hist_info_dfs = parallelize(on_partition, argset, client, parameters)
     hist_info_df_full = pd.concat(hist_info_dfs).reset_index(drop=True)
     return hist_info_df_full
 
@@ -101,15 +102,23 @@ def on_partition(args, parameters):
     ]
 
     # < evaluate here MVA scores after categorization, if needed >
-    from stage2.mva_evaluators import evaluate_dnn
-
     for v in parameters["syst_variations"]:
+        # evaluate Keras DNNs
         for channel, models in parameters["dnn_models"].items():
             if channel not in parameters["channels"]:
                 continue
             for model in models:
                 score_name = f"score_{model} {v}"
                 df.loc[df[f"channel {v}"] == channel, score_name] = evaluate_dnn(
+                    df[df[f"channel {v}"] == channel], v, model, parameters, score_name
+                )
+        # evaluate XGBoost BDTs
+        for channel, models in parameters["bdt_models"].items():
+            if channel not in parameters["channels"]:
+                continue
+            for model in models:
+                score_name = f"score_{model} {v}"
+                df.loc[df[f"channel {v}"] == channel, score_name] = evaluate_bdt(
                     df[df[f"channel {v}"] == channel], v, model, parameters, score_name
                 )
 

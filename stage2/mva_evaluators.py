@@ -2,9 +2,17 @@ import os
 import numpy as np
 import tensorflow as tf
 from tensorflow.keras.models import load_model
+import pickle
 
 os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
-
+config = tf.compat.v1.ConfigProto(
+    intra_op_parallelism_threads=1,
+    inter_op_parallelism_threads=1,
+    allow_soft_placement=True,
+    device_count={"CPU": 1},
+)
+tf.compat.v1.logging.set_verbosity(tf.compat.v1.logging.FATAL)
+sess = tf.compat.v1.Session(config=config)
 
 training_features = [
     "dimuon_mass",
@@ -52,14 +60,6 @@ def prepare_features(df, parameters, variation="nominal", add_year=True):
 
 
 def evaluate_dnn(df, variation, model, parameters, score_name):
-    config = tf.compat.v1.ConfigProto(
-        intra_op_parallelism_threads=1,
-        inter_op_parallelism_threads=1,
-        allow_soft_placement=True,
-        device_count={"CPU": 1},
-    )
-    tf.compat.v1.logging.set_verbosity(tf.compat.v1.logging.FATAL)
-    sess = tf.compat.v1.Session(config=config)
     # if parameters["do_massscan"]:
     #     mass_shift = parameters["mass"] - 125.0
     features = prepare_features(df, parameters, variation, add_year=True)
@@ -95,5 +95,54 @@ def evaluate_dnn(df, variation, model, parameters, score_name):
             #     df_i.loc[:, "dimuon_mass"] = df_i["dimuon_mass"] - mass_shift
             df_i = (df_i[features] - scalers[0]) / scalers[1]
             prediction = np.array(dnn_model.predict(df_i)).ravel()
+            df.loc[eval_filter, score_name] = np.arctanh((prediction))
+    return df[score_name]
+
+
+def evaluate_bdt(df, variation, model, parameters, score_name):
+    # if parameters["do_massscan"]:
+    #     mass_shift = parameters["mass"] - 125.0
+    features = prepare_features(df, parameters, variation, add_year=False)
+    score_name = f"score_{model} {variation}"
+    try:
+        df = df.compute()
+    except Exception:
+        pass
+    df.loc[:, score_name] = 0
+    if df.shape[0] == 0:
+        return df[score_name]
+    nfolds = 4
+    for i in range(nfolds):
+        # FIXME
+        label = f"2016_jul7_{i}"
+
+        # train_folds = [(i + f) % nfolds for f in [0, 1]]
+        # val_folds = [(i + f) % nfolds for f in [2]]
+        eval_folds = [(i + f) % nfolds for f in [3]]
+
+        eval_filter = df.event.mod(nfolds).isin(eval_folds)
+        scalers_path = f"{parameters['models_path']}/{model}/scalers_{label}.npy"
+        scalers = np.load(scalers_path)
+        model_path = (
+            f"{parameters['models_path']}/{model}/BDT_model_earlystop50_{label}.pkl"
+        )
+
+        bdt_model = pickle.load(open(model_path, "rb"))
+        df_i = df[eval_filter]
+        if df_i.shape[0] == 0:
+            continue
+        df_i.loc[df_i.region != "h-peak", "dimuon_mass"] = 125.0
+        # if parameters["do_massscan"]:
+        #     df_i.loc[:, "dimuon_mass"] = df_i["dimuon_mass"] - mass_shift
+        df_i = (df_i[features] - scalers[0]) / scalers[1]
+        if len(df_i) > 0:
+            if "multiclass" in model:
+                prediction = np.array(
+                    bdt_model.predict_proba(df_i.values)[:, 5]
+                ).ravel()
+            else:
+                prediction = np.array(
+                    bdt_model.predict_proba(df_i.values)[:, 1]
+                ).ravel()
             df.loc[eval_filter, score_name] = np.arctanh((prediction))
     return df[score_name]
