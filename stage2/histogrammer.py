@@ -3,7 +3,7 @@ import pandas as pd
 
 from hist import Hist
 from python.variable import Variable
-from python.io import save_histogram
+from python.io import save_stage2_output_hists
 
 
 def make_histograms(df, var_name, year, dataset, regions, channels, npart, parameters):
@@ -110,7 +110,7 @@ def make_histograms(df, var_name, year, dataset, regions, channels, npart, param
     # (partitions will be joined in stage3)
     save_hists = parameters.get("save_hists", False)
     if save_hists:
-        save_histogram(hist, var.name, dataset, year, parameters, npart)
+        save_stage2_output_hists(hist, var.name, dataset, year, parameters, npart)
 
     # return diagnostics info
     hist_info_rows = pd.DataFrame(hist_info_rows)

@@ -19,7 +19,7 @@ def remove(path):
         pass
 
 
-def save_dask_pandas_to_parquet(output, out_dir):
+def save_stage1_output_to_parquet(output, out_dir):
     from dask.distributed import get_worker
 
     name = None
@@ -28,33 +28,17 @@ def save_dask_pandas_to_parquet(output, out_dir):
             name = key[-32:]
     if not name:
         return
-    for ds in output.dataset.unique():
-        df = output[output.dataset == ds]
+    for dataset in output.dataset.unique():
+        df = output[output.dataset == dataset]
         if df.shape[0] == 0:
             return
-        mkdir(f"{out_dir}/{ds}")
-        df.to_parquet(path=f"{out_dir}/{ds}/{name}.parquet")
-
-
-def save_spark_pandas_to_parquet(output, out_dir):
-    from pyspark import TaskContext
-
-    ctx = TaskContext()
-    name = f"part_{ctx.partitionId()}"
-    # print("Stage: {0}, Partition: {1}, Host: {2}".format(
-    #     ctx.stageId(), ctx.partitionId(), socket.gethostname()))
-
-    for ds in output.dataset.unique():
-        df = output[output.dataset == ds]
-        if df.shape[0] == 0:
-            return
-        mkdir(f"{out_dir}/{ds}")
-        path = f"{out_dir}/{ds}/{name}.parquet"
-        df.to_parquet(path=path)
-        print(f"Saved to {path}")
+        mkdir(f"{out_dir}/{dataset}")
+        df.to_parquet(path=f"{out_dir}/{dataset}/{name}.parquet")
 
 
 def load_dataframe(client, parameters, inputs=[]):
+    ncpus = parameters.get("ncpus", 1)
+
     if isinstance(inputs, list):
         # Load dataframes
         df_future = client.map(load_pandas_from_parquet, inputs)
@@ -64,26 +48,21 @@ def load_dataframe(client, parameters, inputs=[]):
             df = dd.concat([d for d in df_future if d.shape[1] > 0])
         except Exception:
             return None
-        if df.npartitions > 2 * parameters["ncpus"]:
-            df = df.repartition(npartitions=parameters["ncpus"])
+        if df.npartitions > 2 * ncpus:
+            df = df.repartition(npartitions=ncpus)
 
     elif isinstance(inputs, pd.DataFrame):
-        df = dd.from_pandas(inputs, npartitions=parameters["ncpus"])
+        df = dd.from_pandas(inputs, npartitions=ncpus)
 
     elif isinstance(inputs, dd.DataFrame):
-        if inputs.npartitions > 2 * parameters["ncpus"]:
-            df = inputs.repartition(npartitions=parameters["ncpus"])
+        if inputs.npartitions > 2 * ncpus:
+            df = inputs.repartition(npartitions=ncpus)
         else:
             df = inputs
 
     else:
         print("Wrong input type:", type(inputs))
         return None
-
-    # for now ignoring systematics
-    ignore_columns = [c for c in df.columns if (("wgt_" in c) and ("nominal" not in c))]
-    ignore_columns += [c for c in df.columns if "pdf_" in c]
-    df = df[[c for c in df.columns if c not in ignore_columns]]
 
     return df
 
@@ -99,79 +78,112 @@ def load_pandas_from_parquet(path):
     return df
 
 
-def save_histogram(hist, var_name, dataset, year, parameters, npart=None):
-    mkdir(parameters["hist_path"])
-    hist_path = parameters["hist_path"] + parameters["label"]
-    mkdir(hist_path)
-    mkdir(f"{hist_path}/{year}")
-    mkdir(f"{hist_path}/{year}/{var_name}")
-    if npart is None:
-        path = f"{hist_path}/{year}/{var_name}/{dataset}.pickle"
-    else:
-        path = f"{hist_path}/{year}/{var_name}/{dataset}_{npart}.pickle"
-    with open(path, "wb") as handle:
-        pickle.dump(hist, handle, protocol=pickle.HIGHEST_PROTOCOL)
+def delete_existing_stage2_hists(datasets, years, parameters):
+    var_names = parameters.get("hist_vars", [])
+    hist_path = parameters.get("hist_path", None)
+    label = parameters.get("label", None)
+    if (hist_path is None) or (label is None):
+        return
+    hist_path_full = hist_path + "/" + label
 
-
-def delete_existing_hists(datasets, years, parameters):
     for year in years:
-        for var_name in parameters["hist_vars"]:
+        for var_name in var_names:
             for dataset in datasets:
                 try:
-                    hist_path = parameters["hist_path"] + parameters["label"]
                     paths = glob.glob(
-                        f"{hist_path}/{year}/{var_name}/{dataset}_*.pickle"
-                    ) + [f"{hist_path}/{year}/{var_name}/{dataset}.pickle"]
-                    for path in paths:
-                        remove(path)
+                        f"{hist_path_full}/{year}/{var_name}/{dataset}_*.pickle"
+                    ) + glob.glob(
+                        f"{hist_path_full}/{year}/{var_name}/{dataset}.pickle"
+                    )
+                    for file in paths:
+                        remove(file)
                 except Exception:
                     pass
 
 
-def load_histogram(argset, parameters):
+def save_stage2_output_hists(hist, var_name, dataset, year, parameters, npart=None):
+    hist_path = parameters.get("hist_path", None)
+    label = parameters.get("label", None)
+    if (hist_path is None) or (label is None):
+        return
+    hist_path_full = hist_path + "/" + label
+
+    mkdir(hist_path)
+    mkdir(hist_path_full)
+    mkdir(f"{hist_path_full}/{year}")
+    mkdir(f"{hist_path_full}/{year}/{var_name}")
+    if npart is None:
+        path = f"{hist_path_full}/{year}/{var_name}/{dataset}.pickle"
+    else:
+        path = f"{hist_path_full}/{year}/{var_name}/{dataset}_{npart}.pickle"
+    with open(path, "wb") as handle:
+        pickle.dump(hist, handle, protocol=pickle.HIGHEST_PROTOCOL)
+
+
+def load_stage2_output_hists(argset, parameters):
     year = argset["year"]
     var_name = argset["var_name"]
     dataset = argset["dataset"]
-    hist_path = parameters["hist_path"] + parameters["label"]
-    paths = glob.glob(f"{hist_path}/{year}/{var_name}/{dataset}_*.pickle") + [
-        f"{hist_path}/{year}/{var_name}/{dataset}.pickle"
-    ]
+    hist_path = parameters.get("hist_path", None)
+    label = parameters.get("label", None)
+    if (hist_path is None) or (label is None):
+        return
+    hist_path_full = hist_path + "/" + label
+
+    paths = glob.glob(
+        f"{hist_path_full}/{year}/{var_name}/{dataset}_*.pickle"
+    ) + glob.glob(f"{hist_path_full}/{year}/{var_name}/{dataset}.pickle")
     hist_df = pd.DataFrame()
     for path in paths:
         try:
             with open(path, "rb") as handle:
                 hist = pickle.load(handle)
-                hist_df = pd.concat(
-                    [
-                        hist_df,
-                        pd.DataFrame(
-                            [
-                                {
-                                    "year": year,
-                                    "var_name": var_name,
-                                    "dataset": dataset,
-                                    "hist": hist,
-                                }
-                            ]
-                        ),
-                    ]
-                )
+                new_row = {
+                    "year": year,
+                    "var_name": var_name,
+                    "dataset": dataset,
+                    "hist": hist,
+                }
+                hist_df = pd.concat([hist_df, pd.DataFrame([new_row])])
                 hist_df.reset_index(drop=True, inplace=True)
         except Exception:
             pass
     return hist_df
 
 
-def save_dataframe(df, channel, dataset, year, parameters, npart=None):
-    mkdir(parameters["unbinned_path"])
-    unbin_path = parameters["unbinned_path"] + parameters["label"]
-    mkdir(unbin_path)
-    mkdir(f"{unbin_path}/{channel}_{year}")
+def save_stage2_output_parquet(df, channel, dataset, year, parameters, npart=None):
+    stage2_parquet_path = parameters.get("stage2_parquet_path", None)
+    label = parameters.get("label", None)
+    if (stage2_parquet_path is None) or (label is None):
+        return
+    path_full = stage2_parquet_path + "/" + label
+
+    mkdir(stage2_parquet_path)
+    mkdir(path_full)
+    mkdir(f"{path_full}/{channel}_{year}")
     if npart is None:
-        path = f"{unbin_path}/{channel}_{year}/{dataset}.parquet"
+        path = f"{path_full}/{channel}_{year}/{dataset}.parquet"
     else:
-        path = f"{unbin_path}/{channel}_{year}/{dataset}_{npart}.parquet"
+        path = f"{path_full}/{channel}_{year}/{dataset}_{npart}.parquet"
     df.to_parquet(path=path)
+
+
+def delete_existing_stage2_parquet(datasets, years, parameters):
+    to_delete = parameters.get("tosave_unbinned", {})
+    stage2_parquet_path = parameters.get("stage2_parquet_path", None)
+    label = parameters.get("label", None)
+    if (stage2_parquet_path is None) or (label is None):
+        return
+    path_full = stage2_parquet_path + "/" + label
+
+    for channel in to_delete.keys():
+        for year in years:
+            for dataset in datasets:
+                paths = glob.glob(
+                    f"{path_full}/{channel}_{year}/{dataset}_*.parquet"
+                ) + glob.glob(f"{path_full}/{channel}_{year}/{dataset}.parquet")
+                for file in paths:
+                    remove(file)
 
 
 def save_template(templates, out_name, parameters):

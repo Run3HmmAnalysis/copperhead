@@ -3,8 +3,9 @@ import pandas as pd
 
 from python.workflow import parallelize
 from python.io import (
-    delete_existing_hists,
-    save_dataframe,
+    delete_existing_stage2_hists,
+    delete_existing_stage2_parquet,
+    save_stage2_output_parquet,
 )
 from stage2.categorizer import split_into_channels
 from stage2.mva_evaluators import evaluate_dnn, evaluate_bdt
@@ -17,6 +18,12 @@ pd.options.mode.chained_assignment = None
 
 
 def process_partitions(client, parameters, df):
+
+    # for now ignoring systematics
+    ignore_columns = [c for c in df.columns if (("wgt_" in c) and ("nominal" not in c))]
+    ignore_columns += [c for c in df.columns if "pdf_" in c]
+    df = df[[c for c in df.columns if c not in ignore_columns]]
+
     argset = {
         "year": df.year.unique(),
         "dataset": df.dataset.unique(),
@@ -26,7 +33,8 @@ def process_partitions(client, parameters, df):
     elif isinstance(df, dd.DataFrame):
         argset["df"] = [(i, df.partitions[i]) for i in range(df.npartitions)]
 
-    delete_existing_hists(df.dataset.unique(), df.year.unique(), parameters)
+    delete_existing_stage2_hists(df.dataset.unique(), df.year.unique(), parameters)
+    delete_existing_stage2_parquet(df.dataset.unique(), df.year.unique(), parameters)
     hist_info_dfs = parallelize(on_partition, argset, client, parameters)
     hist_info_df_full = pd.concat(hist_info_dfs).reset_index(drop=True)
     return hist_info_df_full
@@ -120,7 +128,7 @@ def save_unbinned(df, dataset, year, npart, channels, parameters):
                 vnames.append(var)
             elif f"{var} nominal" in df.columns:
                 vnames.append(f"{var} nominal")
-        save_dataframe(
+        save_stage2_output_parquet(
             df.loc[df["channel nominal"] == channel, vnames],
             channel,
             dataset,

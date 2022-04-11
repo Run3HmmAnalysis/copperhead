@@ -59,7 +59,7 @@ parameters = {
     "regions": ["h-peak", "h-sidebands"],
     "save_hists": True,
     "variables_lookup": variables_lookup,
-    "unbinned_path": "/depot/cms/hmm/coffea/stage2_unbinned/",
+    "stage2_parquet_path": "/depot/cms/hmm/coffea/stage2_unbinned/",
     "tosave_unbinned": {
         "ggh_0jets": ["dimuon_mass", "wgt_nominal"],
         "ggh_1jet": ["dimuon_mass", "wgt_nominal"],

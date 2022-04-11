@@ -2,7 +2,7 @@ import pandas as pd
 import numpy as np
 from hist.intervals import poisson_interval
 from python.workflow import parallelize
-from python.io import load_histogram
+from python.io import load_stage2_output_hists
 from python.variable import Variable
 
 import matplotlib.pyplot as plt
@@ -68,7 +68,7 @@ def plotter(client, parameters, hist_df=None, timer=None):
             "var_name": parameters["plot_vars"],
             "dataset": parameters["datasets"],
         }
-        hist_dfs = parallelize(load_histogram, arg_load, client, parameters)
+        hist_dfs = parallelize(load_stage2_output_hists, arg_load, client, parameters)
         hist_df = pd.concat(hist_dfs).reset_index(drop=True)
 
     arg_plot = {
