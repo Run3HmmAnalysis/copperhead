@@ -41,8 +41,10 @@ parameters = {
     "label": "2022apr6",
     "hist_path": "/depot/cms/hmm/coffea/histograms/",
     "plots_path": "./plots/2022apr10/",
-    "dnn_models": [],
-    "bdt_models": [],
+    "dnn_models": {
+        "vbf": ["dnn_allyears_128_64_32"],
+    },
+    "bdt_models": {},
     "years": args.years,
     "channels": ["vbf"],
     "regions": ["h-peak", "h-sidebands"],
@@ -113,8 +115,11 @@ if __name__ == "__main__":
     print(f"Cluster created! #CPUs = {parameters['ncpus']}")
 
     parameters["plot_vars"] = ["dimuon_mass"]
-    parameters["plot_vars"] += ["score_" + m for m in parameters["dnn_models"]]
-    parameters["plot_vars"] += ["score_" + m for m in parameters["bdt_models"]]
+    for models in list(parameters["dnn_models"].values()) + list(
+        parameters["bdt_models"].values()
+    ):
+        for model in models:
+            parameters["plot_vars"] += ["score_" + model]
 
     parameters["datasets"] = parameters["grouping"].keys()
 

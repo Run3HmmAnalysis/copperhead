@@ -46,9 +46,10 @@ parameters = {
     "path": "/depot/cms/hmm/coffea/",
     "hist_path": "/depot/cms/hmm/coffea/histograms/",
     "models_path": "/depot/cms/hmm/trained_models/",
-    "dnn_models": [],
-    # "dnn_models": ["dnn_allyears_128_64_32"],
-    "bdt_models": [],
+    "dnn_models": {
+        "vbf": ["dnn_allyears_128_64_32"],
+    },
+    "bdt_models": {},
     "years": args.years,
     "syst_variations": ["nominal"],
     # 'syst_variations':['nominal', 'Absolute2016_up'],
@@ -114,8 +115,11 @@ if __name__ == "__main__":
     print(f"Cluster created! #CPUs = {parameters['ncpus']}")
 
     parameters["hist_vars"] = ["dimuon_mass"]
-    parameters["hist_vars"] += ["score_" + m for m in parameters["dnn_models"]]
-    parameters["hist_vars"] += ["score_" + m for m in parameters["bdt_models"]]
+    for models in list(parameters["dnn_models"].values()) + list(
+        parameters["bdt_models"].values()
+    ):
+        for model in models:
+            parameters["hist_vars"] += ["score_" + model]
 
     # prepare lists of paths to parquet files for each year and dataset
     all_paths = {}

@@ -16,6 +16,7 @@ from stage2.categorizer import split_into_channels
 import warnings
 
 warnings.simplefilter(action="ignore", category=FutureWarning)
+pd.options.mode.chained_assignment = None
 
 
 def load_dataframe(client, parameters, inputs=[]):
@@ -62,7 +63,7 @@ def process_partitions(client, parameters, df):
         argset["df"] = [(i, df.partitions[i]) for i in range(df.npartitions)]
 
     delete_existing_hists(df.dataset.unique(), df.year.unique(), parameters)
-    hist_info_dfs = parallelize(on_partition, argset, client, parameters)
+    hist_info_dfs = parallelize(on_partition, argset, client, parameters, seq=True)
     hist_info_df_full = pd.concat(hist_info_dfs).reset_index(drop=True)
     return hist_info_df_full
 
@@ -100,8 +101,17 @@ def on_partition(args, parameters):
     ]
 
     # < evaluate here MVA scores after categorization, if needed >
-    # e.g. {"vbf": {path to DNN evaluator method for VBF category}}
-    # df.loc[df.channel = "vbf", "dnn_score_vbf"] = evaluate()
+    from stage2.mva_evaluators import evaluate_dnn
+
+    for v in parameters["syst_variations"]:
+        for channel, models in parameters["dnn_models"].items():
+            if channel not in parameters["channels"]:
+                continue
+            for model in models:
+                score_name = f"score_{model} {v}"
+                df.loc[df[f"channel {v}"] == channel, score_name] = evaluate_dnn(
+                    df[df[f"channel {v}"] == channel], v, model, parameters, score_name
+                )
 
     # < possibly, secondary categorization (e.g. MVA bins in ggh channel) >
 
