@@ -7,6 +7,7 @@ from python.io import save_stage2_output_hists
 
 
 def make_histograms(df, var_name, year, dataset, regions, channels, npart, parameters):
+    # try to get binning from config
     if var_name in parameters["variables_lookup"].keys():
         var = parameters["variables_lookup"][var_name]
     else:
@@ -112,7 +113,7 @@ def make_histograms(df, var_name, year, dataset, regions, channels, npart, param
     if save_hists:
         save_stage2_output_hists(hist, var.name, dataset, year, parameters, npart)
 
-    # return diagnostics info
+    # return info for debugging
     hist_info_rows = pd.DataFrame(hist_info_rows)
     return hist_info_rows
 

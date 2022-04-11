@@ -78,6 +78,25 @@ def load_pandas_from_parquet(path):
     return df
 
 
+def save_stage2_output_hists(hist, var_name, dataset, year, parameters, npart=None):
+    hist_path = parameters.get("hist_path", None)
+    label = parameters.get("label", None)
+    if (hist_path is None) or (label is None):
+        return
+    hist_path_full = hist_path + "/" + label
+
+    mkdir(hist_path)
+    mkdir(hist_path_full)
+    mkdir(f"{hist_path_full}/{year}")
+    mkdir(f"{hist_path_full}/{year}/{var_name}")
+    if npart is None:
+        path = f"{hist_path_full}/{year}/{var_name}/{dataset}.pickle"
+    else:
+        path = f"{hist_path_full}/{year}/{var_name}/{dataset}_{npart}.pickle"
+    with open(path, "wb") as handle:
+        pickle.dump(hist, handle, protocol=pickle.HIGHEST_PROTOCOL)
+
+
 def delete_existing_stage2_hists(datasets, years, parameters):
     var_names = parameters.get("hist_vars", [])
     hist_path = parameters.get("hist_path", None)
@@ -99,25 +118,6 @@ def delete_existing_stage2_hists(datasets, years, parameters):
                         remove(file)
                 except Exception:
                     pass
-
-
-def save_stage2_output_hists(hist, var_name, dataset, year, parameters, npart=None):
-    hist_path = parameters.get("hist_path", None)
-    label = parameters.get("label", None)
-    if (hist_path is None) or (label is None):
-        return
-    hist_path_full = hist_path + "/" + label
-
-    mkdir(hist_path)
-    mkdir(hist_path_full)
-    mkdir(f"{hist_path_full}/{year}")
-    mkdir(f"{hist_path_full}/{year}/{var_name}")
-    if npart is None:
-        path = f"{hist_path_full}/{year}/{var_name}/{dataset}.pickle"
-    else:
-        path = f"{hist_path_full}/{year}/{var_name}/{dataset}_{npart}.pickle"
-    with open(path, "wb") as handle:
-        pickle.dump(hist, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
 
 def load_stage2_output_hists(argset, parameters):

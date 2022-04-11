@@ -20,22 +20,20 @@ parser.add_argument(
     action="store",
     help="Slurm cluster port (if not specified, will create a local cluster)",
 )
-
 args = parser.parse_args()
 
+# Dask client settings
 use_local_cluster = args.slurm_port is None
-ncpus_local = 40  # number of cores to use. Each one will start with 4GB
-
 node_ip = "128.211.149.133"
 
-# only if Slurm cluster is used:
-slurm_cluster_ip = f"{node_ip}:{args.slurm_port}"
-
-# if Local cluster is used:
-dashboard_address = f"{node_ip}:34875"
-if not use_local_cluster:
+if use_local_cluster:
+    ncpus_local = 40
+    dashboard_address = f"{node_ip}:34875"
+else:
+    slurm_cluster_ip = f"{node_ip}:{args.slurm_port}"
     dashboard_address = f"{node_ip}:8787"
 
+# global parameters
 parameters = {
     "slurm_cluster_ip": slurm_cluster_ip,
     "label": "2022apr6",
@@ -107,12 +105,12 @@ if __name__ == "__main__":
         )
     else:
         print(
-            f"Creating Slurm cluster at {slurm_cluster_ip}."
+            f"Connecting to Slurm cluster at {slurm_cluster_ip}."
             f" Dashboard address: {dashboard_address}"
         )
         client = Client(parameters["slurm_cluster_ip"])
     parameters["ncpus"] = len(client.scheduler_info()["workers"])
-    print(f"Cluster created! #CPUs = {parameters['ncpus']}")
+    print(f"Connected to cluster! #CPUs = {parameters['ncpus']}")
 
     parameters["plot_vars"] = ["dimuon_mass"]
     for models in list(parameters["dnn_models"].values()) + list(
@@ -123,4 +121,6 @@ if __name__ == "__main__":
 
     parameters["datasets"] = parameters["grouping"].keys()
 
+    # make plots
     yields = plotter(client, parameters)
+    print(yields)

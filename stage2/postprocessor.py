@@ -18,12 +18,16 @@ pd.options.mode.chained_assignment = None
 
 
 def process_partitions(client, parameters, df):
-
     # for now ignoring systematics
     ignore_columns = [c for c in df.columns if (("wgt_" in c) and ("nominal" not in c))]
     ignore_columns += [c for c in df.columns if "pdf_" in c]
     df = df[[c for c in df.columns if c not in ignore_columns]]
 
+    # delete previously generated outputs to prevent partial overwrite
+    delete_existing_stage2_hists(df.dataset.unique(), df.year.unique(), parameters)
+    delete_existing_stage2_parquet(df.dataset.unique(), df.year.unique(), parameters)
+
+    # prepare parameters for parallelization
     argset = {
         "year": df.year.unique(),
         "dataset": df.dataset.unique(),
@@ -33,9 +37,10 @@ def process_partitions(client, parameters, df):
     elif isinstance(df, dd.DataFrame):
         argset["df"] = [(i, df.partitions[i]) for i in range(df.npartitions)]
 
-    delete_existing_stage2_hists(df.dataset.unique(), df.year.unique(), parameters)
-    delete_existing_stage2_parquet(df.dataset.unique(), df.year.unique(), parameters)
+    # perform categorization, evaluate mva models, fill histograms
     hist_info_dfs = parallelize(on_partition, argset, client, parameters)
+
+    # return info for debugging
     hist_info_df_full = pd.concat(hist_info_dfs).reset_index(drop=True)
     return hist_info_df_full
 

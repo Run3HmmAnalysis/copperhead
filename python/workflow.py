@@ -14,17 +14,22 @@ def parallelize(func, argset, client, parameters={}, seq=False):
 
     Set `seq=True` to force sequential processing for debugging.
 
+    returns: a list containing outputs of `func` executed for each combination of arguments
     """
 
+    # prepare combinations of arguments
     argset = [
         dict(zip(argset.keys(), values))
         for values in itertools.product(*argset.values())
     ]
+
     if seq:
+        # debug: run sequentially
         results = []
         for args in argset:
             results.append(func(args, parameters))
     else:
+        # run in parallel
         map_futures = client.scatter(argset)
         futures = client.map(partial(func, parameters=parameters), map_futures)
         results = client.gather(futures)
