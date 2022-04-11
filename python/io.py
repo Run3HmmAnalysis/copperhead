@@ -127,6 +127,19 @@ def load_histogram(argset, parameters):
     return hist_df
 
 
+def save_dataframe(df, channel, dataset, year, parameters, npart=None):
+    mkdir(parameters["unbinned_path"])
+    unbin_path = parameters["unbinned_path"] + parameters["label"]
+    mkdir(unbin_path)
+    mkdir(f"{unbin_path}/{channel}_{year}")
+    if npart is None:
+        path = f"{unbin_path}/{channel}_{year}/{dataset}.pickle"
+    else:
+        path = f"{unbin_path}/{channel}_{year}/{dataset}_{npart}.pickle"
+    with open(path, "wb") as handle:
+        pickle.dump(df, handle, protocol=pickle.HIGHEST_PROTOCOL)
+
+
 def save_template(templates, out_name, parameters):
     import uproot3
 

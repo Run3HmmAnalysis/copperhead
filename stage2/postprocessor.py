@@ -1,6 +1,5 @@
 import itertools
 import dask.dataframe as dd
-from dask.distributed import get_client
 import pandas as pd
 from hist import Hist
 
@@ -10,6 +9,7 @@ from python.variable import Variable
 from python.io import (
     save_histogram,
     delete_existing_hists,
+    save_dataframe,
 )
 from stage2.categorizer import split_into_channels
 from stage2.mva_evaluators import evaluate_dnn, evaluate_bdt
@@ -93,8 +93,9 @@ def on_partition(args, parameters):
         df = df[df.gjj_mass > 350]
 
     # < evaluate here MVA scores before categorization, if needed >
+    # ...
 
-    # < categorization into channels >
+    # < categorization into channels (ggH, VBF, etc.) >
     split_into_channels(df, v="nominal")
     regions = [r for r in parameters["regions"] if r in df.region.unique()]
     channels = [
@@ -122,39 +123,48 @@ def on_partition(args, parameters):
                     df[df[f"channel {v}"] == channel], v, model, parameters, score_name
                 )
 
-    # < possibly, secondary categorization (e.g. MVA bins in ggh channel) >
+    # < possibly, secondary categorization here (e.g. MVA bins in ggh channel) >
+    # ...
 
     # < convert desired columns to histograms >
-    argset_hist = {
-        "var_name": parameters["hist_vars"],
-        "df": [df],
-        "dataset": [dataset],
-        "year": [year],
-        "regions": [regions],
-        "channels": [channels],
-        "npart": [npart],
-    }
-    # forcing sequential execution - nested parallelism leads to a lock
-    hist_info_rows = parallelize(
-        make_histograms, argset_hist, get_client(), parameters, seq=True
-    )
+    # not parallelizing - nested parallelism leads to a lock
+    hist_info_rows = []
+    for var_name in parameters["hist_vars"]:
+        hist_info_row = make_histograms(
+            df, var_name, year, dataset, regions, channels, npart, parameters
+        )
+        hist_info_rows.append(hist_info_row)
     hist_info_df = pd.concat(hist_info_rows).reset_index(drop=True)
 
     # < save desired columns as unbinned data (e.g. dimuon_mass for fits) >
+    save_unbinned(df, dataset, year, npart, channels, parameters)
 
     # < return some info for diagnostics & tests >
     return hist_info_df
 
 
-def make_histograms(args, parameters):
-    df = args["df"]
-    dataset = args["dataset"]
-    year = args["year"]
-    npart = args["npart"]
-    regions = args["regions"]
-    channels = args["channels"]
-    var_name = args["var_name"]
+def save_unbinned(df, dataset, year, npart, channels, parameters):
+    to_save = parameters.get("tosave_unbinned", {})
+    for channel, var_names in to_save.items():
+        if channel not in channels:
+            continue
+        vnames = []
+        for var in var_names:
+            if var in df.columns:
+                vnames.append(var)
+            elif f"{var} nominal" in df.columns:
+                vnames.append(f"{var} nominal")
+        save_dataframe(
+            df.loc[df["channel nominal"] == channel, vnames],
+            channel,
+            dataset,
+            year,
+            parameters,
+            npart,
+        )
 
+
+def make_histograms(df, var_name, year, dataset, regions, channels, npart, parameters):
     if var_name in parameters["variables_lookup"].keys():
         var = parameters["variables_lookup"][var_name]
     else:

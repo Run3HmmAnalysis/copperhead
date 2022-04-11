@@ -53,10 +53,17 @@ parameters = {
     "years": args.years,
     "syst_variations": ["nominal"],
     # 'syst_variations':['nominal', 'Absolute2016_up'],
-    "channels": ["vbf"],
+    # "channels": ["vbf"],
+    "channels": ["ggh_0jets"],
     "regions": ["h-peak", "h-sidebands"],
     "save_hists": True,
     "variables_lookup": variables_lookup,
+    "unbinned_path": "/depot/cms/hmm/coffea/stage2_unbinned/",
+    "tosave_unbinned": {
+        "ggh_0jets": ["dimuon_mass", "wgt_nominal"],
+        "ggh_1jet": ["dimuon_mass", "wgt_nominal"],
+        "ggh_2orMoreJets": ["dimuon_mass", "wgt_nominal"],
+    },
 }
 
 parameters["mva_bins"] = mva_bins
