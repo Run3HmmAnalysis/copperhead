@@ -54,8 +54,43 @@ def save_spark_pandas_to_parquet(output, out_dir):
         print(f"Saved to {path}")
 
 
+def load_dataframe(client, parameters, inputs=[]):
+    if isinstance(inputs, list):
+        # Load dataframes
+        df_future = client.map(load_pandas_from_parquet, inputs)
+        df_future = client.gather(df_future)
+        # Merge dataframes
+        try:
+            df = dd.concat([d for d in df_future if d.shape[1] > 0])
+        except Exception:
+            return None
+        if df.npartitions > 2 * parameters["ncpus"]:
+            df = df.repartition(npartitions=parameters["ncpus"])
+
+    elif isinstance(inputs, pd.DataFrame):
+        df = dd.from_pandas(inputs, npartitions=parameters["ncpus"])
+
+    elif isinstance(inputs, dd.DataFrame):
+        if inputs.npartitions > 2 * parameters["ncpus"]:
+            df = inputs.repartition(npartitions=parameters["ncpus"])
+        else:
+            df = inputs
+
+    else:
+        print("Wrong input type:", type(inputs))
+        return None
+
+    # for now ignoring systematics
+    ignore_columns = [c for c in df.columns if (("wgt_" in c) and ("nominal" not in c))]
+    ignore_columns += [c for c in df.columns if "pdf_" in c]
+    df = df[[c for c in df.columns if c not in ignore_columns]]
+
+    return df
+
+
 def load_pandas_from_parquet(path):
     df = dd.from_pandas(pd.DataFrame(), npartitions=1)
+    df = dd.read_parquet(path)
     if len(path) > 0:
         try:
             df = dd.read_parquet(path)
@@ -133,11 +168,10 @@ def save_dataframe(df, channel, dataset, year, parameters, npart=None):
     mkdir(unbin_path)
     mkdir(f"{unbin_path}/{channel}_{year}")
     if npart is None:
-        path = f"{unbin_path}/{channel}_{year}/{dataset}.pickle"
+        path = f"{unbin_path}/{channel}_{year}/{dataset}.parquet"
     else:
-        path = f"{unbin_path}/{channel}_{year}/{dataset}_{npart}.pickle"
-    with open(path, "wb") as handle:
-        pickle.dump(df, handle, protocol=pickle.HIGHEST_PROTOCOL)
+        path = f"{unbin_path}/{channel}_{year}/{dataset}_{npart}.parquet"
+    df.to_parquet(path=path)
 
 
 def save_template(templates, out_name, parameters):

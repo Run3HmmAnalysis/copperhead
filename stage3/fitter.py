@@ -10,7 +10,7 @@ rt.RooMsgService.instance().setGlobalKillBelow(rt.RooFit.ERROR)
 
 
 def run_fits(client, parameters, df):
-    signal_ds = parameters.pop("signals", [])
+    signal_ds = parameters.get("signals", [])
     all_datasets = df.dataset.unique()
     signals = [ds for ds in all_datasets if ds in signal_ds]
     backgrounds = [ds for ds in all_datasets if ds not in signal_ds]
@@ -57,8 +57,8 @@ def fitter(args, parameters={}):
     df = fit_setup["df"]
     label = fit_setup["label"]
     mode = fit_setup["mode"]
-    blinded = fit_setup.pop("blinded", False)
-    save = parameters.pop("save_fits", False)
+    blinded = fit_setup.get("blinded", False)
+    save = parameters.get("save_fits", False)
     save_path = parameters.get("save_fits_path", "fits/")
     channel = args["channel"]
     category = args["category"]
@@ -128,13 +128,13 @@ def fitter(args, parameters={}):
 
 class Fitter(object):
     def __init__(self, **kwargs):
-        self.fitranges = kwargs.pop(
+        self.fitranges = kwargs.get(
             "fitranges", {"low": 110, "high": 150, "SR_left": 120, "SR_right": 130}
         )
-        self.fitmodels = kwargs.pop("fitmodels", {})
-        self.requires_order = kwargs.pop("requires_order", [])
-        self.channel = kwargs.pop("channel", "ggh_0jets")
-        self.filename_ext = kwargs.pop("filename_ext", "")
+        self.fitmodels = kwargs.get("fitmodels", {})
+        self.requires_order = kwargs.get("requires_order", [])
+        self.channel = kwargs.get("channel", "ggh_0jets")
+        self.filename_ext = kwargs.get("filename_ext", "")
 
         self.data_registry = {}
         self.model_registry = []

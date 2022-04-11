@@ -9,8 +9,9 @@ import pandas as pd
 import dask
 from dask.distributed import Client
 
-from stage3.plotter import plotter
+from python.io import load_dataframe
 from config.variables import variables_lookup
+from stage3.plotter import plotter
 from test_tools import almost_equal
 
 __all__ = ["dask"]
@@ -53,6 +54,10 @@ if __name__ == "__main__":
         ]
     )
     out_plot = plotter(client, parameters, hist_df)
+
+    path_unbinned = f"{os.getcwd()}/tests/samples/vbf_stage2_unbinned.parquet"
+    df = load_dataframe(client, parameters, inputs=[path_unbinned])
+    print(df.compute())
 
     elapsed = round(time.time() - tick, 3)
     print(f"Finished everything in {elapsed} s.")

@@ -5,7 +5,8 @@ import dask
 from dask.distributed import Client
 import dask.dataframe as dd
 
-from stage2.postprocessor import load_dataframe, process_partitions
+from python.io import load_dataframe
+from stage2.postprocessor import process_partitions
 from config.mva_bins import mva_bins
 from config.variables import variables_lookup
 
@@ -47,7 +48,7 @@ parameters = {
     "hist_path": "/depot/cms/hmm/coffea/histograms/",
     "models_path": "/depot/cms/hmm/trained_models/",
     "dnn_models": {
-        "vbf": ["dnn_allyears_128_64_32"],
+        # "vbf": ["dnn_allyears_128_64_32"],
     },
     "bdt_models": {},
     "years": args.years,

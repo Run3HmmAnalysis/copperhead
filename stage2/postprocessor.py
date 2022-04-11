@@ -3,7 +3,6 @@ import pandas as pd
 
 from python.workflow import parallelize
 from python.io import (
-    load_pandas_from_parquet,
     delete_existing_hists,
     save_dataframe,
 )
@@ -15,40 +14,6 @@ import warnings
 
 warnings.simplefilter(action="ignore", category=FutureWarning)
 pd.options.mode.chained_assignment = None
-
-
-def load_dataframe(client, parameters, inputs=[]):
-    if isinstance(inputs, list):
-        # Load dataframes
-        df_future = client.map(load_pandas_from_parquet, inputs)
-        df_future = client.gather(df_future)
-        # Merge dataframes
-        try:
-            df = dd.concat([d for d in df_future if d.shape[1] > 0])
-        except Exception:
-            return None
-        if df.npartitions > 2 * parameters["ncpus"]:
-            df = df.repartition(npartitions=parameters["ncpus"])
-
-    elif isinstance(inputs, pd.DataFrame):
-        df = dd.from_pandas(inputs, npartitions=parameters["ncpus"])
-
-    elif isinstance(inputs, dd.DataFrame):
-        if inputs.npartitions > 2 * parameters["ncpus"]:
-            df = inputs.repartition(npartitions=parameters["ncpus"])
-        else:
-            df = inputs
-
-    else:
-        print("Wrong input type:", type(inputs))
-        return None
-
-    # for now ignoring systematics
-    ignore_columns = [c for c in df.columns if (("wgt_" in c) and ("nominal" not in c))]
-    ignore_columns += [c for c in df.columns if "pdf_" in c]
-    df = df[[c for c in df.columns if c not in ignore_columns]]
-
-    return df
 
 
 def process_partitions(client, parameters, df):

@@ -7,8 +7,9 @@ import time
 import dask
 from dask.distributed import Client
 
-from stage2.postprocessor import load_dataframe, process_partitions
+from python.io import load_dataframe
 from config.variables import variables_lookup
+from stage2.postprocessor import process_partitions
 from test_tools import almost_equal
 
 __all__ = ["dask"]
