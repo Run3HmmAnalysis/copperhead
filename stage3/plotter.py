@@ -176,7 +176,6 @@ def plot(args, parameters={}):
         ax1.set_xlabel(var.caption, loc="right")
 
     if parameters["plot_ratio"]:
-
         # Bottom panel: Data/MC ratio plot
         ax2 = fig.add_subplot(gs[1], sharex=ax1)
         num = den = []
@@ -234,7 +233,8 @@ def plot(args, parameters={}):
 
     hep.cms.label(ax=ax1, data=True, label="Preliminary", year=year)
 
-    if parameters["save_plots"]:
+    save_plots = parameters.get("save_plots", False)
+    if save_plots:
         path = parameters["plots_path"]
         out_name = f"{path}/{var.name}_{year}_{channel}_{region}.png"
         fig.savefig(out_name)

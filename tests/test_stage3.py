@@ -23,7 +23,6 @@ parameters = {
     "channels": ["vbf"],
     "regions": ["h-peak"],
     "plot_vars": ["dimuon_mass"],
-    "save_plots": False,
     "plot_ratio": True,
     "variables_lookup": variables_lookup,
     "grouping": {"vbf_powheg_dipole": "VBF"},

@@ -103,9 +103,12 @@ def on_partition(args, parameters):
     ]
 
     # < evaluate here MVA scores after categorization, if needed >
-    for v in parameters["syst_variations"]:
+    syst_variations = parameters.get("syst_variations", ["nominal"])
+    dnn_models = parameters.get("dnn_models", {})
+    bdt_models = parameters.get("dnn_models", {})
+    for v in syst_variations:
         # evaluate Keras DNNs
-        for channel, models in parameters["dnn_models"].items():
+        for channel, models in dnn_models.items():
             if channel not in parameters["channels"]:
                 continue
             for model in models:
@@ -114,7 +117,7 @@ def on_partition(args, parameters):
                     df[df[f"channel {v}"] == channel], v, model, parameters, score_name
                 )
         # evaluate XGBoost BDTs
-        for channel, models in parameters["bdt_models"].items():
+        for channel, models in bdt_models.items():
             if channel not in parameters["channels"]:
                 continue
             for model in models:
@@ -172,7 +175,7 @@ def make_histograms(df, var_name, year, dataset, regions, channels, npart, param
 
     # prepare list of systematic variations
     wgt_variations = [w for w in df.columns if ("wgt_" in w)]
-    syst_variations = parameters["syst_variations"]
+    syst_variations = parameters.get("syst_variations", ["nominal"])
     variations = []
     for w in wgt_variations:
         for v in syst_variations:
@@ -266,7 +269,8 @@ def make_histograms(df, var_name, year, dataset, regions, channels, npart, param
 
     # save histogram for this partition to disk
     # (partitions will be joined in stage3)
-    if parameters["save_hists"]:
+    save_hists = parameters.get("save_hists", False)
+    if save_hists:
         save_histogram(hist, var.name, dataset, year, parameters, npart)
 
     # return diagnostics info

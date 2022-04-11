@@ -20,11 +20,7 @@ parameters = {
     "datasets": ["dy_m105_160_amc"],
     "channels": ["vbf"],
     "regions": ["h-peak"],
-    "syst_variations": ["nominal"],
-    "dnn_models": {},
-    "bdt_models": {},
     "hist_vars": ["dimuon_mass"],
-    "save_hists": False,
     "variables_lookup": variables_lookup,
 }
 
