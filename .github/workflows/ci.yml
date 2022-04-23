@@ -2,9 +2,9 @@ name: ci
 
 on:
   push:
-    branches: [ run3_prototype ]
+    branches: [ master ]
   pull_request:
-    branches: [ run3_prototype ]
+    branches: [ master ]
 
   workflow_dispatch:
 
