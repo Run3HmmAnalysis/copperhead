@@ -17,13 +17,13 @@ The analysis workflow contains three stages:
   - Outputs of Stage 1 (`Parquet` files) are loaded as partitions of a [Dask DataFrame](https://docs.dask.org/en/stable/dataframe.html) (similar to Pandas DF, but partitioned and "lazy").
   - The Dask DataFrame is (optionally) re-partitioned to decrease number of partitions.
   - The partitions are processed in parallel; for each partition, the following sequence is executed:
-    - Partition of the Dask DataFrame is "computed" (converted to a Pandas Dataframe). 
+    - Partition of the Dask DataFrame is "computed" (converted to a Pandas Dataframe).
     - Evaluation of MVA models (can also be done after categorization). Current inmplementation includes evaluation of `PyTorch` DNN models and/or `XGBoost` BDT models. Other methods can be implemented, but one has to verify that they would work well in a distributed environment (e.g. Tensorflow sessions are not very good for that).
     - Definition of event categories and/or MVA bins.
     - Creating histograms using [scikit-hep/hist](https://github.com/scikit-hep/hist).
     - Saving histograms.
     - (Optionally) Saving individual columns (can be used later for unbinned fits).
- 
+
 - **Stage 3** (WIP) contains / will contain plotting, parametric fits, preparation of datacards for statistical analysis. The plotting is done via [scikit-hep/mplhep](https://github.com/scikit-hep/mplhep).
 
 ## Job parallelization
