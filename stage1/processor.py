@@ -72,7 +72,7 @@ class DimuonProcessor(processor.ProcessorABC):
         self.prepare_lookups()
 
         # mass regions to save
-        self.regions = kwargs.get("regions", [])
+        self.regions = kwargs.get("regions", ["h-peak", "h-sidebands"])
 
         # variables to save
         self.vars_to_save = set([v.name for v in variables])
@@ -497,7 +497,6 @@ class DimuonProcessor(processor.ProcessorABC):
             or ("gjet" in c[0])
             or ("gjj" in c[0])
         ]
-
         output = output.loc[output.event_selection, columns_to_save]
         output = output.reindex(sorted(output.columns), axis=1)
         output.columns = [" ".join(col).strip() for col in output.columns.values]

@@ -5,10 +5,10 @@ import traceback
 from coffea.processor import DaskExecutor, Runner
 from coffea.nanoevents import NanoAODSchema
 
-from nanoaod.processor import DimuonProcessor
-from nanoaod.preprocessor import load_samples
+from stage1.processor import DimuonProcessor
+from stage1.preprocessor import load_samples
 from python.io import mkdir, save_stage1_output_to_parquet
-from nanoaod.config.parameters import parameters as pars
+from config.parameters import parameters as pars
 
 import dask
 from dask.distributed import Client
@@ -141,6 +141,7 @@ def submit_job(parameters):
         "samp_info": parameters["samp_infos"],
         "do_timer": parameters["do_timer"],
         "do_btag_syst": parameters["do_btag_syst"],
+        "regions": parameters["regions"],
         "pt_variations": parameters["pt_variations"],
         "apply_to_output": partial(save_stage1_output_to_parquet, out_dir=out_dir),
     }
@@ -243,15 +244,15 @@ if __name__ == "__main__":
         for sample in samples:
             # if sample != 'data_B':
             # if sample != 'dy_m105_160_amc':
-            # if sample != "vbf_powheg_dipole":
-            #    continue
+            if sample != "vbf_powheg_dipole":
+                continue
             if group == "data":
                 # if 'test' not in sample:
                 #    continue
                 # continue
                 datasets_data.append(sample)
             else:
-                continue
+                # continue
                 # if (group != "main_mc") & (group != "signal"):
                 # if (group != "signal"):
                 # if (group != "main_mc"):
