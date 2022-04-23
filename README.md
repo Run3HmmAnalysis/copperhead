@@ -1,4 +1,4 @@
-# Run3 H→µµ analysis framework
+## copperhead - Columnar Parallel Pythonic framEwork for Run3 H&rarr;µµ Decay search
 
 [![pre-commit](https://img.shields.io/badge/pre--commit-enabled-brightgreen?logo=pre-commit&logoColor=white)](https://github.com/pre-commit/pre-commit)
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
