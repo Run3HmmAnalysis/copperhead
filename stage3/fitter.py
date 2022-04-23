@@ -91,6 +91,7 @@ def fitter(args, parameters={}):
             blinded=blinded,
             model_names=["bwz", "bwz_redux", "bwgamma"],
             fix_parameters=False,
+            store_multipdf=True,
             title="Background",
             save=save,
             save_path=save_path,
@@ -117,6 +118,7 @@ def fitter(args, parameters={}):
             blinded=False,
             model_names=["dcb"],
             fix_parameters=True,
+            store_multipdf=False,
             title="Signal",
             save=save,
             save_path=save_path,
@@ -150,6 +152,7 @@ class Fitter(object):
         model_names=[],
         orders={},
         fix_parameters=False,
+        store_multipdf=False,
         title="",
         save=True,
         save_path="./",
@@ -170,7 +173,7 @@ class Fitter(object):
                     self.add_model(model_name, category=category, order=order)
             else:
                 self.add_model(model_name, category=category)
-
+        
         # self.workspace.Print()
         chi2 = self.fit(
             ds_name,
@@ -186,7 +189,14 @@ class Fitter(object):
             save_path=save_path,
             norm=norm,
         )
-
+        if store_multipdf:
+            cat = rt.RooCategory(f"pdf_index_{self.channel}_{category}_{label}",'index of the active pdf')
+            pdflist = rt.RooArgList()
+            for model_name in model_names:
+                pdflist.add(self.workspace.pdf(model_name))
+            multipdf = rt.RooMultiPdf(f"multipdf_{self.channel}_{category}_{label}","multipdf",cat,pdflist)
+            #self.add_model("multipdf", category=category)
+            getattr(self.workspace,'import')(multipdf)
         if save:
             mkdir(save_path)
             self.save_workspace(
@@ -208,7 +218,8 @@ class Fitter(object):
         mass.setRange("window", self.fitranges["low"], self.fitranges["high"])
         mass.SetTitle("m_{#mu#mu}")
         mass.setUnit("GeV")
-        w.Import(mass)
+        #w.Import(mass)
+        getattr(w,'import')(mass)
         # w.Print()
         return w
 
@@ -242,7 +253,8 @@ class Fitter(object):
             data = data.reduce(rt.RooFit.CutRange("sideband_left,sideband_right"))
 
         self.data_registry[ds_name] = type(data)
-        self.workspace.Import(data, ds_name)
+        #self.workspace.Import(data, ds_name)
+        getattr(self.workspace,'import')(data, ds_name)
 
     def fit_pseudodata(
         self,
@@ -339,7 +351,8 @@ class Fitter(object):
         model_key = model_name + tag
         if model_key not in self.model_registry:
             self.model_registry.append(model_key)
-        self.workspace.Import(model)
+        #self.workspace.Import(model)
+        getattr(self.workspace,'import')(model)
 
     def fit(
         self,
@@ -384,7 +397,8 @@ class Fitter(object):
 
             norm_var = rt.RooRealVar(f"{model_key}_norm", f"{model_key}_norm", norm)
             try:
-                self.workspace.Import(norm_var)
+                #self.workspace.Import(norm_var)
+                getattr(self.workspace,'import')(norm_var)
             except Exception:
                 print(f"{norm_var} already exists in workspace, skipping...")
 
