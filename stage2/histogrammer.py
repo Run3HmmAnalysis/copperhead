@@ -56,6 +56,7 @@ def make_histograms(df, var_name, year, dataset, regions, channels, npart, param
         for values in itertools.product(*loop_args.values())
     ]
     hist_info_rows = []
+    total_yield = 0
     for loop_arg in loop_args:
         region = loop_arg["region"]
         channel = loop_arg["channel"]
@@ -102,10 +103,16 @@ def make_histograms(df, var_name, year, dataset, regions, channels, npart, param
             "channel": channel,
             "yield": weight.sum(),
         }
+        if weight.sum() == 0:
+            continue
+        total_yield += weight.sum()
         if "return_hist" in parameters:
             if parameters["return_hist"]:
                 hist_info_row["hist"] = hist
         hist_info_rows.append(hist_info_row)
+
+    if total_yield == 0:
+        return None
 
     # save histogram for this partition to disk
     # (partitions will be joined in stage3)
