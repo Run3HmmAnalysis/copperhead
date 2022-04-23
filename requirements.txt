@@ -2,7 +2,7 @@ coffea==0.7.13
 dask[distributed]
 sklearn
 xgboost
-tensorflow==2.4.1
+torch
 pytest
 dask_jobqueue >= 0.7.3
 mplhep >= 0.3.7

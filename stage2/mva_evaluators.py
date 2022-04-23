@@ -1,18 +1,8 @@
-import os
 import numpy as np
-import tensorflow as tf
-from tensorflow.keras.models import load_model
 import pickle
+import torch
+from stage2.mva_models import Net
 
-os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
-config = tf.compat.v1.ConfigProto(
-    intra_op_parallelism_threads=1,
-    inter_op_parallelism_threads=1,
-    allow_soft_placement=True,
-    device_count={"CPU": 1},
-)
-tf.compat.v1.logging.set_verbosity(tf.compat.v1.logging.FATAL)
-sess = tf.compat.v1.Session(config=config)
 
 training_features = [
     "dimuon_mass",
@@ -42,7 +32,7 @@ training_features = [
 ]
 
 
-def prepare_features(df, parameters, variation="nominal", add_year=True):
+def prepare_features(df, parameters, variation="nominal", add_year=False):
     global training_features
     if add_year:
         features = training_features + ["year"]
@@ -59,43 +49,45 @@ def prepare_features(df, parameters, variation="nominal", add_year=True):
     return features_var
 
 
-def evaluate_dnn(df, variation, model, parameters, score_name):
-    # if parameters["do_massscan"]:
-    #     mass_shift = parameters["mass"] - 125.0
-    features = prepare_features(df, parameters, variation, add_year=True)
+def evaluate_pytorch_dnn(df, variation, model, parameters, score_name, channel):
+    features = prepare_features(df, parameters, variation)
     try:
         df = df.compute()
     except Exception:
         pass
-    df.loc[:, score_name] = 0
+
     if df.shape[0] == 0:
-        return df[score_name]
+        return None
 
-    with sess:
-        nfolds = 4
-        for i in range(nfolds):
-            # FIXME
-            label = f"allyears_jul7_{i}"
+    df.loc[:, score_name] = 0
 
-            # train_folds = [(i + f) % nfolds for f in [0, 1]]
-            # val_folds = [(i + f) % nfolds for f in [2]]
-            eval_folds = [(i + f) % nfolds for f in [3]]
+    nfolds = 4
+    for i in range(nfolds):
+        # train_folds = [(i + f) % nfolds for f in [0, 1]]
+        # val_folds = [(i + f) % nfolds for f in [2]]
+        eval_folds = [(i + f) % nfolds for f in [3]]
 
-            eval_filter = df.event.mod(nfolds).isin(eval_folds)
+        eval_filter = df.event.mod(nfolds).isin(eval_folds)
 
-            scalers_path = f"{parameters['models_path']}/{model}/scalers_{label}.npy"
-            scalers = np.load(scalers_path)
-            model_path = f"{parameters['models_path']}/{model}/dnn_{label}.h5"
-            dnn_model = load_model(model_path)
-            df_i = df.loc[eval_filter, :]
-            if df_i.shape[0] == 0:
-                continue
-            df_i.loc[df_i.region != "h-peak", "dimuon_mass"] = 125.0
-            # if parameters["do_massscan"]:
-            #     df_i.loc[:, "dimuon_mass"] = df_i["dimuon_mass"] - mass_shift
-            df_i = (df_i[features] - scalers[0]) / scalers[1]
-            prediction = np.array(dnn_model.predict(df_i)).ravel()
-            df.loc[eval_filter, score_name] = np.arctanh((prediction))
+        scalers_path = (
+            f"{parameters['models_path']}/{channel}/scalers/scalers_{model}_{i}.npy"
+        )
+        scalers = np.load(scalers_path)
+        df_i = df.loc[eval_filter, :]
+        if df_i.shape[0] == 0:
+            continue
+        df_i.loc[df_i.region != "h-peak", "dimuon_mass"] = 125.0
+        df_i = (df_i[features] - scalers[0]) / scalers[1]
+        df_i = torch.tensor(df_i.values).float()
+
+        dnn_model = Net()
+        model_path = (
+            f"{parameters['models_path']}/{channel}/models/model_{model}_{i}.pt"
+        )
+        dnn_model.load_state_dict(torch.load(model_path))
+        dnn_model.eval()
+        df.loc[eval_filter, score_name] = np.arctanh((dnn_model(df_i).detach().numpy()))
+
     return df[score_name]
 
 
@@ -108,9 +100,11 @@ def evaluate_bdt(df, variation, model, parameters, score_name):
         df = df.compute()
     except Exception:
         pass
-    df.loc[:, score_name] = 0
+
     if df.shape[0] == 0:
-        return df[score_name]
+        return None
+
+    df.loc[:, score_name] = 0
     nfolds = 4
     for i in range(nfolds):
         # FIXME

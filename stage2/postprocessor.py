@@ -8,7 +8,7 @@ from python.io import (
     save_stage2_output_parquet,
 )
 from stage2.categorizer import split_into_channels
-from stage2.mva_evaluators import evaluate_dnn, evaluate_bdt
+from stage2.mva_evaluators import evaluate_pytorch_dnn, evaluate_bdt
 from stage2.histogrammer import make_histograms
 
 import warnings
@@ -23,14 +23,16 @@ def process_partitions(client, parameters, df):
     ignore_columns += [c for c in df.columns if "pdf_" in c]
     df = df[[c for c in df.columns if c not in ignore_columns]]
 
+    years = df.year.unique()
+    datasets = df.dataset.unique()
     # delete previously generated outputs to prevent partial overwrite
-    delete_existing_stage2_hists(df.dataset.unique(), df.year.unique(), parameters)
-    delete_existing_stage2_parquet(df.dataset.unique(), df.year.unique(), parameters)
+    delete_existing_stage2_hists(datasets, years, parameters)
+    delete_existing_stage2_parquet(datasets, years, parameters)
 
     # prepare parameters for parallelization
     argset = {
-        "year": df.year.unique(),
-        "dataset": df.dataset.unique(),
+        "year": years,
+        "dataset": datasets,
     }
     if isinstance(df, pd.DataFrame):
         argset["df"] = [df]
@@ -81,7 +83,7 @@ def on_partition(args, parameters):
     # < evaluate here MVA scores after categorization, if needed >
     syst_variations = parameters.get("syst_variations", ["nominal"])
     dnn_models = parameters.get("dnn_models", {})
-    bdt_models = parameters.get("dnn_models", {})
+    bdt_models = parameters.get("bdt_models", {})
     for v in syst_variations:
         # evaluate Keras DNNs
         for channel, models in dnn_models.items():
@@ -89,8 +91,15 @@ def on_partition(args, parameters):
                 continue
             for model in models:
                 score_name = f"score_{model} {v}"
-                df.loc[df[f"channel {v}"] == channel, score_name] = evaluate_dnn(
-                    df[df[f"channel {v}"] == channel], v, model, parameters, score_name
+                df.loc[
+                    df[f"channel {v}"] == channel, score_name
+                ] = evaluate_pytorch_dnn(
+                    df[df[f"channel {v}"] == channel],
+                    v,
+                    model,
+                    parameters,
+                    score_name,
+                    channel,
                 )
         # evaluate XGBoost BDTs
         for channel, models in bdt_models.items():
@@ -105,6 +114,18 @@ def on_partition(args, parameters):
     # < add secondary categorization / binning here >
     # ...
 
+    # temporary implementation: move from mva score to mva bin number
+    mva_bins = parameters["mva_bins"]["pytorch_test"][str(year)]
+    for i in range(len(mva_bins) - 1):
+        lo = mva_bins[i]
+        hi = mva_bins[i + 1]
+        cut = (df["score_pytorch_test nominal"] > lo) & (
+            df["score_pytorch_test nominal"] <= hi
+        )
+        df.loc[cut, "bin_number"] = i
+    df["score_pytorch_test nominal"] = df["bin_number"]
+    parameters["mva_bins"] = {"pytorch_test": {"2016": list(range(len(mva_bins)))}}
+
     # < convert desired columns to histograms >
     # not parallelizing for now - nested parallelism leads to a lock
     hist_info_rows = []
@@ -112,7 +133,11 @@ def on_partition(args, parameters):
         hist_info_row = make_histograms(
             df, var_name, year, dataset, regions, channels, npart, parameters
         )
-        hist_info_rows.append(hist_info_row)
+        if hist_info_row is not None:
+            hist_info_rows.append(hist_info_row)
+    if len(hist_info_rows) == 0:
+        return pd.DataFrame()
+
     hist_info_df = pd.concat(hist_info_rows).reset_index(drop=True)
 
     # < save desired columns as unbinned data (e.g. dimuon_mass for fits) >

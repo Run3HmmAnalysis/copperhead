@@ -7,7 +7,8 @@ import dask.dataframe as dd
 
 from python.io import load_dataframe
 from stage2.postprocessor import process_partitions
-from config.mva_bins import mva_bins
+
+# from config.mva_bins import mva_bins
 from config.variables import variables_lookup
 
 __all__ = ["dask"]
@@ -33,6 +34,7 @@ node_ip = "128.211.149.133"
 
 if use_local_cluster:
     ncpus_local = 40
+    slurm_cluster_ip = ""
     dashboard_address = f"{node_ip}:34875"
 else:
     slurm_cluster_ip = f"{node_ip}:{args.slurm_port}"
@@ -44,10 +46,13 @@ parameters = {
     "slurm_cluster_ip": slurm_cluster_ip,
     "path": "/depot/cms/hmm/coffea/",
     "years": args.years,
-    "label": "2022apr6",
+    "label": "2022apr23",
     "channels": ["vbf"],
     "regions": ["h-peak", "h-sidebands"],
     "syst_variations": ["nominal"],
+    # "custom_npartitions": {
+    #     "vbf_powheg_dipole": 1,
+    # },
     #
     # < settings for histograms >
     "hist_vars": ["dimuon_mass"],
@@ -65,12 +70,29 @@ parameters = {
     "stage2_parquet_path": "/depot/cms/hmm/coffea/stage2_unbinned/",
     #
     # < MVA settings >
-    "models_path": "/depot/cms/hmm/trained_models/",
+    "models_path": "data/trained_models/",
     "dnn_models": {
-        # "vbf": ["dnn_allyears_128_64_32"],
+        "vbf": ["pytorch_test"],
     },
     "bdt_models": {},
-    "mva_bins": mva_bins,
+    # "mva_bins": mva_bins,
+    "mva_bins": {
+        "pytorch_test": {
+            "2016": [
+                0,
+                0.02284068614244461,
+                0.06620460003614426,
+                0.130197212100029,
+                0.21437104046344757,
+                0.6934939026832581,
+                0.8347708582878113,
+                0.9530102014541626,
+                1.2830289602279663,
+                1.5511324405670166,
+                3.3196377754211426,
+            ],
+        }
+    },
 }
 
 parameters["datasets"] = [
@@ -156,10 +178,10 @@ if __name__ == "__main__":
                 continue
 
             # read stage1 outputs
-            df = load_dataframe(client, parameters, inputs=[path])
+            df = load_dataframe(client, parameters, inputs=[path], dataset=dataset)
             if not isinstance(df, dd.DataFrame):
                 continue
 
             # run processing sequence (categorization, mva, histograms)
             info = process_partitions(client, parameters, df)
-            print(info)
+            # print(info)
