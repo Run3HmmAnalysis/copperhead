@@ -115,16 +115,17 @@ def on_partition(args, parameters):
     # ...
 
     # temporary implementation: move from mva score to mva bin number
-    mva_bins = parameters["mva_bins"]["pytorch_test"][str(year)]
-    for i in range(len(mva_bins) - 1):
-        lo = mva_bins[i]
-        hi = mva_bins[i + 1]
-        cut = (df["score_pytorch_test nominal"] > lo) & (
-            df["score_pytorch_test nominal"] <= hi
-        )
-        df.loc[cut, "bin_number"] = i
-    df["score_pytorch_test nominal"] = df["bin_number"]
-    parameters["mva_bins"] = {"pytorch_test": {"2016": list(range(len(mva_bins)))}}
+    if "score_pytorch_test nominal" in df.columns:
+        mva_bins = parameters["mva_bins"]["pytorch_test"][str(year)]
+        for i in range(len(mva_bins) - 1):
+            lo = mva_bins[i]
+            hi = mva_bins[i + 1]
+            cut = (df["score_pytorch_test nominal"] > lo) & (
+                df["score_pytorch_test nominal"] <= hi
+            )
+            df.loc[cut, "bin_number"] = i
+        df["score_pytorch_test nominal"] = df["bin_number"]
+        parameters["mva_bins"] = {"pytorch_test": {"2016": list(range(len(mva_bins)))}}
 
     # < convert desired columns to histograms >
     # not parallelizing for now - nested parallelism leads to a lock

@@ -8,7 +8,7 @@ import dask.dataframe as dd
 from python.io import load_dataframe
 from stage2.postprocessor import process_partitions
 
-# from config.mva_bins import mva_bins
+from config.mva_bins import mva_bins
 from config.variables import variables_lookup
 
 __all__ = ["dask"]
@@ -75,24 +75,7 @@ parameters = {
         "vbf": ["pytorch_test"],
     },
     "bdt_models": {},
-    # "mva_bins": mva_bins,
-    "mva_bins": {
-        "pytorch_test": {
-            "2016": [
-                0,
-                0.02284068614244461,
-                0.06620460003614426,
-                0.130197212100029,
-                0.21437104046344757,
-                0.6934939026832581,
-                0.8347708582878113,
-                0.9530102014541626,
-                1.2830289602279663,
-                1.5511324405670166,
-                3.3196377754211426,
-            ],
-        }
-    },
+    "mva_bins": mva_bins,
 }
 
 parameters["datasets"] = [
