@@ -36,8 +36,12 @@ def save_stage1_output_to_parquet(output, out_dir):
         df.to_parquet(path=f"{out_dir}/{dataset}/{name}.parquet")
 
 
-def load_dataframe(client, parameters, inputs=[]):
+def load_dataframe(client, parameters, inputs=[], dataset=None):
     ncpus = parameters.get("ncpus", 1)
+    custom_npartitions_dict = parameters.get("custom_npartitions", {})
+    custom_npartitions = 0
+    if dataset in custom_npartitions_dict.keys():
+        custom_npartitions = custom_npartitions_dict[dataset]
 
     if isinstance(inputs, list):
         # Load dataframes
@@ -48,14 +52,18 @@ def load_dataframe(client, parameters, inputs=[]):
             df = dd.concat([d for d in df_future if d.shape[1] > 0])
         except Exception:
             return None
-        if df.npartitions > 2 * ncpus:
+        if custom_npartitions > 0:
+            df = df.repartition(npartitions=custom_npartitions)
+        elif df.npartitions > 2 * ncpus:
             df = df.repartition(npartitions=ncpus)
 
     elif isinstance(inputs, pd.DataFrame):
         df = dd.from_pandas(inputs, npartitions=ncpus)
 
     elif isinstance(inputs, dd.DataFrame):
-        if inputs.npartitions > 2 * ncpus:
+        if custom_npartitions > 0:
+            df = inputs.repartition(npartitions=custom_npartitions)
+        elif inputs.npartitions > 2 * ncpus:
             df = inputs.repartition(npartitions=ncpus)
         else:
             df = inputs
