@@ -4,7 +4,7 @@ import pandas as pd
 from python.workflow import parallelize
 from python.variable import Variable
 from python.io import (
-    load_histogram,
+    load_stage2_output_hists,
     save_template,
 )
 
@@ -18,21 +18,27 @@ def to_templates(client, parameters, hist_df=None):
     if hist_df is None:
         argset_load = {
             "year": parameters["years"],
-            "var_name": parameters["hist_vars"],
+            "var_name": parameters["templates_vars"],
             "dataset": parameters["datasets"],
         }
-        hist_rows = parallelize(load_histogram, argset_load, client, parameters)
+        hist_rows = parallelize(
+            load_stage2_output_hists, argset_load, client, parameters
+        )
         hist_df = pd.concat(hist_rows).reset_index(drop=True)
+        if hist_df.shape[0] == 0:
+            print("No templates to create!")
+            return []
 
     argset = {
         "year": parameters["years"],
         "region": parameters["regions"],
         "channel": parameters["channels"],
         "var_name": [
-            v for v in hist_df.var_name.unique() if v in parameters["plot_vars"]
+            v for v in hist_df.var_name.unique() if v in parameters["templates_vars"]
         ],
         "hist_df": [hist_df],
     }
+
     yields = parallelize(make_templates, argset, client, parameters)
     return yields
 
@@ -42,7 +48,7 @@ def make_templates(args, parameters={}):
     region = args["region"]
     channel = args["channel"]
     var_name = args["var_name"]
-    hist = args["hist_df"].loc[
+    hist_df = args["hist_df"].loc[
         (args["hist_df"].var_name == var_name) & (args["hist_df"].year == year)
     ]
 
@@ -51,31 +57,75 @@ def make_templates(args, parameters={}):
     else:
         var = Variable(var_name, var_name, 50, 0, 5)
 
-    if hist.shape[0] == 0:
+    if hist_df.shape[0] == 0:
         return
+
+    variation = "nominal"
+    slicer_value = {
+        "region": region,
+        "channel": channel,
+        "variation": variation,
+        "val_sumw2": "value",
+    }
+    slicer_sumw2 = {
+        "region": region,
+        "channel": channel,
+        "variation": variation,
+        "val_sumw2": "sumw2",
+    }
 
     total_yield = 0
     templates = []
-    for dataset in hist.dataset.unique():
-        myhist = hist.loc[hist.dataset == dataset, "hist"].values[0]
-        the_hist = myhist[region, channel, "value", :].project(var.name).values()
-        the_sumw2 = myhist[region, channel, "sumw2", :].project(var.name).values()
-        edges = myhist[region, channel, "value", :].project(var.name).axes[0].edges
-        edges = np.array(edges)
-        centers = (edges[:-1] + edges[1:]) / 2.0
-        total_yield += the_hist.sum()
 
-        name = f"{dataset}_{region}_{channel}"
-        th1 = from_numpy([the_hist, edges])
-        th1._fName = name
-        th1._fSumw2 = np.array(np.append([0], the_sumw2))
-        th1._fTsumw2 = np.array(the_sumw2).sum()
-        th1._fTsumwx2 = np.array(the_sumw2 * centers).sum()
+    # TODO: add loop for systematics
+
+    groups = list(set(parameters["grouping"].values()))
+
+    for group in groups:
+        group_hist = []
+        group_sumw2 = []
+        datasets = []
+        for d in hist_df.dataset.unique():
+            if d not in parameters["grouping"].keys():
+                continue
+            if parameters["grouping"][d] != group:
+                continue
+            datasets.append(d)
+
+        if len(datasets) == 0:
+            continue
+
+        for dataset in datasets:
+            try:
+                hist = hist_df.loc[hist_df.dataset == dataset, "hist"].values.sum()
+            except Exception:
+                print(f"Could not merge histograms for {dataset}")
+                continue
+
+            the_hist = hist[slicer_value].project(var.name).values()
+            the_sumw2 = hist[slicer_sumw2].project(var.name).values()
+            if len(group_hist) == 0:
+                group_hist = the_hist
+                group_sumw2 = the_sumw2
+            else:
+                group_hist += the_hist
+                group_sumw2 += the_sumw2
+
+            edges = hist[slicer_value].project(var.name).axes[0].edges
+            edges = np.array(edges)
+            centers = (edges[:-1] + edges[1:]) / 2.0
+            total_yield += the_hist.sum()
+
+        th1 = from_numpy([group_hist, edges])
+        th1._fName = group
+        th1._fSumw2 = np.array(np.append([0], group_sumw2))
+        th1._fTsumw2 = np.array(group_sumw2).sum()
+        th1._fTsumwx2 = np.array(group_sumw2 * centers).sum()
         templates.append(th1)
 
     if parameters["save_templates"]:
         path = parameters["templates_path"]
-        out_fn = f"{path}/{dataset}_{var.name}_{year}.root"
+        out_fn = f"{path}/{var.name}_{region}_{channel}_{year}.root"
         save_template(templates, out_fn, parameters)
 
     return total_yield

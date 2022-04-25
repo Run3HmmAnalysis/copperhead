@@ -4,6 +4,7 @@ from dask.distributed import Client
 
 from config.variables import variables_lookup
 from stage3.plotter import plotter
+from stage3.make_templates import to_templates
 
 __all__ = ["dask"]
 
@@ -44,16 +45,21 @@ parameters = {
     "syst_variations": ["nominal"],
     #
     # < plotting settings >
-    "plot_vars": ["dimuon_mass"],
+    "plot_vars": [],  # "dimuon_mass"],
     "variables_lookup": variables_lookup,
     "save_plots": True,
     "plot_ratio": True,
     "plots_path": "./plots/2022apr10/",
-    "hist_path": "/depot/cms/hmm/coffea/histograms/",
+    "hist_path": "/depot/cms/hmm/coffea/stage2_hists/",
     "dnn_models": {
-        "vbf": ["dnn_allyears_128_64_32"],
+        "vbf": ["pytorch_test"],
     },
     "bdt_models": {},
+    #
+    # < templates >
+    "save_templates": True,
+    "templates_path": "/depot/cms/hmm/coffea/stage3_templates/",
+    "templates_vars": ["dimuon_mass"],
 }
 
 parameters["grouping"] = {
@@ -128,4 +134,7 @@ if __name__ == "__main__":
 
     # make plots
     yields = plotter(client, parameters)
+    print(yields)
+
+    yields = to_templates(client, parameters)
     print(yields)
