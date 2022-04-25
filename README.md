@@ -1,12 +1,13 @@
-## copperhead - Columnar Parallel Pythonic framEwork for Run3 H&rarr;µµ Decay search
-
 [![pre-commit](https://img.shields.io/badge/pre--commit-enabled-brightgreen?logo=pre-commit&logoColor=white)](https://github.com/pre-commit/pre-commit)
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 ![CI/CD](https://github.com/kondratyevd/hmumu-coffea/actions/workflows/ci.yml/badge.svg)
 
-The framework was originally designed for the [search for the Higgs boson decays into two muons](https://inspirehep.net/literature/1815813) with the CMS detector at the Large Hadron Collider. The published results in the channel targeting the VBF Higgs production mode were reproduced with 1% precision. The framework was also used for the [projections of the H&rarr;µµ search sensitivity to HL-LHC](https://cds.cern.ch/record/2804002/).
+## 🐍 copperhead - Columnar Parallel Pythonic framEwork for Run3 H&rarr;µµ Decay search
 
-Currently the framework is under development to integrate both of the main Higgs production modes (ggH and VBF), and to prepare for analyzing the Run3 data when it becomes available.
+- The framework inherits the [analysis code](https://github.com/kondratyevd/hmumu-coffea) originally designed for the [Run 2 H&rarr;µµ decay search](https://inspirehep.net/literature/1815813) with the CMS detector at the LHC. The published Run 2 results in the channel targeting the VBF Higgs production mode were reproduced with 1% precision.
+- The tools developed for this framework were also used for the [projections of the H&rarr;µµ search sensitivity to HL-LHC](https://cds.cern.ch/record/2804002/).
+
+Currently the framework is under development to integrate both of the main Higgs production modes (ggH and VBF), and to prepare for analyzing the Run 3 data when it becomes available.
 
 ## Framework structure, data formats, used packages
 The input data for the framework should be in `NanoAOD` format.
