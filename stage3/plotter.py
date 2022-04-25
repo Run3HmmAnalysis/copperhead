@@ -2,7 +2,7 @@ import pandas as pd
 import numpy as np
 from hist.intervals import poisson_interval
 from python.workflow import parallelize
-from python.io import load_stage2_output_hists
+from python.io import load_stage2_output_hists, mkdir
 from python.variable import Variable
 
 import matplotlib.pyplot as plt
@@ -70,6 +70,9 @@ def plotter(client, parameters, hist_df=None, timer=None):
         }
         hist_dfs = parallelize(load_stage2_output_hists, arg_load, client, parameters)
         hist_df = pd.concat(hist_dfs).reset_index(drop=True)
+        if hist_df.shape[0] == 0:
+            print("Nothing to plot!")
+            return []
 
     arg_plot = {
         "year": parameters["years"],
@@ -236,6 +239,7 @@ def plot(args, parameters={}):
     save_plots = parameters.get("save_plots", False)
     if save_plots:
         path = parameters["plots_path"]
+        mkdir(path)
         out_name = f"{path}/{var.name}_{year}_{channel}_{region}.png"
         fig.savefig(out_name)
         print(f"Saved: {out_name}")
