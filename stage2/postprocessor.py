@@ -18,9 +18,10 @@ pd.options.mode.chained_assignment = None
 
 
 def process_partitions(client, parameters, df):
-    # for now ignoring systematics
-    ignore_columns = [c for c in df.columns if (("wgt_" in c) and ("nominal" not in c))]
+    # for now ignoring some systematics
+    ignore_columns = []
     ignore_columns += [c for c in df.columns if "pdf_" in c]
+
     df = df[[c for c in df.columns if c not in ignore_columns]]
 
     years = df.year.unique()

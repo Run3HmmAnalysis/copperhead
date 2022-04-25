@@ -38,7 +38,6 @@ def to_templates(client, parameters, hist_df=None):
         ],
         "hist_df": [hist_df],
     }
-
     yields = parallelize(make_templates, argset, client, parameters)
     return yields
 
@@ -60,24 +59,8 @@ def make_templates(args, parameters={}):
     if hist_df.shape[0] == 0:
         return
 
-    variation = "nominal"
-    slicer_value = {
-        "region": region,
-        "channel": channel,
-        "variation": variation,
-        "val_sumw2": "value",
-    }
-    slicer_sumw2 = {
-        "region": region,
-        "channel": channel,
-        "variation": variation,
-        "val_sumw2": "sumw2",
-    }
-
     total_yield = 0
     templates = []
-
-    # TODO: add loop for systematics
 
     groups = list(set(parameters["grouping"].values()))
 
@@ -95,33 +78,59 @@ def make_templates(args, parameters={}):
         if len(datasets) == 0:
             continue
 
-        for dataset in datasets:
-            try:
-                hist = hist_df.loc[hist_df.dataset == dataset, "hist"].values.sum()
-            except Exception:
-                print(f"Could not merge histograms for {dataset}")
-                continue
+        wgt_variations = list(
+            hist_df.loc[hist_df.dataset.isin(datasets), "hist"]
+            .values.sum()
+            .axes["variation"]
+        )
 
-            the_hist = hist[slicer_value].project(var.name).values()
-            the_sumw2 = hist[slicer_sumw2].project(var.name).values()
-            if len(group_hist) == 0:
-                group_hist = the_hist
-                group_sumw2 = the_sumw2
-            else:
-                group_hist += the_hist
-                group_sumw2 += the_sumw2
+        for variation in wgt_variations:
+            slicer_value = {
+                "region": region,
+                "channel": channel,
+                "variation": variation,
+                "val_sumw2": "value",
+            }
+            slicer_sumw2 = {
+                "region": region,
+                "channel": channel,
+                "variation": variation,
+                "val_sumw2": "sumw2",
+            }
 
-            edges = hist[slicer_value].project(var.name).axes[0].edges
-            edges = np.array(edges)
-            centers = (edges[:-1] + edges[1:]) / 2.0
-            total_yield += the_hist.sum()
+            for dataset in datasets:
+                try:
+                    hist = hist_df.loc[hist_df.dataset == dataset, "hist"].values.sum()
+                except Exception:
+                    print(f"Could not merge histograms for {dataset}")
+                    continue
 
-        th1 = from_numpy([group_hist, edges])
-        th1._fName = group
-        th1._fSumw2 = np.array(np.append([0], group_sumw2))
-        th1._fTsumw2 = np.array(group_sumw2).sum()
-        th1._fTsumwx2 = np.array(group_sumw2 * centers).sum()
-        templates.append(th1)
+                the_hist = hist[slicer_value].project(var.name).values()
+                the_sumw2 = hist[slicer_sumw2].project(var.name).values()
+                if len(group_hist) == 0:
+                    group_hist = the_hist
+                    group_sumw2 = the_sumw2
+                else:
+                    group_hist += the_hist
+                    group_sumw2 += the_sumw2
+
+                edges = hist[slicer_value].project(var.name).axes[0].edges
+                edges = np.array(edges)
+                centers = (edges[:-1] + edges[1:]) / 2.0
+                total_yield += the_hist.sum()
+
+            name = group
+            if variation != "nominal":
+                variation_fixed = variation.replace("wgt_", "")
+                variation_fixed = variation_fixed.replace("_up", "_Up")
+                variation_fixed = variation_fixed.replace("_down", "_Down")
+                name = f"{group}_{variation_fixed}"
+            th1 = from_numpy([group_hist, edges])
+            th1._fName = name
+            th1._fSumw2 = np.array(np.append([0], group_sumw2))
+            th1._fTsumw2 = np.array(group_sumw2).sum()
+            th1._fTsumwx2 = np.array(group_sumw2 * centers).sum()
+            templates.append(th1)
 
     if parameters["save_templates"]:
         path = parameters["templates_path"]
