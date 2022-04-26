@@ -46,7 +46,7 @@ parameters = {
     "slurm_cluster_ip": slurm_cluster_ip,
     "path": "/depot/cms/hmm/coffea/",
     "years": args.years,
-    "label": "2022apr23",
+    "label": "2022apr6",
     "channels": ["vbf"],
     "regions": ["h-peak", "h-sidebands"],
     "syst_variations": ["nominal"],
@@ -75,7 +75,7 @@ parameters = {
         "vbf": ["pytorch_test"],
     },
     "bdt_models": {},
-    "mva_bins": mva_bins,
+    "mva_bins_original": mva_bins,
 }
 
 parameters["datasets"] = [

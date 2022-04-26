@@ -102,6 +102,7 @@ def on_partition(args, parameters):
                     score_name,
                     channel,
                 )
+
         # evaluate XGBoost BDTs
         for channel, models in bdt_models.items():
             if channel not in parameters["channels"]:
@@ -117,7 +118,7 @@ def on_partition(args, parameters):
 
     # temporary implementation: move from mva score to mva bin number
     if "score_pytorch_test nominal" in df.columns:
-        mva_bins = parameters["mva_bins"]["pytorch_test"][str(year)]
+        mva_bins = parameters["mva_bins_original"]["pytorch_test"][str(year)]
         for i in range(len(mva_bins) - 1):
             lo = mva_bins[i]
             hi = mva_bins[i + 1]
