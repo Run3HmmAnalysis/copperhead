@@ -94,7 +94,8 @@ if __name__ == "__main__":
 
     # Stage 3
     out_plot = plotter(client, parameters, out_hist)
-    assert almost_equal(out_plot[0], 46.7871466)
+    print(out_plot[0])
+    assert almost_equal(out_plot[0], 1637.5501318)
 
     elapsed = round(time.time() - tick, 3)
     print(f"Finished everything in {elapsed} s.")
