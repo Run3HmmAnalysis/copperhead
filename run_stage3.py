@@ -129,6 +129,7 @@ if __name__ == "__main__":
     for models in dnn_models + bdt_models:
         for model in models:
             parameters["plot_vars"] += ["score_" + model]
+            parameters["templates_vars"] += ["score_" + model]
 
     parameters["datasets"] = parameters["grouping"].keys()
 

@@ -78,11 +78,21 @@ def make_templates(args, parameters={}):
         if len(datasets) == 0:
             continue
 
-        wgt_variations = list(
-            hist_df.loc[hist_df.dataset.isin(datasets), "hist"]
-            .values.sum()
-            .axes["variation"]
-        )
+        # make a list of systematics;
+        # avoid situation where different datasets have incompatible systematics
+        wgt_variations = []
+        for dataset in datasets:
+            n_partitions = len(hist_df.loc[hist_df.dataset == dataset, "hist"].values)
+            for i in range(n_partitions):
+                new_wgt_vars = list(
+                    hist_df.loc[hist_df.dataset == dataset, "hist"]
+                    .values[i]
+                    .axes["variation"]
+                )
+                if len(wgt_variations) == 0:
+                    wgt_variations = new_wgt_vars
+                else:
+                    wgt_variations = list(set(wgt_variations) & set(new_wgt_vars))
 
         for variation in wgt_variations:
             slicer_value = {
@@ -97,16 +107,19 @@ def make_templates(args, parameters={}):
                 "variation": variation,
                 "val_sumw2": "sumw2",
             }
-
             for dataset in datasets:
                 try:
                     hist = hist_df.loc[hist_df.dataset == dataset, "hist"].values.sum()
                 except Exception:
-                    print(f"Could not merge histograms for {dataset}")
+                    # print(f"Could not merge histograms for {dataset}")
                     continue
 
                 the_hist = hist[slicer_value].project(var.name).values()
                 the_sumw2 = hist[slicer_sumw2].project(var.name).values()
+
+                if (the_hist.sum() < 0) or (the_sumw2.sum() < 0):
+                    continue
+
                 if len(group_hist) == 0:
                     group_hist = the_hist
                     group_sumw2 = the_sumw2
@@ -118,6 +131,9 @@ def make_templates(args, parameters={}):
                 edges = np.array(edges)
                 centers = (edges[:-1] + edges[1:]) / 2.0
                 total_yield += the_hist.sum()
+
+            if len(group_hist) == 0:
+                continue
 
             name = group
             if variation != "nominal":
