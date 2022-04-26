@@ -127,7 +127,13 @@ def on_partition(args, parameters):
             )
             df.loc[cut, "bin_number"] = i
         df["score_pytorch_test nominal"] = df["bin_number"]
-        parameters["mva_bins"] = {"pytorch_test": {"2016": list(range(len(mva_bins)))}}
+        parameters["mva_bins"] = {
+            "pytorch_test": {
+                "2016": list(range(len(mva_bins))),
+                "2017": list(range(len(mva_bins))),
+                "2018": list(range(len(mva_bins))),
+            }
+        }
 
     # < convert desired columns to histograms >
     # not parallelizing for now - nested parallelism leads to a lock
