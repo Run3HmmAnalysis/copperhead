@@ -134,7 +134,6 @@ def plot(args, parameters={}):
             continue
 
         plottables_df = get_plottables(hist, entry, year, var_name, slicer)
-        print(plottables_df)
         plottables = plottables_df["hist"].values.tolist()
         sumw2 = plottables_df["sumw2"].values.tolist()
         labels = plottables_df["label"].values.tolist()
@@ -240,7 +239,7 @@ def plot(args, parameters={}):
     if save_plots:
         path = parameters["plots_path"]
         mkdir(path)
-        out_name = f"{path}/{var.name}_{year}_{channel}_{region}.png"
+        out_name = f"{path}/{var.name}_{region}_{channel}_{year}.png"
         fig.savefig(out_name)
         print(f"Saved: {out_name}")
 
