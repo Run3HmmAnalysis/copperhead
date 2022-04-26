@@ -5,6 +5,7 @@ from dask.distributed import Client
 from config.variables import variables_lookup
 from stage3.plotter import plotter
 from stage3.make_templates import to_templates
+from stage3.make_datacards import build_datacards
 
 __all__ = ["dask"]
 
@@ -56,10 +57,11 @@ parameters = {
     },
     "bdt_models": {},
     #
-    # < templates >
+    # < templates and datacards >
     "save_templates": True,
     "templates_path": "/depot/cms/hmm/coffea/stage3_templates/",
-    "templates_vars": ["dimuon_mass"],
+    "templates_vars": [],  # "dimuon_mass"],
+    "datacards_path": "./datacards/",
 }
 
 parameters["grouping"] = {
@@ -137,5 +139,9 @@ if __name__ == "__main__":
     yields = plotter(client, parameters)
     print(yields)
 
-    yields = to_templates(client, parameters)
-    print(yields)
+    # save templates to ROOT files
+    yield_df = to_templates(client, parameters)
+    print(yield_df)
+
+    # make datacards
+    build_datacards("score_pytorch_test", yield_df, parameters)

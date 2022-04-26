@@ -38,8 +38,9 @@ def to_templates(client, parameters, hist_df=None):
         ],
         "hist_df": [hist_df],
     }
-    yields = parallelize(make_templates, argset, client, parameters)
-    return yields
+    yield_dfs = parallelize(make_templates, argset, client, parameters, seq=True)
+    yield_df = pd.concat(yield_dfs).reset_index(drop=True)
+    return yield_df
 
 
 def make_templates(args, parameters={}):
@@ -59,14 +60,12 @@ def make_templates(args, parameters={}):
     if hist_df.shape[0] == 0:
         return
 
-    total_yield = 0
+    yield_rows = []
     templates = []
 
     groups = list(set(parameters["grouping"].values()))
 
     for group in groups:
-        group_hist = []
-        group_sumw2 = []
         datasets = []
         for d in hist_df.dataset.unique():
             if d not in parameters["grouping"].keys():
@@ -95,6 +94,9 @@ def make_templates(args, parameters={}):
                     wgt_variations = list(set(wgt_variations) & set(new_wgt_vars))
 
         for variation in wgt_variations:
+            group_hist = []
+            group_sumw2 = []
+
             slicer_value = {
                 "region": region,
                 "channel": channel,
@@ -130,16 +132,21 @@ def make_templates(args, parameters={}):
                 edges = hist[slicer_value].project(var.name).axes[0].edges
                 edges = np.array(edges)
                 centers = (edges[:-1] + edges[1:]) / 2.0
-                total_yield += the_hist.sum()
 
             if len(group_hist) == 0:
                 continue
 
-            name = group
-            if variation != "nominal":
+            if group == "Data":
+                name = "data_obs"
+            else:
+                name = group
+
+            if variation == "nominal":
+                variation_fixed = variation
+            else:
                 variation_fixed = variation.replace("wgt_", "")
-                variation_fixed = variation_fixed.replace("_up", "_Up")
-                variation_fixed = variation_fixed.replace("_down", "_Down")
+                variation_fixed = variation_fixed.replace("_up", "Up")
+                variation_fixed = variation_fixed.replace("_down", "Down")
                 name = f"{group}_{variation_fixed}"
             th1 = from_numpy([group_hist, edges])
             th1._fName = name
@@ -148,9 +155,22 @@ def make_templates(args, parameters={}):
             th1._fTsumwx2 = np.array(group_sumw2 * centers).sum()
             templates.append(th1)
 
+            yield_rows.append(
+                {
+                    "var_name": var_name,
+                    "group": group,
+                    "region": region,
+                    "channel": channel,
+                    "year": year,
+                    "variation": variation_fixed,
+                    "yield": group_hist.sum(),
+                }
+            )
+
     if parameters["save_templates"]:
         path = parameters["templates_path"]
         out_fn = f"{path}/{var.name}_{region}_{channel}_{year}.root"
         save_template(templates, out_fn, parameters)
 
-    return total_yield
+    yield_df = pd.DataFrame(yield_rows)
+    return yield_df
