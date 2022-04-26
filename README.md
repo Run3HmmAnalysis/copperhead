@@ -1,6 +1,6 @@
 [![pre-commit](https://img.shields.io/badge/pre--commit-enabled-brightgreen?logo=pre-commit&logoColor=white)](https://github.com/pre-commit/pre-commit)
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
-![CI/CD](https://github.com/kondratyevd/hmumu-coffea/actions/workflows/ci.yml/badge.svg)
+![CI/CD](https://github.com/Run3HmmAnalysis/copperhead/actions/workflows/ci.yml/badge.svg)
 
 ## 🐍 copperhead - Columnar Parallel Pythonic framEwork for Run3 H&rarr;µµ Decay search
 
@@ -41,8 +41,8 @@ source activate hmumu
 ```
 Installation:
 ```bash
-git clone https://github.com/kondratyevd/hmumu-coffea
-cd hmumu-coffea
+git clone https://github.com/Run3HmmAnalysis/copperhead
+cd copperhead
 python3 -m pip install --user --upgrade -r requirements.txt
 ```
 If accessing datasets via `xRootD` will be needed:
