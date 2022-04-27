@@ -499,7 +499,7 @@ class DimuonProcessor(processor.ProcessorABC):
         ]
         output = output.loc[output.event_selection, columns_to_save]
         output = output.reindex(sorted(output.columns), axis=1)
-        output.columns = [" ".join(col).strip() for col in output.columns.values]
+        output.columns = ["_".join(col).strip() for col in output.columns.values]
         output = output[output.region.isin(self.regions)]
 
         to_return = None

@@ -78,7 +78,7 @@ def on_partition(args, parameters):
     split_into_channels(df, v="nominal")
     regions = [r for r in parameters["regions"] if r in df.region.unique()]
     channels = [
-        c for c in parameters["channels"] if c in df["channel nominal"].unique()
+        c for c in parameters["channels"] if c in df["channel_nominal"].unique()
     ]
 
     # < evaluate here MVA scores after categorization, if needed >
@@ -91,11 +91,11 @@ def on_partition(args, parameters):
             if channel not in parameters["channels"]:
                 continue
             for model in models:
-                score_name = f"score_{model} {v}"
+                score_name = f"score_{model}_{v}"
                 df.loc[
-                    df[f"channel {v}"] == channel, score_name
+                    df[f"channel_{v}"] == channel, score_name
                 ] = evaluate_pytorch_dnn(
-                    df[df[f"channel {v}"] == channel],
+                    df[df[f"channel_{v}"] == channel],
                     v,
                     model,
                     parameters,
@@ -108,25 +108,25 @@ def on_partition(args, parameters):
             if channel not in parameters["channels"]:
                 continue
             for model in models:
-                score_name = f"score_{model} {v}"
-                df.loc[df[f"channel {v}"] == channel, score_name] = evaluate_bdt(
-                    df[df[f"channel {v}"] == channel], v, model, parameters, score_name
+                score_name = f"score_{model}_{v}"
+                df.loc[df[f"channel_{v}"] == channel, score_name] = evaluate_bdt(
+                    df[df[f"channel_{v}"] == channel], v, model, parameters, score_name
                 )
 
     # < add secondary categorization / binning here >
     # ...
 
     # temporary implementation: move from mva score to mva bin number
-    if "score_pytorch_test nominal" in df.columns:
+    if "score_pytorch_test_nominal" in df.columns:
         mva_bins = parameters["mva_bins_original"]["pytorch_test"][str(year)]
         for i in range(len(mva_bins) - 1):
             lo = mva_bins[i]
             hi = mva_bins[i + 1]
-            cut = (df["score_pytorch_test nominal"] > lo) & (
-                df["score_pytorch_test nominal"] <= hi
+            cut = (df["score_pytorch_test_nominal"] > lo) & (
+                df["score_pytorch_test_nominal"] <= hi
             )
             df.loc[cut, "bin_number"] = i
-        df["score_pytorch_test nominal"] = df["bin_number"]
+        df["score_pytorch_test_nominal"] = df["bin_number"]
         parameters["mva_bins"] = {
             "pytorch_test": {
                 "2016": list(range(len(mva_bins))),
@@ -167,10 +167,10 @@ def save_unbinned(df, dataset, year, npart, channels, parameters):
         for var in var_names:
             if var in df.columns:
                 vnames.append(var)
-            elif f"{var} nominal" in df.columns:
-                vnames.append(f"{var} nominal")
+            elif f"{var}_nominal" in df.columns:
+                vnames.append(f"{var}_nominal")
         save_stage2_output_parquet(
-            df.loc[df["channel nominal"] == channel, vnames],
+            df.loc[df["channel_nominal"] == channel, vnames],
             channel,
             dataset,
             year,

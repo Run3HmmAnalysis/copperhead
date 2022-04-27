@@ -13,26 +13,26 @@ def split_into_channels(df, v=""):
         for cname, cut in cuts.items():
             df.loc[cut, "channel"] = cname
     else:
-        df[f"njets {v}"].fillna(0, inplace=True)
-        df.loc[:, f"channel {v}"] = "none"
+        df[f"njets_{v}"].fillna(0, inplace=True)
+        df.loc[:, f"channel_{v}"] = "none"
         df.loc[
-            (df[f"nBtagLoose {v}"] >= 2) | (df[f"nBtagMedium {v}"] >= 1), f"channel {v}"
+            (df[f"nBtagLoose_{v}"] >= 2) | (df[f"nBtagMedium_{v}"] >= 1), f"channel_{v}"
         ] = "ttHorVH"
         df.loc[
-            (df[f"channel {v}"] == "none")
-            & (df[f"jj_mass {v}"] > 400)
-            & (df[f"jj_dEta {v}"] > 2.5)
-            & (df[f"jet1_pt {v}"] > 35),
-            f"channel {v}",
+            (df[f"channel_{v}"] == "none")
+            & (df[f"jj_mass_{v}"] > 400)
+            & (df[f"jj_dEta_{v}"] > 2.5)
+            & (df[f"jet1_pt_{v}"] > 35),
+            f"channel_{v}",
         ] = "vbf"
         df.loc[
-            (df[f"channel {v}"] == "none") & (df[f"njets {v}"] < 1), f"channel {v}"
+            (df[f"channel_{v}"] == "none") & (df[f"njets_{v}"] < 1), f"channel_{v}"
         ] = "ggh_0jets"
         df.loc[
-            (df[f"channel {v}"] == "none") & (df[f"njets {v}"] == 1), f"channel {v}"
+            (df[f"channel_{v}"] == "none") & (df[f"njets_{v}"] == 1), f"channel_{v}"
         ] = "ggh_1jet"
         df.loc[
-            (df[f"channel {v}"] == "none") & (df[f"njets {v}"] > 1), f"channel {v}"
+            (df[f"channel_{v}"] == "none") & (df[f"njets_{v}"] > 1), f"channel_{v}"
         ] = "ggh_2orMoreJets"
 
 

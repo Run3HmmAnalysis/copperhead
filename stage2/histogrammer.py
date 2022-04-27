@@ -66,7 +66,7 @@ def make_histograms(df, var_name, year, dataset, regions, channels, npart, param
         if not variation:
             continue
 
-        var_name = f"{var.name} {v}"
+        var_name = f"{var.name}_{v}"
         if var_name not in df.columns:
             if var.name in df.columns:
                 var_name = var.name
@@ -77,7 +77,7 @@ def make_histograms(df, var_name, year, dataset, regions, channels, npart, param
             (df.dataset == dataset)
             & (df.region == region)
             & (df.year == year)
-            & (df[f"channel {v}"] == channel)
+            & (df[f"channel_{v}"] == channel)
         )
         data = df.loc[slicer, var_name]
         weight = df.loc[slicer, w]

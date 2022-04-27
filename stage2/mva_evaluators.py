@@ -40,8 +40,8 @@ def prepare_features(df, parameters, variation="nominal", add_year=False):
         features = training_features
     features_var = []
     for trf in features:
-        if f"{trf} {variation}" in df.columns:
-            features_var.append(f"{trf} {variation}")
+        if f"{trf}_{variation}" in df.columns:
+            features_var.append(f"{trf}_{variation}")
         elif trf in df.columns:
             features_var.append(trf)
         else:
@@ -95,7 +95,7 @@ def evaluate_bdt(df, variation, model, parameters, score_name):
     # if parameters["do_massscan"]:
     #     mass_shift = parameters["mass"] - 125.0
     features = prepare_features(df, parameters, variation, add_year=False)
-    score_name = f"score_{model} {variation}"
+    score_name = f"score_{model}_{variation}"
     try:
         df = df.compute()
     except Exception:
