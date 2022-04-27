@@ -6,6 +6,58 @@ rename_regions = {
     "z-peak": "Z",
 }
 signal_groups = ["VBF", "ggH"]
+rate_syst_lookup = {
+    "2016": {
+        "XsecAndNorm2016DY": {"DY": 1.1291},
+        "XsecAndNorm2016EWK": {"EWK": 1.06131},
+        "XsecAndNormTT+ST": {"TT+ST": 1.182},
+        "XsecAndNormVV": {"VV": 1.13203},
+        "XsecAndNormggH": {"ggH": 1.38206},
+    },
+    "2017": {
+        "XsecAndNorm2017DYJ2": {"DY": 1.13020},
+        "XsecAndNorm2017EWK": {"EWK": 1.05415},
+        "XsecAndNormTT+ST": {"TT+ST": 1.18406},
+        "XsecAndNormVV": {"VV": 1.05653},
+        "XsecAndNormggH": {"ggH": 1.37126},
+    },
+    "2018": {
+        "XsecAndNorm2018DYJ2": {"DY": 1.12320},
+        "XsecAndNorm2018EWK": {"EWK": 1.05779},
+        "XsecAndNormTT+ST": {"TT+ST": 1.18582},
+        "XsecAndNormVV": {"VV": 1.05615},
+        "XsecAndNormggH": {"ggH": 1.38313},
+    },
+}
+lumi_syst = {
+    "2016": {
+        "uncor2016": 2.2,
+        "xyfac": 0.9,
+        "len": 0.0,
+        "bb": 0.4,
+        "beta": 0.5,
+        "calib": 0.0,
+        "ghost": 0.4,
+    },
+    "2017": {
+        "uncor2017": 2.0,
+        "xyfac": 0.8,
+        "len": 0.3,
+        "bb": 0.4,
+        "beta": 0.5,
+        "calib": 0.3,
+        "ghost": 0.1,
+    },
+    "2018": {
+        "uncor2018": 1.5,
+        "xyfac": 2.0,
+        "len": 0.2,
+        "bb": 0.0,
+        "beta": 0.0,
+        "calib": 0.2,
+        "ghost": 0.0,
+    },
+}
 
 
 def build_datacards(var_name, yield_df, parameters):
@@ -117,6 +169,20 @@ def print_mc(yield_df, var_name, region, channel, year, bin_name):
     for group, gr_nuis in nuisances.items():
         for nuisance in gr_nuis:
             mc_df.loc[mc_df.group == group, nuisance] = "1.0"
+
+    for rate_unc, apply_to in rate_syst_lookup[year].items():
+        if rate_unc not in all_nuisances:
+            all_nuisances.append(rate_unc)
+            nuisance_lines[rate_unc] = "{:<20} {:<9}".format(rate_unc, "lnN")
+        for group, value in apply_to.items():
+            mc_df.loc[mc_df.group == group, rate_unc] = str(value)
+
+    for lumi_unc, value in lumi_syst[year].items():
+        if lumi_unc not in all_nuisances:
+            all_nuisances.append(lumi_unc)
+            nuisance_lines[lumi_unc] = "{:<20} {:<9}".format(lumi_unc, "lnN")
+            mc_df.loc[:, lumi_unc] = str(1 + value / 100)
+
     mc_df = mc_df.fillna("-")
 
     # prepare datacard lines
