@@ -30,6 +30,7 @@ node_ip = "128.211.149.133"
 
 if use_local_cluster:
     ncpus_local = 40
+    slurm_cluster_ip = ""
     dashboard_address = f"{node_ip}:34875"
 else:
     slurm_cluster_ip = f"{node_ip}:{args.slurm_port}"
@@ -40,7 +41,8 @@ parameters = {
     # < general settings >
     "slurm_cluster_ip": slurm_cluster_ip,
     "years": args.years,
-    "label": "2022apr6",
+    "global_path": "/depot/cms/hmm/copperhead/",
+    "label": "test",
     "channels": ["vbf"],
     "regions": ["h-peak", "h-sidebands"],
     "syst_variations": ["nominal"],
@@ -51,7 +53,6 @@ parameters = {
     "save_plots": True,
     "plot_ratio": True,
     "plots_path": "./plots/2022apr10/",
-    "hist_path": "/depot/cms/hmm/coffea/stage2_hists/",
     "dnn_models": {
         "vbf": ["pytorch_test"],
     },
@@ -59,9 +60,7 @@ parameters = {
     #
     # < templates and datacards >
     "save_templates": True,
-    "templates_path": "/depot/cms/hmm/coffea/stage3_templates/",
     "templates_vars": [],  # "dimuon_mass"],
-    "datacards_path": "./datacards/",
 }
 
 parameters["grouping"] = {

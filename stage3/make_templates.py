@@ -3,10 +3,7 @@ import pandas as pd
 
 from python.workflow import parallelize
 from python.variable import Variable
-from python.io import (
-    load_stage2_output_hists,
-    save_template,
-)
+from python.io import load_stage2_output_hists, save_template, mkdir
 
 import warnings
 
@@ -144,6 +141,7 @@ def make_templates(args, parameters={}):
             if variation == "nominal":
                 variation_fixed = variation
             else:
+                # TODO: decorrelate LHE, QGL, PDF uncertainties
                 variation_fixed = variation.replace("wgt_", "")
                 variation_fixed = variation_fixed.replace("_up", "Up")
                 variation_fixed = variation_fixed.replace("_down", "Down")
@@ -168,8 +166,16 @@ def make_templates(args, parameters={}):
             )
 
     if parameters["save_templates"]:
-        path = parameters["templates_path"]
-        out_fn = f"{path}/{var.name}_{region}_{channel}_{year}.root"
+        out_dir = parameters["global_path"]
+        mkdir(out_dir)
+        out_dir += "/" + parameters["label"]
+        mkdir(out_dir)
+        out_dir += "/" + "stage3_templates"
+        mkdir(out_dir)
+        out_dir += "/" + var.name
+        mkdir(out_dir)
+
+        out_fn = f"{out_dir}/{channel}_{region}_{year}.root"
         save_template(templates, out_fn, parameters)
 
     yield_df = pd.DataFrame(yield_rows)

@@ -1,4 +1,5 @@
 import pandas as pd
+from python.io import mkdir
 
 rename_regions = {
     "h-peak": "SR",
@@ -64,8 +65,14 @@ def build_datacards(var_name, yield_df, parameters):
     channels = parameters["channels"]
     regions = parameters["regions"]
     years = parameters["years"]
+    global_path = parameters["global_path"]
+    label = parameters["label"]
 
-    path = parameters["datacards_path"]
+    templates_path = f"{global_path}/{label}/stage3_templates/{var_name}"
+    datacard_path = f"{global_path}/{label}/stage3_datacards/"
+    mkdir(datacard_path)
+    datacard_path += "/" + var_name
+    mkdir(datacard_path)
 
     for year in years:
         for channel in channels:
@@ -73,9 +80,9 @@ def build_datacards(var_name, yield_df, parameters):
                 region_new = rename_regions[region]
                 bin_name = f"{channel}_{region_new}_{year}"
                 datacard_name = (
-                    f"{path}/datacard_{var_name}_{channel}_{region_new}_{year}.txt"
+                    f"{datacard_path}/datacard_{channel}_{region_new}_{year}.txt"
                 )
-                templates_file = f"{parameters['templates_path']}/{var_name}_{region}_{channel}_{year}.root"
+                templates_file = f"{templates_path}/{channel}_{region}_{year}.root"
                 datacard = open(datacard_name, "w")
                 datacard.write("imax 1\n")
                 datacard.write("jmax *\n")
@@ -104,19 +111,23 @@ def build_datacards(var_name, yield_df, parameters):
 
 
 def print_data(yield_df, var_name, region, channel, year, bin_name):
-    data_yield = yield_df.loc[
-        (yield_df.var_name == var_name)
-        & (yield_df.region == region)
-        & (yield_df.channel == channel)
-        & (yield_df.year == year)
-        & (yield_df.variation == "nominal")
-        & (yield_df.group == "Data"),
-        "yield",
-    ].values[0]
-    data_str = "{:<20} {:>20}\n".format("bin", bin_name) + "{:<20} {:>20}\n".format(
-        "observation", int(data_yield)
-    )
-    return data_str
+    if "Data" in yield_df.group.unique():
+        data_yield = yield_df.loc[
+            (yield_df.var_name == var_name)
+            & (yield_df.region == region)
+            & (yield_df.channel == channel)
+            & (yield_df.year == year)
+            & (yield_df.variation == "nominal")
+            & (yield_df.group == "Data"),
+            "yield",
+        ].values[0]
+        data_str = "{:<20} {:>20}\n".format("bin", bin_name) + "{:<20} {:>20}\n".format(
+            "observation", int(data_yield)
+        )
+        return data_str
+
+    else:
+        return ""
 
 
 def print_mc(yield_df, var_name, region, channel, year, bin_name):

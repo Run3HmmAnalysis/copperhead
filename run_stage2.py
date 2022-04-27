@@ -44,9 +44,9 @@ else:
 parameters = {
     # < general settings >
     "slurm_cluster_ip": slurm_cluster_ip,
-    "path": "/depot/cms/hmm/coffea/",
+    "global_path": "/depot/cms/hmm/copperhead/",
     "years": args.years,
-    "label": "2022apr6",
+    "label": "test",
     "channels": ["vbf"],
     "regions": ["h-peak", "h-sidebands"],
     "syst_variations": ["nominal"],
@@ -58,16 +58,15 @@ parameters = {
     "hist_vars": ["dimuon_mass"],
     "variables_lookup": variables_lookup,
     "save_hists": True,
-    "hist_path": "/depot/cms/hmm/coffea/stage2_hists/",
     #
     # < settings for unbinned output>
     "tosave_unbinned": {
+        "vbf": ["dimuon_mass", "event", "wgt_nominal", "mu1_pt", "score_pytorch_test"],
         "ggh_0jets": ["dimuon_mass", "wgt_nominal"],
         "ggh_1jet": ["dimuon_mass", "wgt_nominal"],
         "ggh_2orMoreJets": ["dimuon_mass", "wgt_nominal"],
     },
     "save_unbinned": True,
-    "stage2_parquet_path": "/depot/cms/hmm/coffea/stage2_unbinned/",
     #
     # < MVA settings >
     "models_path": "data/trained_models/",
@@ -147,8 +146,8 @@ if __name__ == "__main__":
         all_paths[year] = {}
         for dataset in parameters["datasets"]:
             paths = glob.glob(
-                f"{parameters['path']}/"
-                f"{year}_{parameters['label']}/"
+                f"{parameters['global_path']}/"
+                f"{parameters['label']}/stage1_output/{year}/"
                 f"{dataset}/*.parquet"
             )
             all_paths[year][dataset] = paths

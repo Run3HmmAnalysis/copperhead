@@ -103,6 +103,7 @@ parameters = {
     "label": args.label,
     "local_cluster": local_cluster,
     "slurm_cluster_ip": slurm_cluster_ip,
+    "global_path": "/depot/cms/hmm/copperhead/",
     #
     # < input data settings >
     # 'xrootd': True,
@@ -119,21 +120,20 @@ parameters = {
     "pt_variations": pt_variations,
     "do_btag_syst": False,
     "save_output": True,
-    "global_out_path": "/depot/cms/hmm/coffea/",
-    "out_path": f"{args.year}_{args.label}",
     "do_timer": False,
 }
-
-parameters["out_dir"] = f"{parameters['global_out_path']}/" f"{parameters['out_path']}"
 
 
 # submit processing jobs using coffea's DaskExecutor
 def submit_job(parameters):
-    mkdir(parameters["out_dir"])
-    if parameters["pt_variations"] == ["nominal"]:
-        out_dir = f"{parameters['out_dir']}/"
-    else:
-        out_dir = f"{parameters['out_dir']}_jec/"
+    # mkdir(parameters["out_path"])
+    out_dir = parameters["global_path"]
+    mkdir(out_dir)
+    out_dir += "/" + parameters["label"]
+    mkdir(out_dir)
+    out_dir += "/" + "stage1_output"
+    mkdir(out_dir)
+    out_dir += "/" + parameters["year"]
     mkdir(out_dir)
 
     executor_args = {"client": parameters["client"], "retries": 0}
