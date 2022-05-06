@@ -36,6 +36,21 @@ def save_stage1_output_to_parquet(output, out_dir):
         df.to_parquet(path=f"{out_dir}/{dataset}/{name}.parquet")
 
 
+def delete_existing_stage1_output(datasets, parameters):
+    global_path = parameters.get("global_path", None)
+    label = parameters.get("label", None)
+    year = parameters.get("year", None)
+
+    if (global_path is None) or (label is None) or (year is None):
+        return
+
+    for dataset in datasets:
+        path = f"{global_path}/{label}/stage1_output/{year}/{dataset}/"
+        paths = glob.glob(f"{path}/*.parquet")
+        for file in paths:
+            remove(file)
+
+
 def load_dataframe(client, parameters, inputs=[], dataset=None):
     ncpus = parameters.get("ncpus", 1)
     custom_npartitions_dict = parameters.get("custom_npartitions", {})
@@ -45,8 +60,13 @@ def load_dataframe(client, parameters, inputs=[], dataset=None):
 
     if isinstance(inputs, list):
         # Load dataframes
-        df_future = client.map(load_pandas_from_parquet, inputs)
-        df_future = client.gather(df_future)
+        if client:
+            df_future = client.map(load_pandas_from_parquet, inputs)
+            df_future = client.gather(df_future)
+        else:
+            df_future = []
+            for inp in inputs:
+                df_future.append(load_pandas_from_parquet(inp))
         # Merge dataframes
         try:
             df = dd.concat([d for d in df_future if d.shape[1] > 0])
@@ -55,7 +75,7 @@ def load_dataframe(client, parameters, inputs=[], dataset=None):
         if custom_npartitions > 0:
             df = df.repartition(npartitions=custom_npartitions)
         elif df.npartitions > 2 * ncpus:
-            df = df.repartition(npartitions=ncpus)
+            df = df.repartition(npartitions=2 * ncpus)
 
     elif isinstance(inputs, pd.DataFrame):
         df = dd.from_pandas(inputs, npartitions=ncpus)
