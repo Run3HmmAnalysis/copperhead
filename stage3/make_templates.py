@@ -11,6 +11,20 @@ warnings.simplefilter(action="ignore", category=FutureWarning)
 from uproot3_methods.classes.TH1 import from_numpy
 
 
+decorrelation_scheme = {
+    "LHERen": ["DY", "EWK", "ggH", "TT+ST"],
+    "LHEFac": ["DY", "EWK", "ggH", "TT+ST"],
+}
+shape_only = [
+    "wgt_LHERen_up",
+    "wgt_LHERen_down",
+    "wgt_LHEFac_up",
+    "wgt_LHEFac_down",
+    "wgt_qgl_up",
+    "wgt_qgl_down",
+]
+
+
 def to_templates(client, parameters, hist_df=None):
     if hist_df is None:
         argset_load = {
@@ -94,6 +108,12 @@ def make_templates(args, parameters={}):
             group_hist = []
             group_sumw2 = []
 
+            slicer_nominal = {
+                "region": region,
+                "channel": channel,
+                "variation": "nominal",
+                "val_sumw2": "value",
+            }
             slicer_value = {
                 "region": region,
                 "channel": channel,
@@ -114,7 +134,16 @@ def make_templates(args, parameters={}):
                     continue
 
                 the_hist = hist[slicer_value].project(var.name).values()
+                the_hist_nominal = hist[slicer_nominal].project(var.name).values()
                 the_sumw2 = hist[slicer_sumw2].project(var.name).values()
+
+                if variation in shape_only:
+                    if the_hist.sum() != 0:
+                        scale = the_hist_nominal.sum() / the_hist.sum()
+                    else:
+                        scale = 1.0
+                    the_hist = the_hist * scale
+                    the_sumw2 = the_sumw2 * scale
 
                 if (the_hist.sum() < 0) or (the_sumw2.sum() < 0):
                     continue
@@ -141,11 +170,22 @@ def make_templates(args, parameters={}):
             if variation == "nominal":
                 variation_fixed = variation
             else:
+                variation_core = variation.replace("wgt_", "")
+                variation_core = variation_core.replace("_up", "")
+                variation_core = variation_core.replace("_down", "")
+                suffix = ""
+                if variation_core in decorrelation_scheme.keys():
+                    if group in decorrelation_scheme[variation_core]:
+                        suffix = group
+
                 # TODO: decorrelate LHE, QGL, PDF uncertainties
                 variation_fixed = variation.replace("wgt_", "")
-                variation_fixed = variation_fixed.replace("_up", "Up")
-                variation_fixed = variation_fixed.replace("_down", "Down")
+                variation_fixed = variation_fixed.replace("_up", f"{suffix}Up")
+                variation_fixed = variation_fixed.replace("_down", f"{suffix}Down")
                 name = f"{group}_{variation_fixed}"
+            if sum(group_hist) == 0:
+                continue
+
             th1 = from_numpy([group_hist, edges])
             th1._fName = name
             th1._fSumw2 = np.array(np.append([0], group_sumw2))
