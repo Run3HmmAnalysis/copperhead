@@ -218,7 +218,7 @@ class SamplesInfo(object):
                 xsec = cross_sections[self.sample][self.year]
             else:
                 xsec = cross_sections[self.sample]
-            print(self.lumi, xsec, N)
+            # print(self.lumi, xsec, N)
             if N > 0:
                 self.lumi_weights[self.sample] = xsec * self.lumi / N
             else:
