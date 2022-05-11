@@ -132,7 +132,7 @@ def save_stage2_output_hists(hist, var_name, dataset, year, parameters, npart=No
 
 def delete_existing_stage2_hists(datasets, years, parameters):
     var_names = parameters.get("hist_vars", [])
-    global_path = parameters.get("gloabl_path", None)
+    global_path = parameters.get("global_path", None)
     label = parameters.get("label", None)
 
     if (global_path is None) or (label is None):
