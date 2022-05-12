@@ -90,11 +90,22 @@ def fill_jets(output, variables, jet1, jet2):
     dimuons = output.loc[:, mm_columns]
     dijets = variables.loc[:, jj_columns]
 
-    # careful with renaming
-    dimuons.columns = ["mass", "pt", "eta", "phi"]
-    dijets.columns = ["pt", "eta", "phi", "mass"]
+    dimuons.rename(
+        columns={
+            "dimuon_pt": "pt",
+            "dimuon_eta": "eta",
+            "dimuon_phi": "phi",
+            "dimuon_mass": "mass",
+        },
+        inplace=True,
+    )
+    dijets.rename(
+        columns={"jj_pt": "pt", "jj_eta": "eta", "jj_phi": "phi", "jj_mass": "mass"},
+        inplace=True,
+    )
 
     mmjj = p4_sum(dimuons, dijets)
+
     for v in ["pt", "eta", "phi", "mass"]:
         variables[f"mmjj_{v}"] = mmjj[v]
 
