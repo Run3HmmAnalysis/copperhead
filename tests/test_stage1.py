@@ -60,6 +60,6 @@ if __name__ == "__main__":
     dimuon_mass = df.loc[df.event == 2254006, "dimuon_mass"].values[0]
     jj_mass = df.loc[df.event == 2254006, "jj_mass_nominal"].values[0]
 
-    assert df.shape == (391, 118)
+    assert df.shape == (391, 120)
     assert almost_equal(dimuon_mass, 117.1209375)
     assert almost_equal(jj_mass, 194.5646039)

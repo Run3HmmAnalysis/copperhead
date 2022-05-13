@@ -35,13 +35,11 @@ def rapidity(obj):
     return rap
 
 
-def cs_variables_old(mu1, mu2, two_muons):
-    dphi = abs(
-        np.mod(mu1.phi[two_muons] - mu2.phi[two_muons] + np.pi, 2 * np.pi) - np.pi
-    )
-    theta_cs = np.arccos(np.tanh((mu1.eta[two_muons] - mu2.eta[two_muons]) / 2))
+def cs_variables(mu1, mu2):
+    dphi = abs(np.mod(mu1.phi - mu2.phi + np.pi, 2 * np.pi) - np.pi)
+    theta_cs = np.arccos(np.tanh((mu1.eta - mu2.eta) / 2))
     phi_cs = np.tan((np.pi - np.abs(dphi)) / 2) * np.sin(theta_cs)
-    return np.cos(theta_cs.flatten()), phi_cs.flatten()
+    return np.cos(theta_cs), phi_cs
 
 
 # https://root.cern.ch/doc/master/classTVector3
@@ -151,7 +149,7 @@ def invert(rot):
 
 
 # https://github.com/arizzi/PisaHmm/blob/master/boost_to_CS.h
-def cs_variables(mu1, mu2):
+def cs_variables_pisa(mu1, mu2):
     multiplier = mu2.charge
     mu1_px = mu1.pt * np.cos(mu1.phi)
     mu1_py = mu1.pt * np.sin(mu1.phi)

@@ -1,6 +1,6 @@
 import numpy as np
 
-from python.math_tools import p4_sum, delta_r, cs_variables
+from python.math_tools import p4_sum, delta_r, cs_variables, cs_variables_pisa
 
 
 def fill_muons(processor, output, mu1, mu2, is_mc):
@@ -65,6 +65,10 @@ def fill_muons(processor, output, mu1, mu2, is_mc):
     )
 
     output["dimuon_cos_theta_cs"], output["dimuon_phi_cs"] = cs_variables(mu1, mu2)
+    (
+        output["dimuon_cos_theta_cs_pisa"],
+        output["dimuon_phi_cs_pisa"],
+    ) = cs_variables_pisa(mu1, mu2)
 
 
 def mass_resolution(is_mc, evaluator, df, year):
