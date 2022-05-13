@@ -780,7 +780,8 @@ class DimuonProcessor(processor.ProcessorABC):
             path = self.parameters["res_calib_path"]
             file_path = f"{path}/{label}.root"
             self.extractor.add_weight_sets([f"{label} {label} {file_path}"])
-
+        # Mass resolution - Pisa implementation
+        self.extractor.add_weight_sets(["* * data/mass_res_pisa/muonresolution.root"])
         self.extractor.finalize()
         self.evaluator = self.extractor.make_evaluator()
 

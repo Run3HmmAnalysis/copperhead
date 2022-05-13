@@ -57,6 +57,13 @@ def fill_muons(processor, output, mu1, mu2, is_mc):
     )
     output["dimuon_ebe_mass_res_rel"] = output.dimuon_ebe_mass_res / output.dimuon_mass
 
+    output["dimuon_pisa_mass_res_rel"] = mass_resolution_pisa(
+        processor.evaluator, output
+    )
+    output["dimuon_pisa_mass_res"] = (
+        output.dimuon_pisa_mass_res_rel * output.dimuon_mass
+    )
+
     output["dimuon_cos_theta_cs"], output["dimuon_phi_cs"] = cs_variables(mu1, mu2)
 
 
@@ -76,3 +83,14 @@ def mass_resolution(is_mc, evaluator, df, year):
     )
 
     return np.sqrt(dpt1 * dpt1 + dpt2 * dpt2) * calibration
+
+
+def mass_resolution_pisa(evaluator, df):
+    # Returns relative mass resolution!
+    mu1_ptErr = evaluator["PtErrParametrization"](
+        np.log(df.mu1_pt).values, np.abs(df.mu1_eta).values
+    )
+    mu2_ptErr = evaluator["PtErrParametrization"](
+        np.log(df.mu2_pt).values, np.abs(df.mu2_eta).values
+    )
+    return np.sqrt(0.5 * (mu1_ptErr * mu1_ptErr + mu2_ptErr * mu2_ptErr))

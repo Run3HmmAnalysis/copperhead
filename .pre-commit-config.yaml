@@ -8,7 +8,7 @@ repos:
         exclude: ^(data/|stage3/lib/RooDoubleCB)
     -   id: check-yaml
     -   id: check-added-large-files
-        exclude: ^tests/samples/
+        exclude: ^(tests/samples/|data/)
 -   repo: https://github.com/psf/black
     rev: 22.3.0
     hooks:
