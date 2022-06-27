@@ -68,7 +68,9 @@ def plotter(client, parameters, hist_df=None, timer=None):
             "var_name": parameters["plot_vars"],
             "dataset": parameters["datasets"],
         }
-        hist_dfs = parallelize(load_stage2_output_hists, arg_load, client, parameters)
+        hist_dfs = parallelize(
+            load_stage2_output_hists, arg_load, client, parameters, seq=True
+        )
         hist_df = pd.concat(hist_dfs).reset_index(drop=True)
         if hist_df.shape[0] == 0:
             print("Nothing to plot!")
@@ -135,6 +137,7 @@ def plot(args, parameters={}):
 
         plottables_df = get_plottables(hist, entry, year, var_name, slicer)
         plottables = plottables_df["hist"].values.tolist()
+        print(plottables_df)
         sumw2 = plottables_df["sumw2"].values.tolist()
         labels = plottables_df["label"].values.tolist()
         total_yield += sum([p.sum() for p in plottables])
@@ -227,7 +230,7 @@ def plot(args, parameters={}):
                 **ratio_err_opts,
             )
 
-        ax2.axhline(1, ls="--")
+        # ax2.axhline(1, ls="--")
         ax2.set_ylim([0.5, 1.5])
         ax2.set_ylabel("Data/MC", loc="center")
         ax2.set_xlabel(var.caption, loc="right")
