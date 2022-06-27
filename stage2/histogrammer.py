@@ -1,5 +1,6 @@
 import itertools
 import pandas as pd
+import numpy as np
 
 from hist import Hist
 from python.variable import Variable
@@ -32,8 +33,15 @@ def make_histograms(df, var_name, year, dataset, regions, channels, npart, param
     )
 
     # add axis for observable variable
-    if ("score" in var.name) and ("mva_bins" in parameters.keys()):
-        bins = parameters["mva_bins"][var.name.replace("score_", "")][f"{year}"]
+    if "score" in var.name:
+        model_name = var.name.replace("score_", "").replace("_nominal", "")
+        if "mva_bins" in parameters.keys():
+            if model_name in parameters["mva_bins"].keys():
+                bins = parameters["mva_bins"][model_name][f"{year}"]
+            else:
+                bins = np.arange(102) / 50.0
+        else:
+            bins = np.arange(102) / 50.0
         hist = hist.Var(bins, name=var.name)
     else:
         hist = hist.Reg(var.nbins, var.xmin, var.xmax, name=var.name, label=var.caption)
