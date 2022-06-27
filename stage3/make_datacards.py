@@ -9,21 +9,21 @@ rename_regions = {
 signal_groups = ["VBF", "ggH"]
 rate_syst_lookup = {
     "2016": {
-        "XsecAndNorm2016DY": {"DY": 1.1291},
+        "XsecAndNorm2016DYJ2": {"DY_2J": 1.1291},
         "XsecAndNorm2016EWK": {"EWK": 1.06131},
         "XsecAndNormTT+ST": {"TT+ST": 1.182},
         "XsecAndNormVV": {"VV": 1.13203},
         "XsecAndNormggH": {"ggH": 1.38206},
     },
     "2017": {
-        "XsecAndNorm2017DYJ2": {"DY": 1.13020},
+        "XsecAndNorm2017DYJ2": {"DY_2J": 1.13020},
         "XsecAndNorm2017EWK": {"EWK": 1.05415},
         "XsecAndNormTT+ST": {"TT+ST": 1.18406},
         "XsecAndNormVV": {"VV": 1.05653},
         "XsecAndNormggH": {"ggH": 1.37126},
     },
     "2018": {
-        "XsecAndNorm2018DYJ2": {"DY": 1.12320},
+        "XsecAndNorm2018DYJ2": {"DY_2J": 1.12320},
         "XsecAndNorm2018EWK": {"EWK": 1.05779},
         "XsecAndNormTT+ST": {"TT+ST": 1.18582},
         "XsecAndNormVV": {"VV": 1.05615},
@@ -103,6 +103,9 @@ def build_datacards(var_name, yield_df, parameters):
                 # shape_syst = print_shape_syst(yield_df, mc_df)
                 # datacard.write("---------------\n")
                 # datacard.write(systematics)
+                datacard.write(
+                    f"XSecAndNorm{year}DYJ01  rateParam {bin_name} DY_01J 1 [0.2,5]\n"
+                )
                 datacard.write(f"{bin_name} autoMCStats 0 1 1\n")
                 datacard.write("---------------\n")
                 datacard.close()
