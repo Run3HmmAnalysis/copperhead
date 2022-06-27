@@ -10,7 +10,6 @@ import warnings
 warnings.simplefilter(action="ignore", category=FutureWarning)
 from uproot3_methods.classes.TH1 import from_numpy
 
-
 decorrelation_scheme = {
     "LHERen": ["DY", "EWK", "ggH", "TT+ST"],
     "LHEFac": ["DY", "EWK", "ggH", "TT+ST"],
@@ -161,6 +160,8 @@ def make_templates(args, parameters={}):
 
             if len(group_hist) == 0:
                 continue
+            if sum(group_hist) == 0:
+                continue
 
             if group == "Data":
                 name = "data_obs"
@@ -177,14 +178,14 @@ def make_templates(args, parameters={}):
                 if variation_core in decorrelation_scheme.keys():
                     if group in decorrelation_scheme[variation_core]:
                         suffix = group
+                    else:
+                        continue
 
                 # TODO: decorrelate LHE, QGL, PDF uncertainties
                 variation_fixed = variation.replace("wgt_", "")
                 variation_fixed = variation_fixed.replace("_up", f"{suffix}Up")
                 variation_fixed = variation_fixed.replace("_down", f"{suffix}Down")
                 name = f"{group}_{variation_fixed}"
-            if sum(group_hist) == 0:
-                continue
 
             th1 = from_numpy([group_hist, edges])
             th1._fName = name
