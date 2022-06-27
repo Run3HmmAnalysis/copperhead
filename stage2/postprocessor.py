@@ -8,7 +8,11 @@ from python.io import (
     save_stage2_output_parquet,
 )
 from stage2.categorizer import split_into_channels
-from stage2.mva_evaluators import evaluate_pytorch_dnn, evaluate_bdt
+from stage2.mva_evaluators import (
+    evaluate_pytorch_dnn,
+    # evaluate_pytorch_dnn_pisa,
+    evaluate_bdt,
+)
 from stage2.histogrammer import make_histograms
 
 import warnings
@@ -52,6 +56,8 @@ def on_partition(args, parameters):
     year = args["year"]
     dataset = args["dataset"]
     df = args["df"]
+    if "mva_bins" not in parameters:
+        parameters["mva_bins"] = {}
 
     # get partition number, if available
     npart = None
@@ -64,8 +70,13 @@ def on_partition(args, parameters):
         df = df.compute()
 
     # preprocess
+    wgts = [c for c in df.columns if "wgt" in c]
+    df.loc[:, wgts] = df.loc[:, wgts].fillna(0)
     df.fillna(-999.0, inplace=True)
+
     df = df[(df.dataset == dataset) & (df.year == year)]
+
+    # VBF filter
     if "dy_m105_160_amc" in dataset:
         df = df[df.gjj_mass <= 350]
     if "dy_m105_160_vbf_amc" in dataset:
@@ -80,6 +91,24 @@ def on_partition(args, parameters):
     channels = [
         c for c in parameters["channels"] if c in df["channel_nominal"].unique()
     ]
+
+    # split DY by genjet multiplicity
+    if "dy" in dataset:
+        df.loc[
+            df.jet1_has_matched_gen_nominal is not True, "jet1_has_matched_gen_nominal"
+        ] = False
+        df.loc[
+            df.jet2_has_matched_gen_nominal is not True, "jet2_has_matched_gen_nominal"
+        ] = False
+        df["two_matched_jets"] = (
+            df.jet1_has_matched_gen_nominal & df.jet2_has_matched_gen_nominal
+        )
+        df.loc[
+            (df.channel_nominal == "vbf") & (~df.two_matched_jets), "dataset"
+        ] = f"{dataset}_01j"
+        df.loc[
+            (df.channel_nominal == "vbf") & (df.two_matched_jets), "dataset"
+        ] = f"{dataset}_2j"
 
     # < evaluate here MVA scores after categorization, if needed >
     syst_variations = parameters.get("syst_variations", ["nominal"])
@@ -117,23 +146,30 @@ def on_partition(args, parameters):
     # ...
 
     # temporary implementation: move from mva score to mva bin number
-    if "score_pytorch_test_nominal" in df.columns:
-        mva_bins = parameters["mva_bins_original"]["pytorch_test"][str(year)]
-        for i in range(len(mva_bins) - 1):
-            lo = mva_bins[i]
-            hi = mva_bins[i + 1]
-            cut = (df["score_pytorch_test_nominal"] > lo) & (
-                df["score_pytorch_test_nominal"] <= hi
-            )
-            df.loc[cut, "bin_number"] = i
-        df["score_pytorch_test_nominal"] = df["bin_number"]
-        parameters["mva_bins"] = {
-            "pytorch_test": {
-                "2016": list(range(len(mva_bins))),
-                "2017": list(range(len(mva_bins))),
-                "2018": list(range(len(mva_bins))),
-            }
-        }
+    for channel, models in dnn_models.items():
+        if channel not in parameters["channels"]:
+            continue
+        for model_name in models:
+            if model_name not in parameters["mva_bins_original"]:
+                continue
+            score_name = f"score_{model_name}_nominal"
+            if score_name in df.columns:
+                mva_bins = parameters["mva_bins_original"][model_name][str(year)]
+                for i in range(len(mva_bins) - 1):
+                    lo = mva_bins[i]
+                    hi = mva_bins[i + 1]
+                    cut = (df[score_name] > lo) & (df[score_name] <= hi)
+                    df.loc[cut, "bin_number"] = i
+                df[score_name] = df["bin_number"]
+                parameters["mva_bins"].update(
+                    {
+                        model_name: {
+                            "2016": list(range(len(mva_bins))),
+                            "2017": list(range(len(mva_bins))),
+                            "2018": list(range(len(mva_bins))),
+                        }
+                    }
+                )
 
     # < convert desired columns to histograms >
     # not parallelizing for now - nested parallelism leads to a lock
@@ -144,6 +180,21 @@ def on_partition(args, parameters):
         )
         if hist_info_row is not None:
             hist_info_rows.append(hist_info_row)
+        if "dy" in dataset:
+            for suff in ["01j", "2j"]:
+                hist_info_row = make_histograms(
+                    df,
+                    var_name,
+                    year,
+                    f"{dataset}_{suff}",
+                    regions,
+                    channels,
+                    npart,
+                    parameters,
+                )
+                if hist_info_row is not None:
+                    hist_info_rows.append(hist_info_row)
+
     if len(hist_info_rows) == 0:
         return pd.DataFrame()
 
