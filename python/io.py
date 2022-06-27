@@ -4,6 +4,7 @@ import dask.dataframe as dd
 from dask.distributed import get_worker
 import pickle
 import glob
+import re
 import uproot3
 
 
@@ -143,9 +144,10 @@ def delete_existing_stage2_hists(datasets, years, parameters):
             for dataset in datasets:
                 path = f"{global_path}/{label}/stage2_histograms/{var_name}/{year}/"
                 try:
-                    paths = glob.glob(f"{path}/{dataset}_*.pickle") + glob.glob(
-                        f"{path}/{dataset}.pickle"
-                    )
+                    paths = [f"{path}/{dataset}.pickle"]
+                    for fname in os.listdir(path):
+                        if re.fullmatch(rf"{dataset}_[0-9]+.pickle", fname):
+                            paths.append(f"{path}/{fname}")
                     for file in paths:
                         remove(file)
                 except Exception:
@@ -163,7 +165,11 @@ def load_stage2_output_hists(argset, parameters):
         return
 
     path = f"{global_path}/{label}/stage2_histograms/{var_name}/{year}/"
-    paths = glob.glob(f"{path}/{dataset}_*.pickle") + glob.glob(f"{path}.pickle")
+    paths = [f"{path}/{dataset}.pickle"]
+    for fname in os.listdir(path):
+        if re.fullmatch(rf"{dataset}_[0-9]+.pickle", fname):
+            paths.append(f"{path}/{fname}")
+
     hist_df = pd.DataFrame()
     for path in paths:
         try:
@@ -213,9 +219,10 @@ def delete_existing_stage2_parquet(datasets, years, parameters):
         for year in years:
             for dataset in datasets:
                 path = f"{global_path}/{label}/stage2_unbinned/{channel}_{year}/"
-                paths = glob.glob(f"{path}/{dataset}_*.parquet") + glob.glob(
-                    f"{path}/{dataset}.parquet"
-                )
+                paths = [f"{path}/{dataset}.parquet"]
+                for fname in os.listdir(path):
+                    if re.fullmatch(rf"{dataset}_[0-9]+.parquet", fname):
+                        paths.append(f"{path}/{fname}")
                 for file in paths:
                     remove(file)
 
