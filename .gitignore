@@ -8,3 +8,4 @@ plots/*
 *pdf
 *C
 *png
+data/trained_models/*
