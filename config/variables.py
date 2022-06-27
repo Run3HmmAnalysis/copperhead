@@ -66,6 +66,8 @@ variables.append(Variable("mmj2_dEta", r"$\Delta\eta (\mu\mu, jet2)$", 50, 0, 10
 variables.append(Variable("mmj2_dPhi", r"$\Delta\phi (\mu\mu, jet2)$", 50, 0, 4))
 variables.append(Variable("jet1_has_matched_muon", "jet1_has_matched_muon", 4, -1, 3))
 variables.append(Variable("jet2_has_matched_muon", "jet2_has_matched_muon", 4, -1, 3))
+variables.append(Variable("jet1_has_matched_gen", "jet1_has_matched_gen", 4, -1, 3))
+variables.append(Variable("jet2_has_matched_gen", "jet2_has_matched_gen", 4, -1, 3))
 variables.append(Variable("jet1_matched_muon_dr", "jet1_matched_muon_dr", 50, 0, 0.8))
 variables.append(Variable("jet2_matched_muon_dr", "jet2_matched_muon_dr", 50, 0, 0.8))
 variables.append(Variable("jet1_matched_muon_pt", "jet1_matched_muon_pt", 50, 0, 200))

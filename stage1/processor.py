@@ -537,7 +537,17 @@ class DimuonProcessor(processor.ProcessorABC):
 
         variables = pd.DataFrame(index=output.index)
 
-        jet_columns = ["pt", "eta", "phi", "jetId", "qgl", "puId", "mass", "btagDeepB"]
+        jet_columns = [
+            "pt",
+            "eta",
+            "phi",
+            "jetId",
+            "qgl",
+            "puId",
+            "mass",
+            "btagDeepB",
+            "has_matched_gen",
+        ]
         if "puId17" in df.Jet.fields:
             jet_columns += ["puId17"]
         if is_mc:

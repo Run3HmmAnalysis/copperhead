@@ -7,8 +7,12 @@ from coffea.nanoevents import NanoAODSchema
 
 from stage1.processor import DimuonProcessor
 from stage1.preprocessor import load_samples
-from python.io import mkdir, save_stage1_output_to_parquet
-from config.parameters import parameters as pars
+from python.io import (
+    mkdir,
+    save_stage1_output_to_parquet,
+    delete_existing_stage1_output,
+)
+from config.jec_parameters import jec_parameters as jec_pars
 
 import dask
 from dask.distributed import Client
@@ -91,8 +95,8 @@ mch = None if int(args.maxchunks) < 0 else int(args.maxchunks)
 if args.jec_unc:
     pt_variations = (
         ["nominal"]
-        + pars["jec_variations"][args.year]
-        + pars["jer_variations"][args.year]
+        + jec_pars["jec_variations"][args.year]
+        + jec_pars["jer_variations"][args.year]
     )
 else:
     pt_variations = ["nominal"]
@@ -180,7 +184,7 @@ if __name__ == "__main__":
             n_workers=40,
             dashboard_address=dash_local,
             threads_per_worker=1,
-            memory_limit="8GB",
+            memory_limit="12GB",
         )
     else:
         # connect to existing Slurm cluster
@@ -218,7 +222,7 @@ if __name__ == "__main__":
             # "dy_m105_160_mg",
             "dy_m105_160_vbf_amc",
             # "ewk_lljj_mll105_160_py",
-            # "ewk_lljj_mll105_160_ptj0",
+            "ewk_lljj_mll105_160_ptj0",
             "ewk_lljj_mll105_160_py_dipole",
             "ttjets_dl",
             # "ewk_m50"
@@ -244,15 +248,15 @@ if __name__ == "__main__":
         for sample in samples:
             # if sample != 'data_B':
             # if sample != 'dy_m105_160_amc':
-            if sample != "vbf_powheg_dipole":
-                continue
+            # if sample != "vbf_powheg_dipole":
+            #    continue
             if group == "data":
                 # if 'test' not in sample:
                 #    continue
                 # continue
                 datasets_data.append(sample)
             else:
-                # continue
+                continue
                 # if (group != "main_mc") & (group != "signal"):
                 # if (group != "signal"):
                 # if (group != "main_mc"):
@@ -272,6 +276,7 @@ if __name__ == "__main__":
 
         tick2 = time.time()
         # run main processing
+        delete_existing_stage1_output(datasets, parameters)
         out = submit_job(parameters)
         timings[f"process {lbl}"] = time.time() - tick2
 
