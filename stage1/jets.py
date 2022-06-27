@@ -14,6 +14,9 @@ def prepare_jets(df, is_mc):
         df["Jet", "pt_gen"] = ak.values_astype(
             ak.fill_none(df.Jet.matched_gen.pt, 0), np.float32
         )
+        df["Jet", "has_matched_gen"] = df.Jet.genJetIdx > 0
+    else:
+        df["Jet", "has_matched_gen"] = False
 
 
 def fill_jets(output, variables, jet1, jet2):
@@ -25,14 +28,14 @@ def fill_jets(output, variables, jet1, jet2):
         "jet1_qgl",
         "jet1_jetId",
         "jet1_puId",
-        "jet2_pt",
+        "jet1_has_matched_gen" "jet2_pt",
         "jet2_eta",
         "jet2_rap",
         "jet2_phi",
         "jet2_qgl",
         "jet2_jetId",
         "jet2_puId",
-        "jj_mass",
+        "jet2_has_matched_gen" "jj_mass",
         "jj_mass_log",
         "jj_pt",
         "jj_eta",
@@ -65,7 +68,7 @@ def fill_jets(output, variables, jet1, jet2):
         variables[v] = -999.0
 
     # Fill single jet variables
-    for v in ["pt", "eta", "phi", "qgl", "jetId", "puId"]:
+    for v in ["pt", "eta", "phi", "qgl", "jetId", "puId", "has_matched_gen"]:
         variables[f"jet1_{v}"] = jet1[v]
         variables[f"jet2_{v}"] = jet2[v]
 
@@ -265,19 +268,21 @@ def fill_softjets(df, output, variables, cutoff):
     saj_df[dr_cols] = saj_df[dr_cols].fillna(False)
     saj_df["to_remove"] = saj_df[dr_cols].sum(axis=1).astype(bool)
 
-    saj_df_filtered = saj_df[(~saj_df.to_remove) & (saj_df.pt > cutoff)]
     footprint = saj_df[(saj_df.to_remove) & (saj_df.pt > cutoff)]
-    res["njets_corrected"] = (
-        saj_df_filtered.reset_index().groupby("entry")["subentry"].nunique()
-    )
-    res["njets_corrected"] = res["njets_corrected"].fillna(0).astype(int)
+
     res["footprint"] = footprint.pt.groupby(level=[0]).sum()
     res["footprint"] = res["footprint"].fillna(0.0)
     res["ht_corrected"] = res[ht_name] - res.footprint
-    res.loc[res.ht_corrected < 0, "ht_corrected"] = 0.0
+
+    res["njets_footprint"] = (
+        footprint.reset_index().groupby("entry")["subentry"].nunique()
+    )
+    res["njets_footprint"] = res["njets_footprint"].fillna(0).astype(int)
+    res["njets_corrected"] = (
+        res[f"SoftActivityJetNjets{cutoff}"] - res["njets_footprint"]
+    ).astype(int)
 
     res.loc[res.to_correct, nj_name] = res.loc[res.to_correct, "njets_corrected"]
-
     res.loc[res.to_correct, ht_name] = res.loc[res.to_correct, "ht_corrected"]
 
     variables[f"nsoftjets{cutoff}"] = res[f"SoftActivityJetNjets{cutoff}"]
