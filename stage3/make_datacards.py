@@ -115,15 +115,18 @@ def build_datacards(var_name, yield_df, parameters):
 
 def print_data(yield_df, var_name, region, channel, year, bin_name):
     if "Data" in yield_df.group.unique():
-        data_yield = yield_df.loc[
-            (yield_df.var_name == var_name)
-            & (yield_df.region == region)
-            & (yield_df.channel == channel)
-            & (yield_df.year == year)
-            & (yield_df.variation == "nominal")
-            & (yield_df.group == "Data"),
-            "yield",
-        ].values[0]
+        try:
+            data_yield = yield_df.loc[
+                (yield_df.var_name == var_name)
+                & (yield_df.region == region)
+                & (yield_df.channel == channel)
+                & (yield_df.year == year)
+                & (yield_df.variation == "nominal")
+                & (yield_df.group == "Data"),
+                "yield",
+            ].values[0]
+        except Exception:
+            data_yield = 0
         data_str = "{:<20} {:>20}\n".format("bin", bin_name) + "{:<20} {:>20}\n".format(
             "observation", int(data_yield)
         )
@@ -151,16 +154,20 @@ def print_mc(yield_df, var_name, region, channel, year, bin_name):
             bkg_counter += 1
             igroup = bkg_counter
 
-        mc_yield = yield_df.loc[
-            (yield_df.var_name == var_name)
-            & (yield_df.region == region)
-            & (yield_df.channel == channel)
-            & (yield_df.year == year)
-            & (yield_df.variation == "nominal")
-            & (yield_df.group == group),
-            "yield",
-        ].values[0]
+        try:
+            mc_yield = yield_df.loc[
+                (yield_df.var_name == var_name)
+                & (yield_df.region == region)
+                & (yield_df.channel == channel)
+                & (yield_df.year == year)
+                & (yield_df.variation == "nominal")
+                & (yield_df.group == group),
+                "yield",
+            ].values[0]
+        except Exception:
+            mc_yield = 0
 
+        mc_yield = round(mc_yield, 6)
         mc_row = {"group": group, "igroup": igroup, "yield": mc_yield}
 
         nuisances[group] = []
