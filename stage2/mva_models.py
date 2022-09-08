@@ -4,9 +4,9 @@ import torch.nn.functional as F
 
 
 class Net(nn.Module):
-    def __init__(self):
+    def __init__(self, input_shape):
         super(Net, self).__init__()
-        self.fc1 = nn.Linear(25, 128)
+        self.fc1 = nn.Linear(input_shape, 128)
         self.bn1 = nn.BatchNorm1d(128)
         self.dropout1 = nn.Dropout(0.2)
         self.fc2 = nn.Linear(128, 64)
@@ -51,6 +51,7 @@ class NetPisaRun2(nn.Module):
             out_shape = nnodes[i]
             self.layers[f"{name}_layer_{i}"] = nn.Linear(inp_shape, out_shape)
             self.layers[f"{name}_dropout_{i}"] = nn.Dropout(0.2)
+            self.layers[f"{name}_bn_{i}"] = nn.BatchNorm1d(out_shape)
             inp_shape = out_shape
 
         self.layers[f"{name}_output"] = nn.Linear(inp_shape, 1)
@@ -59,6 +60,7 @@ class NetPisaRun2(nn.Module):
     def forward(self, x):
         for i in range(self.nlayers):
             x = self.layers[f"{self.name}_layer_{i}"](x)
+            x = self.layers[f"{self.name}_bn_{i}"](x)
             x = F.tanh(x)
             x = self.layers[f"{self.name}_dropout_{i}"](x)
         x = self.layers[f"{self.name}_output"](x)
@@ -80,6 +82,7 @@ class NetPisaRun2Combination(nn.Module):
             out_shape = nnodes[i]
             self.layers[f"{name}_layer_{i}"] = nn.Linear(inp_shape, out_shape)
             self.layers[f"{name}_dropout_{i}"] = nn.Dropout(0.2)
+            self.layers[f"{name}_bn_{i}"] = nn.BatchNorm1d(out_shape)
             inp_shape = out_shape
 
         self.layers[f"{name}_output"] = nn.Linear(inp_shape, 1)
@@ -105,9 +108,70 @@ class NetPisaRun2Combination(nn.Module):
         x = self.combine_input
         for i in range(self.nlayers):
             x = self.layers[f"{self.name}_layer_{i}"](x)
+            x = self.layers[f"{self.name}_bn_{i}"](x)
             x = F.tanh(x)
             x = self.layers[f"{self.name}_dropout_{i}"](x)
         x = self.layers[f"{self.name}_output"](x)
         x = F.sigmoid(x)
 
+        return x
+
+
+class MvaCategorizer(nn.Module):
+    def __init__(self, name, input_dim, nlayers, nnodes):
+        super(MvaCategorizer, self).__init__()
+
+        assert nlayers == len(nnodes)
+        self.nlayers = nlayers
+        self.name = name
+        inp_shape = input_dim
+        self.layers = {}
+        for i in range(self.nlayers):
+            out_shape = nnodes[i]
+            self.layers[f"{name}_layer_{i}"] = nn.Linear(inp_shape, out_shape)
+            self.layers[f"{name}_dropout_{i}"] = nn.Dropout(0.2)
+            self.layers[f"{name}_bn_{i}"] = nn.BatchNorm1d(out_shape)
+            inp_shape = out_shape
+
+        self.layers[f"{name}_output"] = nn.Linear(inp_shape, 1)
+        self.layers = nn.ModuleDict(self.layers)
+
+    def forward(self, x):
+        for i in range(self.nlayers):
+            x = self.layers[f"{self.name}_layer_{i}"](x)
+            x = self.layers[f"{self.name}_bn_{i}"](x)
+            x = F.tanh(x)
+            x = self.layers[f"{self.name}_dropout_{i}"](x)
+        x = self.layers[f"{self.name}_output"](x)
+        x = F.sigmoid(x)
+        return x
+
+
+class JetPairClassifier(nn.Module):
+    def __init__(self, name, input_dim, output_dim, nlayers, nnodes):
+        super(JetPairClassifier, self).__init__()
+
+        assert nlayers == len(nnodes)
+        self.nlayers = nlayers
+        self.name = name
+        inp_shape = input_dim
+        self.layers = {}
+        for i in range(self.nlayers):
+            out_shape = nnodes[i]
+            self.layers[f"{name}_layer_{i}"] = nn.Linear(inp_shape, out_shape)
+            self.layers[f"{name}_dropout_{i}"] = nn.Dropout(0.2)
+            self.layers[f"{name}_bn_{i}"] = nn.BatchNorm1d(out_shape)
+            inp_shape = out_shape
+
+        self.layers[f"{name}_output"] = nn.Linear(inp_shape, output_dim)
+        self.layers = nn.ModuleDict(self.layers)
+
+    def forward(self, x):
+        for i in range(self.nlayers):
+            x = self.layers[f"{self.name}_layer_{i}"](x)
+            x = self.layers[f"{self.name}_bn_{i}"](x)
+            x = F.tanh(x)
+            x = self.layers[f"{self.name}_dropout_{i}"](x)
+        x = self.layers[f"{self.name}_output"](x)
+        x = F.sigmoid(x)
         return x
