@@ -1,5 +1,6 @@
 import dask.dataframe as dd
 import pandas as pd
+from itertools import chain
 
 from python.workflow import parallelize
 from python.io import (
@@ -12,6 +13,7 @@ from stage2.mva_evaluators import (
     evaluate_pytorch_dnn,
     # evaluate_pytorch_dnn_pisa,
     evaluate_bdt,
+    # evaluate_mva_categorizer,
 )
 from stage2.histogrammer import make_histograms
 
@@ -27,6 +29,12 @@ def process_partitions(client, parameters, df):
     ignore_columns += [c for c in df.columns if "pdf_" in c]
 
     df = df[[c for c in df.columns if c not in ignore_columns]]
+
+    for key in ["channels", "regions", "syst_variations", "hist_vars", "datasets"]:
+        if key in parameters:
+            parameters[key] = list(set(parameters[key]))
+        else:
+            parameters[key] = []
 
     years = df.year.unique()
     datasets = df.dataset.unique()
@@ -82,10 +90,20 @@ def on_partition(args, parameters):
     if "dy_m105_160_vbf_amc" in dataset:
         df = df[df.gjj_mass > 350]
 
+    # if dataset in ["vbf_powheg_dipole", "ggh_amcPS"]:
+    #    # improve mass resolution manually
+    #    improvement = 0
+    #    df["dimuon_mass"] = df["dimuon_mass"] + improvement*(125 - df["dimuon_mass"])
+
     # < evaluate here MVA scores before categorization, if needed >
     # ...
+    # cat_score_name = "mva_categorizer_score"
+    # model_name = parameters.get("mva_categorizer", "3layers_64_32_16_all_feat")
+    # vbf_mva_cutoff = parameters.get("vbf_mva_cutoff", 0.6819233298301697)
+    # df[cat_score_name] = evaluate_mva_categorizer(df, model_name, cat_score_name, parameters)
 
     # < categorization into channels (ggH, VBF, etc.) >
+    # split_into_channels(df, v="nominal", vbf_mva_cutoff=vbf_mva_cutoff)
     split_into_channels(df, v="nominal")
     regions = [r for r in parameters["regions"] if r in df.region.unique()]
     channels = [
@@ -94,12 +112,8 @@ def on_partition(args, parameters):
 
     # split DY by genjet multiplicity
     if "dy" in dataset:
-        df.loc[
-            df.jet1_has_matched_gen_nominal is not True, "jet1_has_matched_gen_nominal"
-        ] = False
-        df.loc[
-            df.jet2_has_matched_gen_nominal is not True, "jet2_has_matched_gen_nominal"
-        ] = False
+        df.jet1_has_matched_gen_nominal.fillna(False, inplace=True)
+        df.jet2_has_matched_gen_nominal.fillna(False, inplace=True)
         df["two_matched_jets"] = (
             df.jet1_has_matched_gen_nominal & df.jet2_has_matched_gen_nominal
         )
@@ -115,7 +129,6 @@ def on_partition(args, parameters):
     dnn_models = parameters.get("dnn_models", {})
     bdt_models = parameters.get("bdt_models", {})
     for v in syst_variations:
-        # evaluate Keras DNNs
         for channel, models in dnn_models.items():
             if channel not in parameters["channels"]:
                 continue
@@ -131,6 +144,18 @@ def on_partition(args, parameters):
                     score_name,
                     channel,
                 )
+                """
+                df.loc[
+                    df[f"channel_{v}"] == channel, score_name
+                ] = evaluate_pytorch_dnn_pisa(
+                    df[df[f"channel_{v}"] == channel],
+                    v,
+                    model,
+                    parameters,
+                    score_name,
+                    channel,
+                )
+                """
 
         # evaluate XGBoost BDTs
         for channel, models in bdt_models.items():
@@ -146,7 +171,7 @@ def on_partition(args, parameters):
     # ...
 
     # temporary implementation: move from mva score to mva bin number
-    for channel, models in dnn_models.items():
+    for channel, models in chain(dnn_models.items(), bdt_models.items()):
         if channel not in parameters["channels"]:
             continue
         for model_name in models:
