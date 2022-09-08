@@ -33,8 +33,6 @@ def process_partitions(client, parameters, df):
     for key in ["channels", "regions", "syst_variations", "hist_vars", "datasets"]:
         if key in parameters:
             parameters[key] = list(set(parameters[key]))
-        else:
-            parameters[key] = []
 
     years = df.year.unique()
     datasets = df.dataset.unique()
