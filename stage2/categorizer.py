@@ -1,39 +1,26 @@
 def split_into_channels(df, v=""):
-    if v is None:
-        # this was used for Delphes datasets
-        cuts = {
-            "vbf": (df.jj_mass > 400) & (df.jj_dEta > 2.5) & (df.jet1_pt > 35),
-            "ggh_0jets": (df.njets == 0),
-            "ggh_1jet": (df.njets == 1)
-            & ((df.jj_mass <= 400) | (df.jj_dEta <= 2.5) | (df.jet1_pt < 35)),
-            "ggh_2orMoreJets": (df.njets >= 2)
-            & ((df.jj_mass <= 400) | (df.jj_dEta <= 2.5) | (df.jet1_pt < 35)),
-        }
+    df[f"njets_{v}"].fillna(0, inplace=True)
+    df.loc[:, f"channel_{v}"] = "none"
+    df.loc[
+        (df[f"nBtagLoose_{v}"] >= 2) | (df[f"nBtagMedium_{v}"] >= 1), f"channel_{v}"
+    ] = "ttHorVH"
 
-        for cname, cut in cuts.items():
-            df.loc[cut, "channel"] = cname
-    else:
-        df[f"njets_{v}"].fillna(0, inplace=True)
-        df.loc[:, f"channel_{v}"] = "none"
-        df.loc[
-            (df[f"nBtagLoose_{v}"] >= 2) | (df[f"nBtagMedium_{v}"] >= 1), f"channel_{v}"
-        ] = "ttHorVH"
-        df.loc[
-            (df[f"channel_{v}"] == "none")
-            & (df[f"jj_mass_{v}"] > 400)
-            & (df[f"jj_dEta_{v}"] > 2.5)
-            & (df[f"jet1_pt_{v}"] > 35),
-            f"channel_{v}",
-        ] = "vbf"
-        df.loc[
-            (df[f"channel_{v}"] == "none") & (df[f"njets_{v}"] < 1), f"channel_{v}"
-        ] = "ggh_0jets"
-        df.loc[
-            (df[f"channel_{v}"] == "none") & (df[f"njets_{v}"] == 1), f"channel_{v}"
-        ] = "ggh_1jet"
-        df.loc[
-            (df[f"channel_{v}"] == "none") & (df[f"njets_{v}"] > 1), f"channel_{v}"
-        ] = "ggh_2orMoreJets"
+    df.loc[
+        (df[f"channel_{v}"] == "none")
+        & (df[f"jj_mass_{v}"] > 400)
+        & (df[f"jj_dEta_{v}"] > 2.5)
+        & (df[f"jet1_pt_{v}"] > 35),
+        f"channel_{v}",
+    ] = "vbf"
+    df.loc[
+        (df[f"channel_{v}"] == "none") & (df[f"njets_{v}"] < 1), f"channel_{v}"
+    ] = "ggh_0jets"
+    df.loc[
+        (df[f"channel_{v}"] == "none") & (df[f"njets_{v}"] == 1), f"channel_{v}"
+    ] = "ggh_1jet"
+    df.loc[
+        (df[f"channel_{v}"] == "none") & (df[f"njets_{v}"] > 1), f"channel_{v}"
+    ] = "ggh_2orMoreJets"
 
 
 def categorize_by_score(df, scores, mode="uniform", **kwargs):
@@ -50,6 +37,7 @@ def categorize_by_score(df, scores, mode="uniform", **kwargs):
 
 
 def categorize_dnn_output(df, score_name, channel, region, year):
+    # Run 2 (VBF yields)
     target_yields = {
         "2016": [
             0.35455259,
@@ -111,13 +99,19 @@ def categorize_dnn_output(df, score_name, channel, region, year):
     df_sorted["wgt_cumsum"] = df_sorted.wgt_nominal.cumsum()
 
     tot_yield = 0
+    last_yield = 0
     for yi in reversed(target_yields[year]):
         tot_yield += yi
         for i in range(df_sorted.shape[0] - 1):
             value = df_sorted.loc[i, "wgt_cumsum"]
             value1 = df_sorted.loc[i + 1, "wgt_cumsum"]
             if (value < tot_yield) & (value1 > tot_yield):
+                if abs(last_yield - tot_yield) < 1e-06:
+                    continue
+                if abs(tot_yield - sum(target_yields[year])) < 1e-06:
+                    continue
                 bins.append(df_sorted.loc[i, score_name])
+                last_yield = tot_yield
     bins.append(0.0)
     bins = sorted(bins)
     print(bins)
