@@ -35,11 +35,13 @@ def rapidity(obj):
     return rap
 
 
-def cs_variables(mu1, mu2):
-    dphi = abs(np.mod(mu1.phi - mu2.phi + np.pi, 2 * np.pi) - np.pi)
-    theta_cs = np.arccos(np.tanh((mu1.eta - mu2.eta) / 2))
+def cs_variables_old(mu1, mu2, two_muons):
+    dphi = abs(
+        np.mod(mu1.phi[two_muons] - mu2.phi[two_muons] + np.pi, 2 * np.pi) - np.pi
+    )
+    theta_cs = np.arccos(np.tanh((mu1.eta[two_muons] - mu2.eta[two_muons]) / 2))
     phi_cs = np.tan((np.pi - np.abs(dphi)) / 2) * np.sin(theta_cs)
-    return np.cos(theta_cs), phi_cs
+    return np.cos(theta_cs.flatten()), phi_cs.flatten()
 
 
 # https://root.cern.ch/doc/master/classTVector3
@@ -149,7 +151,7 @@ def invert(rot):
 
 
 # https://github.com/arizzi/PisaHmm/blob/master/boost_to_CS.h
-def cs_variables_pisa(mu1, mu2):
+def cs_variables(mu1, mu2):
     multiplier = mu2.charge
     mu1_px = mu1.pt * np.cos(mu1.phi)
     mu1_py = mu1.pt * np.sin(mu1.phi)
@@ -194,6 +196,7 @@ def cs_variables_pisa(mu1, mu2):
         pw[i][~angle_filter] = multiplier[~angle_filter] * pw[i][~angle_filter]
 
     pf_mag = np.sqrt(pf[0] * pf[0] + pf[1] * pf[1] + pf[2] * pf[2])
+    #print("Number of pf mag", len(pf_mag))
     pw_mag = np.sqrt(pw[0] * pw[0] + pw[1] * pw[1] + pw[2] * pw[2])
     for i in range(4):
         pf[i] = pf[i] / pf_mag
@@ -213,9 +216,90 @@ def cs_variables_pisa(mu1, mu2):
         np.sqrt(muminus[0] * muminus[0] + muminus[1] * muminus[1]), muminus[2]
     )
     cos_theta_cs = np.cos(theta_cs)
+    #print("Type of muminus ", type(muminus[0]))
+    #print("Type of theta cs ", type(theta_cs))
+    #print("Number of theta cs ", len(theta_cs))
+    #print("Number of cos(theta cs) ", len(cos_theta_cs))
+    #print("cos_theta_cs is ", cos_theta_cs[0:5])
+
     phi_cs = np.arctan2(muminus[1], muminus[0])
     return cos_theta_cs, phi_cs
 
+
+def cs_variables_run2(mu1, mu2):
+    multiplier = mu2.charge
+    mu1_px = mu1.pt * np.cos(mu1.phi)
+    mu1_py = mu1.pt * np.sin(mu1.phi)
+    mu1_pz = mu1.pt * np.sinh(mu1.eta)
+    mu1_e = np.sqrt(mu1_px**2 + mu1_py**2 + mu1_pz**2 + mu1.mass**2)
+    mu2_px = mu2.pt * np.cos(mu2.phi)
+    mu2_py = mu2.pt * np.sin(mu2.phi)
+    mu2_pz = mu2.pt * np.sinh(mu2.eta)
+    mu2_e = np.sqrt(mu2_px**2 + mu2_py**2 + mu2_pz**2 + mu2.mass**2)
+    px = mu1_px + mu2_px
+    py = mu1_py + mu2_py
+    pz = mu1_pz + mu2_pz
+    e = mu1_e + mu2_e
+
+    mu1_kin = [mu1_px, mu1_py, mu1_pz, mu1_e] #v1
+    mu2_kin = [mu2_px, mu2_py, mu2_pz, mu2_e] #v2
+    pf = (
+        np.full(len(px), 0),
+        np.full(len(px), 0),
+        np.full(len(px), -6500),
+        np.full(len(px), 6500),
+    ) #b2
+    pw = (
+        np.full(len(px), 0),
+        np.full(len(px), 0),
+        np.full(len(px), 6500),
+        np.full(len(px), 6500),
+    ) #b1
+    boost_vector = [-px / e, -py / e, -pz / e] #boostToVFrame
+
+    mu1_kin = boost(mu1_kin, boost_vector) #refV_v1
+    mu2_kin = boost(mu2_kin, boost_vector) #refV_v2
+    pf = boost(pf, boost_vector) #refV_b2
+    pw = boost(pw, boost_vector) #refV_b1
+    
+    pf_mag = np.sqrt(pf[0] * pf[0] + pf[1] * pf[1] + pf[2] * pf[2])
+    pw_mag = np.sqrt(pw[0] * pw[0] + pw[1] * pw[1] + pw[2] * pw[2])
+    #print("Number of pf mag", len(pf_mag))
+    for i in range(3):
+        pf[i] = pf[i] / pf_mag #refV_vb2_direction
+        pw[i] = pw[i] / pw_mag #refV_vb1_direction
+
+    cs_dirz = unit([pw[0] - pf[0], pw[1] - pf[1], pw[2] - pf[2]]) #direction_cs
+    cs_dirx = unit([pw[0] + pf[0], pw[1] + pf[1], pw[2] + pf[2]]) #xAxis_cs
+    cs_diry = unit(cross(cs_dirz, cs_dirx)) #yAxis_cs
+
+    theta_cs = pd.Series(np.full(len(px), 0), index=mu1_px.index)
+    #theta_cs = mu2_kin[0]
+    theta_cs[mu1.charge<0] = angle([cs_dirz[0][mu1.charge<0], cs_dirz[1][mu1.charge<0], cs_dirz[2][mu1.charge<0]], [mu1_kin[0][mu1.charge<0], mu1_kin[1][mu1.charge<0], mu1_kin[2][mu1.charge<0]]) 
+    theta_cs[mu2.charge<0] = angle([cs_dirz[0][mu2.charge<0], cs_dirz[1][mu2.charge<0], cs_dirz[2][mu2.charge<0]], [mu2_kin[0][mu2.charge<0], mu2_kin[1][mu2.charge<0], mu2_kin[2][mu2.charge<0]])
+    #print("The index is ", mu1_px.index)
+    #cos_theta_cs = pd.Series(np.cos(theta_cs), index=mu1_px.index)
+    cos_theta_cs = np.cos(theta_cs)
+    #print("Number of theta cs ", len(theta_cs))
+    #print("Number of cos(theta cs) ", len(cos_theta_cs))
+    #print("cos_theta_cs is ", cos_theta_cs[0:5])
+    #muminus = (
+    #    np.full(len(px), 0),
+    #    np.full(len(px), 0),
+    #)
+    #muminus = [mu2_kin[0],mu2_kin[1]]
+    muminus = [pd.Series(data=np.full(len(px), 0), index=mu1_px.index), pd.Series(data=np.full(len(px), 0), index=mu1_px.index)]
+    #muminus[0][mu1.charge<0] = ( mu1_kin[0] * cs_dirx[0] + mu1_kin[1] * cs_dirx[1] + mu1_kin[2] * cs_dirx[2], mu1_kin[0] * cs_diry[0] + mu1_kin[1] * cs_diry[1] + mu1_kin[2] * cs_diry[2], mu1_kin[0] * cs_dirz[0] + mu1_kin[1] * cs_dirz[1] + mu1_kin[2] * cs_dirz[2])
+    muminus[0][mu1.charge<0] = mu1_kin[0][mu1.charge<0] * cs_dirx[0][mu1.charge<0] + mu1_kin[1][mu1.charge<0] * cs_dirx[1][mu1.charge<0] + mu1_kin[2][mu1.charge<0] * cs_dirx[2][mu1.charge<0]
+    muminus[1][mu1.charge<0] = mu1_kin[0][mu1.charge<0] * cs_diry[0][mu1.charge<0] + mu1_kin[1][mu1.charge<0] * cs_diry[1][mu1.charge<0] + mu1_kin[2][mu1.charge<0] * cs_diry[2][mu1.charge<0]
+
+    muminus[0][mu2.charge<0] = mu2_kin[0][mu2.charge<0] * cs_dirx[0][mu2.charge<0] + mu2_kin[1][mu2.charge<0] * cs_dirx[1][mu2.charge<0] + mu2_kin[2][mu2.charge<0] * cs_dirx[2][mu2.charge<0]
+    muminus[1][mu2.charge<0] = mu2_kin[0][mu2.charge<0] * cs_diry[0][mu2.charge<0] + mu2_kin[1][mu2.charge<0] * cs_diry[1][mu2.charge<0] + mu2_kin[2][mu2.charge<0] * cs_diry[2][mu2.charge<0]
+    #mu1_kin[0] * cs_dirz[0] + mu1_kin[1] * cs_dirz[1] + mu1_kin[2] * cs_dirz[2])
+
+    phi_cs = np.arctan2(muminus[1], muminus[0])
+    #print("phi_cs is ", phi_cs[0:5])
+    return cos_theta_cs, phi_cs
 
 def delta_r(eta1, eta2, phi1, phi2):
     deta = abs(eta1 - eta2)

@@ -1,6 +1,6 @@
 import numpy as np
 
-from python.math_tools import p4_sum, delta_r, cs_variables, cs_variables_pisa
+from python.math_tools import p4_sum, delta_r, cs_variables, cs_variables_pisa, cs_variables_run2
 
 
 def fill_muons(processor, output, mu1, mu2, is_mc):
@@ -64,7 +64,7 @@ def fill_muons(processor, output, mu1, mu2, is_mc):
         output.dimuon_pisa_mass_res_rel * output.dimuon_mass
     )
 
-    output["dimuon_cos_theta_cs"], output["dimuon_phi_cs"] = cs_variables(mu1, mu2)
+    output["dimuon_cos_theta_cs"], output["dimuon_phi_cs"] = cs_variables_run2(mu1, mu2)
     (
         output["dimuon_cos_theta_cs_pisa"],
         output["dimuon_phi_cs_pisa"],
