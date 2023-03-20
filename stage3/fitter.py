@@ -359,6 +359,145 @@ class Fitter(object):
         # self.workspace.Import(model)
         getattr(self.workspace, "import")(model)
 
+    def CorePdfFit(
+        self,
+        dataset=None,
+        label="test",
+        category="cat0",
+        blinded=False,
+        model_names=[],
+        orders={},
+        fix_parameters=False,
+        store_multipdf=False,
+        title="",
+        save=True,
+        save_path="./",
+        norm=0,
+    ):
+        corePDF_results = {}
+        hists_All = {}
+        nCats = 5
+        coreModelNames = ["bwz_redux_model"]
+        for fitmodel in coreModelNames:
+            add_model(ws, fitmodel, "_" + processName + "_corepdf")
+        fixparam = False
+        isBlinded = False
+        name = "fake_data_Background_corPdfFit" + args.ext
+        title = "Background"
+        dataStack = rt.THStack("full_data", "full_data")
+        for icat in range(nCats):
+            hist_name = "hist" + "_" + processName + "_cat" + str(icat)
+            ds = self.generate_data(
+                ws, "bwz_redux_model", "_" + processName + "_corepdf", 100, lumi
+            )
+            hist = rt.RooAbsData.createHistogram(
+                ds, hist_name, ws.var("mass"), rt.RooFit.Binning(80)
+            )
+            # hist.Write()
+            hists_All[hist_name] = hist
+            print(hists_All)
+            print(hists_All[hist_name].Integral())
+            # fake_data.append(ds)
+            dataStack.Add(hist)
+            self.add_data(ws, hist, False, hist_name + "_fake", False)
+        print(hists_All)
+        dataStack_Full = dataStack.GetStack().Last()
+        hists_All[dataStack_Full.GetName()] = dataStack_Full
+        # dataStack_Full.Write()
+        fullDataSet = rt.RooDataHist(
+            "core_Data", "core_Data", rt.RooArgList(ws.var("mass")), dataStack_Full
+        )
+        self.add_data(ws, fullDataSet, False, "_Core_fake", False)
+        ws.Print()
+        # plotter(ws,["ds_fake"], False, category, "data_bwZreduxmodel","BWZRedux model fake Data")
+        corepdf_chi2 = self.fit(
+            ws,
+            "ds_Core_fake",
+            coreModelNames,
+            isBlinded,
+            fixparam,
+            "_" + processName + "_corepdf",
+            True,
+            name,
+            title,
+        )
+        norm_Core = rt.RooRealVar(
+            "bkg_norm_Core",
+            "bkg_norm_Core",
+            fullDataSet.sumEntries(),
+            -float("inf"),
+            float("inf"),
+        )
+        for icat in range(nCats):
+            histName = "hist" + "_" + processName + "_cat" + str(icat)
+            ws_corepdf = rt.RooWorkspace("ws_corepdf", False)
+            ws_corepdf.Import(
+                ws.pdf("bwz_redux_model" + "_" + processName + "_corepdf")
+            )
+            prefix = "cat" + str(icat)
+            print(hists_All)
+            transferHist = hists_All[histName].Clone()
+            transferHist.Divide(dataStack_Full)
+            transferHist.Scale(1 / transferHist.Integral())
+            transferDataSet = rt.RooDataHist(
+                "transfer_" + prefix,
+                "transfer_" + prefix,
+                rt.RooArgList(ws.var("mass")),
+                transferHist,
+            )
+            transferDataName = transferDataSet.GetName()
+            ws.Import(transferDataSet)
+            ws_corepdf.Import(transferDataSet)
+            chebyOrder = 3 if icat < 1 else 2
+            add_model(
+                ws,
+                "chebychev_" + str(chebyOrder) + "_model",
+                "_" + processName + "_" + prefix,
+            )
+            # transferFuncName = "chebychev_"+str(chebyOrder)+"_"+processName+"_"+prefix
+            transferFuncName = "chebychev" + str(chebyOrder)
+            chi2 = self.fit(
+                ws,
+                transferDataName,
+                [transferFuncName],
+                isBlinded,
+                fixparam,
+                "_" + processName + "_" + prefix,
+                True,
+                name,
+                title,
+            )
+            coreBWZRedux = rt.RooProdPdf(
+                "bkg_bwzredux_" + "_" + processName + "_" + prefix,
+                "bkg_bwzredux_" + "_" + processName + "_" + prefix,
+                ws.pdf("bwz_redux_model" + "_" + processName + "_corepdf"),
+                ws.pdf(transferFuncName + "_" + processName + "_" + prefix),
+            )
+            ws_corepdf.Import(coreBWZRedux, rt.RooFit.RecycleConflictNodes())
+            cat_dataSet = rt.RooDataHist(
+                "data_" + prefix,
+                "data_" + prefix,
+                rt.RooArgList(ws.var("mass")),
+                transferDataSet,
+            )
+            ndata_cat = cat_dataSet.sumEntries()
+            norm_cat = rt.RooRealVar(
+                "bkg_" + prefix + "_pdf_norm",
+                "bkg_" + prefix + "_pdf_norm",
+                ndata_cat,
+                -float("inf"),
+                float("inf"),
+            )
+            ws_corepdf.Import(cat_dataSet)
+            ws_corepdf.Import(norm_cat)
+            ws_corepdf.Import(norm_Core)
+        if save:
+            mkdir(save_path)
+            self.save_workspace(
+                f"{save_path}/workspace_{self.channel}_{category}_{label}{self.filename_ext}"
+            )
+        return chi2
+
     def fit(
         self,
         ds_name,
