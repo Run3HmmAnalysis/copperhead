@@ -3,12 +3,14 @@ import awkward as ak
 
 
 def fsr_recovery(df):
+    print(df.Muon.fsrPhotonIdx>=0)
+    print(df.Electron.photonIdx)
     mask = (
         (df.Muon.fsrPhotonIdx >= 0)
         & (df.Muon.matched_fsrPhoton.relIso03 < 1.8)
         & (df.Muon.matched_fsrPhoton.dROverEt2 < 0.012)
         & (df.Muon.matched_fsrPhoton.pt / df.Muon.pt < 0.4)
-        & (abs(df.Muon.matched_fsrPhoton.eta) < 2.4)
+        & (abs(df.Muon.matched_fsrPhoton.eta) < 2.5)
     )
     mask = ak.fill_none(mask, False)
 
