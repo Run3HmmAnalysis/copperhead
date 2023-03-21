@@ -1,4 +1,4 @@
-Goodness of Fit using Chi-square in Higgs Combine
+##Goodness of Fit using Chi-square in Higgs Combine
 
 This README provides a step-by-step guide on how to perform the goodness of fit test using the Chi-square method in Higgs Combine for 5 categories with their corresponding datacards.
 Prerequisites
