@@ -6,23 +6,97 @@ import pickle
 import glob
 import re
 import uproot3
+import subprocess
+import traceback
+
+EOS_SERVER = "davs://eos.cms.rcac.purdue.edu:9000/"
 
 
+# new implementation (for eos)
 def mkdir(path):
+    eos_path = EOS_SERVER + path
+    print(f"Creating directory {eos_path}")
+    try:
+        subprocess.run([f"gfal-mkdir {eos_path}"], shell=True)
+    except Exception as e:
+        tb = traceback.format_exc()
+        return "Failed: " + str(e) + " " + tb
+
+
+def remove(path):
+    eos_path = EOS_SERVER + path
+    try:
+        subprocess.run([f"gfal-rm -r {eos_path}"], shell=True)
+    except Exception as e:
+        tb = traceback.format_exc()
+        return "Failed: " + str(e) + " " + tb
+
+
+def save_stage1_output_to_parquet(output, out_dir):
+    name = None
+    for key, task in get_worker().tasks.items():
+        if task.state == "executing":
+            name = key[-32:]
+    if not name:
+        return
+    for dataset in output.dataset.unique():
+        df = output[output.dataset == dataset]
+        if df.shape[0] == 0:
+            return
+
+        path = f"{out_dir}/{dataset}"
+        print(f"Create {path}?")
+        mkdir(path)
+
+        df.to_parquet(path=f"/tmp/{name}.parquet")
+
+        eos_path = EOS_SERVER + path
+        subprocess.run(
+            [f"gfal-copy file:////tmp/{name}.parquet {eos_path}"], shell=True
+        )
+        subprocess.run([f"rm /tmp/{name}.parquet"], shell=True)
+
+
+def delete_existing_stage1_output(datasets, parameters):
+    global_path = parameters.get("global_path", None)
+    label = parameters.get("label", None)
+    year = parameters.get("year", None)
+
+    if (global_path is None) or (label is None) or (year is None):
+        return
+
+    for dataset in datasets:
+        path = f"{global_path}/{label}/stage1_output/{year}/{dataset}/"
+        eos_path = EOS_SERVER + path
+        print(f"Deleting files in {eos_path}")
+        try:
+            paths = subprocess.run(
+                [f"gfal-ls {eos_path}"], stdout=subprocess.PIPE, shell=True
+            ).stdout.splitlines()
+            for file in paths:
+                file = file.decode("utf-8").rstrip("\r|\n")
+                subprocess.run([f"gfal-rm {eos_path}/{file}"], shell=True)
+        except Exception as e:
+            tb = traceback.format_exc()
+            return "Failed: " + str(e) + " " + tb
+
+
+# old implementation (for hadoop)
+def mkdir_(path):
     try:
         os.mkdir(path)
     except Exception:
         pass
 
 
-def remove(path):
+def remove_(path):
     try:
         os.remove(path)
     except Exception:
         pass
 
 
-def save_stage1_output_to_parquet(output, out_dir):
+def save_stage1_output_to_parquet_(output, out_dir):
     name = None
     for key, task in get_worker().tasks.items():
         if task.state == "executing":
@@ -37,7 +111,7 @@ def save_stage1_output_to_parquet(output, out_dir):
         df.to_parquet(path=f"{out_dir}/{dataset}/{name}.parquet")
 
 
-def delete_existing_stage1_output(datasets, parameters):
+def delete_existing_stage1_output_(datasets, parameters):
     global_path = parameters.get("global_path", None)
     label = parameters.get("label", None)
     year = parameters.get("year", None)
@@ -127,6 +201,7 @@ def save_stage2_output_hists(hist, var_name, dataset, year, parameters, npart=No
         path = f"{out_dir}/{dataset}.pickle"
     else:
         path = f"{out_dir}/{dataset}_{npart}.pickle"
+
     with open(path, "wb") as handle:
         pickle.dump(hist, handle, protocol=pickle.HIGHEST_PROTOCOL)
 

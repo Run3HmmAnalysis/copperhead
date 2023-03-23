@@ -12,17 +12,18 @@ DEBUG = False
 
 
 def load_sample(dataset, parameters):
-    xrootd = parameters["xrootd"]
     args = {
         "year": parameters["year"],
         "server": parameters["server"],
         "datasets_from": "purdue",
         "debug": DEBUG,
-        "xrootd": xrootd,
+        "xrootd": parameters["xrootd"],
+        "eos": parameters["eos"],
         "timeout": 120,
     }
     samp_info = SamplesInfo(**args)
     samp_info.load(dataset, use_dask=True, client=parameters["client"])
+    # samp_info.load(dataset, use_dask=False, client=None)
     samp_info.finalize()
     return {dataset: samp_info}
 
@@ -32,6 +33,7 @@ def load_samples(datasets, parameters):
         "year": parameters["year"],
         "server": parameters["server"],
         "datasets_from": "purdue",
+        "eos": parameters["eos"],
         "debug": DEBUG,
     }
     samp_info_total = SamplesInfo(**args)
@@ -50,6 +52,28 @@ def load_samples(datasets, parameters):
         samp_info_total.lumi_weights.update(si.lumi_weights)
         samp_info_total.samples.append(si.sample)
     return samp_info_total
+
+
+def read_from_eos(server, path):
+    command = f"gfal-ls {server}/{path}"
+    # print(command)
+    result = subprocess.run([command], stdout=subprocess.PIPE, shell=True).stdout
+    full_result = []
+    # print(result)
+    if result:
+        result = result.splitlines()
+        for res in result:
+            res = res.decode("utf-8").rstrip("\r|\n")
+            if ".root" in res:
+                full_result.append(
+                    f"{server}/{path}/{res}".replace("davs:", "root:").replace(
+                        ":9000", ""
+                    )
+                )
+            else:
+                full_result.extend(read_from_eos(server, f"{path}/{res}"))
+
+    return full_result
 
 
 def read_via_xrootd(server, path, from_das=True):
@@ -73,6 +97,7 @@ class SamplesInfo(object):
     def __init__(self, **kwargs):
         self.year = kwargs.pop("year", "2016")
         self.xrootd = kwargs.pop("xrootd", True)
+        self.eos = kwargs.pop("eos", False)
         self.server = kwargs.pop("server", "root://xrootd.rcac.purdue.edu/")
         self.timeout = kwargs.pop("timeout", 60)
         self.debug = kwargs.pop("debug", False)
@@ -130,12 +155,12 @@ class SamplesInfo(object):
                 "data_entries": 0,
                 "is_missing": True,
             }
-
         all_files = []
         metadata = {}
         data_entries = 0
-
-        if self.xrootd:
+        if self.eos:
+            all_files = read_from_eos(self.server, self.paths[sample])
+        elif self.xrootd:
             all_files = read_via_xrootd(self.server, self.paths[sample])
         elif self.paths[sample].endswith(".root"):
             all_files = [self.paths[sample]]
@@ -174,6 +199,7 @@ class SamplesInfo(object):
                 if "data" in sample:
                     data_entries += self.get_data(f)["data_entries"]
                 else:
+                    print(f)
                     ret = self.get_mc(f)
                     sumGenWgts += ret["sumGenWgts"]
                     nGenEvts += ret["nGenEvts"]

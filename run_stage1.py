@@ -107,14 +107,18 @@ parameters = {
     "label": args.label,
     "local_cluster": local_cluster,
     "slurm_cluster_ip": slurm_cluster_ip,
-    "global_path": "/depot/cms/hmm/copperhead/",
+    # "global_path": "/depot/cms/hmm/copperhead/",
+    "global_path": "/store/user/dkondrat/copperhead/",
     #
     # < input data settings >
     # 'xrootd': True,
     # 'server': 'root://xrootd.rcac.purdue.edu/', # Purdue xrootd
     # 'server': 'root://cmsxrootd.fnal.gov/', # FNAL xrootd
     "xrootd": False,
-    "server": "/mnt/hadoop/",
+    # "server": "/mnt/hadoop/",
+    # 'server': 'root://eos.cms.rcac.purdue.edu/',
+    "eos": True,
+    "server": "davs://eos.cms.rcac.purdue.edu:9000/",
     "datasets_from": "purdue",
     "chunksize": int(args.chunksize),
     "maxchunks": mch,
@@ -181,7 +185,7 @@ if __name__ == "__main__":
         # create local cluster
         parameters["client"] = Client(
             processes=True,
-            n_workers=40,
+            n_workers=1,
             dashboard_address=dash_local,
             threads_per_worker=1,
             memory_limit="12GB",
@@ -249,14 +253,21 @@ if __name__ == "__main__":
             # if sample != 'data_B':
             # if sample != 'dy_m105_160_amc':
             # if sample != "vbf_powheg_dipole":
+            # if (sample != "ggh_amcPS") and (sample != "vbf_powheg_dipole"):
+            # if sample not in [
+            #    "vbf_powheg_dipole",
+            #    #"dy_m105_160_amc",
+            #    #"dy_m105_160_vbf_amc",
+            #    #"ewk_lljj_mll105_160_ptj0"
+            # ]:
             #    continue
             if group == "data":
                 # if 'test' not in sample:
                 #    continue
-                # continue
+                continue
                 datasets_data.append(sample)
             else:
-                continue
+                # continue
                 # if (group != "main_mc") & (group != "signal"):
                 # if (group != "signal"):
                 # if (group != "main_mc"):
