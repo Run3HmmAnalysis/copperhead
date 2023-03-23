@@ -203,34 +203,6 @@ class DimuonProcessor(processor.ProcessorABC):
             # GeoFit correction
             if self.do_geofit and ("dxybs" in df.Muon.fields):
                 apply_geofit(df, self.year, ~has_fsr)
-
-                """
-                eta_bins = np.arange(0, 2.6, 0.2)
-                eta = ak.flatten(df["Muon", "eta"])
-                eta_gen = ak.flatten(df.Muon.matched_gen["eta"])
-                for ibin in range(len(eta_bins)-1):
-                    eta1 = round(eta_bins[ibin], 1)
-                    eta2 = round(eta_bins[ibin+1], 1)
-                    cut = (eta_gen>eta_bins[ibin])&(eta_gen<eta_bins[ibin+1])&ak.flatten(~has_fsr)
-                    #cut = (eta>eta_bins[ibin])&(eta<eta_bins[ibin+1])#&ak.flatten(~has_fsr)
-                    pt_orig = ak.flatten(df["Muon", "pt"])[cut]
-                    pt_new = ak.flatten(df["Muon", "pt_gf"])[cut]
-                    pt_gen = ak.flatten(df.Muon.matched_gen["pt"])[cut]
-                    num_ev = ak.sum(cut)
-                    init = ak.to_numpy((1/pt_orig - 1/pt_gen)/(1/pt_gen)).std()
-                    fin = ak.to_numpy((1/pt_new - 1/pt_gen)/(1/pt_gen)).std()
-                    improv = (fin-init)/init
-                    init = round(init, 4)
-                    fin = round(fin, 4)
-                    improv = round(improv*100, 2)
-                    #print(init)
-                    #print(fin)
-                    #print((fin-init)/init)
-                    print(f"eta: {eta1} - {eta2}:  res. before: {init}, res. after: {fin}, change: {improv}%")
-
-                return pd.DataFrame()
-                """
-
                 df["Muon", "pt"] = df.Muon.pt_fsr
 
             if self.timer:
@@ -248,18 +220,9 @@ class DimuonProcessor(processor.ProcessorABC):
                 "pt_raw",
                 "eta_raw",
                 "pfRelIso04_all",
-                # "dxybs",
             ] + [self.parameters["muon_id"]]
             muons = ak.to_pandas(df.Muon[muon_columns])
-            # print(muons.dxybs)
 
-            muons_gen_pt = ak.to_pandas(df.Muon.matched_gen.pt)
-            mu1_gen_pt = muons_gen_pt.loc[(slice(None), 0), :]
-            mu2_gen_pt = muons_gen_pt.loc[(slice(None), 1), :]
-            mu1_gen_pt.index = mu1_gen_pt.index.droplevel("subentry")
-            mu2_gen_pt.index = mu2_gen_pt.index.droplevel("subentry")
-            output["mu1_gen_pt"] = mu1_gen_pt
-            output["mu2_gen_pt"] = mu2_gen_pt
             # --------------------------------------------------------#
             # Select muons that pass pT, eta, isolation cuts,
             # muon ID and quality flags
@@ -334,7 +297,6 @@ class DimuonProcessor(processor.ProcessorABC):
             mu2 = muons.loc[muons.pt.groupby("entry").idxmin()]
             mu1.index = mu1.index.droplevel("subentry")
             mu2.index = mu2.index.droplevel("subentry")
-            # print(mu1.mass)
 
             # --------------------------------------------------------#
             # Select events with muons passing leading pT cut
@@ -534,10 +496,6 @@ class DimuonProcessor(processor.ProcessorABC):
             or (c[0] in ["region", "dataset", "year"])
             or ("gjet" in c[0])
             or ("gjj" in c[0])
-            or ("jet" in c[0])
-            or ("gen_pt" in c[0])
-            or ("charge" in c[0])
-            or ("dxybs" in c[0])
         ]
         output = output.loc[output.event_selection, columns_to_save]
         output = output.reindex(sorted(output.columns), axis=1)
@@ -705,19 +663,12 @@ class DimuonProcessor(processor.ProcessorABC):
         try:
             jet1 = jets.loc[pd.IndexSlice[:, 0], :]
             jet2 = jets.loc[pd.IndexSlice[:, 1], :]
-            jet3 = jets.loc[pd.IndexSlice[:, 2], :]
-            jet4 = jets.loc[pd.IndexSlice[:, 3], :]
-            jet5 = jets.loc[pd.IndexSlice[:, 4], :]
             jet1.index = jet1.index.droplevel("subentry")
             jet2.index = jet2.index.droplevel("subentry")
-            jet3.index = jet3.index.droplevel("subentry")
-            jet4.index = jet4.index.droplevel("subentry")
-            jet5.index = jet5.index.droplevel("subentry")
-
         except Exception:
             return
 
-        fill_jets(output, variables, jet1, jet2, jet3, jet4, jet5)
+        fill_jets(output, variables, jet1, jet2)
 
         # ------------------------------------------------------------#
         # Fill soft activity jet variables
@@ -791,6 +742,7 @@ class DimuonProcessor(processor.ProcessorABC):
 
         # All variables are affected by jet pT because of jet selections:
         # a jet may or may not be selected depending on pT variation.
+
         for key, val in variables.items():
             output.loc[:, pd.IndexSlice[key, variation]] = val
 
