@@ -39,7 +39,7 @@ def make_histograms(df, var_name, year, dataset, regions, channels, npart, param
             if model_name in parameters["mva_bins"].keys():
                 bins = parameters["mva_bins"][model_name][f"{year}"]
             else:
-                bins = np.arange(102) / 50.0
+                bins = 0.45 + (np.arange(102) / 1000.0)
         else:
             bins = np.arange(102) / 50.0
         hist = hist.Var(bins, name=var.name)

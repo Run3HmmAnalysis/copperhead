@@ -147,15 +147,31 @@ def plot(args, parameters={}):
 
         yerr = np.sqrt(sum(plottables).values()) if entry.yerr else None
 
-        hep.histplot(
-            plottables,
-            label=labels,
-            ax=ax1,
-            yerr=yerr,
-            stack=entry.stack,
-            histtype=entry.histtype,
-            **entry.plot_opts,
-        )
+        if entry.histtype == "step":
+            from cycler import cycler
+
+            custom_cycler = cycler(color=["magenta", "cyan", "yellow"])
+            ax1.set_prop_cycle(custom_cycler)
+
+            hep.histplot(
+                plottables,
+                label=labels,
+                ax=ax1,
+                yerr=yerr,
+                stack=entry.stack,
+                histtype=entry.histtype,
+                **entry.plot_opts,
+            )
+        else:
+            hep.histplot(
+                plottables,
+                label=labels,
+                ax=ax1,
+                yerr=yerr,
+                stack=entry.stack,
+                histtype=entry.histtype,
+                **entry.plot_opts,
+            )
 
         # MC errors
         if entry.entry_type == "stack":

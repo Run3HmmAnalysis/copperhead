@@ -6,7 +6,7 @@ rename_regions = {
     "h-sidebands": "SB",
     "z-peak": "Z",
 }
-signal_groups = ["VBF", "ggH"]
+signal_groups = ["VBF", "ggH", "VBF_0J", "VBF_1J", "VBF_01J", "VBF_2J"]
 rate_syst_lookup = {
     "2016": {
         "XsecAndNorm2016DYJ2": {"DY_2J": 1.1291},

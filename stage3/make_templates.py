@@ -48,7 +48,7 @@ def to_templates(client, parameters, hist_df=None):
         ],
         "hist_df": [hist_df],
     }
-    yield_dfs = parallelize(make_templates, argset, client, parameters, seq=True)
+    yield_dfs = parallelize(make_templates, argset, client, parameters, seq=False)
     yield_df = pd.concat(yield_dfs).reset_index(drop=True)
     return yield_df
 

@@ -31,9 +31,12 @@ args = parser.parse_args()
 # Dask client settings
 use_local_cluster = args.slurm_port is None
 node_ip = "128.211.149.133"
+# node_ip = "128.211.149.140"
+# node_ip = "128.211.148.61"
+
 
 if use_local_cluster:
-    ncpus_local = 40
+    ncpus_local = 4
     slurm_cluster_ip = ""
     dashboard_address = f"{node_ip}:34875"
 else:
@@ -46,34 +49,73 @@ parameters = {
     "slurm_cluster_ip": slurm_cluster_ip,
     "global_path": "/depot/cms/hmm/copperhead/",
     "years": args.years,
-    "label": "test",
+    # "label": "2022jun1", #baseline
+    "label": "2022jul29",
     "channels": ["vbf"],
     "regions": ["h-peak", "h-sidebands"],
     "syst_variations": ["nominal"],
     # "custom_npartitions": {
-    #     "vbf_powheg_dipole": 1,
+    #    "vbf_powheg_dipole": 1,
     # },
     #
     # < settings for histograms >
-    "hist_vars": ["dimuon_mass"],
+    "hist_vars": [
+        # "dimuon_mass",
+        # "mu1_pt", "mu2_pt",
+        # "dimuon_pt",
+        # "jet1_pt", "jet2_pt",
+        # "jet1_eta", "jet2_eta",
+        # "jet1_qgl", "jet2_qgl",
+        # "jj_mass",
+        # "ll_zstar_log",
+        # "rpt",
+        # "dimuon_pisa_mass_res",
+        # "dimuon_ebe_mass_res_rel",
+        # "jj_dEta",
+        # "mmj_min_dEta",
+        # "nsoftjets5",
+        # "htsoft2",
+    ],
     "variables_lookup": variables_lookup,
     "save_hists": True,
     #
     # < settings for unbinned output>
     "tosave_unbinned": {
-        "vbf": ["dimuon_mass", "event", "wgt_nominal", "mu1_pt", "score_pytorch_test"],
-        "ggh_0jets": ["dimuon_mass", "wgt_nominal"],
-        "ggh_1jet": ["dimuon_mass", "wgt_nominal"],
-        "ggh_2orMoreJets": ["dimuon_mass", "wgt_nominal"],
+        # "vbf": ["dimuon_mass"],
+        # "ggh_0jets": ["dimuon_mass", "wgt_nominal"],
+        # "ggh_1jet": ["dimuon_mass", "wgt_nominal"],
+        # "ggh_2orMoreJets": ["dimuon_mass", "wgt_nominal"],
     },
-    "save_unbinned": True,
+    "save_unbinned": False,
     #
     # < MVA settings >
-    "models_path": "data/trained_models/",
+    # "models_path": "data/trained_models_bdt/vbf/",
+    "models_path": "/depot/cms/hmm/copperhead/trained_models/",
     "dnn_models": {
-        "vbf": ["pytorch_test"],
+        # "vbf": ["pytorch_test"],
+        # "vbf": ["pytorch_jun27"],
+        # "vbf": ["pytorch_jun27"],
+        "vbf": ["pytorch_jul12"],  # jun27 is best
+        # "vbf": ["pytorch_aug7"],
+        # "vbf": [
+        #    #"pytorch_sep4",
+        #    #"pytorch_sep2_vbf_vs_dy",
+        #    #"pytorch_sep2_vbf_vs_ewk",
+        #    #"pytorch_sep2_vbf_vs_dy+ewk",
+        #    #"pytorch_sep2_ggh_vs_dy",
+        #    #"pytorch_sep2_ggh_vs_ewk",
+        #    #"pytorch_sep2_ggh_vs_dy+ewk",
+        #    #"pytorch_sep2_vbf+ggh_vs_dy",
+        #    #"pytorch_sep2_vbf+ggh_vs_ewk",
+        #    #"pytorch_sep2_vbf+ggh_vs_dy+ewk",
+        # ],
+        # "vbf": ["pytorch_may24_pisa"],
     },
-    "bdt_models": {},
+    # "mva_categorizer": "3layers_64_32_16_all_feat",
+    # "vbf_mva_cutoff": 0.5,
+    "bdt_models": {
+        # "vbf": ["bdt_sep13"],
+    },
     "mva_bins_original": mva_bins,
 }
 
@@ -88,7 +130,8 @@ parameters["datasets"] = [
     "data_H",
     "dy_m105_160_amc",
     "dy_m105_160_vbf_amc",
-    "ewk_lljj_mll105_160_py_dipole",
+    # "ewk_lljj_mll105_160_py_dipole",
+    "ewk_lljj_mll105_160_ptj0",
     "ttjets_dl",
     "ttjets_sl",
     "ttw",
@@ -108,7 +151,9 @@ parameters["datasets"] = [
     "vbf_powheg_dipole",
 ]
 # using one small dataset for debugging
-# parameters["datasets"] = ["vbf_powheg_dipole"]
+parameters["datasets"] = ["vbf_powheg_dipole"]
+# parameters["datasets"] = ["dy_m105_160_amc", "dy_m105_160_vbf_amc"]
+# parameters["datasets"] = ["ewk_lljj_mll105_160_ptj0"]
 
 if __name__ == "__main__":
     # prepare Dask client
@@ -122,7 +167,7 @@ if __name__ == "__main__":
             dashboard_address=dashboard_address,
             n_workers=ncpus_local,
             threads_per_worker=1,
-            memory_limit="4GB",
+            memory_limit="8GB",
         )
     else:
         print(
@@ -146,6 +191,7 @@ if __name__ == "__main__":
         all_paths[year] = {}
         for dataset in parameters["datasets"]:
             paths = glob.glob(
+                # f"/depot/cms/hmm/coffea/{year}_2022apr6/{dataset}/*.parquet"
                 f"{parameters['global_path']}/"
                 f"{parameters['label']}/stage1_output/{year}/"
                 f"{dataset}/*.parquet"
@@ -161,9 +207,15 @@ if __name__ == "__main__":
 
             # read stage1 outputs
             df = load_dataframe(client, parameters, inputs=[path], dataset=dataset)
+
             if not isinstance(df, dd.DataFrame):
                 continue
-
+            # print(df.compute())
             # run processing sequence (categorization, mva, histograms)
             info = process_partitions(client, parameters, df)
             # print(info)
+            # print(info[
+            #    (info.variation=="nominal")&
+            #    (info.region=="h-peak")&
+            #    (info.var_name=="dimuon_mass")
+            # ].sum())

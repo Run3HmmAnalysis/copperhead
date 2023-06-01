@@ -88,10 +88,12 @@ def on_partition(args, parameters):
     if "dy_m105_160_vbf_amc" in dataset:
         df = df[df.gjj_mass > 350]
 
-    # if dataset in ["vbf_powheg_dipole", "ggh_amcPS"]:
-    #    # improve mass resolution manually
-    #    improvement = 0
-    #    df["dimuon_mass"] = df["dimuon_mass"] + improvement*(125 - df["dimuon_mass"])
+    if dataset in ["vbf_powheg_dipole", "ggh_amcPS"]:
+        # improve mass resolution manually
+        improvement = 0.0
+        df["dimuon_mass"] = df["dimuon_mass"] + improvement * (125 - df["dimuon_mass"])
+        # df["dimuon_pisa_mass_res"] = df["dimuon_pisa_mass_res"]*(1-improvement)
+        # df["dimuon_pisa_mass_res_rel"] = df["dimuon_pisa_mass_res_rel"]*(1-improvement)
 
     # < evaluate here MVA scores before categorization, if needed >
     # ...
@@ -109,7 +111,9 @@ def on_partition(args, parameters):
     ]
 
     # split DY by genjet multiplicity
-    if "dy" in dataset:
+    if ("dy" in dataset) or (dataset == "vbf_powheg_dipole"):
+        df.jet1_has_matched_gen_nominal = df.jet1_has_matched_gen_nominal.astype(bool)
+        df.jet2_has_matched_gen_nominal = df.jet2_has_matched_gen_nominal.astype(bool)
         df.jet1_has_matched_gen_nominal.fillna(False, inplace=True)
         df.jet2_has_matched_gen_nominal.fillna(False, inplace=True)
         df["two_matched_jets"] = (
@@ -203,7 +207,7 @@ def on_partition(args, parameters):
         )
         if hist_info_row is not None:
             hist_info_rows.append(hist_info_row)
-        if "dy" in dataset:
+        if ("dy" in dataset) or (dataset == "vbf_powheg_dipole"):
             for suff in ["01j", "2j"]:
                 hist_info_row = make_histograms(
                     df,

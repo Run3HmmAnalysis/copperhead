@@ -27,9 +27,11 @@ args = parser.parse_args()
 # Dask client settings
 use_local_cluster = args.slurm_port is None
 node_ip = "128.211.149.133"
+# node_ip = "128.211.149.140"
+# node_ip = "128.211.148.61"
 
 if use_local_cluster:
-    ncpus_local = 40
+    ncpus_local = 6
     slurm_cluster_ip = ""
     dashboard_address = f"{node_ip}:34875"
 else:
@@ -42,21 +44,57 @@ parameters = {
     "slurm_cluster_ip": slurm_cluster_ip,
     "years": args.years,
     "global_path": "/depot/cms/hmm/copperhead/",
-    "label": "test",
+    # "label": "2022jun1", # baseline
+    "label": "2022jul29",
     "channels": ["vbf"],
     "regions": ["h-peak", "h-sidebands"],
     "syst_variations": ["nominal"],
     #
     # < plotting settings >
-    "plot_vars": [],  # "dimuon_mass"],
+    "plot_vars": [
+        # "dimuon_mass",
+        # "mu1_pt", "mu2_pt",
+        # "dimuon_pt",
+        # "jet1_pt", "jet2_pt",
+        # "jet1_eta", "jet2_eta",
+        # "jet1_qgl", "jet2_qgl",
+        # "jj_mass",
+        # "ll_zstar_log", "rpt",
+        # "rpt",
+        # "dimuon_pisa_mass_res",
+        # "dimuon_ebe_mass_res",
+        # "dimuon_ebe_mass_res_rel",
+        # "jj_dEta",
+        # "mmj_min_dEta",
+        # "nsoftjets5",
+        # "htsoft2",
+    ],
     "variables_lookup": variables_lookup,
     "save_plots": True,
     "plot_ratio": True,
-    "plots_path": "./plots/2022apr10/",
+    "plots_path": "./plots/2022oct9/",
     "dnn_models": {
-        "vbf": ["pytorch_test"],
+        # "vbf": ["pytorch_test"],
+        "vbf": ["pytorch_jul12"],
+        # "vbf": ["pytorch_jun27"],
+        # "vbf": ["pytorch_aug7"],
+        # "vbf": [
+        #    #"pytorch_sep4",
+        #    #"pytorch_sep2_vbf_vs_dy",
+        #    #"pytorch_sep2_vbf_vs_ewk",
+        #    #"pytorch_sep2_vbf_vs_dy+ewk",
+        #    #"pytorch_sep2_ggh_vs_dy",
+        #    #"pytorch_sep2_ggh_vs_ewk",
+        #    #"pytorch_sep2_ggh_vs_dy+ewk",
+        #    #"pytorch_sep2_vbf+ggh_vs_dy",
+        #    #"pytorch_sep2_vbf+ggh_vs_ewk",
+        #    #"pytorch_sep2_vbf+ggh_vs_dy+ewk",
+        # ],
+        # "vbf": ["pytorch_may24_pisa"],
     },
-    "bdt_models": {},
+    "bdt_models": {
+        # "vbf": ["bdt_sep13"]
+    },
     #
     # < templates and datacards >
     "save_templates": True,
@@ -74,7 +112,12 @@ parameters["grouping"] = {
     "data_H": "Data",
     "dy_m105_160_amc": "DY",
     "dy_m105_160_vbf_amc": "DY",
-    "ewk_lljj_mll105_160_py_dipole": "EWK",
+    "dy_m105_160_amc_01j": "DY_01J",
+    "dy_m105_160_vbf_amc_01j": "DY_01J",
+    "dy_m105_160_amc_2j": "DY_01J",
+    "dy_m105_160_vbf_amc_2j": "DY_2J",
+    # "ewk_lljj_mll105_160_py_dipole": "EWK",
+    "ewk_lljj_mll105_160_ptj0": "EWK",
     "ttjets_dl": "TT+ST",
     "ttjets_sl": "TT+ST",
     "ttw": "TT+ST",
@@ -91,13 +134,17 @@ parameters["grouping"] = {
     "wzz": "VVV",
     "zzz": "VVV",
     "ggh_amcPS": "ggH",
-    "vbf_powheg_dipole": "VBF",
+    # "vbf_powheg_dipole": "VBF",
+    "vbf_powheg_dipole_01j": "VBF_01J",
+    # "vbf_powheg_dipole_0j": "VBF_0J",
+    # "vbf_powheg_dipole_1j": "VBF_1J",
+    "vbf_powheg_dipole_2j": "VBF_2J",
 }
 # parameters["grouping"] = {"vbf_powheg_dipole": "VBF",}
 
 parameters["plot_groups"] = {
-    "stack": ["DY", "EWK", "TT+ST", "VV", "VVV"],
-    "step": ["VBF", "ggH"],
+    "stack": ["DY", "DY_01J", "DY_2J", "EWK", "TT+ST", "VV", "VVV"],
+    "step": ["VBF", "VBF_0J", "VBF_1J", "VBF_01J", "VBF_2J", "ggH"],
     "errorbar": ["Data"],
 }
 
@@ -135,12 +182,33 @@ if __name__ == "__main__":
     parameters["datasets"] = parameters["grouping"].keys()
 
     # make plots
+    # print(parameters["plot_vars"])
     yields = plotter(client, parameters)
-    print(yields)
+    # import sys
+    # sys.exit()
+    # print(yields)
 
     # save templates to ROOT files
-    yield_df = to_templates(client, parameters)
-    print(yield_df)
+    # yield_df = to_templates(client, parameters)
+    # print(yield_df)
+
+    """
+    prefix = "pytorch_sep2"
+    scores = [
+        "vbf_vs_dy",
+        "vbf_vs_ewk",
+        "vbf_vs_dy+ewk",
+        "ggh_vs_dy",
+        "ggh_vs_ewk",
+        "ggh_vs_dy+ewk",
+        "vbf+ggh_vs_dy",
+        "vbf+ggh_vs_ewk",
+        "vbf+ggh_vs_dy+ewk",
+    ]
+    for score in scores:
+        build_datacards(f"score_{prefix}_{score}", yield_df, parameters)
+    """
 
     # make datacards
-    build_datacards("score_pytorch_test", yield_df, parameters)
+    # build_datacards("score_bdt_sep13", yield_df, parameters)
+    # build_datacards("score_pytorch_jul12", yield_df, parameters)

@@ -324,8 +324,6 @@ def evaluate_pytorch_dnn_pisa(
 
 
 def evaluate_bdt(df, variation, model, parameters, score_name):
-    # if parameters["do_massscan"]:
-    #     mass_shift = parameters["mass"] - 125.0
     features = prepare_features(df, parameters, variation, add_year=True)
     score_name = f"score_{model}_{variation}"
     try:
@@ -353,17 +351,8 @@ def evaluate_bdt(df, variation, model, parameters, score_name):
         if df_i.shape[0] == 0:
             continue
         df_i.loc[df_i.region != "h-peak", "dimuon_mass"] = 125.0
-        # if parameters["do_massscan"]:
-        #     df_i.loc[:, "dimuon_mass"] = df_i["dimuon_mass"] - mass_shift
         df_i = (df_i[features] - scalers[0]) / scalers[1]
         if len(df_i) > 0:
-            if "multiclass" in model:
-                prediction = np.array(
-                    bdt_model.predict_proba(df_i.values)[:, 5]
-                ).ravel()
-            else:
-                prediction = np.array(
-                    bdt_model.predict_proba(df_i.values)[:, 1]
-                ).ravel()
+            prediction = np.array(bdt_model.predict_proba(df_i.values)[:, 1]).ravel()
             df.loc[eval_filter, score_name] = prediction  # np.arctanh((prediction))
     return df[score_name]
